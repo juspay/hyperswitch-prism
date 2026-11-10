@@ -9,6 +9,7 @@ import { ClarifyingQuestions } from "./ClarifyingQuestions";
 import { LoadingState } from "./LoadingState";
 import { RetryHistory, type RetryAttempt } from "./RetryHistory";
 import { T } from "../theme";
+import { safeHttpUrl } from "../urlSafety";
 
 const STATUS_BADGE: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
   idle: { bg: T.codeBg, fg: T.textMuted, dot: T.textMuted, label: "Idle" },
@@ -619,9 +620,9 @@ function SubmittedTaskView({ task }: { task: Record<string, unknown> }) {
               {discoveredUrls.map((u, i) => (
                 <a
                   key={i}
-                  href={u}
+                  href={safeHttpUrl(u)}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   style={{
                     fontSize: 12,
                     color: T.accent,

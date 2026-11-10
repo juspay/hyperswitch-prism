@@ -245,6 +245,48 @@
           "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
       }
+    },
+    "no3ds_auto_capture_credit_card_without_optional_address": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "address": {
+          "shipping_address": null,
+          "billing_address": null
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_four_digit_expiry": {
+      "extends": "no3ds_auto_capture_credit_card"
+    },
+    "no3ds_auto_capture_credit_card_two_digit_expiry": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_exp_year": {
+              "value": "30"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card_without_optional_address": {
+      "extends": "no3ds_manual_capture_credit_card",
+      "grpc_req": {
+        "address": {
+          "shipping_address": null,
+          "billing_address": null
+        }
+      }
+    },
+    "no3ds_auto_capture_credit_card_with_setup_future_usage": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "setup_future_usage": "OFF_SESSION",
+        "customer": {
+          "connector_customer_id": "auto_generate"
+        }
+      }
     }
   },
   "PaymentService/Refund": {

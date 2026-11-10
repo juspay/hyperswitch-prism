@@ -2,10 +2,45 @@ syntax = "proto3";
 
 package types;
 
+import "common_types.proto";
 import "payment.proto";
 import "payment_methods.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// Merchant-supplied funds-transfer classification for card payouts. The value must be
+// assigned by the payment processor; UCS does not select or default it.
+enum PayoutFundsTransferType {
+  PAYOUT_FUNDS_TRANSFER_TYPE_UNSPECIFIED = 0;
+  // Account-to-account transfer.
+  PAYOUT_FUNDS_TRANSFER_TYPE_ACCOUNT_TO_ACCOUNT = 1;
+  // Funds transfer.
+  PAYOUT_FUNDS_TRANSFER_TYPE_FUNDS_TRANSFER = 2;
+  // Cross-border money transfer.
+  PAYOUT_FUNDS_TRANSFER_TYPE_CROSS_BORDER_MONEY_TRANSFER = 3;
+  // Peer-to-peer transfer.
+  PAYOUT_FUNDS_TRANSFER_TYPE_PEER_TO_PEER = 4;
+  // Staged digital-wallet transfer.
+  PAYOUT_FUNDS_TRANSFER_TYPE_STAGED_DIGITAL_WALLET_TRANSFER = 5;
+  // Funds disbursement.
+  PAYOUT_FUNDS_TRANSFER_TYPE_FUNDS_DISBURSEMENT = 6;
+  // Loyalty payment.
+  PAYOUT_FUNDS_TRANSFER_TYPE_LOYALTY_PAYMENTS = 7;
+  // Payroll or pension disbursement.
+  PAYOUT_FUNDS_TRANSFER_TYPE_PAYROLL_AND_PENSION_DISBURSEMENTS = 8;
+  // Online-gambling transfer.
+  PAYOUT_FUNDS_TRANSFER_TYPE_ONLINE_GAMBLING = 9;
+  // Person-to-person transfer.
+  PAYOUT_FUNDS_TRANSFER_TYPE_MASTERCARD_PERSON_TO_PERSON = 10;
+  // Transfer to the recipient's own account.
+  PAYOUT_FUNDS_TRANSFER_TYPE_MASTERCARD_TRANSFER_TO_OWN_ACCOUNT = 11;
+  // Business disbursement.
+  PAYOUT_FUNDS_TRANSFER_TYPE_MASTERCARD_BUSINESS_DISBURSEMENT = 12;
+  // Business-to-business transfer.
+  PAYOUT_FUNDS_TRANSFER_TYPE_MASTERCARD_BUSINESS_TO_BUSINESS = 13;
+  // Gaming repayment.
+  PAYOUT_FUNDS_TRANSFER_TYPE_MASTERCARD_GAMING_REPAY = 14;
+}
 
 // ============================================================================
 // PAYOUT ENUMERATIONS
@@ -444,6 +479,11 @@ message PayoutServiceTransferRequest {
   optional string merchant_request_id = 18;
   // Billing descriptor information to be sent to the payout gateway.
   optional BillingDescriptor billing_descriptor = 19;
+  // Merchant-supplied funds-transfer classification assigned by the payment processor.
+  // Absence preserves the connector's null behavior; UCS never defaults this value.
+  optional PayoutFundsTransferType funds_transfer_type = 20;
+  // Sender API input is normalized by Hyperswitch into the common vendor type.
+  optional PayoutVendorAccountDetails vendor_account_details = 21;
 }
 
 // Response message for transferring a payout
@@ -643,7 +683,8 @@ message PayoutServiceCreateRecipientRequest {
 }
 
 // Vendor account details required to onboard a recipient with a connector
-// (e.g. Stripe Connect). Mirrors hyperswitch's PayoutVendorAccountDetails.
+// (e.g. Stripe Connect) or the funding party in transfer. Hyperswitch normalizes
+// API sender input and legacy vendor metadata before sending this common type.
 message PayoutVendorAccountDetails {
   // Business / vendor details
   optional VendorDetails vendor_details = 1;
@@ -671,6 +712,17 @@ message VendorDetails {
   optional bool card_payments_enabled = 8;
   // Whether the transfers capability is requested
   optional bool transfers_enabled = 9;
+  // Additional corporate party fields; existing fields/tags remain unchanged.
+  // Corporate tax identifier; Hyperswitch populates this from merchant sender/KYC details.
+  optional SecretString company_tax_id = 10;
+  // Corporate address and contact details; 
+  optional Address address = 11;
+  // Merchant-created reference for the sending party, forwarded to the connector as the
+  // sender reference (e.g. Checkout `sender.reference`).
+  optional SecretString merchant_sender_reference_id = 12;
+  // Merchant-declared classification of the funds the sender supplies, forwarded to the
+  // connector as Visa Direct / Mastercard Send `sender.source_of_funds`.
+  optional PayoutSourceOfFunds source_of_funds = 13;
 }
 
 // Individual / KYC details for the connected account
@@ -693,6 +745,15 @@ message IndividualDetails {
   optional BankHolderType external_account_account_holder_type = 10;
   // Unix timestamp of the terms-of-service acceptance
   optional int64 tos_acceptance_date = 11;
+  // Additional individual party fields; reuse phone = 3 for the phone number.
+  // Individual address and contact details; Hyperswitch populates this from merchant sender/KYC details.
+  optional Address address = 12;
+  // Merchant-created reference for the sending party, forwarded to the connector as the
+  // sender reference (e.g. Checkout `sender.reference`).
+  optional SecretString merchant_sender_reference_id = 13;
+  // Merchant-declared classification of the funds the sender supplies, forwarded to the
+  // connector as Visa Direct / Mastercard Send `sender.source_of_funds`.
+  optional PayoutSourceOfFunds source_of_funds = 14;
 }
 
 // Response message for creating recipient account
@@ -797,4 +858,23 @@ message PayoutMethodEligibilityResponse {
   // later replaced by the transfer's id). Set for every verdict — including
   // refusals — so the check remains traceable for reconciliation.
   optional string connector_eligibility_reference_id = 8;
+}
+
+// Classification of funds supplied by the payout funding party. Populated by the merchant
+// (via Hyperswitch `sender_details`); required by Visa Direct / Mastercard Send
+// money-movement compliance. Values mirror the Visa Direct `sender.sourceOfFunds` code set.
+enum PayoutSourceOfFunds {
+  PAYOUT_SOURCE_OF_FUNDS_UNSPECIFIED = 0;
+  // Funds sourced from the sender's credit card account.
+  PAYOUT_SOURCE_OF_FUNDS_CREDIT = 1;
+  // Funds sourced from the sender's debit card account.
+  PAYOUT_SOURCE_OF_FUNDS_DEBIT = 2;
+  // Funds sourced from the sender's prepaid card account.
+  PAYOUT_SOURCE_OF_FUNDS_PREPAID = 3;
+  // Funds sourced from the sender's deposit (bank) account.
+  PAYOUT_SOURCE_OF_FUNDS_DEPOSIT_ACCOUNT = 4;
+  // Funds sourced from the sender's mobile money account.
+  PAYOUT_SOURCE_OF_FUNDS_MOBILE_MONEY_ACCOUNT = 5;
+  // Funds sourced from cash.
+  PAYOUT_SOURCE_OF_FUNDS_CASH = 6;
 }

@@ -22,9 +22,11 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install cargo-chef and sccache for dependency caching
+# Install cargo-chef and sccache for dependency caching. sccache installs from
+# its own Cargo.lock: resolved fresh it needs `zip ^0.6`, every version of
+# which is yanked, and the install fails.
 RUN cargo install cargo-chef --version ^0.1 \
-    && cargo install sccache
+    && cargo install sccache --locked
 
 ########################################
 # 2. Planner stage (cargo-chef)
@@ -125,7 +127,10 @@ USER rustuser
 # Copy built binary and config
 RUN mkdir -p bin config
 COPY --from=builder /app/dist/grpc-server bin/grpc-server
-COPY --from=builder /app/config config
+COPY --from=builder /app/config/development.toml config/development.toml
+COPY --from=builder /app/config/production.toml config/production.toml
+COPY --from=builder /app/config/sandbox.toml config/sandbox.toml
+COPY --from=builder /app/config/superposition.toml config/superposition.toml
 # The descriptor set rides the image at a stable path so the replay harness can
 # copy/mount it for deja-kernel (KERNEL_DESCRIPTOR_SET) without a prism checkout.
 COPY --from=builder /app/dist/connector_service_descriptor.bin share/connector_service_descriptor.bin

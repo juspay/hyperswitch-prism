@@ -1,9 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
-use common_utils::{
-    pii::Email,
-    types::{MinorUnit, Money},
-};
+use common_utils::{pii::Email, types::MinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, CreateConnectorCustomer, CreateOrder, GetConnectorCustomer, PSync, RSync, Refund,
@@ -240,6 +237,8 @@ impl GlomopayWebhookPayload {
             _ => (None, None),
         };
         WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(self.data.id.clone())),
             status,
@@ -338,6 +337,7 @@ impl GlomopayRefundWebhookPayload {
             _ => (None, None),
         };
         RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(self.data.id.clone()),
             merchant_transaction_id: None,
             status: self.get_refund_status(),
@@ -595,10 +595,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = GlomopayAmountConvertor::convert(
-            router_data.request.amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = GlomopayAmountConvertor::convert(&router_data.request.amount)?;
 
         let customer_id = router_data
             .resource_common_data
@@ -944,14 +941,28 @@ pub struct GlomopayPaymentSyncResponse {
     pub data: Vec<GlomopayPaymentSyncItem>,
 }
 
-impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
-    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ResponseRouterData<
+            GlomopayPaymentSyncResponse,
+            crate::connectors::glomopay::GlomopayRouterData<Self, T>,
+        >,
+    > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<GlomopayPaymentSyncResponse, Self>,
+        item: ResponseRouterData<
+            GlomopayPaymentSyncResponse,
+            crate::connectors::glomopay::GlomopayRouterData<Self, T>,
+        >,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let response = item.response;
         let payment = response.data.into_iter().next().ok_or_else(|| {
             error_stack::report!(crate::utils::response_deserialization_fail(
@@ -977,10 +988,22 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
         // worse than a visible integrity failure.
         let (response_amount, integrity_object) =
             match (payment.requested_amount, payment.requested_currency) {
-                (Some(amount), Some(currency)) => (
-                    Some(Money { amount, currency }),
-                    Some(PaymentSynIntegrityObject { amount, currency }),
-                ),
+                (Some(amount), Some(currency)) => {
+                    let amount = crate::utils::response_amount_to_money(
+                        &connector,
+                        amount,
+                        currency,
+                        item.http_code,
+                        domain_types::connector_types::ConnectorEnum::Glomopay,
+                    )?;
+                    (
+                        Some(amount.clone()),
+                        Some(PaymentSynIntegrityObject {
+                            amount: amount.amount,
+                            currency,
+                        }),
+                    )
+                }
                 _ => (None, None),
             };
 
@@ -1082,10 +1105,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = GlomopayAmountConvertor::convert(
-            router_data.request.refund_amount.amount,
-            router_data.request.currency,
-        )?;
+        let amount = GlomopayAmountConvertor::convert(&router_data.request.refund_amount)?;
 
         let reason = router_data
             .request

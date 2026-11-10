@@ -29,10 +29,11 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24.22.1'
           cache: npm
-          # setup-node ignores working-directory, so point it at the workspace lockfile.
-          cache-dependency-path: plugins/medusa/package-lock.json
+          # setup-node ignores working-directory, and the workspace has no lockfile,
+          # so key the cache on the workspace manifest.
+          cache-dependency-path: plugins/medusa/package.json
 
       - name: Install dependencies
         run: npm install # root install hydrates all workspaces

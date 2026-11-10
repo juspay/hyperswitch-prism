@@ -184,7 +184,6 @@ npm run apay -- \
 | `--validation-port <n>` | `7777` | Local merchant validation server port |
 | `--timeout <ms>` | `300000` | Total wait time for user auth (5 min) |
 | `--pretty` | false | Pretty-print JSON output |
-| `--screenshots <dir>` | `applepay/screenshots/` | Directory for debug screenshots |
 
 ---
 
@@ -288,7 +287,6 @@ browser-automation-engine/
 │   │   ├── stripe.json                # Example config
 │   │   └── cybersource.json           # Example config
 │   ├── .well-known/                   # EMPTY — needs apple-developer-merchantid-domain-association
-│   └── screenshots/                   # Debug screenshots written here at runtime
 ├── netlify.toml                       # Serves root; CSP allows Apple endpoints
 └── package.json                       # "apay": "tsx src/applepay-token-gen.ts"
 ```

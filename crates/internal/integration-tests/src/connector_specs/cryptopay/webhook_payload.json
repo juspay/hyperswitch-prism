@@ -1,0 +1,58 @@
+{
+  "_webhook_config": {
+    "webhook_secret_key": "fixture_webhook_secret",
+    "note": "Deterministic offline fixtures signed with integration_test_webhook_secret, supplied in grpc_req.webhook_secrets. Bodies are base64-encoded JSON; signatures are precomputed. fixture_webhook_secret reserves credential override for this fixture secret.",
+    "signature_algorithm": "HMAC-SHA256 of raw request body, lowercase hex in x-cryptopay-signature"
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/cryptopay",
+        "headers": {
+          "content-type": "application/json",
+          "x-cryptopay-signature": "29cc47b39f335d96d4b4524228890d975f5b1b310f6182bfc07e870fa604eff5"
+        },
+        "body": "eyJ0eXBlIjoiSW52b2ljZSIsImV2ZW50Ijoic3RhdHVzX2NoYW5nZWQiLCJkYXRhIjp7ImlkIjoiY3J5cHRvcGF5X2ludm9pY2VfMDAxIiwiY3VzdG9tX2lkIjoiY3J5cHRvcGF5X29yZGVyXzAwMSIsInN0YXR1cyI6ImNvbXBsZXRlZCIsInByaWNlX2Ftb3VudCI6IjEwLjAwIiwicHJpY2VfY3VycmVuY3kiOiJVU0QifX0="
+      },
+      "merchant_event_id": "cryptopay_webhook_payment_succeeded",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/cryptopay",
+        "headers": {
+          "content-type": "application/json",
+          "x-cryptopay-signature": "2a08a40dd2aaaba156b0a94147d49887aca1020672025e4e05aaa5c7dc3c8205"
+        },
+        "body": "eyJ0eXBlIjoiSW52b2ljZSIsImV2ZW50Ijoic3RhdHVzX2NoYW5nZWQiLCJkYXRhIjp7ImlkIjoiY3J5cHRvcGF5X2ludm9pY2VfMDAxIiwiY3VzdG9tX2lkIjoiY3J5cHRvcGF5X29yZGVyXzAwMSIsInN0YXR1cyI6ImNhbmNlbGxlZCIsInByaWNlX2Ftb3VudCI6IjEwLjAwIiwicHJpY2VfY3VycmVuY3kiOiJVU0QifX0="
+      },
+      "merchant_event_id": "cryptopay_webhook_payment_failed",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/cryptopay",
+        "headers": {
+          "content-type": "application/json",
+          "x-cryptopay-signature": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "body": "eyJ0eXBlIjoiSW52b2ljZSIsImV2ZW50Ijoic3RhdHVzX2NoYW5nZWQiLCJkYXRhIjp7ImlkIjoiY3J5cHRvcGF5X2ludm9pY2VfMDAxIiwiY3VzdG9tX2lkIjoiY3J5cHRvcGF5X29yZGVyXzAwMSIsInN0YXR1cyI6ImNvbXBsZXRlZCIsInByaWNlX2Ftb3VudCI6IjEwLjAwIiwicHJpY2VfY3VycmVuY3kiOiJVU0QifX0="
+      },
+      "merchant_event_id": "cryptopay_webhook_invalid_signature",
+      "webhook_secrets": {
+        "secret": "integration_test_webhook_secret"
+      }
+    }
+  }
+}

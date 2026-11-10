@@ -6,6 +6,7 @@
     "PaymentMethodAuthenticationService/PostAuthenticate",
     "PaymentService/Authorize",
     "PaymentService/Capture",
+    "PaymentService/IncrementalAuthorization",
     "PaymentService/Get",
     "PaymentService/Refund",
     "PaymentService/Void",

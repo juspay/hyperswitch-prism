@@ -163,6 +163,9 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             }
             ConnectorEnum::Payhere => Box::new(connectors::Payhere::<T>::new()),
             ConnectorEnum::Merchante => Box::new(connectors::Merchante::<T>::new()),
+            ConnectorEnum::Betterpayment => Box::new(connectors::Betterpayment::<T>::new()),
+            ConnectorEnum::Reddot => Box::new(connectors::Reddot::<T>::new()),
+            ConnectorEnum::Ecommpay => Box::new(connectors::Ecommpay::<T>::new()),
         }
     }
 }
@@ -212,6 +215,9 @@ impl FrmConnectorData {
             FrmConnectorEnum::Nsure => Box::new(frm_connectors::Nsure::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
+            FrmConnectorEnum::ClearsaleBr => Box::new(frm_connectors::ClearSaleBr::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }
@@ -248,6 +254,9 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
     fn convert_connector(connector_name: PayoutConnectorEnum) -> BoxedPayoutConnector<T> {
         match connector_name {
             PayoutConnectorEnum::Nuvei => Box::new(payout_connectors::NuveiPayouts::<T>::new()),
+            PayoutConnectorEnum::Checkout => {
+                Box::new(payout_connectors::CheckoutPayouts::<T>::new())
+            }
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),

@@ -11,7 +11,10 @@ use common_utils::{
     request::{Method, RequestBuilder},
 };
 use domain_types::{
-    connector_flow::{SurchargeCalculate, SurchargePaymentSucceeded, SurchargeRefundSucceeded},
+    connector_flow::{
+        SurchargeCalculate, SurchargePaymentSucceeded, SurchargeRefundComplete,
+        SurchargeRefundInit, SurchargeRefundSucceeded,
+    },
     errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -19,7 +22,9 @@ use domain_types::{
     surcharge::surcharge_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
-        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
+        SurchargeRefundCompleteRequest, SurchargeRefundCompleteResponse,
+        SurchargeRefundInitRequest, SurchargeRefundInitResponse, SurchargeRefundSucceededRequest,
+        SurchargeRefundSucceededResponse,
     },
     types::Connectors,
 };
@@ -29,8 +34,8 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        SurchargeCalculateV2, SurchargePaymentSucceededV2, SurchargeRefundSucceededV2,
-        SurchargeServiceTrait, ValidationTrait,
+        SurchargeCalculateV2, SurchargePaymentSucceededV2, SurchargeRefundCompleteV2,
+        SurchargeRefundInitV2, SurchargeRefundSucceededV2, SurchargeServiceTrait, ValidationTrait,
     },
 };
 use transformers::{
@@ -41,6 +46,7 @@ use transformers::{
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const ACCEPT: &str = "Accept";
 }
 pub struct InterPayments;
 
@@ -92,7 +98,7 @@ impl ConnectorCommon for InterPayments {
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: InterpaymentsErrorResponse = res
             .response
-            .parse_struct("InterPaymentsSurchargeResponse")
+            .parse_struct("InterpaymentsErrorResponse")
             .change_context(
                 crate::utils::response_deserialization_fail(
                     res.status_code,
@@ -106,14 +112,40 @@ impl ConnectorCommon for InterPayments {
             &response,
             "typed_connector_response",
         );
+        let (code, message, reason) = match response {
+            InterpaymentsErrorResponse::Api(error) => (
+                error.reason_code,
+                error.message.unwrap_or(NO_ERROR_MESSAGE.to_string()),
+                error.reason,
+            ),
+            InterpaymentsErrorResponse::Validation(error) => {
+                let message = error
+                    .error
+                    .into_iter()
+                    .flat_map(|(field, messages)| {
+                        messages
+                            .into_iter()
+                            .map(move |message| format!("{field}: {message}"))
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                let message = if message.is_empty() {
+                    NO_ERROR_MESSAGE.to_string()
+                } else {
+                    message
+                };
+                (
+                    "VALIDATION_ERROR".to_string(),
+                    message.clone(),
+                    Some(message),
+                )
+            }
+        };
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.reason_code.clone(),
-            message: response
-                .message
-                .clone()
-                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
-            reason: response.reason.clone(),
+            code,
+            message,
+            reason,
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -134,6 +166,8 @@ impl SurchargeServiceTrait for InterPayments {}
 impl SurchargeCalculateV2 for InterPayments {}
 impl SurchargePaymentSucceededV2 for InterPayments {}
 impl SurchargeRefundSucceededV2 for InterPayments {}
+impl SurchargeRefundInitV2 for InterPayments {}
+impl SurchargeRefundCompleteV2 for InterPayments {}
 
 impl InterPayments {
     pub fn connector_base_url_payments<'a, F, Req, Res>(
@@ -143,6 +177,137 @@ impl InterPayments {
         &req.resource_common_data.connectors.interpayments.base_url
     }
 }
+
+macro_rules! impl_surcharge_refund_flow {
+    ($flow:ty, $request:ty, $response:ty, $wire_request:ty, $wire_response:ty, $path:literal) => {
+        impl ConnectorIntegrationV2<$flow, SurchargeFlowData, $request, $response>
+            for InterPayments
+        {
+            fn get_url(
+                &self,
+                req: &RouterDataV2<$flow, SurchargeFlowData, $request, $response>,
+            ) -> CustomResult<String, IntegrationError> {
+                Ok(format!(
+                    "{}{}",
+                    self.connector_base_url_payments(req),
+                    $path
+                ))
+            }
+
+            fn get_headers(
+                &self,
+                req: &RouterDataV2<$flow, SurchargeFlowData, $request, $response>,
+            ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+                let mut headers = vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        "application/json".to_string().into(),
+                    ),
+                    (
+                        headers::ACCEPT.to_string(),
+                        "application/json".to_string().into(),
+                    ),
+                ];
+                headers.append(&mut self.get_auth_header(&req.connector_config)?);
+                Ok(headers)
+            }
+
+            fn get_content_type(&self) -> &'static str {
+                "application/json"
+            }
+
+            fn get_request_body(
+                &self,
+                req: &RouterDataV2<$flow, SurchargeFlowData, $request, $response>,
+            ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError>
+            {
+                let request: $wire_request = req.try_into()?;
+                let typed = events::MaskedSerdeValue::from_masked_optional(
+                    &request,
+                    "typed_connector_request",
+                );
+                Ok(Some(common_utils::request::ConnectorRequestData::new(
+                    common_utils::request::RequestContent::Json(Box::new(request)),
+                    typed,
+                )))
+            }
+
+            fn build_request_v2(
+                &self,
+                req: &RouterDataV2<$flow, SurchargeFlowData, $request, $response>,
+            ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+                let request_data = self.get_request_body(req)?;
+                let (body, typed_request_value) = match request_data {
+                    Some(data) => (
+                        Some(data.content),
+                        data.typed_request.map(|value| value.inner().clone()),
+                    ),
+                    None => (None, None),
+                };
+                Ok(Some(
+                    RequestBuilder::new()
+                        .method(Method::Post)
+                        .url(self.get_url(req)?.as_str())
+                        .attach_default_headers()
+                        .headers(self.get_headers(req)?)
+                        .set_optional_body(body)
+                        .set_typed_connector_request(typed_request_value)
+                        .build(),
+                ))
+            }
+
+            fn handle_response_v2(
+                &self,
+                data: &RouterDataV2<$flow, SurchargeFlowData, $request, $response>,
+                event_builder: Option<&mut events::Event>,
+                res: Response,
+            ) -> CustomResult<
+                RouterDataV2<$flow, SurchargeFlowData, $request, $response>,
+                ConnectorError,
+            > {
+                let response: $wire_response = res
+                    .response
+                    .parse_struct(stringify!($wire_response))
+                    .change_context(ConnectorError::ResponseDeserializationFailed {
+                        context: ResponseTransformationErrorContext {
+                            http_status_code: Some(res.status_code),
+                            additional_context: Some(format!(
+                                "Failed to parse InterPayments {} response",
+                                stringify!($flow)
+                            )),
+                        },
+                    })?;
+                finalize_connector_response!(event_builder, response, data, res.status_code)
+            }
+
+            fn get_error_response_v2(
+                &self,
+                res: Response,
+                event_builder: Option<&mut events::Event>,
+                connector_config: &ConnectorSpecificConfig,
+            ) -> CustomResult<ErrorResponse, ConnectorError> {
+                self.build_error_response(res, event_builder, connector_config)
+            }
+        }
+    };
+}
+
+impl_surcharge_refund_flow!(
+    SurchargeRefundInit,
+    SurchargeRefundInitRequest,
+    SurchargeRefundInitResponse,
+    transformers::InterPaymentsSurchargeRefundInitRequest,
+    transformers::InterPaymentsSurchargeRefundInitResponse,
+    "/ch/refund/init"
+);
+impl_surcharge_refund_flow!(
+    SurchargeRefundComplete,
+    SurchargeRefundCompleteRequest,
+    SurchargeRefundCompleteResponse,
+    transformers::InterPaymentsSurchargeRefundCompleteRequest,
+    transformers::InterPaymentsSurchargeRefundCompleteResponse,
+    "/ch/refund/complete"
+);
 
 impl
     ConnectorIntegrationV2<

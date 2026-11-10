@@ -154,6 +154,9 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
 // Helper function to create a payment sync request
 fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         merchant_transaction_id: None,
@@ -320,8 +323,7 @@ async fn test_payment_authorization_manual_capture() {
             add_xendit_metadata(&mut capture_grpc_request);
 
             // Send the capture request
-            let capture_response = client
-                .capture(capture_grpc_request)
+            let capture_response = Box::pin(client.capture(capture_grpc_request))
                 .await
                 .expect("gRPC payment_capture call failed")
                 .into_inner();

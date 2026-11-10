@@ -2,7 +2,7 @@
 # Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
 
 from payments.connector_client import _ConnectorClientBase
-from payments.generated import events_pb2, frm_pb2, payment_pb2, payouts_pb2, surcharge_pb2
+from payments.generated import dispute_pb2, events_pb2, frm_pb2, payment_pb2, payouts_pb2, surcharge_pb2
 
 class CustomerClient(_ConnectorClientBase):
     """CustomerService flows"""
@@ -20,15 +20,15 @@ class DisputeClient(_ConnectorClientBase):
 
     def accept(self, request, options=None):
         """DisputeService.Accept — Concede dispute and accepts chargeback loss. Acknowledges liability and stops dispute defense process when evidence is insufficient."""
-        return self._execute_flow("accept", request, payment_pb2.DisputeServiceAcceptResponse, options)
+        return self._execute_flow("accept", request, dispute_pb2.DisputeServiceAcceptResponse, options)
 
     def defend(self, request, options=None):
         """DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation."""
-        return self._execute_flow("defend", request, payment_pb2.DisputeServiceDefendResponse, options)
+        return self._execute_flow("defend", request, dispute_pb2.DisputeServiceDefendResponse, options)
 
     def submit_evidence(self, request, options=None):
         """DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims."""
-        return self._execute_flow("submit_evidence", request, payment_pb2.DisputeServiceSubmitEvidenceResponse, options)
+        return self._execute_flow("submit_evidence", request, dispute_pb2.DisputeServiceSubmitEvidenceResponse, options)
 
 class EventClient(_ConnectorClientBase):
     """EventService flows"""
@@ -219,3 +219,11 @@ class SurchargeClient(_ConnectorClientBase):
     def surcharge_calculate(self, request, options=None):
         """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
         return self._execute_flow("surcharge_calculate", request, surcharge_pb2.SurchargeServiceCalculateResponse, options)
+
+    def surcharge_refund_complete(self, request, options=None):
+        """SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund."""
+        return self._execute_flow("surcharge_refund_complete", request, surcharge_pb2.SurchargeServiceSurchargeRefundCompleteResponse, options)
+
+    def surcharge_refund_init(self, request, options=None):
+        """SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund."""
+        return self._execute_flow("surcharge_refund_init", request, surcharge_pb2.SurchargeServiceSurchargeRefundInitResponse, options)

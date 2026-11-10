@@ -48,6 +48,19 @@ from pathlib import Path
 # {message_name: {field_name: proto_type_name}}  — all messages across all protos
 _PROTO_FIELD_TYPES: dict[str, dict[str, str]] = {}
 
+# Deprecated credentials must not appear in generated connector configurations.
+_PROTO_DEPRECATED_FIELDS: dict[str, set[str]] = {}
+
+
+def _config_fields(config_name: str) -> dict[str, str]:
+    deprecated = _PROTO_DEPRECATED_FIELDS.get(config_name, set())
+    return {
+        name: field_type
+        for name, field_type in _PROTO_FIELD_TYPES.get(config_name, {}).items()
+        if name not in deprecated
+    }
+
+
 # Maps message name -> set of field names that are `repeated` in proto.
 # These map to Vec<T> in prost+serde which require the key to be present in
 # JSON (no #[serde(default)] generated), so we must always emit "field": [].
@@ -168,7 +181,7 @@ def _generate_connector_config_rust(connector_name: str) -> str:
     if config_name not in _PROTO_FIELD_TYPES:
         return None
     
-    fields = _PROTO_FIELD_TYPES[config_name]
+    fields = _config_fields(config_name)
     if not fields:
         return None
     
@@ -190,10 +203,18 @@ def _generate_connector_config_rust(connector_name: str) -> str:
                 field_lines.append(f'                {field_name}: vec!["value".to_string()],  // Array field')
         elif field_type == 'SecretString':
             field_lines.append(f'                {field_name}: Some(hyperswitch_masking::Secret::new("YOUR_{field_name.upper()}".to_string())),  // Authentication credential')
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            # Match the USD currency used by the generated payment examples.
+            field_lines.append(
+                f'                {field_name}: std::collections::HashMap::from([("USD".to_string(), '
+                f'hyperswitch_masking::Secret::new("YOUR_USD_{field_name.upper()}".to_string()))]),'
+            )
         elif field_type == 'string':
             field_lines.append(f'                {field_name}: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls')
         elif field_type == 'bool':
             field_lines.append(f'                {field_name}: Some(false),  // Feature flag')
+        elif field_type == 'CountryAlpha2':
+            field_lines.append(f'                {field_name}: Some(CountryAlpha2::Is.into()),  // Replace with the country assigned during onboarding')
     
     if not field_lines:
         return None
@@ -218,7 +239,7 @@ def _generate_connector_config_python(connector_name: str) -> str:
     kwargs inside ConnectorConfig(options=..., ...).
     """
     config_name = f"{_conn_display(connector_name)}Config"
-    fields = _PROTO_FIELD_TYPES.get(config_name, {})
+    fields = _config_fields(config_name)
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
 
     field_lines: list[str] = []
@@ -230,10 +251,16 @@ def _generate_connector_config_python(connector_name: str) -> str:
             field_lines.append(
                 f'            {field_name}=payment_methods_pb2.SecretString(value="YOUR_{field_name.upper()}"),'
             )
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f'            {field_name}={{"USD": payment_methods_pb2.SecretString(value="YOUR_USD_{field_name.upper()}")}},'
+            )
         elif field_type == "string":
             field_lines.append(f'            {field_name}="YOUR_{field_name.upper()}",')
         elif field_type == "bool":
             field_lines.append(f'            {field_name}=False,')
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f'            {field_name}=payment_methods_pb2.CountryAlpha2.Value("IS"),  # Replace with the country assigned during onboarding')
 
     if field_lines:
         fields_str = "\n".join(field_lines)
@@ -265,7 +292,7 @@ def _generate_connector_config_typescript(
     The returned string uses 4-space indentation so it sits flush with 'options:' etc.
     """
     config_name = f"{_conn_display(connector_name)}Config"
-    fields = _PROTO_FIELD_TYPES.get(config_name, {})
+    fields = _config_fields(config_name)
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
 
     field_lines: list[str] = []
@@ -276,10 +303,16 @@ def _generate_connector_config_typescript(
             field_lines.append(f"            {camel}: ['YOUR_{field_name.upper()}'],")
         elif field_type == "SecretString":
             field_lines.append(f"            {camel}: {{ value: 'YOUR_{field_name.upper()}' }},")
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f"            {camel}: {{ USD: {{ value: 'YOUR_USD_{field_name.upper()}' }} }},"
+            )
         elif field_type == "string":
             field_lines.append(f"            {camel}: 'YOUR_{field_name.upper()}',")
         elif field_type == "bool":
             field_lines.append(f"            {camel}: false,")
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f"            {camel}: types.CountryAlpha2.IS, // Replace with the country assigned during onboarding")
 
     if field_lines:
         fields_str = "\n".join(field_lines)
@@ -305,7 +338,7 @@ def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ")
     """
     config_name = f"{_conn_display(connector_name)}Config"
     conn_display = _conn_display(connector_name)
-    fields = _PROTO_FIELD_TYPES.get(config_name, {})
+    fields = _config_fields(config_name)
     repeated = _PROTO_REPEATED_FIELDS.get(config_name, set())
     i = indent
 
@@ -321,10 +354,16 @@ def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ")
             field_lines.append(
                 f"{i}            .{setter}(SecretString.newBuilder().setValue(\"YOUR_{field_name.upper()}\").build())"
             )
+        elif field_type.replace(" ", "") == "map<string,SecretString>":
+            field_lines.append(
+                f'{i}            .put{pascal}("USD", SecretString.newBuilder().setValue("YOUR_USD_{field_name.upper()}").build())'
+            )
         elif field_type == "string":
             field_lines.append(f"{i}            .{setter}(\"YOUR_{field_name.upper()}\")")
         elif field_type == "bool":
             field_lines.append(f"{i}            .{setter}(false)")
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f"{i}            .{setter}(types.PaymentMethods.CountryAlpha2.IS) // Replace with the country assigned during onboarding")
 
     if field_lines:
         fields_str = "\n".join(field_lines)
@@ -348,6 +387,7 @@ def load_proto_type_map(proto_dir: Path) -> None:
     global _PROTO_ENUM_PARENT
 
     type_map: dict[str, dict[str, str]] = {}
+    deprecated_map: dict[str, set[str]] = {}
     repeated_map: dict[str, set[str]] = {}
     optional_map: dict[str, set[str]] = {}
     map_map: dict[str, set[str]] = {}
@@ -405,6 +445,7 @@ def load_proto_type_map(proto_dir: Path) -> None:
             # Extract only top-level lines (not inside nested { })
             # Also parse fields inside oneof blocks (inner_depth == 1 after entering oneof).
             fields: dict[str, str] = {}
+            deprecated_fields: set[str] = set()
             repeated_fields: set[str] = set()
             optional_fields: set[str] = set()
             map_fields: set[str] = set()
@@ -435,12 +476,15 @@ def load_proto_type_map(proto_dir: Path) -> None:
                     is_repeated, is_optional, ftype, fname = fm.group(1), fm.group(2), fm.group(3), fm.group(4)
                     if ftype not in _SKIP_KEYWORDS and fname not in _SKIP_KEYWORDS:
                         fields[fname] = ftype
+                        if re.search(r"\bdeprecated\s*=\s*true\b", line):
+                            deprecated_fields.add(fname)
                         if is_repeated:
                             repeated_fields.add(fname)
                         if is_optional:
                             optional_fields.add(fname)
 
             type_map[msg_name] = fields
+            deprecated_map[msg_name] = deprecated_fields
             repeated_map[msg_name] = repeated_fields
             optional_map[msg_name] = optional_fields
             map_map[msg_name] = map_fields
@@ -450,6 +494,8 @@ def load_proto_type_map(proto_dir: Path) -> None:
     # Clear and update the global dicts in-place so existing references see the changes
     _PROTO_FIELD_TYPES.clear()
     _PROTO_FIELD_TYPES.update(type_map)
+    _PROTO_DEPRECATED_FIELDS.clear()
+    _PROTO_DEPRECATED_FIELDS.update(deprecated_map)
     _PROTO_REPEATED_FIELDS.clear()
     _PROTO_REPEATED_FIELDS.update(repeated_map)
     _PROTO_OPTIONAL_FIELDS.clear()
@@ -2155,6 +2201,14 @@ def render_consolidated_python(
     # Add type annotation for empty list to satisfy mypy
     supported_flows_line = f"SUPPORTED_FLOWS: list[str] = {supported_flows_list}" if supported_flows_list == "[]" else f"SUPPORTED_FLOWS = {supported_flows_list}"
 
+    # Import every pb2 module the generated body actually references. Proto types can
+    # live in any file (e.g. Money/Currency/Address/Customer in common_types.proto), so
+    # derive the import list from the rendered code instead of hardcoding it.
+    config_py = _generate_connector_config_python(connector_name)
+    pb2_modules = {"sdk_config_pb2"}
+    pb2_modules.update(re.findall(r"\b(\w+_pb2)\.", builders_section + functions_text + config_py))
+    pb2_import_line = "from payments.generated import " + ", ".join(sorted(pb2_modules))
+
     return f"""\
 # This file is auto-generated. Do not edit manually.
 # Replace YOUR_API_KEY and placeholder values with real data.
@@ -2166,13 +2220,13 @@ def render_consolidated_python(
 import asyncio
 import sys
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
+{pb2_import_line}
 
 {supported_flows_line}
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-{_generate_connector_config_python(connector_name)}
+{config_py}
 )
 
 
@@ -3251,6 +3305,11 @@ def render_consolidated_kotlin(
         grpc_req = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         if grpc_req and grpc_req not in grpc_req_types:
             grpc_req_types.append(grpc_req)
+    dispute_proto_import = (
+        "import types.Dispute.*\n"
+        if any(req.startswith("DisputeService") for req in grpc_req_types)
+        else ""
+    )
 
     # Collect enum types used in payload fields (for Currency.USD, CaptureMethod.MANUAL, etc.)
     enum_types: set[str] = set()
@@ -3501,7 +3560,7 @@ def render_consolidated_kotlin(
 package examples.{connector_name}
 
 import types.Payment.*
-import types.Events.*
+{dispute_proto_import}import types.Events.*
 import types.PaymentMethods.*
 {imports}
 import payments.ConnectorConfig

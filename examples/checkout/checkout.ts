@@ -5,9 +5,9 @@
 // Checkout — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx checkout.ts checkout_autocapture
 
-import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void"];
+import { PaymentClient, DisputeClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency, FutureUsage, HttpMethod, PaymentMethodType, TransactionStatus } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "dispute_accept", "dispute_defend", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -18,6 +18,8 @@ const _defaultConfig: types.IConnectorConfig = {
             apiKey: { value: 'YOUR_API_KEY' },
             apiSecret: { value: 'YOUR_API_SECRET' },
             processingChannelId: { value: 'YOUR_PROCESSING_CHANNEL_ID' },
+            connectorClientId: { value: 'YOUR_CONNECTOR_CLIENT_ID' },
+            connectorCurrencyAccountId: { value: 'YOUR_CONNECTOR_CURRENCY_ACCOUNT_ID' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -28,8 +30,8 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
     return {
         "merchantTransactionId": "probe_txn_001",  // Identification.
         "amount": {  // The amount for the payment.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "paymentMethod": {  // Payment method to be used.
             "card": {  // Generic card payment.
@@ -41,11 +43,31 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
             }
         },
         "captureMethod": captureMethod,  // Method for capturing the payment.
+        "customer": {  // Customer Information.
+            "email": {"value": "customer.probe@example.com"}
+        },
         "address": {  // Address Information.
+            "shippingAddress": {
+                "firstName": {"value": "Jane"},
+                "line1": {"value": "123 Main St"},
+                "city": {"value": "Seattle"},
+                "zipCode": {"value": "98101"},
+                "countryAlpha2Code": CountryAlpha2.US
+            },
             "billingAddress": {
+                "phoneNumber": {"value": "4155552671"},
+                "phoneCountryCode": "+1"
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
+        "authenticationData": {
+            "eci": "05",  // Electronic Commerce Indicator (ECI) from 3DS.
+            "cavv": "AAABAWFlmQAAAABjRWWZEEFgFz8=",  // Cardholder Authentication Verification Value (CAVV).
+            "messageVersion": "2.2.0",  // 3DS Message Version (e.g., "2.1.0", "2.2.0").
+            "dsTransactionId": "97267598-fae6-48f2-8083-c23433990361",  // Directory Server Transaction ID (DS Trans ID).
+            "transStatus": TransactionStatus.TRANSACTION_STATUS_SUCCESS,  // Transaction status from authentication/verification process.
+            "createdAt": 1704067200  // Authentication timestamp (Unix epoch seconds, UTC) when the 3DS authentication was performed. Used by connectors (e.g. Cybersource) that send an authenticationDate in their request.
+        },
         "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks.
     };
 }
@@ -55,9 +77,26 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "merchantCaptureId": "probe_capture_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amountToCapture": {  // Capture Details.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
+    };
+}
+
+function _buildDisputeAcceptRequest(): types.IDisputeServiceAcceptRequest {
+    return {
+        "merchantDisputeId": "probe_dispute_001",  // Identification.
+        "connectorTransactionId": "probe_txn_001",
+        "connectorDisputeId": "probe_dispute_id_001"
+    };
+}
+
+function _buildDisputeDefendRequest(): types.IDisputeServiceDefendRequest {
+    return {
+        "merchantDisputeId": "probe_dispute_001",  // Identification.
+        "connectorTransactionId": "probe_txn_001",
+        "connectorDisputeId": "probe_dispute_id_001",
+        "reasonCode": "probe_reason"  // Defend Details.
     };
 }
 
@@ -66,8 +105,8 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         }
     };
 }
@@ -101,8 +140,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
     return {
         "merchantTransactionId": "probe_proxy_txn_001",
         "amount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "cardProxy": {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
             "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -126,8 +165,8 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
     return {
         "merchantRecurringPaymentId": "probe_proxy_mandate_001",
         "amount": {
-            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 0,
+            "currency": Currency.USD
         },
         "cardProxy": {  // Card proxy for vault-aliased payments.
             "cardNumber": {"value": "4111111111111111"},  // Card Identification.
@@ -155,8 +194,8 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         "connectorRecurringPaymentId": {  // Reference to existing mandate.
         },
         "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
@@ -176,8 +215,8 @@ function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServ
         "connectorTransactionId": connectorTransactionId,
         "paymentAmount": 1000,  // Amount Information.
         "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "reason": "customer_request"  // Reason for the refund.
     };
@@ -195,8 +234,8 @@ function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringReque
     return {
         "merchantRecurringPaymentId": "probe_mandate_001",  // Identification.
         "amount": {  // Mandate Details.
-            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 0,
+            "currency": Currency.USD
         },
         "paymentMethod": {
             "card": {  // Generic card payment.
@@ -227,8 +266,8 @@ function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeReque
     return {
         "merchantTransactionId": "probe_tokenized_txn_001",
         "amount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 1000,
+            "currency": Currency.USD
         },
         "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         "address": {
@@ -244,8 +283,8 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
     return {
         "merchantRecurringPaymentId": "probe_tokenized_mandate_001",
         "amount": {
-            "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            "minorAmount": 0,
+            "currency": Currency.USD
         },
         "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},
         "address": {
@@ -266,8 +305,8 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
                     "amount": 0,  // Use amount_money instead (will be removed in a future release).
                     "currency": Currency.USD,  // Use amount_money.currency instead (will be removed in a future release).
                     "amountMoney": {  // Amount in Money type.
-                        "minorAmount": 0,  // Amount in minor units (e.g., 1000 = $10.00).
-                        "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                        "minorAmount": 0,
+                        "currency": Currency.USD
                     }
                 }
             }
@@ -418,6 +457,24 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
     return captureResponse;
 }
 
+// Flow: DisputeService.Accept
+async function disputeAccept(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const disputeClient = new DisputeClient(config);
+
+    const disputeResponse = await disputeClient.accept(_buildDisputeAcceptRequest());
+
+    return disputeResponse;
+}
+
+// Flow: DisputeService.Defend
+async function disputeDefend(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const disputeClient = new DisputeClient(config);
+
+    const disputeResponse = await disputeClient.defend(_buildDisputeDefendRequest());
+
+    return disputeResponse;
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -529,7 +586,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, disputeAccept, disputeDefend, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildDisputeAcceptRequest, _buildDisputeDefendRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

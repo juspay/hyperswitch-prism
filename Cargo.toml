@@ -75,7 +75,8 @@ prost-build = "0.14"
 prost-types = "0.14"
 serde = {version = "1.0.228", features = ["derive"]}
 serde_json = "1.0.107"
-superposition_provider = "=0.116.0"
+superposition_core = "=0.119.0"
+superposition_provider = "=0.119.0"
 thiserror = "1"
 tonic = "0.14"
 tonic-build = "0.14"
@@ -113,3 +114,8 @@ use_self = "warn"
 
 # Lints to allow
 option_map_unit_fn = "allow"
+
+# TODO: Remove this override after a hyperswitch_masking release
+# containing the relaxed Serde constraint is published.
+[patch.crates-io]
+hyperswitch_masking = { git = "https://github.com/juspay/framework-libs-rs", rev = "f1c0ee2abdb56d0aec81c2bf13f2026ecaa010f6" }

@@ -436,6 +436,7 @@ impl GrabpayWebhookBody {
             WebhookResourceReference::Payment(PaymentWebhookReference {
                 connector_transaction_id: self.tx_id.clone(),
                 merchant_transaction_id: self.partner_tx_id.clone(),
+                connector_preprocessing_id: None,
             })
         }
     }
@@ -1265,6 +1266,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_feature_data: Some(redirect_context.connector_feature_data.expose()),
                 connector_response_reference_id: None,
                 status_code: item.http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::AuthenticationPending,

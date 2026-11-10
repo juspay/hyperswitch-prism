@@ -16,6 +16,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "ach": {
               "account_number": "000123456789",
@@ -25,10 +27,51 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "email": "billing.probe@example.com",
+              "phone_number": "4155550101",
+              "phone_country_code": "+1"
+            }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ=="
+          },
+          "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 650,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "duty_amount": 50
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_EXEMPT"
+            }
+          }
         },
         "sample": {
           "url": "https://apitest.authorize.net/xml/v1/request.api",
@@ -37,7 +80,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"bankAccount\":{\"accountType\":\"checking\",\"routingNumber\":\"110000000\",\"accountNumber\":\"000123456789\",\"nameOnAccount\":\"John Doe\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"bankAccount\":{\"accountType\":\"checking\",\"routingNumber\":\"110000000\",\"accountNumber\":\"000123456789\",\"nameOnAccount\":\"John Doe\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"lineItems\":{\"lineItem\":[{\"itemId\":\"sku_probe_001\",\"name\":\"Probe item\",\"description\":\"Probe line item\",\"quantity\":1,\"unitPrice\":6.5,\"unitOfMeasure\":\"EA\",\"taxAmount\":1.0,\"commodityCode\":\"4900\"}]},\"tax\":{\"amount\":1.0},\"duty\":{\"amount\":0.5},\"shipping\":{\"amount\":2.0},\"taxExempt\":true,\"poNumber\":\"probe_po_001\",\"billTo\":{\"phoneNumber\":\"+14155550101\",\"email\":\"billing.probe@example.com\"},\"shipTo\":{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"address\":\"12 Main Street\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\",\"country\":\"US\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\"}}}"
         }
       },
       "AchBankTransfer": {
@@ -72,6 +115,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
@@ -87,10 +132,51 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "email": "billing.probe@example.com",
+              "phone_number": "4155550101",
+              "phone_country_code": "+1"
+            }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ=="
+          },
+          "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 650,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "duty_amount": 50
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_EXEMPT"
+            }
+          }
         },
         "sample": {
           "url": "https://apitest.authorize.net/xml/v1/request.api",
@@ -99,12 +185,99 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"opaqueData\":{\"dataDescriptor\":\"COMMON.APPLE.INAPP.PAYMENT\",\"dataValue\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"opaqueData\":{\"dataDescriptor\":\"COMMON.APPLE.INAPP.PAYMENT\",\"dataValue\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"lineItems\":{\"lineItem\":[{\"itemId\":\"sku_probe_001\",\"name\":\"Probe item\",\"description\":\"Probe line item\",\"quantity\":1,\"unitPrice\":6.5,\"unitOfMeasure\":\"EA\",\"taxAmount\":1.0,\"commodityCode\":\"4900\"}]},\"tax\":{\"amount\":1.0},\"duty\":{\"amount\":0.5},\"shipping\":{\"amount\":2.0},\"taxExempt\":true,\"poNumber\":\"probe_po_001\",\"billTo\":{\"phoneNumber\":\"+14155550101\",\"email\":\"billing.probe@example.com\"},\"shipTo\":{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"address\":\"12 Main Street\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\",\"country\":\"US\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\"}}}"
         }
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "email": "billing.probe@example.com",
+              "phone_number": "4155550101",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ=="
+          },
+          "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 650,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "duty_amount": 50
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_EXEMPT"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\",\"isPaymentToken\":true,\"cryptogram\":\"AAAAAA==\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"lineItems\":{\"lineItem\":[{\"itemId\":\"sku_probe_001\",\"name\":\"Probe item\",\"description\":\"Probe line item\",\"quantity\":1,\"unitPrice\":6.5,\"unitOfMeasure\":\"EA\",\"taxAmount\":1.0,\"commodityCode\":\"4900\"}]},\"tax\":{\"amount\":1.0},\"duty\":{\"amount\":0.5},\"shipping\":{\"amount\":2.0},\"taxExempt\":true,\"poNumber\":\"probe_po_001\",\"billTo\":{\"phoneNumber\":\"+14155550101\",\"email\":\"billing.probe@example.com\"},\"shipTo\":{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"address\":\"12 Main Street\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\",\"country\":\"US\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\"}}}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -166,6 +339,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "card": {
               "card_number": "4111111111111111",
@@ -177,10 +352,51 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "email": "billing.probe@example.com",
+              "phone_number": "4155550101",
+              "phone_country_code": "+1"
+            }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ=="
+          },
+          "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 650,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "duty_amount": 50
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_EXEMPT"
+            }
+          }
         },
         "sample": {
           "url": "https://apitest.authorize.net/xml/v1/request.api",
@@ -189,7 +405,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\",\"cardCode\":\"737\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\",\"cardCode\":\"737\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"lineItems\":{\"lineItem\":[{\"itemId\":\"sku_probe_001\",\"name\":\"Probe item\",\"description\":\"Probe line item\",\"quantity\":1,\"unitPrice\":6.5,\"unitOfMeasure\":\"EA\",\"taxAmount\":1.0,\"commodityCode\":\"4900\"}]},\"tax\":{\"amount\":1.0},\"duty\":{\"amount\":0.5},\"shipping\":{\"amount\":2.0},\"taxExempt\":true,\"poNumber\":\"probe_po_001\",\"billTo\":{\"phoneNumber\":\"+14155550101\",\"email\":\"billing.probe@example.com\"},\"shipTo\":{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"address\":\"12 Main Street\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\",\"country\":\"US\"},\"cardholderAuthentication\":{\"authenticationIndicator\":\"05\",\"cardholderAuthenticationValue\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\"}}}"
         }
       },
       "CashappQr": {
@@ -272,6 +488,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
           "payment_method": {
             "google_pay_sdk": {
               "type": "CARD",
@@ -290,10 +508,51 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "email": "billing.probe@example.com",
+              "phone_number": "4155550101",
+              "phone_country_code": "+1"
+            }
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ=="
+          },
+          "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 650,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "duty_amount": 50
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_EXEMPT"
+            }
+          }
         },
         "sample": {
           "url": "https://apitest.authorize.net/xml/v1/request.api",
@@ -302,12 +561,95 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"opaqueData\":{\"dataDescriptor\":\"COMMON.GOOGLE.INAPP.PAYMENT\",\"dataValue\":\"eyJpZCI6InRva19wcm9iZV9ncGF5Iiwib2JqZWN0IjoidG9rZW4iLCJ0eXBlIjoiY2FyZCJ9\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"billTo\":{}}}}"
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"opaqueData\":{\"dataDescriptor\":\"COMMON.GOOGLE.INAPP.PAYMENT\",\"dataValue\":\"eyJpZCI6InRva19wcm9iZV9ncGF5Iiwib2JqZWN0IjoidG9rZW4iLCJ0eXBlIjoiY2FyZCJ9\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"lineItems\":{\"lineItem\":[{\"itemId\":\"sku_probe_001\",\"name\":\"Probe item\",\"description\":\"Probe line item\",\"quantity\":1,\"unitPrice\":6.5,\"unitOfMeasure\":\"EA\",\"taxAmount\":1.0,\"commodityCode\":\"4900\"}]},\"tax\":{\"amount\":1.0},\"duty\":{\"amount\":0.5},\"shipping\":{\"amount\":2.0},\"taxExempt\":true,\"poNumber\":\"probe_po_001\",\"billTo\":{\"phoneNumber\":\"+14155550101\",\"email\":\"billing.probe@example.com\"},\"shipTo\":{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"address\":\"12 Main Street\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\",\"country\":\"US\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\"}}}"
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Failed to parse Google Pay wallet token"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "order_tax_amount": 100,
+          "shipping_cost": 200,
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "shipping_address": {
+              "first_name": "Jane",
+              "last_name": "Doe",
+              "line1": "12 Main Street",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            },
+            "billing_address": {
+              "email": "billing.probe@example.com",
+              "phone_number": "4155550101",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "authentication_data": {
+            "eci": "05",
+            "cavv": "cHJvYmVfY2F2dl92YWx1ZQ=="
+          },
+          "return_url": "https://example.com/return",
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          },
+          "l2_l3_data": {
+            "order_info": {
+              "order_details": [
+                {
+                  "product_name": "Probe item",
+                  "quantity": 1,
+                  "amount": 650,
+                  "total_tax_amount": 100,
+                  "product_id": "sku_probe_001",
+                  "description": "Probe line item",
+                  "unit_of_measure": "EA",
+                  "commodity_code": "4900"
+                }
+              ],
+              "merchant_order_reference_id": "probe_po_001",
+              "duty_amount": 50
+            },
+            "tax_info": {
+              "tax_status": "TAX_STATUS_EXEMPT"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\",\"isPaymentToken\":true,\"cryptogram\":\"AAAAAA==\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_txn_001\"},\"lineItems\":{\"lineItem\":[{\"itemId\":\"sku_probe_001\",\"name\":\"Probe item\",\"description\":\"Probe line item\",\"quantity\":1,\"unitPrice\":6.5,\"unitOfMeasure\":\"EA\",\"taxAmount\":1.0,\"commodityCode\":\"4900\"}]},\"tax\":{\"amount\":1.0},\"duty\":{\"amount\":0.5},\"shipping\":{\"amount\":2.0},\"taxExempt\":true,\"poNumber\":\"probe_po_001\",\"billTo\":{\"phoneNumber\":\"+14155550101\",\"email\":\"billing.probe@example.com\"},\"shipTo\":{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"address\":\"12 Main Street\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\",\"country\":\"US\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\"}}}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -732,14 +1074,14 @@
             "method": "HTTP_METHOD_POST",
             "uri": "https://example.com/webhook",
             "headers": {},
-            "body": "{\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
+            "body": "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
           }
         },
         "sample": {
           "url": "",
           "method": "Post",
           "headers": {},
-          "body": "{\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
+          "body": "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
         }
       }
     },
@@ -757,14 +1099,14 @@
             "method": "HTTP_METHOD_POST",
             "uri": "https://example.com/webhook",
             "headers": {},
-            "body": "{\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
+            "body": "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
           }
         },
         "sample": {
           "url": "",
           "method": "Post",
           "headers": {},
-          "body": "{\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
+          "body": "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
         }
       }
     },
@@ -867,8 +1209,8 @@
         "proto_request": {
           "connector_recurring_payment_id": {
             "mandate_id_type": {
-              "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123"
+              "network_mandate_id": {
+                "network_transaction_id": "probe_network_txn_001"
               }
             }
           },
@@ -877,14 +1219,30 @@
             "currency": "USD"
           },
           "payment_method": {
-            "token": {
-              "token": "probe_pm_token"
+            "card_details_for_network_transaction_id": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
             }
           },
           "return_url": "https://example.com/recurring-return",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101"
+            }
+          },
           "connector_customer_id": "cust_probe_123",
           "payment_method_type": "PAY_PAL",
-          "off_session": true
+          "off_session": true,
+          "billing_descriptor": {
+            "statement_descriptor": "PROBE DESCRIPTOR"
+          }
         },
         "sample": {
           "url": "https://apitest.authorize.net/xml/v1/request.api",
@@ -893,7 +1251,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"profile\":{\"customerProfileId\":\"probe\",\"paymentProfile\":{\"paymentProfileId\":\"mandate-123\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"\"},\"processingOptions\":{\"isSubsequentAuth\":true}}}}"
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"4111111111111111\",\"expirationDate\":\"2030-03\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address\":\"123 Main St\",\"city\":\"Seattle\",\"state\":\"WA\",\"zip\":\"98101\"},\"merchantDescriptor\":\"PROBE DESCRIPTOR\",\"processingOptions\":{\"isSubsequentAuth\":true},\"subsequentAuthInformation\":{\"originalNetworkTransId\":\"probe_network_txn_001\",\"reason\":\"resubmission\"}}}}"
         }
       }
     },

@@ -95,6 +95,12 @@ impl CardWithNoCvc {
         expand_expiry_year_to_four_digits(&self.card_exp_year)
     }
 
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        let month = self.get_card_expiry_month_2_digit()?;
+        Ok(Secret::new(format!("{}{}", year.peek(), month.peek())))
+    }
+
     pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?;
         let month = self.get_card_expiry_month_2_digit()?;
@@ -863,6 +869,8 @@ pub enum BankRedirectData {
         card_exp_year: Option<Secret<String>>,
         card_holder_name: Option<Secret<String>>,
     },
+    BancontactIntent {},
+    BancontactQr {},
     Bizum {},
     Blik {
         blik_code: Option<String>,
@@ -986,6 +994,8 @@ pub enum WalletData {
     RevolutPay(RevolutPayData),
     MbWay(MbWayData),
     Satispay(SatispayData),
+    SatispayIntent(SatispayIntentData),
+    SatispayQr(SatispayQrData),
     Wero(WeroData),
     LazyPayRedirect(LazyPayRedirection),
     PhonePeRedirect(PhonePeRedirection),
@@ -1004,6 +1014,25 @@ pub enum WalletData {
 }
 
 impl WalletData {
+    /// Reports authentication evidence present in supported decrypted wallet payloads.
+    /// Connectors decide whether that evidence permits skipping additional authentication.
+    pub fn is_authenticated(&self) -> bool {
+        match self {
+            Self::GooglePay(data) => {
+                matches!(&data.tokenization_data, GpayTokenizationData::Decrypted(token) if token.cryptogram.as_ref().is_some_and(|value| !value.peek().is_empty()))
+                    && data
+                        .info
+                        .assurance_details
+                        .as_ref()
+                        .is_some_and(|details| details.card_holder_authenticated)
+            }
+            Self::ApplePay(data) => {
+                matches!(&data.payment_data, ApplePayPaymentData::Decrypted(token) if !token.payment_data.online_payment_cryptogram.peek().is_empty())
+            }
+            _ => false,
+        }
+    }
+
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
             Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),
@@ -1064,6 +1093,12 @@ pub struct MbWayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SatispayData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SatispayIntentData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SatispayQrData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeroData {}
@@ -2025,13 +2060,17 @@ pub struct ReceiverDetails {
 #[serde(rename_all = "snake_case")]
 pub enum DocumentKind {
     /// Cadastro de Pessoas Físicas - the Brazilian individual taxpayer identifier.
+    #[serde(alias = "CPF", alias = "Cpf")]
     Cpf,
     /// Cadastro Nacional da Pessoa Jurídica - the Brazilian business identifier.
+    #[serde(alias = "CNPJ", alias = "Cnpj")]
     Cnpj,
     /// Philippine PhilSys Number (PSN) — a 12-digit national ID required by dLocal for GCash.
+    #[serde(alias = "PSN", alias = "Psn")]
     Psn,
     /// Generic / other non-Brazilian national document. Carried through as-is; the
     /// connector validates it per country. Kept last as the catch-all.
+    #[serde(alias = "OTHER", alias = "Other")]
     Other,
 }
 

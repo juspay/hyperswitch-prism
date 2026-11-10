@@ -13,16 +13,16 @@ use domain_types::{
     connector_flow::{Capture, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
         EventType, MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsResponseData, RawConnectorStatus, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     mandates::MandateDataType,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
-use interfaces::webhooks::IncomingWebhookEvent;
 
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -133,12 +133,17 @@ where
         let router_data = item.router_data;
         let payment_method = match router_data.request.payment_method_type {
             Some(common_enums::PaymentMethodType::BancontactCard) => "BANCONTACT".to_string(),
+            Some(common_enums::PaymentMethodType::BancontactIntent) => "BANCONTACT".to_string(),
+            Some(common_enums::PaymentMethodType::BancontactQr) => "BANCONTACT".to_string(),
             Some(common_enums::PaymentMethodType::UpiIntent) => "UPI".to_string(),
             Some(common_enums::PaymentMethodType::UpiQr) => "UPI".to_string(),
             Some(common_enums::PaymentMethodType::AliPay) => "ALIPAY".to_string(),
             Some(common_enums::PaymentMethodType::WeChatPay) => "WECHATPAY".to_string(),
+            Some(common_enums::PaymentMethodType::WeChatPayQr) => "WECHATPAY".to_string(),
             Some(common_enums::PaymentMethodType::MbWay) => "MBWAY".to_string(),
             Some(common_enums::PaymentMethodType::Satispay) => "SATISPAY".to_string(),
+            Some(common_enums::PaymentMethodType::SatispayIntent) => "SATISPAY".to_string(),
+            Some(common_enums::PaymentMethodType::SatispayQr) => "SATISPAY".to_string(),
             Some(common_enums::PaymentMethodType::Wero) => "WERO".to_string(),
             Some(common_enums::PaymentMethodType::Ideal) => "IDEAL".to_string(),
             Some(common_enums::PaymentMethodType::Trustly) => "TRUSTLY".to_string(),
@@ -169,22 +174,30 @@ where
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::UpiIntent) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::AppIntent,
-                    settings: Some(PproAuthSettingsDetails {
-                        return_url: None,
-                        scan_by: None,
-                        mobile_intent_uri: router_data.request.router_return_url.clone(),
-                    }),
-                }])
-            }
-            Some(common_enums::PaymentMethodType::UpiQr) => {
-                Some(vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::ScanCode,
-                    settings: None,
-                }])
-            }
+            // Intent-based APP_INTENT flows (mobileIntentUri sourced from router_return_url).
+            Some(
+                common_enums::PaymentMethodType::UpiIntent
+                | common_enums::PaymentMethodType::SatispayIntent
+                | common_enums::PaymentMethodType::BancontactIntent,
+            ) => Some(vec![PproAuthenticationSettings {
+                r#type: PproAuthenticationType::AppIntent,
+                settings: Some(PproAuthSettingsDetails {
+                    return_url: None,
+                    scan_by: None,
+                    mobile_intent_uri: router_data.request.router_return_url.clone(),
+                }),
+            }]),
+            // QR-based SCAN_CODE flows.
+            Some(
+                common_enums::PaymentMethodType::UpiQr
+                | common_enums::PaymentMethodType::SatispayQr
+                | common_enums::PaymentMethodType::WeChatPayQr
+                | common_enums::PaymentMethodType::BancontactQr,
+            ) => Some(vec![PproAuthenticationSettings {
+                r#type: PproAuthenticationType::ScanCode,
+                settings: None,
+            }]),
+            // Everything else (e.g. plain Satispay): REDIRECT via router_return_url.
             _ => router_data
                 .request
                 .router_return_url
@@ -206,23 +219,25 @@ where
             .get_optional_billing_email()
             .or_else(|| router_data.request.get_optional_email());
 
-        // PPRO requires consumer email and country for Afterpay payments.
+        // PPRO requires consumer email for Afterpay payments.
         if matches!(
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::AfterpayClearpay)
-        ) {
-            if email.is_none() {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "email",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Afterpay requires consumer email".to_string()),
-                        ..Default::default()
-                    },
-                }
-                .into());
+        ) && email.is_none()
+        {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "email",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Afterpay requires consumer email".to_string()),
+                    ..Default::default()
+                },
             }
-            router_data.resource_common_data.get_billing_country()?;
+            .into());
         }
+
+        // PPRO requires a consumer country for all payment methods, so the billing
+        // country must always be present.
+        router_data.resource_common_data.get_billing_country()?;
 
         let merchant_consumer_reference = if matches!(
             router_data.request.payment_method_type,
@@ -233,6 +248,14 @@ where
         } else {
             None
         };
+
+        if matches!(
+            router_data.request.payment_method_type,
+            Some(common_enums::PaymentMethodType::WeChatPayQr)
+                | Some(common_enums::PaymentMethodType::WeChatPay)
+        ) {
+            router_data.resource_common_data.get_billing_full_name()?;
+        }
 
         let consumer = router_data
             .resource_common_data
@@ -261,8 +284,9 @@ where
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum PproPaymentStatus {
     AuthorizationProcessing,
     CaptureProcessing,
@@ -324,8 +348,9 @@ impl From<PproPaymentStatus> for common_enums::RefundStatus {
 
 /// Statuses returned by the PPRO refund API endpoints (POST/GET /v1/payment-charges/{id}/refunds).
 /// These are distinct from payment charge statuses.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum PproRefundStatus {
     /// Refund has been settled / funds returned to the consumer.
     RefundSettled,
@@ -336,12 +361,15 @@ pub enum PproRefundStatus {
     Failed,
     Rejected,
     Declined,
-    #[serde(other)]
-    Unknown,
+    #[serde(untagged)]
+    #[strum(default)]
+    #[strum(to_string = "{0}")]
+    Unknown(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum PproAgreementStatus {
     Active,
     AuthenticationPending,
@@ -358,8 +386,10 @@ pub struct PproPaymentsResponse {
     pub amount: Option<common_utils::MinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
-    /// The instrument ID returned by PPRO after a successful authorization.
-    /// This is stored as the mandate reference for recurring payments.
+    /// The consumer's payment instrument, resolved by PPRO during authentication and
+    /// returned on ordinary one-off charges as well. This is NOT an agreement id and must
+    /// not be surfaced as a mandate reference -- recurring charges are made against a
+    /// payment agreement created by SetupMandate.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instrument_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -611,6 +641,30 @@ pub struct PproFailure {
     pub failure_message: String,
 }
 
+/// Fills the opt-in `raw_connector_status` channel with PPRO's granular raw status
+/// (charge `paymentChargeStatus`, agreement `paymentAgreementStatus`, or refund `status`),
+/// alongside the unified attempt/refund status, plus the `failure` block details when
+/// present — for callers that consume the typed connector status codes.
+/// Mirrors grabpay's `grabpay_raw_connector_status`.
+fn ppro_raw_connector_status<S: std::fmt::Display>(
+    status: &S,
+    failure: Option<&PproFailure>,
+) -> RawConnectorStatus {
+    RawConnectorStatus {
+        code: failure
+            .and_then(|f| f.failure_code.clone())
+            .or(Some(status.to_string())),
+        message: failure.map(|f| f.failure_message.clone()),
+        reason: failure.map(|f| {
+            format!(
+                "{}: {}",
+                f.failure_type,
+                f.failure_code.as_deref().unwrap_or(consts::NO_ERROR_CODE)
+            )
+        }),
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PproErrorResponse {
@@ -674,37 +728,6 @@ impl TryFrom<PproWebhookType> for EventType {
     }
 }
 
-impl TryFrom<PproWebhookType> for IncomingWebhookEvent {
-    type Error = error_stack::Report<WebhookError>;
-
-    fn try_from(event_type: PproWebhookType) -> Result<Self, Self::Error> {
-        match event_type {
-            PproWebhookType::PaymentChargeCreated
-            | PproWebhookType::PaymentChargeProviderConfirmationPending => {
-                Ok(Self::PaymentIntentProcessing)
-            }
-            PproWebhookType::PaymentChargeAuthenticationPending => Ok(Self::PaymentActionRequired),
-            PproWebhookType::PaymentChargeAuthorizationSucceeded
-            | PproWebhookType::PaymentChargeSuccess => Ok(Self::PaymentIntentSuccess),
-            PproWebhookType::PaymentChargeAuthorizationFailed
-            | PproWebhookType::PaymentChargeFailed
-            | PproWebhookType::PaymentChargeDiscarded => Ok(Self::PaymentIntentFailure),
-            PproWebhookType::PaymentChargeCaptureSucceeded => Ok(Self::PaymentIntentCaptureSuccess),
-            PproWebhookType::PaymentChargeCaptureFailed => Ok(Self::PaymentIntentCaptureFailure),
-            PproWebhookType::PaymentChargeVoidSucceeded => Ok(Self::PaymentIntentCancelled),
-            PproWebhookType::PaymentChargeVoidFailed => Ok(Self::PaymentIntentCancelFailure),
-            PproWebhookType::PaymentChargeRefundPending => Ok(Self::RefundProcessing),
-            PproWebhookType::PaymentChargeRefundSucceeded => Ok(Self::RefundSuccess),
-            PproWebhookType::PaymentChargeRefundFailed => Ok(Self::RefundFailure),
-            PproWebhookType::PaymentAgreementActive => Ok(Self::MandateActive),
-            PproWebhookType::PaymentAgreementFailed
-            | PproWebhookType::PaymentAgreementRevokedByConsumer
-            | PproWebhookType::PaymentAgreementRevokedByMerchant
-            | PproWebhookType::PaymentAgreementRevokedByProvider => Ok(Self::MandateRevoked),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PproWebhookEvent {
@@ -747,13 +770,50 @@ pub enum PproWebhookData {
     Agreement(PproWebhookAgreementData),
 }
 
-impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
+/// Parse the `ppro-signature` header into its key/value elements.
+///
+/// PPRO signs webhooks with a header of the form `t=<unix_timestamp>,s=<hex_hmac_sha256>`.
+/// We split on `,` and then on the first `=` of each element, mirroring stripe's
+/// `get_signature_elements_from_header`. The lookup is case-insensitive because
+/// HTTP intermediaries may normalise header casing.
+pub(crate) fn get_ppro_signature_elements_from_header(
+    headers: &std::collections::HashMap<String, String>,
+) -> Result<std::collections::HashMap<String, String>, error_stack::Report<WebhookError>> {
+    let security_header = headers
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case(super::headers::PPRO_SIGNATURE))
+        .map(|(_, value)| value.clone())
+        .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+
+    let mut signature_elements = std::collections::HashMap::new();
+    for prop_str in security_header.split(',') {
+        let (prop_key, prop_value) = prop_str
+            .split_once('=')
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+        signature_elements.insert(prop_key.to_string(), prop_value.to_string());
+    }
+
+    Ok(signature_elements)
+}
+
+impl<F, Req, T> TryFrom<ResponseRouterData<PproPaymentsResponse, PproRouterData<Self, T>>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 where
     Req: GetOptionalPaymentMethodType,
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<PproPaymentsResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<PproPaymentsResponse, PproRouterData<Self, T>>,
+    ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
+        let raw_connector_status =
+            ppro_raw_connector_status(&item.response.status, item.response.failure.as_ref());
         let status = common_enums::AttemptStatus::from(item.response.status);
 
         let mut error_response = None;
@@ -800,17 +860,6 @@ where
             }
         }
 
-        // If PPRO returned an instrumentId, store it as the mandate reference
-        // so callers can use it for subsequent RepeatPayment charges.
-        let mandate_reference = item.response.instrument_id.as_ref().map(|instr_id| {
-            Box::new(MandateReference {
-                connector_mandate_id: Some(instr_id.clone()),
-                payment_method_id: None,
-                connector_mandate_request_reference_id: None,
-                mandate_metadata: None,
-            })
-        });
-
         let resolved_minor_amount = item
             .response
             .captures
@@ -839,10 +888,18 @@ where
                     .map(|m| m.currency)
             });
 
-        let response_amount = resolved_minor_amount.map(|minor| common_utils::types::Money {
-            amount: minor,
-            currency: resolved_currency.unwrap_or_default(),
-        });
+        let response_amount = resolved_minor_amount
+            .map(|minor| {
+                let currency = resolved_currency.unwrap_or_default();
+                crate::utils::response_amount_to_money(
+                    &connector,
+                    minor,
+                    currency,
+                    item.http_code,
+                    domain_types::connector_types::ConnectorEnum::Ppro,
+                )
+            })
+            .transpose()?;
 
         let connector_response_reference_id = item
             .response
@@ -863,7 +920,7 @@ where
             .captures
             .as_ref()
             .and_then(|c| c.last())
-            .map(|c| c.amount.get_amount_as_i64());
+            .map(|c| c.amount);
 
         let response = if let Some(err) = error_response {
             Err(err)
@@ -871,7 +928,12 @@ where
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: redirection_data.map(Box::new),
-                mandate_reference,
+                // PPRO's charge endpoints never establish a mandate: an agreement is only
+                // created via SetupMandate (POST /v1/payment-agreements), which builds its
+                // own MandateReference from the agreement id. The `instrumentId` echoed back
+                // here is the consumer's resolved payment instrument -- returned on ordinary
+                // one-off charges too -- and is not usable as an agreement id.
+                mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
@@ -894,12 +956,19 @@ where
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 amount: response_amount.or(item.router_data.resource_common_data.amount),
                 amount_captured: captured_amount
-                    .map(|amount| common_utils::types::Money {
-                        amount: common_utils::MinorUnit::new(amount),
-                        currency: response_currency,
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            response_currency,
+                            item.http_code,
+                            domain_types::connector_types::ConnectorEnum::Ppro,
+                        )
                     })
+                    .transpose()?
                     .or(item.router_data.resource_common_data.amount_captured),
                 ..item.router_data.resource_common_data
             },
@@ -909,11 +978,13 @@ where
     }
 }
 
-impl<F, Req, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
-    for RouterDataV2<F, Req, T, RefundsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
+    for RouterDataV2<F, RefundFlowData, T, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PproRefundResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_status =
+            ppro_raw_connector_status(&item.response.status, item.response.failure.as_ref());
         let refund_status = match item.response.status {
             PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
                 common_enums::RefundStatus::Success
@@ -921,7 +992,7 @@ impl<F, Req, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
             PproRefundStatus::Failed | PproRefundStatus::Rejected | PproRefundStatus::Declined => {
                 common_enums::RefundStatus::Failure
             }
-            PproRefundStatus::Pending | PproRefundStatus::Unknown => {
+            PproRefundStatus::Pending | PproRefundStatus::Unknown(_) => {
                 common_enums::RefundStatus::Pending
             }
         };
@@ -973,6 +1044,10 @@ impl<F, Req, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
 
         Ok(Self {
             response,
+            resource_common_data: RefundFlowData {
+                raw_connector_status: Some(raw_connector_status),
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
@@ -986,40 +1061,45 @@ impl TryFrom<ResponseRouterData<PproRSyncResponse, Self>>
     fn try_from(item: ResponseRouterData<PproRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let connector_refund_id = &item.router_data.request.connector_refund_id;
         let refunds = &item.response.refunds;
-        let refund_status =
-            if let Some(entry) = refunds.iter().find(|r| &r.id == connector_refund_id) {
-                match entry.status {
-                    PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
-                        common_enums::RefundStatus::Success
-                    }
-                    PproRefundStatus::Failed
-                    | PproRefundStatus::Rejected
-                    | PproRefundStatus::Declined => common_enums::RefundStatus::Failure,
-                    PproRefundStatus::Pending | PproRefundStatus::Unknown => {
-                        common_enums::RefundStatus::Pending
-                    }
+        let refund_entry = refunds.iter().find(|r| &r.id == connector_refund_id);
+        // Raw status: the matched refund entry's status (the flow-relevant
+        // resource). When the refund isn't in the response there is no
+        // refund-level status to report — leave the code empty rather than
+        // falling back to the charge-level status (e.g. CAPTURED).
+        let raw_status_code = refund_entry.map(|entry| entry.status.to_string());
+        let refund_status = if let Some(entry) = refund_entry {
+            match entry.status {
+                PproRefundStatus::RefundSettled | PproRefundStatus::Refunded => {
+                    common_enums::RefundStatus::Success
                 }
-            } else if refunds.iter().any(|r| {
+                PproRefundStatus::Failed
+                | PproRefundStatus::Rejected
+                | PproRefundStatus::Declined => common_enums::RefundStatus::Failure,
+                PproRefundStatus::Pending | PproRefundStatus::Unknown(_) => {
+                    common_enums::RefundStatus::Pending
+                }
+            }
+        } else if refunds.iter().any(|r| {
+            matches!(
+                r.status,
+                PproRefundStatus::Refunded | PproRefundStatus::RefundSettled
+            )
+        }) {
+            common_enums::RefundStatus::Success
+        } else if !refunds.is_empty()
+            && refunds.iter().all(|r| {
                 matches!(
                     r.status,
-                    PproRefundStatus::Refunded | PproRefundStatus::RefundSettled
+                    PproRefundStatus::Failed
+                        | PproRefundStatus::Rejected
+                        | PproRefundStatus::Declined
                 )
-            }) {
-                common_enums::RefundStatus::Success
-            } else if !refunds.is_empty()
-                && refunds.iter().all(|r| {
-                    matches!(
-                        r.status,
-                        PproRefundStatus::Failed
-                            | PproRefundStatus::Rejected
-                            | PproRefundStatus::Declined
-                    )
-                })
-            {
-                common_enums::RefundStatus::Failure
-            } else {
-                common_enums::RefundStatus::Pending
-            };
+            })
+        {
+            common_enums::RefundStatus::Failure
+        } else {
+            common_enums::RefundStatus::Pending
+        };
 
         let response = Ok(RefundsResponseData {
             connector_refund_id: connector_refund_id.clone(),
@@ -1030,6 +1110,14 @@ impl TryFrom<ResponseRouterData<PproRSyncResponse, Self>>
 
         Ok(Self {
             response,
+            resource_common_data: RefundFlowData {
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: raw_status_code,
+                    message: None,
+                    reason: None,
+                }),
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
@@ -1064,16 +1152,64 @@ pub struct PproAgreementRequest {
     pub instrument: Option<PproInstrument>,
 }
 
+/// Parses PPRO's `scanBy` QR-expiry timestamp (an RFC-3339 datetime string) into a unix
+/// timestamp. Returns `None` if it doesn't parse, rather than failing the whole response.
+fn parse_scan_by_expiry(scan_by: &str) -> Option<i64> {
+    time::OffsetDateTime::parse(scan_by, &time::format_description::well_known::Rfc3339)
+        .ok()
+        .map(|dt| dt.unix_timestamp())
+}
+
 /// Builds a `RedirectForm` from the PPRO authentication method matching the requested
-/// payment method: UPI Intent → `APP_INTENT`, UPI QR → `SCAN_CODE`, otherwise `REDIRECT`.
+/// payment method: UPI Intent / Satispay Intent → `APP_INTENT` (as a `Uri`), UPI QR / Satispay
+/// QR → `SCAN_CODE` (as a `Qr`), otherwise → `REDIRECT` (as a `Uri` from `requestUrl`).
 pub(crate) fn build_auth_redirect(
     auth_methods: &[PproAuthenticationResponse],
     payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<RedirectForm> {
-    let matched_type = match payment_method_type {
-        Some(common_enums::PaymentMethodType::UpiIntent) => PproAuthenticationType::AppIntent,
-        Some(common_enums::PaymentMethodType::UpiQr) => PproAuthenticationType::ScanCode,
-        _ => PproAuthenticationType::Redirect,
+    let (matched_type, build): (
+        PproAuthenticationType,
+        fn(&PproAuthDetailsResponse) -> Option<RedirectForm>,
+    ) = match payment_method_type {
+        // UpiIntent and SatispayIntent both resolve to PPRO's APP_INTENT auth type and
+        // build an identical `Uri` from `mobileIntentUri` -- only the triggering
+        // `PaymentMethodType` differs between UPI and Satispay.
+        Some(common_enums::PaymentMethodType::UpiIntent)
+        | Some(common_enums::PaymentMethodType::SatispayIntent)
+        | Some(common_enums::PaymentMethodType::BancontactIntent) => {
+            (PproAuthenticationType::AppIntent, |details| {
+                details
+                    .mobile_intent_uri
+                    .clone()
+                    .filter(|uri| !uri.trim().is_empty())
+                    .map(|uri| RedirectForm::Uri { uri })
+            })
+        }
+        Some(common_enums::PaymentMethodType::UpiQr)
+        | Some(common_enums::PaymentMethodType::SatispayQr)
+        | Some(common_enums::PaymentMethodType::WeChatPayQr)
+        | Some(common_enums::PaymentMethodType::BancontactQr) => {
+            (PproAuthenticationType::ScanCode, |details| {
+                let payload = details
+                    .code_payload
+                    .clone()
+                    .filter(|payload| !payload.trim().is_empty());
+                let payload = payload?;
+                Some(RedirectForm::Qr {
+                    payload: Some(payload),
+                    image_base64: None,
+                    image_url: details.code_image.clone(),
+                    fallback_url: None,
+                    expires_at: details.scan_by.as_deref().and_then(parse_scan_by_expiry),
+                })
+            })
+        }
+        _ => (PproAuthenticationType::Redirect, |details| {
+            details
+                .request_url
+                .clone()
+                .map(|uri| RedirectForm::Uri { uri })
+        }),
     };
 
     auth_methods.iter().find_map(|method| {
@@ -1081,13 +1217,7 @@ pub(crate) fn build_auth_redirect(
             return None;
         }
         let details = method.details.as_ref()?;
-        let uri = match matched_type {
-            PproAuthenticationType::AppIntent => details.mobile_intent_uri.clone(),
-            PproAuthenticationType::ScanCode => details.code_payload.clone(),
-            PproAuthenticationType::Redirect => details.request_url.clone(),
-            PproAuthenticationType::Unknown => None,
-        }?;
-        Some(RedirectForm::Uri { uri })
+        build(details)
     })
 }
 
@@ -1359,7 +1489,7 @@ where
         // iDEAL requires debitMandateId for recurring agreements
         Some(common_enums::PaymentMethodType::Ideal) => {
             let bank_name = match &router_data.request.payment_method_data {
-                domain_types::payment_method_data::PaymentMethodData::BankRedirect(
+                PaymentMethodData::BankRedirect(
                     domain_types::payment_method_data::BankRedirectData::Ideal { bank_name },
                 ) => *bank_name,
                 _ => None,
@@ -1428,6 +1558,8 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
     fn try_from(
         item: ResponseRouterData<PproAgreementResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_connector_status =
+            ppro_raw_connector_status(&item.response.status, item.response.failure.as_ref());
         let status = match item.response.status {
             PproAgreementStatus::Active => common_enums::AttemptStatus::Charged,
             PproAgreementStatus::AuthenticationPending | PproAgreementStatus::Initializing => {
@@ -1502,6 +1634,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             response,

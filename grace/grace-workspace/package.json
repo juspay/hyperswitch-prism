@@ -17,5 +17,10 @@
   "devDependencies": {
     "concurrently": "^9.0.1"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "shell-quote": "^1.8.4"
+    }
+  }
 }

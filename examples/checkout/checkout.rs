@@ -17,6 +17,8 @@ use std::str::FromStr;
 pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
+    "dispute_accept",
+    "dispute_defend",
     "get",
     "parse_event",
     "proxy_authorize",
@@ -44,6 +46,12 @@ fn build_client() -> ConnectorClient {
                     processing_channel_id: Some(hyperswitch_masking::Secret::new(
                         "YOUR_PROCESSING_CHANNEL_ID".to_string(),
                     )), // Authentication credential
+                    connector_client_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_CONNECTOR_CLIENT_ID".to_string(),
+                    )), // Authentication credential
+                    connector_currency_account_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_CONNECTOR_CURRENCY_ACCOUNT_ID".to_string(),
+                    )), // Authentication credential
                     base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                     ..Default::default()
                 },
@@ -61,8 +69,8 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         merchant_transaction_id: Some("probe_txn_001".to_string()), // Identification.
         amount: Some(Money {
             // The amount for the payment.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
@@ -81,14 +89,37 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
                 .unwrap_or_default()
                 .into(),
         ), // Method for capturing the payment.
-        address: Some(PaymentAddress {
-            // Address Information.
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
+        customer: Some(Customer {
+            // Customer Information.
+            email: Some(Secret::new("customer.probe@example.com".to_string())),
             ..Default::default()
         }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            shipping_address: Some(Address {
+                first_name: Some(Secret::new("Jane".to_string())),
+                line1: Some(Secret::new("123 Main St".to_string())),
+                city: Some(Secret::new("Seattle".to_string())),
+                zip_code: Some(Secret::new("98101".to_string())),
+                country_alpha2_code: Some(CountryAlpha2::Us.into()),
+                ..Default::default()
+            }),
+            billing_address: Some(Address {
+                phone_number: Some(Secret::new("4155552671".to_string())),
+                phone_country_code: Some("+1".to_string()),
+                ..Default::default()
+            }),
+        }),
         auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
+        authentication_data: Some(AuthenticationData {
+            eci: Some("05".to_string()), // Electronic Commerce Indicator (ECI) from 3DS.
+            cavv: Some("AAABAWFlmQAAAABjRWWZEEFgFz8=".to_string()), // Cardholder Authentication Verification Value (CAVV).
+            message_version: Some("2.2.0".to_string()), // 3DS Message Version (e.g., "2.1.0", "2.2.0").
+            ds_transaction_id: Some("97267598-fae6-48f2-8083-c23433990361".to_string()), // Directory Server Transaction ID (DS Trans ID).
+            trans_status: Some(TransactionStatus::Success.into()), // Transaction status from authentication/verification process.
+            created_at: Some(1704067200), // Authentication timestamp (Unix epoch seconds, UTC) when the 3DS authentication was performed. Used by connectors (e.g. Cybersource) that send an authenticationDate in their request.
+            ..Default::default()
+        }),
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
         ..Default::default()
     }
@@ -100,10 +131,27 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
         connector_transaction_id: connector_transaction_id.to_string(),
         amount_to_capture: Some(Money {
             // Capture Details.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
+    }
+}
+
+pub fn build_dispute_accept_request() -> DisputeServiceAcceptRequest {
+    DisputeServiceAcceptRequest {
+        merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
+        connector_transaction_id: "probe_txn_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
+    }
+}
+
+pub fn build_dispute_defend_request() -> DisputeServiceDefendRequest {
+    DisputeServiceDefendRequest {
+        merchant_dispute_id: Some("probe_dispute_001".to_string()), // Identification.
+        connector_transaction_id: "probe_txn_001".to_string(),
+        connector_dispute_id: "probe_dispute_id_001".to_string(),
+        reason_code: Some("probe_reason".to_string()), // Defend Details.
     }
 }
 
@@ -113,8 +161,8 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         connector_transaction_id: connector_transaction_id.to_string(),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }
@@ -151,8 +199,8 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
     PaymentServiceProxyAuthorizeRequest {
         merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
         amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         card_proxy: Some(ProxyCardDetails {
             // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
@@ -181,8 +229,8 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
     PaymentServiceProxySetupRecurringRequest {
         merchant_recurring_payment_id: "probe_proxy_mandate_001".to_string(),
         amount: Some(Money {
-            minor_amount: 0,                // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 0,
+            currency: Currency::Usd.into(),
         }),
         card_proxy: Some(ProxyCardDetails {
             // Card proxy for vault-aliased payments.
@@ -220,8 +268,8 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
         }),
         amount: Some(Money {
             // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Optional payment Method Information (for network transaction flows).
@@ -247,8 +295,8 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         connector_transaction_id: connector_transaction_id.to_string(),
         payment_amount: 1000, // Amount Information.
         refund_amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
         ..Default::default()
@@ -269,8 +317,8 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
         merchant_recurring_payment_id: "probe_mandate_001".to_string(), // Identification.
         amount: Some(Money {
             // Mandate Details.
-            minor_amount: 0, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 0,
+            currency: Currency::Usd.into(),
         }),
         payment_method: Some(PaymentMethod {
             payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
@@ -309,8 +357,8 @@ pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
     PaymentServiceTokenAuthorizeRequest {
         merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
         amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
         }),
         connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())), // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         address: Some(PaymentAddress {
@@ -329,8 +377,8 @@ pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurrin
     PaymentServiceTokenSetupRecurringRequest {
         merchant_recurring_payment_id: "probe_tokenized_mandate_001".to_string(),
         amount: Some(Money {
-            minor_amount: 0,                // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+            minor_amount: 0,
+            currency: Currency::Usd.into(),
         }),
         connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
         address: Some(PaymentAddress {
@@ -354,8 +402,8 @@ pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurrin
                 mandate_type: Some(mandate_type::MandateType::MultiUse(MandateAmountData {
                     amount_money: Some(Money {
                         // Amount in Money type.
-                        minor_amount: 0, // Amount in minor units (e.g., 1000 = $10.00).
-                        currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+                        minor_amount: 0,
+                        currency: Currency::Usd.into(),
                     }),
                     ..Default::default()
                 })),
@@ -605,6 +653,30 @@ pub async fn process_capture(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: DisputeService.Accept
+#[allow(dead_code)]
+pub async fn process_dispute_accept(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .accept(build_dispute_accept_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("dispute_status: {:?}", response.dispute_status()))
+}
+
+// Flow: DisputeService.Defend
+#[allow(dead_code)]
+pub async fn process_dispute_defend(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .defend(build_dispute_defend_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("dispute_status: {:?}", response.dispute_status()))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -755,6 +827,8 @@ async fn main() {
         "process_get_payment" => process_get_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
+        "process_dispute_accept" => process_dispute_accept(&client, "txn_001").await,
+        "process_dispute_defend" => process_dispute_defend(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
@@ -766,7 +840,7 @@ async fn main() {
         "process_token_setup_recurring" => process_token_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_token_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_dispute_accept, process_dispute_defend, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_token_setup_recurring, process_void", flow);
             return;
         }
     };

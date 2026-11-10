@@ -218,7 +218,9 @@ pub fn build_connector_config(
             config: Some(connector_specific_config::Config::Jpmorgan(
                 JpmorganConfig {
                     client_id: Some(Secret::new(get_val(creds, "client_id")?)),
-                    client_secret: Some(Secret::new(get_val(creds, "client_secret")?)),
+                    thumbprint: Some(Secret::new(get_val(creds, "thumbprint")?)),
+                    private_key: Some(Secret::new(get_val(creds, "private_key")?)),
+                    resource_id: Some(Secret::new(get_val(creds, "resource_id")?)),
                     company_name: get_opt_secret(creds, "company_name"),
                     product_name: get_opt_secret(creds, "product_name"),
                     merchant_purchase_description: get_opt_secret(
@@ -348,6 +350,16 @@ pub fn build_connector_config(
             config: Some(connector_specific_config::Config::Rapyd(RapydConfig {
                 access_key: Some(Secret::new(get_val(creds, "access_key")?)),
                 secret_key: Some(Secret::new(get_val(creds, "secret_key")?)),
+                country_of_incorporation: creds
+                    .contains_key("country_of_incorporation")
+                    .then(|| {
+                        let country = get_val(creds, "country_of_incorporation")?;
+                        CountryAlpha2::from_str_name(&country)
+                            .filter(|country| *country != CountryAlpha2::Unspecified)
+                            .map(i32::from)
+                            .ok_or_else(|| "invalid country_of_incorporation".to_string())
+                    })
+                    .transpose()?,
                 ..Default::default()
             })),
         }),

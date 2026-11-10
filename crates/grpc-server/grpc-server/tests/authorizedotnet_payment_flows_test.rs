@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -160,6 +161,8 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                network_transaction_id: None,
+                transaction_link_id: None,
             },
         )),
     };
@@ -318,16 +321,19 @@ fn create_payment_authorize_request(
             line3: None,
             city: Some("Pecan Springs".to_string().into()),
             state: Some("TX".to_string().into()),
+            state_code_iso: None,
             zip_code: Some("44628".to_string().into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
             phone_number: None,
             phone_country_code: None,
             email: None,
+            origin_zip: None,
         }),
         shipping_address: None, // Minimal address - no shipping for working grpcurl
     });
 
     let browser_info = BrowserInformation {
+        challenge_window_size: None,
         color_depth: None,
         java_enabled: Some(false),
         screen_height: Some(1080),
@@ -376,6 +382,9 @@ fn create_payment_authorize_request(
 // Helper function to create a payment sync request
 fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        enable_partial_authorization: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
@@ -404,7 +413,12 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
     let request_ref_id = generate_unique_request_ref_id("capture");
 
     PaymentServiceCaptureRequest {
+        currency_conversion_data: None,
+        integrity_specifications: None,
+        is_overcapture_enabled: None,
+        domain_data: None,
         split_settlement: None,
+        payment_method: None,
         merchant_capture_id: Some(request_ref_id),
         connector_transaction_id: transaction_id.to_string(),
         amount_to_capture: Some(grpc_api_types::payments::Money {
@@ -457,6 +471,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
     let refund_metadata_json = serde_json::to_string(&refund_metadata_map).unwrap();
 
     PaymentServiceRefundRequest {
+        currency_conversion_data: None,
         split_settlement_refund: None,
         merchant_refund_id: Some(generate_unique_request_ref_id("refund")),
         connector_transaction_id: transaction_id.to_string(),
@@ -567,11 +582,13 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
             line3: None,
             city: Some("Test City".to_string().into()),
             state: Some("NY".to_string().into()),
+            state_code_iso: None,
             zip_code: Some("10001".to_string().into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
             phone_number: None,
             phone_country_code: None,
             email: Some(generate_unique_email().into()),
+            origin_zip: None,
         }),
         shipping_address: None,
     });
@@ -721,8 +738,7 @@ async fn test_payment_authorization_manual_capture() {
         add_authorizenet_metadata(&mut capture_grpc_request);
 
         // Send the capture request
-        let capture_response = client
-            .capture(capture_grpc_request)
+        let capture_response = Box::pin(client.capture(capture_grpc_request))
             .await
             .expect("gRPC payment_capture call failed")
             .into_inner();

@@ -362,8 +362,8 @@ pub struct DomainData {
 ```
 
 Two verticals at HEAD. `EducationData` holds `student_details: Option<StudentDetails>`, and
-`StudentDetails` holds `student_id`, `student_first_name`, `student_last_name` (all
-`Option<String>`) plus `student_email: Option<Secret<String>>`.
+`StudentDetails` holds `student_id` (`Option<String>`) plus `student_first_name`,
+`student_last_name` and `student_email` (all `Option<Secret<String>>`).
 
 Flywire is the consumer: its `TryFrom<..> for FlywireCheckoutSessionRequest`
 (`connectors/flywire/transformers.rs`) treats `domain_data` as **mandatory**, raising

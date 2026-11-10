@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod test;
 pub mod transformers;
 
 use std::{self, fmt::Debug};
@@ -23,7 +25,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -65,6 +67,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for TwocTwopPaco<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), errors::IntegrationError> {
+        // Defer reference validation to PSync request construction and the connector.
+        Ok(())
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for TwocTwopPaco<T>
@@ -223,7 +233,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::TOKEN.to_string(),
-                    auth.access_token.clone().expose().into(),
+                    auth.access_token.clone().expose().into_masked(),
                 ),
             ]
         }
@@ -243,7 +253,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::APIKEY.to_string(),
-                    auth.access_token.clone().expose().into(),
+                    auth.access_token.clone().expose().into_masked(),
                 ),
             ]
         }
@@ -392,7 +402,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let auth = TwocTwopPacoAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::TOKEN.to_string(),
-            auth.access_token.expose().into(),
+            auth.access_token.expose().into_masked(),
         )])
     }
 

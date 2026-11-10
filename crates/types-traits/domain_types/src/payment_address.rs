@@ -1,11 +1,15 @@
+use crate::{
+    errors::{IntegrationError, IntegrationErrorContext},
+    state_codes::convert_state_to_code,
+    utils::{
+        convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error,
+        ForeignTryFrom,
+    },
+};
+
 use common_enums::ProductType;
 use common_utils::{ext_traits::ConfigExt, Email, MinorUnit};
 use hyperswitch_masking::{PeekInterface, Secret, SerializableSecret};
-
-use crate::{
-    state_codes::convert_state_to_code,
-    utils::{convert_canada_state_to_code, convert_us_state_to_code, missing_field_err, Error},
-};
 
 #[derive(Clone, Default, Debug)]
 pub struct PaymentAddress {
@@ -183,6 +187,136 @@ impl Address {
 
 // used by customers also, could be moved outside
 /// Address details
+#[derive(Clone, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct StateDetails {
+    name: Option<Secret<String>>,
+    code: Option<Secret<String>>,
+}
+
+fn invalid_state_code(context: &'static str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::InvalidDataFormat {
+        field_name: "address.state_code_iso",
+        context: IntegrationErrorContext {
+            additional_context: Some(context.to_string()),
+            ..Default::default()
+        },
+    })
+}
+
+fn normalize_state_code_iso(
+    state_code_iso: Secret<String>,
+    country: Option<common_enums::CountryAlpha2>,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    let state_code = state_code_iso.peek();
+    let normalized_code = match state_code.split_once('-') {
+        Some((country_prefix, subdivision_code))
+            if !country_prefix.is_empty()
+                && !subdivision_code.is_empty()
+                && !subdivision_code.contains('-') =>
+        {
+            if country
+                .is_some_and(|country| !country_prefix.eq_ignore_ascii_case(&country.to_string()))
+            {
+                return Err(invalid_state_code(
+                    "The ISO 3166-2 state-code country prefix must match country_alpha2_code",
+                ));
+            }
+            subdivision_code
+        }
+        Some(_) => {
+            return Err(invalid_state_code(
+                "Expected an ISO 3166-2 code in CC-SUBDIVISION format",
+            ));
+        }
+        None => state_code.as_str(),
+    };
+
+    if normalized_code.is_empty()
+        || !normalized_code
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric())
+    {
+        return Err(invalid_state_code(
+            "The ISO 3166-2 subdivision component must contain only alphanumeric characters",
+        ));
+    }
+
+    Ok(Secret::new(normalized_code.to_ascii_uppercase()))
+}
+
+impl
+    ForeignTryFrom<(
+        Option<Secret<String>>,
+        Option<Secret<String>>,
+        Option<common_enums::CountryAlpha2>,
+    )> for StateDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (name, code, country): (
+            Option<Secret<String>>,
+            Option<Secret<String>>,
+            Option<common_enums::CountryAlpha2>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let code = match code {
+            Some(code) => Some(normalize_state_code_iso(code, country)?),
+            None => name.as_ref().and_then(|name| {
+                country.and_then(|country| {
+                    let state_name = name.peek();
+                    match country {
+                        common_enums::CountryAlpha2::US => {
+                            let code = convert_us_state_to_code(state_name);
+                            (state_name.len() == 2 || code != state_name.as_str()).then_some(code)
+                        }
+                        common_enums::CountryAlpha2::CA => {
+                            let code = convert_canada_state_to_code(state_name);
+                            (state_name.len() == 2 || code != state_name.as_str()).then_some(code)
+                        }
+                        country => convert_state_to_code(country, state_name).map(str::to_owned),
+                    }
+                    .map(Secret::new)
+                })
+            }),
+        };
+
+        Ok(Self { name, code })
+    }
+}
+
+impl StateDetails {
+    pub fn from_name(name: Secret<String>) -> Self {
+        Self {
+            name: Some(name),
+            code: None,
+        }
+    }
+
+    pub fn from_code(code: Secret<String>) -> Self {
+        Self {
+            name: None,
+            code: Some(code),
+        }
+    }
+
+    pub fn code(&self) -> Option<&Secret<String>> {
+        self.code.as_ref()
+    }
+
+    pub fn name(&self) -> Option<&Secret<String>> {
+        self.name.as_ref()
+    }
+
+    pub fn code_or_name(&self) -> Option<&Secret<String>> {
+        self.code().or_else(|| self.name())
+    }
+
+    pub fn name_or_code(&self) -> Option<&Secret<String>> {
+        self.name().or_else(|| self.code())
+    }
+}
+
 #[derive(Clone, Default, Debug, Eq, serde::Deserialize, serde::Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct AddressDetails {
@@ -205,7 +339,8 @@ pub struct AddressDetails {
     pub zip: Option<Secret<String>>,
 
     /// The address state
-    pub state: Option<Secret<String>>,
+    /// State/province name or ISO 3166-2 subdivision code.
+    pub state: Option<StateDetails>,
 
     /// The first name for the address
     pub first_name: Option<Secret<String>>,
@@ -307,6 +442,7 @@ impl AddressDetails {
     pub fn get_state(&self) -> Result<&Secret<String>, Error> {
         self.state
             .as_ref()
+            .and_then(StateDetails::name_or_code)
             .ok_or_else(missing_field_err("address.state"))
     }
 
@@ -364,11 +500,25 @@ impl AddressDetails {
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.country
     }
+    /// Returns the supplied state representation, regardless of whether it is
+    /// a state name or an ISO subdivision code.
     pub fn get_optional_state(&self) -> Option<Secret<String>> {
-        self.state.clone()
+        self.state
+            .as_ref()
+            .and_then(StateDetails::name_or_code)
+            .cloned()
+    }
+
+    /// Returns only an ISO subdivision code. A state name is intentionally not
+    /// converted here because conversion depends on the connector's needs.
+    pub fn get_optional_state_code_iso(&self) -> Option<Secret<String>> {
+        self.state.as_ref().and_then(StateDetails::code).cloned()
     }
 
     pub fn to_state_code(&self) -> Result<Secret<String>, Error> {
+        if let Some(state_code) = self.state.as_ref().and_then(StateDetails::code) {
+            return Ok(state_code.clone());
+        }
         let country = self.get_country()?;
         let state = self.get_state()?;
         match country {
@@ -387,12 +537,13 @@ impl AddressDetails {
     pub fn to_state_code_as_optional(&self) -> Result<Option<Secret<String>>, Error> {
         self.state
             .as_ref()
-            .map(|state| {
-                if state.peek().len() == 2 {
-                    Ok(state.to_owned())
-                } else {
-                    self.to_state_code()
-                }
+            .map(|state| match state.code() {
+                Some(value) => Ok(value.clone()),
+                None => match state.name() {
+                    Some(value) if value.peek().len() == 2 => Ok(value.clone()),
+                    Some(_) => self.to_state_code(),
+                    None => Err(missing_field_err("address.state")()),
+                },
             })
             .transpose()
     }
@@ -535,3 +686,70 @@ pub struct OrderDetailsWithAmount {
 }
 
 impl SerializableSecret for OrderDetailsWithAmount {}
+
+impl OrderDetailsWithAmount {
+    /// Product name (`name` on most connector line items).
+    pub fn get_product_name(&self) -> String {
+        self.product_name.clone()
+    }
+
+    /// Quantity of the product (`quantity` on most connector line items).
+    pub fn get_quantity(&self) -> u16 {
+        self.quantity
+    }
+
+    /// Merchant product reference (`reference_id` on most connector line items).
+    pub fn get_product_id(&self) -> Result<String, Error> {
+        self.product_id
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].product_id"))
+    }
+
+    /// Stock keeping unit (`sku` on most connector line items).
+    pub fn get_sku(&self) -> Result<String, Error> {
+        self.sku
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].sku"))
+    }
+
+    /// Line total in minor units: the explicit `total_amount` when present, else the unit
+    /// `amount`.
+    pub fn get_total_amount(&self) -> MinorUnit {
+        self.total_amount.unwrap_or(self.amount)
+    }
+
+    /// Product type (`item_type`/`type` on most connector line items).
+    pub fn get_product_type(&self) -> Result<ProductType, Error> {
+        self.product_type
+            .clone()
+            .ok_or_else(missing_field_err("order_details[].product_type"))
+    }
+
+    /// Product page URL (`item_url` on most connector line items).
+    pub fn get_optional_product_link(&self) -> Option<String> {
+        self.product_link.clone()
+    }
+
+    /// Product image URL (`image_url` on most connector line items).
+    pub fn get_optional_product_img_link(&self) -> Option<String> {
+        self.product_img_link.clone()
+    }
+
+    /// Unit price in minor units (`amount` is per-quantity, `unit_price` on most connector
+    /// line items).
+    pub fn get_unit_amount(&self) -> MinorUnit {
+        self.amount
+    }
+
+    /// Discount amount on the unit, in minor units (`discount_amount` on most connector
+    /// line items).
+    pub fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit> {
+        self.unit_discount_amount
+    }
+
+    /// Total tax amount for the line, in minor units (`tax_amount` on most connector
+    /// line items).
+    pub fn get_optional_total_tax_amount(&self) -> Option<MinorUnit> {
+        self.total_tax_amount
+    }
+}

@@ -4,8 +4,8 @@ use super::macros;
 use transformers::*;
 
 use common_utils::{
-    crypto::{self, GenerateDigest, VerifySignature},
-    errors::{CryptoError, CustomResult},
+    crypto::{self, VerifySignature},
+    errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
 };
@@ -30,10 +30,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, PeekInterface};
 use interfaces::{
-    api::ConnectorCommon,
-    connector_integration_v2::ConnectorIntegrationV2,
-    connector_types,
-    webhooks::{IncomingWebhook, IncomingWebhookEvent, IncomingWebhookRequestDetails},
+    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
 };
 
 use crate::{types::ResponseRouterData, with_error_response_body};
@@ -48,6 +45,8 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const MERCHANT_ID: &str = "Merchant-Id";
     pub(crate) const REQUEST_IDEMPOTENCY_KEY: &str = "Request-Idempotency-Key";
+    /// Incoming webhook HMAC signature header (`t=<unix_ts>,s=<hex_hmac>`).
+    pub(crate) const PPRO_SIGNATURE: &str = "ppro-signature";
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -143,6 +142,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Ppro<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        connector_types::validate_psync_connector_transaction_id(data)
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Ppro<T>
@@ -267,6 +273,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 charge.payment_charge_id.clone(),
@@ -323,6 +331,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
+                raw_connector_status: None,
                 connector_refund_id: charge.refund_id.clone(),
                 merchant_transaction_id: charge.merchant_payment_charge_reference.clone(),
                 status,
@@ -354,26 +363,49 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
+        connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
-        let connector_webhook_secrets = connector_webhook_secret
-            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))
-            .attach_printable("Connector webhook secret not configured")?;
+        // The HMAC secret is sourced from the connector account config
+        // (`webhook_secret` on `PproConfig`), falling back to the RPC
+        // `webhook_secrets` field when the config field is absent — legacy
+        // `ConnectorAuthType` callers can only supply the RPC secret.
+        let secret_bytes: Vec<u8> = match (&connector_account_details, connector_webhook_secret) {
+            (
+                Some(ConnectorSpecificConfig::Ppro {
+                    webhook_secret: Some(secret),
+                    ..
+                }),
+                _,
+            ) => secret.peek().as_bytes().to_vec(),
+            (_, Some(rpc_secret)) => rpc_secret.secret,
+            _ => {
+                return Err(error_stack::report!(
+                    WebhookError::WebhookVerificationSecretNotFound
+                ))
+                .attach_printable("webhook_secret not configured in Ppro connector config");
+            }
+        };
 
-        let signature_header = request
-            .headers
-            .get("Webhook-Signature")
+        let signature_elements = get_ppro_signature_elements_from_header(&request.headers)?;
+
+        let timestamp = signature_elements
+            .get("t")
             .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+        let signature = signature_elements
+            .get("s")
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+        let expected_signature =
+            hex::decode(signature).change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
-        let expected_signature = hex::decode(signature_header)
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        let mut message = request.body.to_vec();
+        // HMAC-SHA256 keyed with the webhook secret over `t + "." + raw_body`,
+        // compared against the `s` element (ring::hmac — constant-time compare).
+        // The timestamp is only an HMAC input; no freshness window is enforced.
+        let mut message = timestamp.as_bytes().to_vec();
         message.push(b'.');
-        message.extend_from_slice(&connector_webhook_secrets.secret);
+        message.extend_from_slice(&request.body);
 
-        crypto::Sha256
-            .verify_signature(&[], &expected_signature, &message)
+        crypto::HmacSha256
+            .verify_signature(&secret_bytes, &expected_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -482,6 +514,16 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             specific_features: None,
         },
     );
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        common_enums::PaymentMethodType::WeChatPayQr,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
     ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
@@ -497,6 +539,30 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
     ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
         common_enums::PaymentMethodType::Satispay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Satispay's APP_INTENT flow (native app-to-app handoff), mirroring UpiIntent.
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        common_enums::PaymentMethodType::SatispayIntent,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Satispay's SCAN_CODE (QR) flow, mirroring UpiQr.
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        common_enums::PaymentMethodType::SatispayQr,
         PaymentMethodDetails {
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
@@ -546,6 +612,14 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         (
             common_enums::PaymentMethodType::BancontactCard,
             FeatureStatus::Supported,
+        ),
+        (
+            common_enums::PaymentMethodType::BancontactIntent,
+            FeatureStatus::NotSupported,
+        ),
+        (
+            common_enums::PaymentMethodType::BancontactQr,
+            FeatureStatus::NotSupported,
         ),
         (
             common_enums::PaymentMethodType::Trustly,
@@ -605,6 +679,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
+macros::create_amount_converter_wrapper!(connector_name: Ppro, amount_type: MinorUnit);
+
 macros::create_all_prerequisites!(
     connector_name: Ppro,
     generic_type: T,
@@ -613,23 +689,27 @@ macros::create_all_prerequisites!(
             flow: Authorize,
             request_body: PproPaymentsRequest,
             response_body: PproAuthorizeResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
             response_body: PproPSyncResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
             flow: Capture,
             request_body: PproCaptureRequest,
             response_body: PproCaptureResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Void,
             request_body: PproVoidRequest,
             response_body: PproVoidResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
@@ -653,6 +733,7 @@ macros::create_all_prerequisites!(
             flow: RepeatPayment,
             request_body: PproAgreementChargeRequest,
             response_body: PproPaymentsResponse,
+            response_router_data: connector,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
@@ -915,93 +996,6 @@ macros::macro_connector_implementation!(
         }
     }
 );
-
-#[derive(Debug, Clone)]
-pub struct PproWebhookSignature;
-
-impl VerifySignature for PproWebhookSignature {
-    fn verify_signature(
-        &self,
-        secret: &[u8],
-        signature: &[u8],
-        msg: &[u8],
-    ) -> CustomResult<bool, CryptoError> {
-        let mut buf = Vec::with_capacity(msg.len() + 1 + secret.len());
-        buf.extend_from_slice(msg);
-        buf.push(b'.');
-        buf.extend_from_slice(secret);
-
-        let digest = crypto::Sha256
-            .generate_digest(&buf)
-            .change_context(CryptoError::SignatureVerificationFailed)?;
-
-        let expected_signature = hex::encode(digest);
-        Ok(expected_signature.as_bytes() == signature)
-    }
-}
-
-#[async_trait::async_trait]
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + Serialize + 'static> IncomingWebhook
-    for Ppro<T>
-{
-    fn get_webhook_source_verification_algorithm(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn VerifySignature + Send>, WebhookError> {
-        Ok(Box::new(PproWebhookSignature))
-    }
-
-    fn get_webhook_source_verification_signature(
-        &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, WebhookError> {
-        let header_value = request
-            .headers
-            .get("Webhook-Signature")
-            .ok_or(WebhookError::WebhookSignatureNotFound)?
-            .to_str()
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(header_value.as_bytes().to_vec())
-    }
-
-    fn get_webhook_source_verification_message(
-        &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, WebhookError> {
-        Ok(request.body.to_vec())
-    }
-
-    fn get_webhook_event_type(
-        &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, WebhookError> {
-        let event: PproWebhookEvent = request
-            .body
-            .parse_struct("PproWebhookEvent")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        IncomingWebhookEvent::try_from(event.r#type)
-    }
-
-    fn get_webhook_resource_object(
-        &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, WebhookError> {
-        let event: PproWebhookEvent = request
-            .body
-            .parse_struct("PproWebhookEvent")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        match event.data {
-            PproWebhookData::Charge(charge) => Ok(Box::new(charge)),
-            PproWebhookData::Agreement(agreement) => Ok(Box::new(agreement)),
-        }
-    }
-}
 
 #[cfg(test)]
 mod test;

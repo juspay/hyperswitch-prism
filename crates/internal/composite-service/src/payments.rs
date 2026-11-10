@@ -1,8 +1,8 @@
 use connector_integration::types::{ConnectorData, ConnectorDataProvider};
-use domain_types::{
-    connector_types::{ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData},
-    utils::ForeignTryFrom as _,
+use domain_types::connector_types::{
+    ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData,
 };
+use domain_types::utils::ForeignTryFrom as _;
 use grpc_api_types::payments::{
     composite_payment_service_server::CompositePaymentService,
     composite_refund_service_server::CompositeRefundService,
@@ -65,6 +65,9 @@ pub trait CompositePreAuthenticatePayload {
         &self,
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+        session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
         >,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest;
@@ -133,11 +136,15 @@ impl CompositePreAuthenticatePayload for CompositeAuthorizeRequest {
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+        >,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
         PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
             self,
             access_token_response,
+            session_token_response,
             create_order_response,
         ))
     }
@@ -148,6 +155,11 @@ impl CompositePreAuthenticatePayload for CompositePreAuthenticateRequest {
         &self,
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+        // Standalone PreAuthenticate mints no session token; the caller's
+        // request.session_token is copied by the builder.
+        _session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
         >,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
     ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
@@ -626,6 +638,9 @@ where
         >,
         create_customer_response: Option<&CustomerServiceCreateResponse>,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
+        pre_authenticate_response: Option<
+            &PaymentMethodAuthenticationServicePreAuthenticateResponse,
+        >,
         authenticate_response: Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         post_authenticate_response: Option<
             &PaymentMethodAuthenticationServicePostAuthenticateResponse,
@@ -639,6 +654,7 @@ where
             session_token_response,
             create_customer_response,
             create_order_response,
+            pre_authenticate_response,
             authenticate_response,
             post_authenticate_response,
         ));
@@ -662,6 +678,9 @@ where
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+        >,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
@@ -669,8 +688,11 @@ where
     where
         Req: CompositePreAuthenticatePayload,
     {
-        let pre_auth_payload =
-            payload.build_pre_authenticate_request(access_token_response, create_order_response);
+        let pre_auth_payload = payload.build_pre_authenticate_request(
+            access_token_response,
+            session_token_response,
+            create_order_response,
+        );
         let mut pre_auth_request = tonic::Request::new(pre_auth_payload);
         *pre_auth_request.metadata_mut() = metadata.clone();
         *pre_auth_request.extensions_mut() = extensions.clone();
@@ -785,7 +807,7 @@ where
 
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
-
+        let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let access_token_response = self
             .create_server_authentication_token(
                 &ConnectorVariant::Payment(connector),
@@ -819,8 +841,42 @@ where
         // Extract flow parameters from payload
         let auth_type = self.get_auth_type(&payload)?;
         let payment_method = self.get_payment_method(&payload)?;
-        let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let redirect_state = self.get_redirect_state(&payload);
+
+        // Decode routing inputs only when the connector requests them.
+        // Raw-card and proxy conversion remains in the granular services.
+        let routing_payment_method_data = if connector_data
+            .connector
+            .requires_authentication_payment_method_data(payment_method)
+        {
+            payload
+                .payment_method
+                .clone()
+                .map(
+                    domain_types::payment_method_data::PaymentMethodData::<
+                        domain_types::payment_method_data::DefaultPCIHolder,
+                    >::foreign_try_from,
+                )
+                .transpose()
+                .map_err(|err| {
+                    tonic::Status::invalid_argument(format!("invalid payment_method: {err}"))
+                })?
+        } else {
+            None
+        };
+        let routing_authentication_data = if connector_data.connector.requires_authentication_data()
+        {
+            payload
+                .authentication_data
+                .clone()
+                .map(domain_types::router_request_types::AuthenticationData::try_from)
+                .transpose()
+                .map_err(|err| {
+                    tonic::Status::invalid_argument(format!("invalid authentication_data: {err}"))
+                })?
+        } else {
+            None
+        };
 
         let mut state = AuthorizeCompositeState::default();
 
@@ -831,6 +887,8 @@ where
                 payment_method,
                 redirect_state,
                 state.completed_step,
+                routing_payment_method_data.as_ref(),
+                routing_authentication_data.as_ref(),
             );
 
             match next_step {
@@ -839,6 +897,7 @@ where
                         self.pre_authenticate(
                             &payload,
                             access_token_response.as_ref(),
+                            session_token_response.as_ref(),
                             create_order_response.as_ref(),
                             &metadata,
                             &extensions,
@@ -904,6 +963,7 @@ where
                             session_token_response.as_ref(),
                             create_customer_response.as_ref(),
                             create_order_response.as_ref(),
+                            state.pre_auth_response_opt.as_ref(),
                             state.authn_response_opt.as_ref(),
                             state.post_authn_response_opt.as_ref(),
                             &metadata,
@@ -924,6 +984,11 @@ where
             .unwrap_or(false)
             || state
                 .authn_response_opt
+                .as_ref()
+                .map(|r| r.redirection_data.is_some())
+                .unwrap_or(false)
+            || state
+                .authorize_response_opt
                 .as_ref()
                 .map(|r| r.redirection_data.is_some())
                 .unwrap_or(false);
@@ -1020,6 +1085,9 @@ where
             .pre_authenticate(
                 &payload,
                 access_token_response.as_ref(),
+                // Standalone PreAuthenticate mints no session token (the caller's
+                // request.session_token is forwarded by the request builder).
+                None,
                 // Standalone PreAuthenticate: no CreateOrder runs in this path, so the
                 // order reference can only come from the caller's own request.
                 None,
@@ -1369,6 +1437,47 @@ where
             domain_types::payment_method_data::DefaultPCIHolder,
         >::get_connector_by_name(&connector);
 
+        // A terminal verification failure must not trigger another authorization.
+        // Return it through the payment response so callers can finalize the attempt.
+        if connector_data.connector.requires_authorize_post_redirect() {
+            if let Some(status) = verify_response
+                .status
+                .filter(|status| is_failure_payment_status(*status))
+            {
+                let raw_connector_status = verify_response
+                    .error
+                    .as_ref()
+                    .and_then(|error| error.connector_details.as_ref())
+                    .map(|error| grpc_api_types::payments::RawConnectorStatus {
+                        code: error.code.clone(),
+                        message: error.message.clone(),
+                        reason: error.reason.clone(),
+                    });
+                let authorize_response = PaymentServiceAuthorizeResponse {
+                    merchant_transaction_id: payload.merchant_transaction_id.clone(),
+                    connector_transaction_id: verify_response.connector_transaction_id.clone(),
+                    status,
+                    error: verify_response.error.clone(),
+                    status_code: 200,
+                    // Request money is round-trip correlation data here, not an
+                    // approved amount or independently reported provider money.
+                    authorized_money: payload.amount,
+                    raw_connector_response: verify_response.raw_connector_response.clone(),
+                    typed_connector_response: verify_response.typed_connector_response.clone(),
+                    connector_feature_data: verify_response.connector_feature_data.clone(),
+                    raw_connector_status,
+                    ..Default::default()
+                };
+                return Ok(tonic::Response::new(
+                    grpc_api_types::payments::CompositeVerifyRedirectResponseResponse {
+                        verify_redirect_response: Some(verify_response),
+                        authorize_response: Some(authorize_response),
+                        ..Default::default()
+                    },
+                ));
+            }
+        }
+
         let (access_token_response, session_token_response, authorize_response) =
             if connector_data.connector.requires_authorize_post_redirect() {
                 let (access_token, session_token, authorize) = self
@@ -1405,48 +1514,210 @@ where
     R: RefundService + Clone + Send + Sync + 'static,
     A: PaymentMethodAuthenticationService + Clone + Send + Sync + 'static,
 {
+    #[tracing::instrument(name = "composite_payments_authorize", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn authorize(
         &self,
         request: tonic::Request<CompositeAuthorizeRequest>,
     ) -> Result<tonic::Response<CompositeAuthorizeResponse>, tonic::Status> {
-        Box::pin(self.process_composite_authorize(request)).await
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Authorize,
+            |request| async move { Box::pin(self.process_composite_authorize(request)).await },
+        ))
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_pre_authenticate", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn pre_authenticate(
         &self,
         request: tonic::Request<CompositePreAuthenticateRequest>,
     ) -> Result<tonic::Response<CompositePreAuthenticateResponse>, tonic::Status> {
-        self.process_pre_authenticate(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::PreAuthenticate,
+            |request| async move { self.process_pre_authenticate(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_get", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn get(
         &self,
         request: tonic::Request<CompositeGetRequest>,
     ) -> Result<tonic::Response<CompositeGetResponse>, tonic::Status> {
-        self.process_composite_get(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Psync,
+            |request| async move { self.process_composite_get(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_refund", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn refund(
         &self,
         request: tonic::Request<CompositeRefundRequest>,
     ) -> Result<tonic::Response<CompositeRefundResponse>, tonic::Status> {
-        self.process_composite_refund(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Refund,
+            |request| async move { self.process_composite_refund(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_void", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn void(
         &self,
         request: tonic::Request<CompositeVoidRequest>,
     ) -> Result<tonic::Response<CompositeVoidResponse>, tonic::Status> {
-        self.process_composite_void(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Void,
+            |request| async move { self.process_composite_void(request).await },
+        )
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_capture", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn capture(
         &self,
         request: tonic::Request<CompositeCaptureRequest>,
     ) -> Result<tonic::Response<CompositeCaptureResponse>, tonic::Status> {
-        self.process_composite_capture(request).await
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::Capture,
+            |request| async move { Box::pin(self.process_composite_capture(request)).await },
+        ))
+        .await
     }
 
+    #[tracing::instrument(name = "composite_payments_verify_redirect_response", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn verify_redirect_response(
         &self,
         request: tonic::Request<grpc_api_types::payments::CompositeVerifyRedirectResponseRequest>,
@@ -1454,7 +1725,15 @@ where
         tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
         tonic::Status,
     > {
-        Box::pin(self.process_composite_verify_redirect_response(request)).await
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositePaymentService",
+            common_utils::events::FlowName::VerifyRedirectResponse,
+            |request| async move {
+                Box::pin(self.process_composite_verify_redirect_response(request)).await
+            },
+        ))
+        .await
     }
 }
 
@@ -1467,10 +1746,34 @@ where
     R: RefundService + Clone + Send + Sync + 'static,
     A: PaymentMethodAuthenticationService + Clone + Send + Sync + 'static,
 {
+    #[tracing::instrument(name = "composite_payments_get", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn get(
         &self,
         request: tonic::Request<CompositeRefundGetRequest>,
     ) -> Result<tonic::Response<CompositeRefundGetResponse>, tonic::Status> {
-        self.process_composite_refund_get(request).await
+        crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositeRefundService",
+            common_utils::events::FlowName::Rsync,
+            |request| async move { self.process_composite_refund_get(request).await },
+        )
+        .await
     }
 }

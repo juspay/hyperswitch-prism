@@ -1032,7 +1032,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let amount = value
                     .connector
                     .amount_converter
-                    .convert(item.request.amount.amount, item.request.currency)
+                    .convert(&item.request.amount)
                     .change_context(amount_conversion_error(
                         "Failed to convert authorize amount to MinorUnit for the Pay.com \
                          POST /v1/charges|/v1/holds request",
@@ -1225,7 +1225,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = value
             .connector
             .amount_converter
-            .convert(minor_amount, item.request.currency)
+            .convert(&common_utils::types::Money {
+                amount: minor_amount,
+                currency: item.request.currency,
+            })
             .change_context(amount_conversion_error(
                 "Failed to convert setup-mandate amount to MinorUnit for the Pay.com \
                  POST /v1/charges|/v1/holds request",
@@ -1519,7 +1522,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = value
             .connector
             .amount_converter
-            .convert(item.request.amount.amount, currency)
+            .convert(&common_utils::types::Money {
+                amount: item.request.amount.amount,
+                currency,
+            })
             .change_context(amount_conversion_error(
                 "Failed to convert pre-authenticate amount to MinorUnit for the Pay.com \
                  POST /v1/charges|/v1/holds request",
@@ -1679,7 +1685,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_to_capture = value
             .connector
             .string_amount_converter
-            .convert(item.request.amount_to_capture.amount, item.request.currency)
+            .convert(&item.request.amount_to_capture)
             .change_context(amount_conversion_error(
                 "Failed to convert capture amount to StringMinorUnit for the Pay.com \
                  POST /v1/holds/{id}/capture request",
@@ -1748,7 +1754,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount_to_refund = value
             .connector
             .string_amount_converter
-            .convert(item.request.refund_amount.amount, item.request.currency)
+            .convert(&item.request.refund_amount)
             .change_context(amount_conversion_error(
                 "Failed to convert refund amount to StringMinorUnit for the Pay.com \
                  POST /v1/refunds request",
@@ -2229,6 +2235,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
                 connector_feature_data: pending,
                 connector_response_reference_id: item.response.reference(),
                 status_code: item.http_code,
+                mandate_reference: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
             }),
         };
 
@@ -2268,14 +2277,21 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     }
 }
 
-impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, PaydotcomRouterData<Self, T>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<PaydotcomPaymentsResponse, Self>,
+        item: ResponseRouterData<PaydotcomPaymentsResponse, PaydotcomRouterData<Self, T>>,
     ) -> Result<Self, Self::Error> {
+        let connector = item.router_data.connector;
+        let item = ResponseRouterData {
+            response: item.response,
+            router_data: item.router_data.router_data,
+            http_code: item.http_code,
+        };
         let captured_amount = item.response.amount();
         let authorized_amount = item
             .router_data
@@ -2312,10 +2328,17 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: captured_amount.map(|amount| common_utils::types::Money {
-                    amount,
-                    currency: item.router_data.request.currency,
-                }),
+                amount_captured: captured_amount
+                    .map(|amount| {
+                        crate::utils::response_amount_to_money(
+                            &connector,
+                            amount,
+                            item.router_data.request.currency,
+                            item.http_code,
+                            domain_types::connector_types::ConnectorEnum::Paydotcom,
+                        )
+                    })
+                    .transpose()?,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -2655,7 +2678,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = value
             .connector
             .amount_converter
-            .convert(item.request.amount.amount, item.request.currency)
+            .convert(&item.request.amount)
             .change_context(amount_conversion_error(
                 "Failed to convert repeat-payment amount to MinorUnit for the Pay.com \
                  POST /v1/charges (off_session) request",
