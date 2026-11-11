@@ -2301,7 +2301,9 @@ impl responses::WorldpayxmlWebhookBody {
                 EventType::RefundSuccess
             }
             WorldpayxmlLastEvent::RefundFailed => EventType::RefundFailure,
-            WorldpayxmlLastEvent::RefundRequested => EventType::RefundProcessing,
+            WorldpayxmlLastEvent::RefundRequested
+            | WorldpayxmlLastEvent::SentForRefund
+            | WorldpayxmlLastEvent::SentForFastRefund => EventType::RefundProcessing,
             WorldpayxmlLastEvent::ChargedBack => EventType::DisputeOpened,
             WorldpayxmlLastEvent::ChargebackReversed => EventType::DisputeWon,
             WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
@@ -2311,9 +2313,7 @@ impl responses::WorldpayxmlWebhookBody {
                 EventType::PayoutSuccess
             }
             WorldpayxmlLastEvent::PushRefused => EventType::PayoutFailure,
-            WorldpayxmlLastEvent::SentForRefund
-            | WorldpayxmlLastEvent::SentForFastRefund
-            | WorldpayxmlLastEvent::Expired
+            WorldpayxmlLastEvent::Expired
             | WorldpayxmlLastEvent::Error
             | WorldpayxmlLastEvent::QueryRequired
             | WorldpayxmlLastEvent::CancelReceived
@@ -2339,6 +2339,7 @@ impl responses::WorldpayxmlWebhookBody {
                 })
             }
             WorldpayxmlLastEvent::SentForRefund
+            | WorldpayxmlLastEvent::SentForFastRefund
             | WorldpayxmlLastEvent::RefundedByMerchant
             | WorldpayxmlLastEvent::RefundRequested
             | WorldpayxmlLastEvent::Refunded
@@ -2366,8 +2367,7 @@ impl responses::WorldpayxmlWebhookBody {
                     merchant_payout_id: None,
                 })
             }
-            WorldpayxmlLastEvent::SentForFastRefund
-            | WorldpayxmlLastEvent::Expired
+            WorldpayxmlLastEvent::Expired
             | WorldpayxmlLastEvent::Error
             | WorldpayxmlLastEvent::QueryRequired
             | WorldpayxmlLastEvent::CancelReceived
