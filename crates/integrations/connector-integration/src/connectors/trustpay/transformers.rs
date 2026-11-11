@@ -1765,7 +1765,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1908,7 +1908,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2344,7 +2344,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2478,7 +2478,7 @@ pub(crate) fn get_apple_pay_session(
                         field_name: "amount",
                         context: Default::default(),
                     })?
-                    .amount,
+                    .amount(),
                     total_type: None,
                 },
                 merchant_identifier: None,
@@ -2581,7 +2581,7 @@ impl From<GooglePayTransactionInfo> for domain_types::connector_types::GpayTrans
     fn from(value: GooglePayTransactionInfo) -> Self {
         let total_price =
             TrustpayAmountConvertor::convert_back(value.total_price, value.currency_code)
-                .map(|money| money.amount)
+                .map(|money| money.amount())
                 .unwrap_or_else(|_| MinorUnit::new(0));
 
         Self {
@@ -2751,10 +2751,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: MinorUnit::new(0),
-                currency: router_data.request.currency,
-            })
+            .convert(&common_utils::types::Money::zero(
+                router_data.request.currency,
+            ))
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2964,7 +2963,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
