@@ -647,14 +647,14 @@ fn build_shipping(common: &PaymentFlowData) -> Option<CheckoutShipping> {
     })
 }
 
-/// Customer details are independent of Level 2/3 processing. Only the tax number
-/// comes from Level 2/3 data.
+/// Customer name and tax number come from Level 2/3 data. Email and phone are
+/// independent of Level 2/3 processing.
 fn build_customer(
     customer: Option<&domain_types::connector_types::CustomerInfo>,
     l2l3_data: Option<&domain_types::connector_types::L2L3Data>,
     email: Option<common_utils::pii::Email>,
 ) -> Option<CheckoutCustomer> {
-    let name = customer.and_then(|customer| customer.get_full_name());
+    let name = l2l3_data.and_then(|data| data.get_customer_name());
     let email = customer
         .and_then(|customer| customer.customer_email.clone())
         .or(email);
