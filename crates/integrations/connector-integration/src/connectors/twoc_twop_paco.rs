@@ -4,7 +4,7 @@ pub mod transformers;
 
 use std::{self, fmt::Debug};
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
@@ -55,6 +55,81 @@ pub(crate) mod headers {
 
 const CONTENT_TYPE_JOSE: &str = "application/jose";
 const CONTENT_TYPE_JSON: &str = "application/json";
+
+fn is_paco_payment_failure_code(code: &str) -> bool {
+    matches!(
+        code,
+        "PC-B050004"
+            | "PC-B050005"
+            | "PC-B050006"
+            | "PC-B050007"
+            | "PC-B050008"
+            | "PC-B050009"
+            | "PC-B050013"
+            | "PC-B050015"
+            | "PC-B050023"
+            | "PC-B050030"
+            | "PC-B050031"
+            | "PC-B050032"
+            | "PC-B050033"
+            | "PC-B050061"
+            | "PC-B050075"
+            | "PC-B050077"
+            | "PC-B051120"
+            | "PC-B051920"
+            | "PC-B051921"
+            | "PC-B051922"
+            | "PC-B052302"
+            | "PC-B052303"
+            | "PC-B052305"
+            | "PC-B052306"
+            | "PC-B052307"
+            | "PC-B052308"
+            | "PC-B052311"
+            | "PC-B052312"
+            | "PC-B052318"
+            | "PC-B052319"
+            | "PC-B052320"
+            | "PC-B052321"
+            | "PC-B052323"
+            | "PC-B052324"
+            | "PC-B052326"
+            | "PC-B052328"
+            | "PC-B052339"
+            | "PC-B052340"
+            | "PC-B052341"
+            | "PC-B052347"
+            | "PC-B052349"
+            | "PC-B052356"
+            | "PC-B052357"
+            | "PC-B052360"
+            | "PC-B052361"
+            | "PC-B052363"
+            | "PC-B052364"
+            | "PC-B052365"
+            | "PC-B052366"
+            | "PC-B052374"
+            | "PC-B052377"
+            | "PC-B052386"
+            | "PC-B052387"
+            | "PC-B052389"
+            | "PC-B052390"
+            | "PC-B052391"
+            | "PC-B052392"
+            | "PC-B052397"
+            | "PC-B052398"
+            | "PC-B052399"
+            | "PC-B052402"
+            | "PC-B052405"
+            | "PC-B052417"
+            | "PC-B052424"
+            | "PC-B052425"
+            | "PC-B052429"
+            | "PC-B052435"
+            | "PC-B052436"
+            | "PC-B052461"
+    )
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for TwocTwopPaco<T>
@@ -509,7 +584,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         };
 
         let refund_status = twoc_twop_paco::classify_refund_response_code(Some(&code));
-        let attempt_status = if matches!(code.as_str(), "PC-B050032" | "PC-B052357") {
+        let attempt_status = if is_paco_payment_failure_code(&code) {
             Some(FlowStatus::Payment(AttemptStatus::Failure))
         } else {
             refund_status.map(FlowStatus::Refund)
