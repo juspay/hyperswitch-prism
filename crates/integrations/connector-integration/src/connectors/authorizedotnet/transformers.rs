@@ -925,7 +925,7 @@ pub struct AuthorizedotnetTransactionRequest<T: PaymentMethodDataTypes> {
     // Authorize.Net validates the element order of `transactionRequest` against its
     // XSD (`transactionRequestType`); a field in the wrong position is rejected with
     // E00003. Keep: order, lineItems, tax, duty, shipping, taxExempt, poNumber,
-    // customer, billTo, shipTo, cardholderAuthentication, userFields,
+    // customer, billTo, shipTo, cardholderAuthentication, retail, userFields,
     // merchantDescriptor, processingOptions, subsequentAuthInformation.
     line_items: Option<LineItems>,
     tax: Option<ExtendedAmount>,
@@ -937,11 +937,48 @@ pub struct AuthorizedotnetTransactionRequest<T: PaymentMethodDataTypes> {
     bill_to: Option<BillTo>,
     ship_to: Option<ShipTo>,
     cardholder_authentication: Option<CardholderAuthentication>,
+    retail: Option<Retail>,
     user_fields: Option<UserFields>,
     merchant_descriptor: Option<String>,
     processing_options: Option<ProcessingOptions>,
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     ref_trans_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Retail {
+    market_type: MarketType,
+    device_type: DeviceType,
+}
+
+/// `retail.marketType` (a numeric string).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum MarketType {
+    #[serde(rename = "1")]
+    Moto,
+}
+
+/// `retail.deviceType` (a numeric string). A MOTO payment is keyed in by the merchant
+/// through this API, not captured on a terminal, so the device is reported as unknown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum DeviceType {
+    #[serde(rename = "1")]
+    Unknown,
+}
+
+/// The `retail` element for a MOTO card payment; `None` otherwise. MOTO applies to keyed
+/// card payments only: a wallet or bank payment is never a mail / telephone order.
+fn build_moto_retail<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    payment_channel: Option<&common_enums::PaymentChannel>,
+) -> Option<Retail> {
+    (matches!(payment_method_data, PaymentMethodData::Card(_))
+        && crate::utils::is_moto_payment_channel(payment_channel))
+    .then_some(Retail {
+        market_type: MarketType::Moto,
+        device_type: DeviceType::Unknown,
+    })
 }
 
 /// `transactionRequest.cardholderAuthentication`: the result of a 3D Secure
@@ -1134,6 +1171,10 @@ fn create_regular_transaction_request<
     >,
     currency: api_enums::Currency,
 ) -> Result<AuthorizedotnetTransactionRequest<T>, Error> {
+    let retail = build_moto_retail(
+        &item.router_data.request.payment_method_data,
+        item.router_data.request.payment_channel.as_ref(),
+    );
     // External 3DS data is carried on card payments only (never on the wallet or
     // bank arms: Apple Pay opaque data may not include 3D Secure data).
     let mut cardholder_authentication = None;
@@ -1480,6 +1521,7 @@ fn create_regular_transaction_request<
         bill_to,
         ship_to,
         cardholder_authentication,
+        retail,
         user_fields,
         merchant_descriptor,
         processing_options: None,

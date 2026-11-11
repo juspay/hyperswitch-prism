@@ -439,6 +439,7 @@ mod tests {
                 boarding: Some("2017-10-10T00:00:00.000".to_string()),
                 arriving: Some("2017-10-10T00:00:00.000".to_string()),
                 fare_class: Some("First Class".to_string()),
+                type_of_trip: None,
             }]),
             hotels: Some(vec![ClearSaleHotel {
                 name: "Hotel Name".to_string(),
@@ -1114,6 +1115,95 @@ mod tests {
         assert!(order.shipping.is_none());
     }
 
+    #[test]
+    fn absent_and_empty_optional_blocks_are_omitted() {
+        for order_details in [None, Some(Vec::new())] {
+            let mut req = pre_risk_check_request();
+            req.order_details = order_details;
+            req.address = Some(PaymentAddress::new(
+                Some(Address::default()),
+                Some(billing_address()),
+                None,
+                Some(false),
+            ));
+            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let order = order_from_common(inputs).unwrap().order;
+            assert!(order.shipping.is_none());
+            assert!(order.items.is_empty());
+            assert!(order.item_value.is_none());
+
+            let json = serde_json::to_value(order).expect("order serializes");
+            let object = json.as_object().expect("order object");
+            assert!(!object.contains_key("shipping"));
+            assert!(!object.contains_key("items"));
+        }
+    }
+
+    #[test]
+    fn incomplete_shipping_mandatory_address_fields_omit_shipping() {
+        for details in [
+            AddressDetails {
+                city: Some(Secret::new("São Paulo".to_owned())),
+                ..AddressDetails::default()
+            },
+            AddressDetails {
+                line1: Some(Secret::new("   ".to_owned())),
+                ..billing_address_details()
+            },
+            AddressDetails {
+                line2: None,
+                ..billing_address_details()
+            },
+            AddressDetails {
+                zip: Some(Secret::new("".to_owned())),
+                ..billing_address_details()
+            },
+        ] {
+            let mut req = pre_risk_check_request();
+            req.address = Some(PaymentAddress::new(
+                Some(Address {
+                    address: Some(details),
+                    ..Address::default()
+                }),
+                Some(billing_address()),
+                None,
+                Some(false),
+            ));
+            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let order = order_from_common(inputs).unwrap().order;
+            assert!(order.shipping.is_none());
+            assert!(!serde_json::to_value(order)
+                .expect("order serializes")
+                .as_object()
+                .expect("order object")
+                .contains_key("shipping"));
+        }
+    }
+
+    #[test]
+    fn items_with_a_blank_name_are_omitted() {
+        for name in ["", "   "] {
+            let mut details = order_details();
+            details[0].product_name = name.to_owned();
+            let items = build_clear_sale_items(Some(&details), Currency::BRL, None).unwrap();
+            assert!(items.is_empty());
+
+            let mut req = pre_risk_check_request();
+            req.order_details = Some(details);
+            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let order = order_from_common(inputs).unwrap().order;
+            assert!(order.item_value.is_none());
+            assert!(!serde_json::to_value(order)
+                .expect("order serializes")
+                .as_object()
+                .expect("order object")
+                .contains_key("items"));
+        }
+    }
+
     /// PostRiskCheck must emit the same order body as PreRiskCheck (only the
     /// HTTP method differs). `ip` comes from browser_info; domain_data rides
     /// through; the order code is `merchant_transaction_id` — never the PSP
@@ -1227,7 +1317,14 @@ mod tests {
             build_clear_sale_items(Some(&order_details()), Currency::BRL, Some(false)).unwrap();
         assert_eq!(items[0].amount, Some(2));
         assert_eq!(items[0].value, Some(FloatMajorUnit(150.0)));
-        assert!(build_clear_sale_items(None, Currency::BRL, None).is_err());
+        assert!(build_clear_sale_items(None, Currency::BRL, None)
+            .unwrap()
+            .is_empty());
+        assert!(
+            build_clear_sale_items(Some(&Vec::new()), Currency::BRL, None)
+                .unwrap()
+                .is_empty()
+        );
     }
 
     /// Card PAN data is credit-only on the wire. A debit card still maps to
@@ -1353,6 +1450,7 @@ mod tests {
                     origin: Some("SAO".to_owned()),
                     destination: Some("RIO".to_owned()),
                     travel_class: Some("semi-leito".to_owned()),
+                    trip_type: Some("ONE_WAY".to_owned()),
                     passengers: vec![Traveller {
                         first_name: Some(Secret::new("Joao".to_owned())),
                         last_name: Some(Secret::new("Silva".to_owned())),
@@ -1420,6 +1518,11 @@ mod tests {
         assert_eq!(c.arriving.as_deref(), Some("2025-06-01T12:00:00"));
         // Free-form seat class passes through verbatim (e.g. Buser's "semi-leito").
         assert_eq!(c.seat_class.as_deref(), Some("semi-leito"));
+        assert_eq!(c.type_of_trip.as_deref(), Some("ONE_WAY"));
+        assert_eq!(
+            serde_json::to_value(&c).expect("connection serializes")["typeOfTrip"],
+            "ONE_WAY"
+        );
         // "G3-1234" is not numeric — no identificationNumber on the wire.
         // Booking-level `carrier_name` ("LA") wins over the identifier prefix.
         let c2 = travel_segment_to_clear_sale_connection(segments[1].0, segments[1].1)

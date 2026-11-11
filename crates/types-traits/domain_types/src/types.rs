@@ -5456,6 +5456,7 @@ impl ForeignTryFrom<grpc_payment_types::TravelSegment> for connector_types::Trav
             boarding_date_time: segment.boarding_date_time,
             departure_date_time: segment.departure_date_time,
             identification_number: segment.identification_number,
+            trip_type: segment.trip_type,
         })
     }
 }
@@ -11932,6 +11933,12 @@ impl
         );
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             raw_connector_status: None,
@@ -11952,7 +11959,7 @@ impl
             return_url: None,
             connector_feature_data: None,
             amount_captured: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
