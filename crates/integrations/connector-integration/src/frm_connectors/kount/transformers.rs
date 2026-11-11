@@ -1744,11 +1744,16 @@ pub(super) fn kount_pre_risk_feature_data(
 /// `customFields` key is used here; every sibling key is ignored. That key's
 /// value must itself be a JSON object of caller-supplied key/value pairs.
 /// Kount constrains it: keys ≤32 chars; values are string (≤256 chars),
-/// number, or boolean — no nested objects/arrays. Entries that violate this
-/// are dropped individually (with a warning) rather than losing every custom
-/// field over one bad entry. An explicit JSON `null` value is dropped
-/// silently — the caller's convention elsewhere is to emit `null` for an
-/// absent value, not to omit the key.
+/// number, or boolean — no nested objects/arrays.
+///
+/// Absent `customFields` is normal and silent — most callers won't send this
+/// key yet. A malformed block is handled strict + loud along the same
+/// warn-and-omit path as the notify request's `connector_feature_data` (see
+/// `kount_update_transactions`): Kount rejects the whole order for
+/// unregistered / oversized keys and has no nested types, so one bad entry
+/// must not silently ship a mangled subset. An explicit JSON `null` value is
+/// dropped silently — the caller's convention elsewhere is to emit `null` for
+/// an absent value, not to omit the key.
 pub(super) fn kount_custom_fields(
     metadata: Option<&Secret<String>>,
 ) -> Option<serde_json::Map<String, serde_json::Value>> {
@@ -1764,59 +1769,51 @@ pub(super) fn kount_custom_fields(
                     );
                 })
                 .ok()
-        });
+        })?;
 
-    let filtered: serde_json::Map<String, serde_json::Value> = parsed
-        .as_ref()
-        .and_then(serde_json::Value::as_object)
-        // Absent is normal/silent — most callers won't send this key yet.
-        .and_then(|metadata_obj| metadata_obj.get("customFields"))
-        .and_then(|custom_fields| match custom_fields {
-            serde_json::Value::Object(map) => Some(map.clone()),
-            _ => {
-                tracing::warn!(
-                    "Kount metadata.customFields is not a JSON object; customFields will not be sent"
-                );
-                None
+    // Absent is normal/silent — most callers won't send this key yet, and an
+    // explicit JSON `null` block is the caller's "absent" convention.
+    let custom_fields_value = parsed.as_object()?.get("customFields")?;
+    if custom_fields_value.is_null() {
+        return None;
+    }
+
+    let serde_json::Value::Object(entries) = custom_fields_value else {
+        tracing::warn!(
+            "Kount metadata.customFields is not a JSON object; customFields will not be sent"
+        );
+        return None;
+    };
+
+    let mut custom_fields = serde_json::Map::with_capacity(entries.len());
+    for (key, value) in entries {
+        let violation = match value {
+            // The caller's convention is `null` for an absent value; skip it.
+            serde_json::Value::Null => continue,
+            serde_json::Value::String(s) if s.chars().count() > 256 => {
+                Some("string value exceeds Kount's 256-char limit")
             }
-        })
-        .map(|obj| {
-            obj.into_iter()
-                .filter(|(key, value)| match value {
-                    serde_json::Value::Null => false,
-                    serde_json::Value::String(s) => {
-                        let ok = key.len() <= 32 && s.len() <= 256;
-                        if !ok {
-                            tracing::warn!(
-                                key = %key,
-                                "Kount custom field dropped: exceeds Kount's length limits"
-                            );
-                        }
-                        ok
-                    }
-                    serde_json::Value::Number(_) | serde_json::Value::Bool(_) => {
-                        let ok = key.len() <= 32;
-                        if !ok {
-                            tracing::warn!(
-                                key = %key,
-                                "Kount custom field dropped: key exceeds Kount's 32-char limit"
-                            );
-                        }
-                        ok
-                    }
-                    serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                        tracing::warn!(
-                            key = %key,
-                            "Kount custom field dropped: array/object values are not allowed"
-                        );
-                        false
-                    }
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+            serde_json::Value::String(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::Bool(_) => {
+                (key.chars().count() > 32).then_some("key exceeds Kount's 32-char limit")
+            }
+            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+                Some("array/object values are not allowed")
+            }
+        };
+        if let Some(violation) = violation {
+            tracing::warn!(
+                key = %key,
+                violation,
+                "Kount metadata.customFields failed to validate; customFields will not be sent"
+            );
+            return None;
+        }
+        custom_fields.insert(key.clone(), value.clone());
+    }
 
-    (!filtered.is_empty()).then_some(filtered)
+    (!custom_fields.is_empty()).then_some(custom_fields)
 }
 
 /// Trim a caller-supplied secret and drop it when empty, so Kount never
