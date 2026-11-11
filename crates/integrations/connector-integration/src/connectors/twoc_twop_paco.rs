@@ -57,8 +57,8 @@ const CONTENT_TYPE_JOSE: &str = "application/jose";
 const CONTENT_TYPE_JSON: &str = "application/json";
 
 fn set_paco_refund_error_status(error: &mut ErrorResponse) {
-    error.attempt_status = twoc_twop_paco::classify_refund_response_code(Some(&error.code))
-        .map(FlowStatus::Refund);
+    error.attempt_status =
+        twoc_twop_paco::classify_refund_response_code(Some(&error.code)).map(FlowStatus::Refund);
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
