@@ -11,16 +11,17 @@ use domain_types::{
 
 use crate::{api::EventAckResponse, connector_types::IncomingWebhookFlowError};
 
-/// Provider webhook protocol operations; resource normalization stays in resource connectors.
-pub type WebhookVerificationIntegration<'a> =
+/// Static verification integration used by the existing HTTP execution machinery.
+pub type WebhookVerificationIntegration =
     crate::connector_integration_v2::BoxedConnectorIntegrationV2<
-        'a,
+        'static,
         domain_types::connector_flow::VerifyWebhookSource,
         domain_types::connector_types::VerifyWebhookSourceFlowData,
         domain_types::router_request_types::VerifyWebhookSourceRequestData,
         domain_types::router_response_types::VerifyWebhookSourceResponseData,
     >;
 
+/// Provider webhook protocol operations; resource normalization stays in resource connectors.
 pub trait Webhook: Send + Sync {
     /// Classifies the notification and extracts its unverified resource reference.
     fn parse_event(
@@ -53,7 +54,7 @@ pub trait Webhook: Send + Sync {
 
     /// Supply the provider's verification flow when an external call is required.
     /// Missing integration is an explicit error, never a local-verification fallback.
-    fn get_external_verification_integration(&self) -> Option<WebhookVerificationIntegration<'_>> {
+    fn get_external_verification_integration(&self) -> Option<WebhookVerificationIntegration> {
         None
     }
 

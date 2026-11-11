@@ -1,63 +1,65 @@
-# Common webhook framework
+# Webhook framework
 
-This directory is the registration point for provider implementations of
-`interfaces::webhook::Webhook`. No connectors are migrated or
-registered by this change. Existing webhook calls use their payment connector's
-`IncomingWebhook` implementation by default.
+This directory registers provider implementations of `interfaces::webhook::Webhook`.
+No production connector is migrated by this PR. Existing webhook calls continue
+through their payment connector's `IncomingWebhook` implementation by default.
+Inline test implementations exercise provider dispatch without production registration.
 
-## Adding a provider later
+## Registering a provider
 
-1. Add `<connector>.rs` implementing `Webhook`, with shared payload types
-   and event/reference mappings in `<connector>/transformers.rs`.
-2. Implement `parse_event` to extract the unverified event type and resource
-   reference. Override `get_event_type` when HandleEvent classification must not
-   require ParseEvent's reference fields.
-3. Implement common local source verification, signature/message extraction,
-   provider ACKs, and integrity-check declarations where supported. Keep existing
-   verification and unverified-response behavior when migrating a provider.
-4. Export the provider from `../webhook_connectors.rs` and register its supported
-   connector variants in `get_connector`. Payment and payout variants may share
-   one provider implementation.
-5. Keep payment, refund, and dispute normalization on the payment connector's
-   `IncomingWebhook`. For payout normalization, implement the defaulted
-   `PayoutServiceTrait::process_payout_webhook` method and register the provider
-   in `payout_connectors::get_webhook_connector`. Preserve legacy entry points
-   when migrating existing providers.
-6. Enable only registered providers in `webhook_parse.migrated_connectors` through
-   the normal configuration loader. The environment override is
-   `CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS` (comma-separated provider names).
+1. Implement `Webhook` in `<connector>.rs`, with payload types and event/reference
+   mappings in `<connector>/transformers.rs`. Export and register supported provider
+   variants in `../webhook_connectors.rs`.
+2. Implement `parse_event` for unverified classification/reference extraction.
+   Override `get_event_type` if HandleEvent classification must not require references.
+3. Implement local signature verification, provider ACKs and integrity declarations
+   as appropriate. External gRPC verification is provider-owned: return a static
+   `WebhookVerificationIntegration` from `get_external_verification_integration`.
+   Override `requires_external_webhook_verification` for providers that always need
+   an external call. The existing server verification list is also honored. Required
+   external verification without an integration returns an error, never local fallback.
+4. Keep payment/refund/dispute normalization in the payment connector's `IncomingWebhook`.
+   Implement payout normalization in `PayoutServiceTrait::process_payout_webhook` and
+   register it in `payout_connectors::get_webhook_connector`, keyed by `PayoutConnectorEnum`.
+5. Add the provider to `webhook_parse.migrated_connectors` in development/production
+   TOML when ready. gRPC also supports the normal server environment override
+   `CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS`. FFI embeds the selected TOML at build time;
+   it retains its existing loader and does not apply server environment overrides.
+   Both transports reject unregistered rollout entries while loading configuration.
 
-No provider implementation, template, or additional test files are included.
-Both registries are intentionally empty until a separate connector migration.
+## Identity and migration lifecycle
 
-## Routing and compatibility
+`x-webhook-connector` is permanent provider identity. Its current ability to select
+provider dispatch ahead of migration is temporary. Supplied typed configuration
+must match this identity. The header overrides legacy identity metadata when no
+typed connector configuration is supplied. Native byte APIs continue using typed
+connector options, without a routing header.
 
-Both gRPC and FFI use the shared `get_webhook_connector_data` resolver. It returns
-`ParseEventConnectorData`, and callers match its variant:
+The resolver returns `ParseEventConnectorData::Webhook` or `::Payment` during
+migration. Configured or explicit selection of an unregistered provider returns
+an error without retrying legacy execution. Both registries are empty in this PR.
 
-- `Webhook(WebhookConnectorData)` uses `Box<dyn Webhook>`.
-- `Payment(ConnectorData)` uses the existing `IncomingWebhook` methods.
+The final connector-migration PR owns cleanup of the rollout config, legacy resolver/handler branches,
+compatibility aliases and special migration selection once all supported connectors
+have migrated and their parse/handle compatibility checks pass. The permanent
+provider header, webhook trait and event-based resource dispatch remain. The first
+provider migration must add real-provider coverage alongside these framework tests.
 
-Existing connector metadata selects the legacy path unless the provider is in
-the migration list. The default list is empty. `x-webhook-connector` explicitly
-selects a common provider on gRPC ParseEvent/HandleEvent and service transformers
-receiving metadata. It overrides legacy identity headers, but any supplied typed
-connector configuration must match its provider. The native byte API continues
-using typed connector options and does not expose routing headers.
+## HandleEvent
 
-Explicit selection or configured migration to an unregistered provider returns
-an error. With the empty registries in this PR, no common provider can be selected.
-Errors from a selected implementation never retry through the legacy path.
+The legacy branch retains verification, classification, resource processing and
+ACK ordering. The provider branch is separate:
 
-HandleEvent uses the selected common provider for classification, local
-verification, ACK generation, and integrity declarations. A resource resolver
-returns payout data only for a payout event, an active common migration branch,
-and a registered payout handler. Other cases retain existing payment dispatch.
-The gRPC external verifier retains its payment compatibility context; future
-purely payout-only providers need that context addressed separately. Native FFI
-retains local verification only.
+1. Classify the event through the webhook provider.
+2. Resolve the resource using provider identity and event type. Payout events use
+   the payout registry directly; missing registration fails without payment fallback.
+   Payment/refund/dispute events resolve payment data only at this stage.
+3. Verify the source using the provider's local verifier or gRPC external integration.
+4. Normalize through the selected resource handler and generate the provider ACK.
 
-ParseEvent does not authenticate notifications. Existing HandleEvent behavior
-allows content and an ACK with `source_verified=false` after a failed source check.
-The original resolver name, `process_webhook_event` helper, `IncomingWebhook`
-methods, and `WebhookParse` compatibility trait path remain available.
+Provider payout handling and external verification do not require payment connector
+data. FFI retains local verification only and its existing empty integrity declarations.
+Classification runs once in HandleEvent; resource normalization may deserialize the
+raw payload again. Failed local verification can still produce content and an ACK
+marked `source_verified=false`, preserving existing response semantics. Normalization
+errors stop before ACK generation; handler/ACK errors never retry another path.

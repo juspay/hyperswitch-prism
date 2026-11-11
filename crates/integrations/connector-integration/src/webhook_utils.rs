@@ -351,3 +351,206 @@ pub fn get_disputes_webhook_content<
         content: Some(grpc_api_types::payments::event_content::Content::DisputesResponse(response)),
     })
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod provider_tests {
+    use super::*;
+    use domain_types::connector_types::{
+        ConnectorEnum, ConnectorVariant, EventType, HttpMethod, PayoutConnectorEnum,
+        RequestDetails, WebhookParseResponse,
+    };
+    use domain_types::payment_method_data::DefaultPCIHolder;
+    use interfaces::{api::EventAckResponse, webhook::Webhook};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct TestWebhook {
+        event: EventType,
+        classifications: AtomicUsize,
+        acknowledgements: AtomicUsize,
+        ack_fails: bool,
+    }
+    impl TestWebhook {
+        fn new(event: EventType) -> Self {
+            Self {
+                event,
+                classifications: AtomicUsize::new(0),
+                acknowledgements: AtomicUsize::new(0),
+                ack_fails: false,
+            }
+        }
+    }
+    impl Webhook for TestWebhook {
+        fn parse_event(
+            &self,
+            _request: &RequestDetails,
+        ) -> error_stack::Result<WebhookParseResponse, WebhookError> {
+            // HandleEvent classification must not require reference extraction.
+            Err(WebhookError::WebhookReferenceIdNotFound.into())
+        }
+        fn get_event_type(
+            &self,
+            _request: RequestDetails,
+        ) -> error_stack::Result<EventType, WebhookError> {
+            self.classifications.fetch_add(1, Ordering::SeqCst);
+            Ok(self.event.clone())
+        }
+        fn get_webhook_api_response(
+            &self,
+            _request: RequestDetails,
+            _error: Option<interfaces::connector_types::IncomingWebhookFlowError>,
+            _config: Option<ConnectorSpecificConfig>,
+        ) -> error_stack::Result<EventAckResponse, WebhookError> {
+            self.acknowledgements.fetch_add(1, Ordering::SeqCst);
+            if self.ack_fails {
+                return Err(WebhookError::WebhookResponseEncodingFailed.into());
+            }
+            Ok(EventAckResponse {
+                status_code: 202,
+                headers: vec![("x-provider-ack".to_string(), "yes".to_string())],
+                body: Some(b"accepted".to_vec()),
+            })
+        }
+    }
+    fn request(event: &str) -> RequestDetails {
+        RequestDetails {
+            method: HttpMethod::Post, uri: None, headers: Default::default(), query_params: None,
+            body: serde_json::to_vec(&serde_json::json!({"type":event,"data":{"id":"resource_id","payment_id":"pay_parent","action_id":"refund_id","amount":100,"currency":"USD","reference":"merchant_id"}})).unwrap(),
+        }
+    }
+    fn context(verified: bool) -> WebhookHandlingContext {
+        WebhookHandlingContext {
+            webhook_secrets: None,
+            connector_config: None,
+            source_verified: verified,
+            merchant_event_id: Some("merchant_event".into()),
+            event_context: None,
+        }
+    }
+    fn run(
+        provider: &TestWebhook,
+        body: RequestDetails,
+        verified: bool,
+    ) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
+        let event = provider.get_event_type(body.clone())?;
+        let resource = crate::types::get_webhook_resource_connector_data(
+            &ConnectorVariant::Payment(ConnectorEnum::Checkout),
+            &event,
+        )?;
+        process_provider_webhook_event(provider, resource, event, body, context(verified))
+    }
+    #[test]
+    fn provider_dispatch_classifies_once_and_preserves_unverified_content_and_ack() {
+        let provider = TestWebhook::new(EventType::PaymentIntentSuccess);
+        let response = run(&provider, request("payment_captured"), false).unwrap();
+        assert!(!response.source_verified);
+        assert_eq!(
+            response.merchant_event_id.as_deref(),
+            Some("merchant_event")
+        );
+        assert!(matches!(
+            response.event_content.unwrap().content,
+            Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(_))
+        ));
+        let ack = response.event_ack_response.unwrap();
+        assert_eq!(ack.status_code, 202);
+        assert_eq!(ack.body, b"accepted");
+        assert_eq!(
+            ack.headers.get("x-provider-ack").map(String::as_str),
+            Some("yes")
+        );
+        assert_eq!(provider.classifications.load(Ordering::SeqCst), 1);
+        assert_eq!(provider.acknowledgements.load(Ordering::SeqCst), 1);
+    }
+    #[test]
+    fn provider_dispatch_routes_refunds_and_disputes_to_their_resource_methods() {
+        for (event, wire, refund) in [
+            (EventType::RefundSuccess, "payment_refunded", true),
+            (EventType::DisputeOpened, "dispute_received", false),
+        ] {
+            let provider = TestWebhook::new(event);
+            let response = run(&provider, request(wire), true).unwrap();
+            assert!(response.source_verified);
+            let content = response.event_content.unwrap().content.unwrap();
+            if refund {
+                assert!(matches!(
+                    content,
+                    grpc_api_types::payments::event_content::Content::RefundsResponse(_)
+                ));
+            } else {
+                assert!(matches!(
+                    content,
+                    grpc_api_types::payments::event_content::Content::DisputesResponse(_)
+                ));
+            }
+        }
+    }
+    #[test]
+    fn normalization_error_stops_before_ack() {
+        let provider = TestWebhook::new(EventType::PaymentIntentSuccess);
+        let mut body = request("payment_captured");
+        body.body = b"invalid".to_vec();
+        assert!(run(&provider, body, true).is_err());
+        assert_eq!(provider.acknowledgements.load(Ordering::SeqCst), 0);
+    }
+    #[test]
+    fn provider_ack_error_propagates() {
+        let mut provider = TestWebhook::new(EventType::PaymentIntentSuccess);
+        provider.ack_fails = true;
+        let error = run(&provider, request("payment_captured"), true).unwrap_err();
+        assert!(matches!(
+            error.current_context(),
+            WebhookError::WebhookResponseEncodingFailed
+        ));
+    }
+    #[test]
+    fn selected_payout_handler_error_never_retries_legacy_payment_handler() {
+        let provider = TestWebhook::new(EventType::PayoutSuccess);
+        let payout = PayoutConnectorData::<DefaultPCIHolder>::get_connector_by_name(
+            &PayoutConnectorEnum::Truelayer,
+        );
+        let mut body = request("payout_executed");
+        body.body = b"invalid".to_vec();
+        let error = process_provider_webhook_event(
+            &provider,
+            WebhookResourceConnectorData::Payout(payout),
+            EventType::PayoutSuccess,
+            body,
+            context(true),
+        )
+        .unwrap_err();
+        // The unmigrated payout trait defaults to unsupported. Legacy payment handling
+        // would deserialize this body and return a body-decoding error instead.
+        assert!(matches!(
+            error.current_context(),
+            WebhookError::WebhooksNotImplemented {
+                operation: "process_payout_webhook"
+            }
+        ));
+        assert_eq!(provider.acknowledgements.load(Ordering::SeqCst), 0);
+    }
+    #[test]
+    fn payout_resolution_requires_no_payment_identity_and_rejects_unregistered_handler() {
+        let error = crate::types::get_webhook_resource_connector_data(
+            &ConnectorVariant::Payout(PayoutConnectorEnum::GotymeSanlam),
+            &EventType::PayoutSuccess,
+        )
+        .err()
+        .unwrap();
+        assert!(matches!(
+            error.current_context(),
+            WebhookError::WebhooksNotImplemented {
+                operation: "process_payout_webhook"
+            }
+        ));
+    }
+    #[test]
+    fn event_family_selects_resource_even_with_payout_metadata() {
+        let selected = crate::types::get_webhook_resource_connector_data(
+            &ConnectorVariant::Payout(PayoutConnectorEnum::Checkout),
+            &EventType::RefundSuccess,
+        )
+        .unwrap();
+        assert!(matches!(selected, WebhookResourceConnectorData::Payment(_)));
+    }
+}

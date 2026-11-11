@@ -1049,7 +1049,7 @@ async fn verify_webhook_source_external(
 
 struct WebhookVerificationConnector<'a> {
     name: &'a str,
-    integration: interfaces::webhook::WebhookVerificationIntegration<'a>,
+    integration: interfaces::webhook::WebhookVerificationIntegration,
 }
 
 /// Execute a provider verification integration without constructing a payment connector.

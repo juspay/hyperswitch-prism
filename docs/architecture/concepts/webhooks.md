@@ -37,40 +37,35 @@ sequenceDiagram
 
 ## Adding a connector webhook
 
-The common framework is available, but no providers are registered or migrated.
-Existing requests use their legacy payment connector's `IncomingWebhook` methods.
-See the [framework guide](../../../crates/integrations/connector-integration/src/webhook_connectors/README.md)
-for the registration points and migration steps.
+The provider webhook framework is available; no production provider is registered
+or migrated in this PR. Existing requests retain their legacy `IncomingWebhook`
+handling. See the [framework guide](../../../crates/integrations/connector-integration/src/webhook_connectors/README.md)
+for registration and migration steps.
 
-1. Implement [`Webhook`](../../../crates/types-traits/interfaces/src/webhook.rs)
-   in `webhook_connectors/<connector>.rs`, with shared payload types and mappings
-   in `<connector>/transformers.rs`. Register supported connector variants in
-   [`webhook_connectors.rs`](../../../crates/integrations/connector-integration/src/webhook_connectors.rs).
-2. Keep payment, refund, and dispute normalization on `IncomingWebhook`. For payout
-   normalization, implement `PayoutServiceTrait::process_payout_webhook` in the
-   payout connector and register it in `payout_connectors::get_webhook_connector`.
-   Keep legacy entry points when migrating an existing provider.
-3. Implement common classification, local verification, ACKs, and integrity
-   declarations as appropriate. Classification in HandleEvent can override
-   `get_event_type` without requiring ParseEvent's resource references. External
-   gRPC verification retains its existing payment integration and compatibility
-   context; native FFI retains local verification only.
-4. Test parse and handle calls with success, failure, malformed, and invalid-signature
-   payloads before enabling the registered provider in `webhook_parse.migrated_connectors`.
+Implement [`Webhook`](../../../crates/types-traits/interfaces/src/webhook.rs) for
+provider-level parsing, classification, local verification and ACKs. External gRPC
+verification uses the provider's own static verification integration. Keep payment,
+refund and dispute resource normalization on `IncomingWebhook`; implement payout
+normalization on `PayoutServiceTrait` and register it in the payout webhook registry.
 
-The shared resolver returns a common or legacy payment migration enum. The rollout
-list defaults to empty and uses the normal configuration loader, including
-`CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS`. An optional `x-webhook-connector` header
-explicitly selects a common provider. It overrides legacy identity headers, while
-supplied typed connector configuration must match the provider. Explicit or configured
-selection of an unregistered provider returns an error; no providers are registered
-in this framework-only change. Errors never retry another migration branch.
+The resolver selects a legacy or provider branch. Legacy HandleEvent remains
+unchanged. Provider HandleEvent classifies the event, resolves only the required
+payment or payout resource handler, verifies the source, normalizes content, and
+returns its ACK. Payout events never require a payment connector or fall back to
+payment processing when their handler is absent. Native FFI keeps local verification
+only and its existing empty integrity declarations.
 
-After classification, the resource resolver selects a registered payout handler
-only for migrated payout events. Other cases retain payment dispatch. The original
-`IncomingWebhook` methods, `WebhookParse` path, resolver name, and
-`process_webhook_event` helper remain available. A failed source check retains the
-existing behavior of returning content and an ACK marked unverified.
+`x-webhook-connector` is permanent provider identity. The rollout config and its
+legacy/provider switch are temporary: remove them, compatibility aliases and legacy
+handler branches once every supported connector migrates and compatibility checks
+pass. Both registries are currently empty. Explicit or configured selection of an
+unregistered implementation fails; rollout entries are validated at configuration
+load. Selected handler errors never retry another path.
+
+The rollout list defaults to empty in development/production TOML. gRPC supports
+`CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS`; FFI uses the TOML embedded when its SDK is
+built, retaining its original environment-independent loading behavior. A failed
+local source check preserves the existing unverified-content/ACK response semantics.
 
 | Reference | Return every available ID in these fields |
 | --- | --- |
