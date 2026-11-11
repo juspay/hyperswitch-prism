@@ -509,13 +509,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         };
 
         let refund_status = twoc_twop_paco::classify_refund_response_code(Some(&code));
+        let attempt_status = if code == "PC-B050032" {
+            Some(FlowStatus::Payment(AttemptStatus::Failure))
+        } else {
+            refund_status.map(FlowStatus::Refund)
+        };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,
             message: message.clone(),
             reason: Some(message),
-            attempt_status: refund_status.map(FlowStatus::Refund),
+            attempt_status,
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
