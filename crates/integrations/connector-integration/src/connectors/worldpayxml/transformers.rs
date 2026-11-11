@@ -2301,6 +2301,7 @@ impl responses::WorldpayxmlWebhookBody {
                 EventType::RefundSuccess
             }
             WorldpayxmlLastEvent::RefundFailed => EventType::RefundFailure,
+            WorldpayxmlLastEvent::RefundRequested => EventType::RefundProcessing,
             WorldpayxmlLastEvent::ChargedBack => EventType::DisputeOpened,
             WorldpayxmlLastEvent::ChargebackReversed => EventType::DisputeWon,
             WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
@@ -2312,7 +2313,6 @@ impl responses::WorldpayxmlWebhookBody {
             WorldpayxmlLastEvent::PushRefused => EventType::PayoutFailure,
             WorldpayxmlLastEvent::SentForRefund
             | WorldpayxmlLastEvent::SentForFastRefund
-            | WorldpayxmlLastEvent::RefundRequested
             | WorldpayxmlLastEvent::Expired
             | WorldpayxmlLastEvent::Error
             | WorldpayxmlLastEvent::QueryRequired

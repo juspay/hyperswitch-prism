@@ -1,11 +1,52 @@
 use common_enums::{
     CardNetwork, CardSegmentType, CardType, CountryAlpha2, FundingSource, PaymentMethodType,
+    RefundStatus,
 };
-use domain_types::router_data::AdditionalPaymentMethodConnectorResponse;
+use domain_types::{
+    connector_types::{EventType, HttpMethod, RequestDetails},
+    payment_method_data::DefaultPCIHolder,
+    router_data::AdditionalPaymentMethodConnectorResponse,
+};
+use interfaces::connector_types::IncomingWebhook;
 
 use super::{
     responses::WorldpayxmlAuthorizeResponse, transformers::get_worldpayxml_connector_response,
+    Worldpayxml,
 };
+
+#[test]
+fn refund_requested_webhook_reports_processing_and_pending_status() {
+    let connector = Worldpayxml::<DefaultPCIHolder>::new();
+    let request = RequestDetails {
+        method: HttpMethod::Post,
+        uri: None,
+        headers: std::collections::HashMap::new(),
+        body: br#"<paymentService version="1.4" merchantCode="fixture-merchant">
+  <notify>
+    <orderStatusEvent orderCode="refund-requested">
+      <payment><lastEvent>REFUND_REQUESTED</lastEvent></payment>
+    </orderStatusEvent>
+  </notify>
+</paymentService>"#
+            .to_vec(),
+        query_params: None,
+    };
+
+    assert_eq!(
+        connector
+            .get_event_type(request.clone())
+            .expect("refund request event must decode"),
+        EventType::RefundProcessing
+    );
+    let response = connector
+        .process_refund_webhook(request, None, None)
+        .expect("refund request must remain pending");
+    assert_eq!(response.status, RefundStatus::Pending);
+    assert_eq!(
+        response.connector_refund_id.as_deref(),
+        Some("refund-requested")
+    );
+}
 
 const CARD_WITH_BIN: &str = r#"
 <paymentService version="1.4" merchantCode="fixture-merchant">
