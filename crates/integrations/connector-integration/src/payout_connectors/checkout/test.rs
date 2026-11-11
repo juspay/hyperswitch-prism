@@ -268,7 +268,7 @@ mod tests {
 
         use cards::CardNumber;
         use common_enums::{BankHolderType, CountryAlpha2, Currency};
-        use common_utils::{request::RequestContent, types::MinorUnit};
+        use common_utils::request::RequestContent;
         use domain_types::{
             connector_flow::PayoutTransfer,
             payment_address::{Address, AddressDetails},
@@ -284,6 +284,7 @@ mod tests {
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
             types::{ConnectorParams, Connectors},
+            utils::ForeignTryFrom,
         };
         use hyperswitch_masking::Secret;
         use interfaces::connector_integration_v2::{
@@ -345,6 +346,18 @@ mod tests {
             PayoutTransferRequest<DefaultPCIHolder>,
             PayoutTransferResponse,
         > {
+            let money = PayoutTransferRequest::<DefaultPCIHolder>::foreign_try_from(
+                grpc_api_types::payouts::PayoutServiceTransferRequest {
+                    amount: Some(grpc_api_types::payments::Money {
+                        minor_amount: 200,
+                        currency: grpc_api_types::payments::Currency::Usd.into(),
+                    }),
+                    destination_currency: grpc_api_types::payments::Currency::Usd.into(),
+                    ..Default::default()
+                },
+            )
+            .expect("valid payout fixture")
+            .money;
             RouterDataV2 {
                 flow: PhantomData::<PayoutTransfer>,
                 resource_common_data: PayoutFlowData {
@@ -384,8 +397,7 @@ mod tests {
                     merchant_payout_id: Some(CONNECTOR_REFERENCE.to_string()),
                     connector_quote_id: None,
                     connector_payout_id: None,
-                    amount: MinorUnit::new(200),
-                    source_currency: Currency::USD,
+                    money,
                     destination_currency: Currency::USD,
                     priority: None,
                     connector_payout_method_id: None,

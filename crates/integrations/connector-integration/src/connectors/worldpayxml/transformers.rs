@@ -5,7 +5,7 @@ use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
 use common_utils::{
     errors::CustomResult,
     pii::SecretSerdeValue,
-    types::{MinorUnit, Money, StringMinorUnitForConnector},
+    types::{MinorUnit, MinorUnitForConnector, Money, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -1501,7 +1501,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert amount using the connector's amount converter
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount)?;
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1610,9 +1610,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // would authorise funds that nothing subsequently captures.
         if router_data
             .request
-            .amount
+            .money
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount.get_amount_as_i64() > 0)
         {
             return Err(IntegrationError::FlowNotSupported {
@@ -1673,15 +1673,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let info_3d_secure =
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
-        let converted_amount = super::WorldpayxmlAmountConvertor::convert(&Money {
-            amount: router_data
+        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
+            &router_data
                 .request
-                .amount
-                .as_ref()
-                .map(|money| money.amount)
-                .unwrap_or_else(MinorUnit::zero),
-            currency: router_data.request.currency,
-        })?;
+                .money
+                .clone()
+                .unwrap_or_else(|| Money::zero(router_data.request.currency)),
+        )?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1849,7 +1847,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
 
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount)?;
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -1951,7 +1949,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert amount using the connector's amount converter
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&router_data.request.amount_to_capture)?;
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.capture_money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -2031,7 +2029,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Convert refund amount using the connector's amount converter
         let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&router_data.request.refund_amount)?;
+            super::WorldpayxmlAmountConvertor::convert(&router_data.request.refund_money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -2428,7 +2426,7 @@ impl responses::WorldpayxmlWebhookBody {
             raw_connector_response: None,
             status_code: 200,
             response_headers: None,
-            amount_captured: if status == AttemptStatus::Charged {
+            captured_money: if status == AttemptStatus::Charged {
                 amount
             } else {
                 None
@@ -2468,17 +2466,20 @@ impl TryFrom<&responses::WorldpayxmlAmountResponse> for Money {
     type Error = Report<WebhookError>;
 
     fn try_from(amount: &responses::WorldpayxmlAmountResponse) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: MinorUnit::new(amount.value.parse::<i64>().change_context(
-                WebhookError::WebhookAmountConversionFailed {
-                    reason: "Invalid Worldpay XML minor-unit amount".to_string(),
-                },
-            )?),
-            currency: amount
-                .currency_code
-                .parse::<common_enums::Currency>()
-                .change_context(WebhookError::WebhookBodyDecodingFailed)?,
-        })
+        let minor_amount = MinorUnit::new(amount.value.parse::<i64>().change_context(
+            WebhookError::WebhookAmountConversionFailed {
+                reason: "Invalid Worldpay XML minor-unit amount".to_string(),
+            },
+        )?);
+        let currency = amount
+            .currency_code
+            .parse::<common_enums::Currency>()
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        domain_types::utils::convert_back_amount_to_money_for_webhook(
+            &MinorUnitForConnector,
+            minor_amount,
+            currency,
+        )
     }
 }
 
@@ -2531,7 +2532,7 @@ impl TryFrom<responses::WorldpayxmlWebhookBody> for DisputeWebhookDetailsRespons
                 &StringMinorUnitForConnector,
                 &money,
             )?,
-            currency: money.currency,
+            currency: money.currency(),
             dispute_id: event.order_code,
             status,
             stage: common_enums::DisputeStage::Dispute,
@@ -3783,13 +3784,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let order_code = router_data.request.connector_transaction_id.clone();
         let amount = router_data
             .request
-            .amount
+            .money
             .as_ref()
             .map(|amount| {
                 Ok::<_, Self::Error>(requests::WorldpayxmlAmount {
                     value: super::WorldpayxmlAmountConvertor::convert(amount)?,
-                    currency_code: amount.currency,
-                    exponent: get_worldpayxml_exponent(amount.currency)?,
+                    currency_code: amount.currency(),
+                    exponent: get_worldpayxml_exponent(amount.currency())?,
                 })
             })
             .transpose()?;

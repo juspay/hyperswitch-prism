@@ -462,7 +462,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let customer = get_customer_details(&item.router_data)?;
 
         Ok(Self {
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.money.amount(),
             description: item.router_data.resource_common_data.description,
             paymethod,
             customer,
@@ -682,7 +682,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let customer = get_customer_details(&item.router_data)?;
 
         Ok(Self {
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.money.amount(),
             description: item.router_data.resource_common_data.description,
             paymethod,
             customer,
@@ -854,7 +854,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             payment: item.router_data.request.connector_transaction_id.clone(),
-            amount: Some(item.router_data.request.refund_amount.amount),
+            amount: Some(item.router_data.request.refund_money.amount()),
             reason: item.router_data.request.reason.clone(),
             description: item.router_data.request.reason,
             external_reference: Some(item.router_data.request.refund_id.clone()),
