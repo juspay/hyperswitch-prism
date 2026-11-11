@@ -25,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.MonerisConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_server_authentication_token", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -284,6 +284,33 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
+        merchantAuthorizationId = "probe_auth_001"  // Identification.
+        connectorTransactionId = "probe_connector_txn_001"
+        amountBuilder.apply {  // New total authorized amount, including this increase.
+            minorAmount = 1100L
+            currency = Currency.USD
+        }
+        reason = "incremental_auth_probe"  // Optional Fields.
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+        additionalAmountBuilder.apply {  // Increase over the current authorized total. Must use the same currency as amount.
+            minorAmount = 100L
+            currency = Currency.USD
+        }
+    }.build()
+    val response = client.incremental_authorization(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 fun postAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentMethodAuthenticationClient(config)
@@ -448,12 +475,13 @@ fun main(args: Array<String>) {
         "capture" -> capture(txnId)
         "createServerAuthenticationToken" -> createServerAuthenticationToken(txnId)
         "get" -> get(txnId)
+        "incrementalAuthorization" -> incrementalAuthorization(txnId)
         "postAuthenticate" -> postAuthenticate(txnId)
         "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, void")
     }
 }

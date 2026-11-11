@@ -3612,29 +3612,6 @@ pub enum TravelMode {
     Ferry,
 }
 
-/// Travel cabin / service class.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    Deserialize,
-    Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum TravelClass {
-    Economy,
-    PremiumEconomy,
-    Business,
-    First,
-}
-
 /// Passenger / customer gender.
 ///
 /// Incoming JSON accepts both the canonical `snake_case` names and the

@@ -7443,11 +7443,11 @@ impl PaymentDmnNotification {
                 // request success with transactionStatus DECLINED/ERROR.
                 DmnApiTransactionStatus::Fail
                     if matches!(self.status, Some(DmnStatus::Declined | DmnStatus::Error))
-                        && !self
+                        && self
                             .err_code
                             .as_ref()
                             .and_then(|code| code.parse::<i64>().ok())
-                            .is_some_and(|code| code > 0) =>
+                            .is_none_or(|code| code <= 0) =>
                 {
                     NuveiPaymentStatus::Success
                 }

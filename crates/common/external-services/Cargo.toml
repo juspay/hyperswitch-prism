@@ -70,7 +70,7 @@ log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc2
 ] }
 
 # OpenTelemetry (OTLP metrics push) — optional, enabled via the `otel` feature.
-opentelemetry = { version = "0.27", optional = true, default-features = false, features = [
+opentelemetry = { version = "0.32", optional = true, default-features = false, features = [
     "metrics",
 ] }
 deja = { git = "https://github.com/juspay/deja", rev = "8da135688c353e2536386274819b37de12eb3113", optional = true, default-features = false }
@@ -91,7 +91,7 @@ log-transformations = ["common_utils/log-transformations"]
 deja = ["dep:deja", "common_utils/deja", "domain_types/deja", "common_enums/deja"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-openssl = "=0.10.76"
+openssl = "=0.10.81"
 
 [lints]
 workspace = true
