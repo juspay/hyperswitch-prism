@@ -495,9 +495,10 @@ make all
 
 UCS provides client SDKs for multiple programming languages in the `sdk/` directory:
 
-- **Node.js**: `sdk/node-grpc-client/`
-- **Python**: `sdk/python-grpc-client/`
-- **Rust**: `sdk/rust-grpc-client/`
+- **JavaScript/TypeScript**: `sdk/javascript/`
+- **Python**: `sdk/python/`
+- **Java/Kotlin**: `sdk/java/`
+- **Rust**: `sdk/rust/`
 
 Each SDK includes README files with specific integration instructions.
 

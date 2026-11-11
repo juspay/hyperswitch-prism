@@ -560,6 +560,11 @@ message CompositeCaptureRequest {
 
   // Currency conversion quote and customer decision supplied for the capture.
   optional CurrencyConversionData currency_conversion_data = 20;
+
+  // Industry-specific capture data, such as airline reservation, passenger, and
+  // flight details. Populated by the caller (for example, Euler Txns from booking
+  // data) and forwarded to PaymentServiceCaptureRequest for connector processing.
+  optional DomainData domain_data = 21;
 }
 
 // Response message for composite capture flow.

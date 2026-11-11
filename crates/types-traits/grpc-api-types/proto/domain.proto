@@ -186,6 +186,7 @@ message AirlineSegment {
 
   optional string operating_carrier_code = 17;  // Operating carrier IATA-2
   optional string operating_flight_number = 18; // Operating flight number
+  optional uint32 journey_no = 21; // Groups legs belonging to the same journey
   optional string marketing_carrier_name = 19; // Marketing carrier name, e.g. "Emirates"
   optional TicketDeliveryContact ticket_delivery_recipient = 20; // Ticket recipient, email or phone
 }
@@ -314,12 +315,13 @@ message TravelData {
 message TravelSegment {
   optional string origin = 1;                   // Origin station / port
   optional string destination = 2;              // Destination station / port
-  optional TravelClass travel_class = 3;        // Cabin / service class
+  optional string travel_class = 3;             // Cabin / service class (free-form, e.g. "ECONOMY", "semi-leito")
   repeated Traveller passengers = 4;            // Passenger details for this leg
   optional string arrival_date_time = 5;                  // Arrival timestamp (RFC 3339)
   optional string boarding_date_time = 6;                 // Boarding gate opening timestamp (RFC 3339)
   optional string departure_date_time = 7;                // Departure timestamp (RFC 3339)
   optional string identification_number = 8;               // Trip / service / coach / flight number
+  optional string trip_type = 9;
 }
 
 // Mode of ground / sea transport.
@@ -328,15 +330,6 @@ enum TravelMode {
   TRAVEL_MODE_TRAIN = 1;
   TRAVEL_MODE_BUS = 2;
   TRAVEL_MODE_FERRY = 3;
-}
-
-// Travel cabin / service class.
-enum TravelClass {
-  TRAVEL_CLASS_UNSPECIFIED = 0;
-  TRAVEL_CLASS_ECONOMY = 1;
-  TRAVEL_CLASS_PREMIUM_ECONOMY = 2;
-  TRAVEL_CLASS_BUSINESS = 3;
-  TRAVEL_CLASS_FIRST = 4;
 }
 
 // Passenger / customer gender.

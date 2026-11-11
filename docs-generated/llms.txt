@@ -331,7 +331,7 @@ connector_id: fiservcommercehub
 doc: docs/connectors/fiservcommercehub.md
 scenarios: none
 payment_methods: none
-flows: capture, create_server_authentication_token, get, recurring_charge, refund, refund_get, void
+flows: capture, create_server_authentication_token, get, incremental_authorization, recurring_charge, refund, refund_get, reverse, void
 examples_python: none
 
 ## Fiservemea
@@ -587,7 +587,7 @@ connector_id: moneris
 doc: docs/connectors/moneris.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, create_server_authentication_token, get, post_authenticate, pre_authenticate, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_server_authentication_token, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, refund, refund_get, void
 examples_python: examples/moneris/moneris.py
 
 ## Multisafepay
@@ -650,7 +650,7 @@ examples_python: examples/novalnet/novalnet.py
 connector_id: nuvei
 doc: docs/connectors/nuvei.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Ach, Card, Eps, Giropay, Ideal, Sofort
+payment_methods: Ach, ApplePayDecrypted, Card, Eps, Giropay, GooglePayDecrypted, Ideal, Sofort
 flows: authorize, capture, create_client_authentication_token, create_order, create_server_session_authentication_token, get, handle_event, parse_event, pre_authenticate, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/nuvei/nuvei.py
 
@@ -811,7 +811,7 @@ connector_id: rapyd
 doc: docs/connectors/rapyd.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted
-flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, recurring_charge, refund, refund_get, token_authorize, void
+flows: authorize, capture, create_client_authentication_token, create_order, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/rapyd/rapyd.py
 
 ## Razorpay

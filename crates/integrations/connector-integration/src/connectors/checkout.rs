@@ -123,6 +123,21 @@ fn checkout_error_attempt_status(
     }
 }
 
+pub const OPTIONAL_CLIENT_ID: &str = "{{optional_client_id}}";
+
+pub fn resolve_checkout_base_url(configured_base_url: &str, optional_client_id: &str) -> String {
+    configured_base_url.replace(OPTIONAL_CLIENT_ID, optional_client_id)
+}
+
+fn checkout_payment_base_url(configured_base_url: &str) -> String {
+    let resolved_base_url = resolve_checkout_base_url(configured_base_url, "");
+    if resolved_base_url.ends_with('/') {
+        resolved_base_url
+    } else {
+        format!("{resolved_base_url}/")
+    }
+}
+
 // Type alias for non-generic trait implementations
 
 macros::create_amount_converter_wrapper!(connector_name: Checkout, amount_type: MinorUnit);
@@ -380,6 +395,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id,
             status,
@@ -426,6 +443,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             // action_id is the refund's PSP identifier
             connector_refund_id: body.data.action_id,
             merchant_transaction_id: None,
@@ -694,25 +712,31 @@ macros::create_all_prerequisites!(
             Ok(error)
         }
 
-        pub fn connector_base_url_payments<'a, F, Req, Res>(
+        pub fn connector_base_url_payments<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> String {
+            checkout_payment_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+            )
         }
 
-        pub fn connector_base_url_refunds<'a, F, Req, Res>(
+        pub fn connector_base_url_refunds<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> String {
+            checkout_payment_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+            )
         }
 
-        pub fn connector_base_url_disputes<'a, F, Req, Res>(
+        pub fn connector_base_url_disputes<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, DisputeFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, DisputeFlowData, Req, Res>,
+        ) -> String {
+            checkout_payment_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+            )
         }
     }
 );
@@ -754,6 +778,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )])
     }
 
+    /// Returns the configured URL **unresolved** — it may still contain the
+    /// `{{optional_client_id}}` placeholder. The `ConnectorCommon` trait returns `&str`, so
+    /// resolution cannot happen here (it allocates); every payment URL goes through
+    /// [`checkout_payment_base_url`] (which resolves with an empty client ID) and payouts
+    /// through `payout_connectors::checkout::get_checkout_payout_base_url`. Never use this
+    /// raw value to build a request URL directly.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.checkout.base_url.as_ref()
     }

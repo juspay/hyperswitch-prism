@@ -258,6 +258,7 @@ pub enum AuthenticatorConnectorEnum {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectorEnum {
+    Checkout,
     Nuvei,
     Loonio,
     Paypal,
@@ -280,6 +281,7 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
     fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
         match value {
             ConnectorEnum::Nuvei => Ok(Self::Nuvei),
+            ConnectorEnum::Checkout => Ok(Self::Checkout),
             ConnectorEnum::Loonio => Ok(Self::Loonio),
             ConnectorEnum::Paypal => Ok(Self::Paypal),
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
@@ -325,6 +327,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
     fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
         match config {
             AuthType::Nuvei(_) => Ok(Self::Nuvei),
+            AuthType::Checkout(_) => Ok(Self::Checkout),
             AuthType::Paypal(_) => Ok(Self::Paypal),
             AuthType::Loonio(_) => Ok(Self::Loonio),
             AuthType::Itaubank(_) => Ok(Self::Itaubank),
@@ -3119,6 +3122,9 @@ pub struct RedirectDetailsResponse {
 
 #[derive(Debug, Clone)]
 pub struct WebhookDetailsResponse {
+    pub raw_connector_status: Option<RawConnectorStatus>,
+    /// Transaction amount and currency reported by the provider.
+    pub amount: Option<Money>,
     pub resource_id: Option<ResponseId>,
     pub status: AttemptStatus,
     pub connector_response_reference_id: Option<String>,
@@ -3223,6 +3229,7 @@ pub struct PayoutWebhookReference {
 
 #[derive(Debug, Clone)]
 pub struct RefundWebhookDetailsResponse {
+    pub raw_connector_status: Option<RawConnectorStatus>,
     pub connector_refund_id: Option<String>,
     pub merchant_transaction_id: Option<String>,
     pub status: common_enums::RefundStatus,
@@ -3897,6 +3904,7 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
+    pub domain_data: Option<DomainData>,
     pub order_tax_amount: Option<Money>,
     pub merchant_order_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
@@ -5144,6 +5152,7 @@ pub struct AirlineData {
 #[derive(Debug, Clone, Default)]
 pub struct AirlineSegment {
     pub sequence_no: Option<u32>,
+    pub journey_no: Option<u32>,
     pub marketing_carrier_code: Option<String>,
     pub flight_number: Option<String>,
     pub flight_type: Option<String>,
@@ -5318,8 +5327,8 @@ pub struct TravelSegment {
     pub origin: Option<String>,
     /// Destination station / port.
     pub destination: Option<String>,
-    /// Cabin / service class.
-    pub travel_class: Option<common_enums::TravelClass>,
+    /// Cabin / service class (free-form, e.g. "ECONOMY", "semi-leito").
+    pub travel_class: Option<String>,
     /// Passenger details for this leg.
     pub passengers: Vec<Traveller>,
     /// Arrival timestamp (RFC 3339).
@@ -5330,6 +5339,9 @@ pub struct TravelSegment {
     pub departure_date_time: Option<String>,
     /// Trip / service / coach / flight number.
     pub identification_number: Option<String>,
+
+    /// Trip type (one-way, return, multi-destination).
+    pub trip_type: Option<String>,
 }
 
 /// A passenger on a ground / sea travel booking.

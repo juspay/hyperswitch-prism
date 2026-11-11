@@ -139,6 +139,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         _completed_step: Option<connector_types::AuthenticationStep>,
+        _payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
         // Card 3DS starts with Cardinal device data collection; both the DDC return and

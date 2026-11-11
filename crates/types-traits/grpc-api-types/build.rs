@@ -110,6 +110,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // Existing txns Nuvei accounts use these credential names. Keep the
+    // canonical wire names while accepting the legacy account configuration.
+    for (field, alias) in [
+        ("merchant_id", "merchantId"),
+        ("merchant_site_id", "merchantSiteId"),
+        ("merchant_secret", "merchantKey"),
+    ] {
+        config.field_attribute(
+            format!(".types.NuveiConfig.{field}"),
+            format!("#[serde(alias = \"{alias}\")]"),
+        );
+    }
+
     // WorldpayvantivConfig.merchant_id_by_currency is the BodyKey alternative to the
     // single `merchant_id`; existing x-connector-config headers omit it. Without a default,
     // serde rejects a missing (non-optional proto map) field and every SignatureKey /

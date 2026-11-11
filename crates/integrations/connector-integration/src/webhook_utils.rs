@@ -226,7 +226,7 @@ pub fn get_payments_webhook_content<
     let webhook_details = connector_data
         .connector
         .process_payment_webhook(
-            request_details.clone(),
+            request_details,
             webhook_secrets,
             connector_config,
             event_context,
