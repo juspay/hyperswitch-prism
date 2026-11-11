@@ -68,6 +68,8 @@ pub(crate) mod headers {
 }
 
 const CHECKOUT_API_DOC_URL: &str = "https://api-reference.checkout.com/";
+const CHECKOUT_API_ENDPOINTS_DOC_URL: &str =
+    "https://www.checkout.com/docs/developer-resources/api/api-endpoints";
 
 /// Checkout's own `error_type` for a rejected secret key; a `401` arrives with an empty body.
 const CHECKOUT_INVALID_API_KEY_ERROR_TYPE: &str = "invalid_api_key";
@@ -155,12 +157,16 @@ pub fn get_checkout_base_url(
                         error_stack::report!(IntegrationError::InvalidDataFormat {
                             field_name: "checkout.connector_config.connector_client_id",
                             context: domain_types::errors::IntegrationErrorContext {
+                                suggested_action: Some(
+                                    "Provide the complete Checkout client ID (`cli_...`) in the connector configuration"
+                                        .to_owned(),
+                                ),
                                 additional_context: Some(
                                     "Client ID must look like `cli_<id>`; its eight-character \
                                      account prefix forms the Checkout API subdomain"
                                         .to_owned(),
                                 ),
-                                ..Default::default()
+                                doc_url: Some(CHECKOUT_API_ENDPOINTS_DOC_URL.to_owned()),
                             },
                         })
                     })
