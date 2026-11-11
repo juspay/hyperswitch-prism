@@ -6,7 +6,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::ParsingError,
     pii::Email,
-    types::MinorUnit,
+    types::{MinorUnit, StringMajorUnitWithTwoDecimals},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -29,12 +29,12 @@ use domain_types::{
     router_response_types::RedirectForm,
     utils::missing_field_err,
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 
-use crate::connectors::revpay::RevpayRouterData;
+use crate::connectors::revpay::{RevpayAmountConvertor, RevpayRouterData};
 
 // =============================================================================
 // AUTHENTICATION
@@ -99,83 +99,17 @@ fn generate_revpay_signature(merchant_key: &str, fields: &[&str]) -> String {
 }
 
 // =============================================================================
-// AMOUNT ENCODING
+// AMOUNT CONVERSION
 // =============================================================================
 
-/// revPAY's `Amount` is a plain string: major units with exactly two decimal
-/// places ("52.40"), whatever the currency's own ISO exponent, and the very
-/// same bytes must appear in the JSON body and in the signature preimage.
-/// `common_utils::types::StringTwoDecimalUnit` renders the implied-decimal
-/// form instead ("5240"), and `FloatMajorUnit` serializes as a JSON number
-/// whose f64 cannot hold the fixed two-decimal text ("52.40" prints as 52.4)
-/// that the signature must reproduce byte-for-byte — so the conversion is
-/// done here in integer space, no float hop.
-pub fn format_revpay_amount(
-    amount: MinorUnit,
-    currency: Currency,
-) -> Result<String, error_stack::Report<ParsingError>> {
-    let exponent = currency
-        .number_of_digits_after_decimal_point()
-        .change_context(ParsingError::StructParseFailure(
-            "currency decimal configuration",
-        ))?;
-    let scale = 10_i128.pow(u32::from(exponent));
-    let minor = i128::from(amount.get_amount_as_i64());
-    if minor < 0 {
-        return Err(report!(ParsingError::StructParseFailure("Amount"))
-            .attach_printable(format!("Amount `{minor}` is negative")));
-    }
-    let scaled = minor * 100;
-    if scaled % scale != 0 {
-        return Err(report!(ParsingError::StructParseFailure(
-            "two-decimal amount"
-        ))
-        .attach_printable(format!(
-            "{currency:?} minor amount {minor} has non-zero digits below the two decimals revPAY requires"
-        )));
-    }
-    let units = scaled / scale;
-    Ok(format!("{}.{:02}", units / 100, units % 100))
-}
-
-/// Inverse of [`format_revpay_amount`] — parses a connector-echoed `Amount`
-/// back into framework minor units for the integrity object.
+/// Parse a connector-echoed `Amount` through the same shared converter used for
+/// request encoding, returning framework minor units for the integrity object.
 pub fn parse_revpay_amount(
     amount: &str,
     currency: Currency,
 ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-    let malformed = || {
-        report!(ParsingError::StructParseFailure("two-decimal amount")).attach_printable(format!(
-            "`{amount}` is not in revPAY's major-with-2-decimals form"
-        ))
-    };
-    let exponent = currency
-        .number_of_digits_after_decimal_point()
-        .change_context(ParsingError::StructParseFailure(
-            "currency decimal configuration",
-        ))?;
-    let scale = 10_i128.pow(u32::from(exponent));
-    let (whole, fraction) = amount.split_once('.').ok_or_else(malformed)?;
-    if whole.is_empty()
-        || fraction.len() != 2
-        || !whole.chars().all(|c| c.is_ascii_digit())
-        || !fraction.chars().all(|c| c.is_ascii_digit())
-    {
-        return Err(malformed());
-    }
-    let whole_units: i128 = whole.parse::<i128>().map_err(|_| malformed())?;
-    let fraction_units: i128 = fraction.parse::<i128>().map_err(|_| malformed())?;
-    let wire: i128 = whole_units
-        .checked_mul(100)
-        .and_then(|value| value.checked_add(fraction_units))
-        .ok_or_else(malformed)?;
-    let minor = wire * scale;
-    if minor % 100 != 0 {
-        return Err(malformed());
-    }
-    i64::try_from(minor / 100)
-        .map(MinorUnit::new)
-        .map_err(|_| report!(ParsingError::DecimalToI64ConversionFailure))
+    let amount = amount.parse::<StringMajorUnitWithTwoDecimals>()?;
+    RevpayAmountConvertor::convert_back(amount, currency).map(|money| money.amount)
 }
 
 // =============================================================================
@@ -622,10 +556,9 @@ pub struct RevpayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub bank_code: Option<&'static str>,
     #[serde(rename = "Reference_Number")]
     pub reference_number: String,
-    /// Always `Text` — the exact 2-decimal string that is also signed, see
-    /// `format_revpay_amount`.
+    /// The exact two-decimal string used in the signature preimage.
     #[serde(rename = "Amount")]
-    pub amount: RevpayAmount,
+    pub amount: StringMajorUnitWithTwoDecimals,
     /// Typed enum — serde renders the ISO alpha-3 code (`"MYR"`).
     #[serde(rename = "Currency")]
     pub currency: Currency,
@@ -680,7 +613,8 @@ impl<T: PaymentMethodDataTypes>
 
         let currency = item.request.currency;
         let currency_str = currency.to_string();
-        let amount = format_revpay_amount(item.request.amount.amount, item.request.currency)
+        let amount = RevpayAmountConvertor::convert(&item.request.amount)?
+            .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.amount",
                 context: IntegrationErrorContext::default(),
@@ -698,7 +632,7 @@ impl<T: PaymentMethodDataTypes>
             &[
                 auth.merchant_id.peek(),
                 &reference_number,
-                &amount,
+                amount.get_amount_as_string(),
                 &currency_str,
             ],
         );
@@ -834,7 +768,7 @@ impl<T: PaymentMethodDataTypes>
             payment_id,
             bank_code,
             reference_number,
-            amount: RevpayAmount::Text(amount),
+            amount,
             currency,
             transaction_description,
             customer_id: item
@@ -904,9 +838,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // =============================================================================
 
 /// revPAY may echo `Amount`/`Currency`/dates either as JSON strings (matching
-/// what we sent) or as bare JSON numbers (as in the doc samples). Request
-/// structs always send `Text` — the signed 2-decimal wire string from
-/// `format_revpay_amount`; `Number` exists only to parse lenient echoes.
+/// what we sent) or as bare JSON numbers (as in the doc samples). `Number`
+/// exists only to parse lenient response and webhook echoes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RevpayAmount {
@@ -946,11 +879,12 @@ pub struct RevpayPaymentsResponse {
     pub bank_redirect_url: Option<String>,
     #[serde(rename = "Key_Index", skip_serializing_if = "Option::is_none")]
     pub key_index: Option<i64>,
-    // TODO(webhook task): revPAY echoes `Key_Index` + `Signature` on every
-    // response; the webhook/source-verification path recomputes and verifies
-    // them (sha512(key + mid + Transaction_ID + Response_Code +
-    // Reference_Number + Amount + Currency)). Authorize response-signature
-    // verification is intentionally not done here — this transformer stays pure.
+    // revPAY echoes `Key_Index` + `Signature` on responses. Incoming
+    // notifications verify them in `IncomingWebhook::verify_webhook_source`
+    // using sha512(key + mid + Transaction_ID + Response_Code +
+    // Reference_Number + Amount + Currency). Verification is intentionally not
+    // duplicated for initial Payment responses here: a "09" redirect response
+    // can omit Transaction_ID, which is part of that response preimage.
     #[serde(rename = "Signature", skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
     #[serde(
@@ -1123,7 +1057,7 @@ pub struct RevpayPSyncRequest {
     /// The ORIGINAL payment amount in the same 2-decimal form signed at
     /// Payment time — the doc requires the inquiry to re-sign it.
     #[serde(rename = "Amount")]
-    pub amount: RevpayAmount,
+    pub amount: StringMajorUnitWithTwoDecimals,
     /// Typed enum — serde renders the ISO alpha-3 code (`"MYR"`).
     #[serde(rename = "Currency")]
     pub currency: Currency,
@@ -1178,7 +1112,8 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
         // reconstruction.
         let currency = item.request.currency;
         let currency_str = currency.to_string();
-        let amount = format_revpay_amount(item.request.amount.amount, item.request.currency)
+        let amount = RevpayAmountConvertor::convert(&item.request.amount)?
+            .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.amount",
                 context: IntegrationErrorContext::default(),
@@ -1192,7 +1127,7 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
             &[
                 auth.merchant_id.peek(),
                 &reference_number,
-                &amount,
+                amount.get_amount_as_string(),
                 &currency_str,
             ],
         );
@@ -1200,7 +1135,7 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
         Ok(Self {
             revpay_merchant_id: auth.merchant_id.peek().to_string(),
             reference_number,
-            amount: RevpayAmount::Text(amount),
+            amount,
             currency,
             key_index,
             signature,
@@ -1395,10 +1330,9 @@ pub struct RevpayRefundRequest {
     pub reference_number: String,
     #[serde(rename = "Original_Reference_Number")]
     pub original_reference_number: String,
-    /// Always `Text` — the exact 2-decimal string that is also signed, see
-    /// `format_revpay_amount`.
+    /// The exact two-decimal string used in the signature preimage.
     #[serde(rename = "Refund_Amount")]
-    pub refund_amount: RevpayAmount,
+    pub refund_amount: StringMajorUnitWithTwoDecimals,
     #[serde(rename = "Key_Index")]
     pub key_index: u32,
     #[serde(rename = "Signature")]
@@ -1440,12 +1374,12 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
 
         // Refund_Amount in the exact 2-decimal form that is also signed;
         // partial refunds are supported by the API (§2.5).
-        let refund_amount =
-            format_revpay_amount(item.request.refund_amount.amount, item.request.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "request.refund_amount",
-                    context: IntegrationErrorContext::default(),
-                })?;
+        let refund_amount = RevpayAmountConvertor::convert(&item.request.refund_amount)?
+            .validate_unsigned("Refund_Amount")
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "request.refund_amount",
+                context: IntegrationErrorContext::default(),
+            })?;
 
         // Signature = sha512(MerchantKey + Revpay_Merchant_ID + Reference_Number
         // + Refund_Amount + Original_Reference_Number) (§3.10) — DIFFERENT field
@@ -1456,7 +1390,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
             &[
                 auth.merchant_id.peek(),
                 &reference_number,
-                &refund_amount,
+                refund_amount.get_amount_as_string(),
                 &original_reference_number,
             ],
         );
@@ -1465,7 +1399,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
             revpay_merchant_id: auth.merchant_id.peek().to_string(),
             reference_number,
             original_reference_number,
-            refund_amount: RevpayAmount::Text(refund_amount),
+            refund_amount,
             key_index,
             signature,
         })
@@ -1517,9 +1451,10 @@ pub struct RevpayRefundResponse {
     pub error_description: Option<String>,
     #[serde(rename = "Key_Index", skip_serializing_if = "Option::is_none")]
     pub key_index: Option<i64>,
-    // TODO(webhook task): §3.11 signs refund responses as sha512(key + mid +
-    // Transaction_ID + Response_Code + Reference_Number + Refund_Amount);
-    // response-signature verification stays out of this transformer.
+    // §3.11 synchronously signed responses use sha512(key + mid +
+    // Transaction_ID + Response_Code + Reference_Number + Refund_Amount). Keep
+    // the signature in the wire model; this transformer only maps the refund
+    // outcome and does not perform synchronous-response signature verification.
     #[serde(rename = "Signature", skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
 }
@@ -1645,7 +1580,7 @@ pub struct RevpayRSyncRequest {
     pub reference_number: String,
     /// The refund amount in the exact 2-decimal form that is also signed.
     #[serde(rename = "Amount")]
-    pub amount: RevpayAmount,
+    pub amount: StringMajorUnitWithTwoDecimals,
     /// Typed enum — serde renders the ISO alpha-3 code (`"MYR"`).
     #[serde(rename = "Currency")]
     pub currency: Currency,
@@ -1718,7 +1653,8 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
         })?;
         let currency = refund_money.currency;
         let currency_str = currency.to_string();
-        let amount = format_revpay_amount(refund_money.amount, refund_money.currency)
+        let amount = RevpayAmountConvertor::convert(refund_money)?
+            .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.refund_money.amount",
                 context: IntegrationErrorContext::default(),
@@ -1732,7 +1668,7 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
             &[
                 auth.merchant_id.peek(),
                 &reference_number,
-                &amount,
+                amount.get_amount_as_string(),
                 &currency_str,
             ],
         );
@@ -1740,7 +1676,7 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
         Ok(Self {
             revpay_merchant_id: auth.merchant_id.peek().to_string(),
             reference_number,
-            amount: RevpayAmount::Text(amount),
+            amount,
             currency,
             key_index,
             signature,

@@ -225,10 +225,7 @@ fn refund_uses_original_payment_reference_and_a_separate_refund_reference() {
         request.original_reference_number,
         "payment-unique-reference"
     );
-    assert_eq!(
-        request.refund_amount,
-        RevpayAmount::Text("5.00".to_string())
-    );
+    assert_eq!(request.refund_amount.get_amount_as_string(), "5.00");
     assert_eq!(
         request.signature,
         generate_revpay_signature(

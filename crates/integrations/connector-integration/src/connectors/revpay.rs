@@ -17,7 +17,7 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
         WebhookDetailsResponse, WebhookResourceReference,
     },
-    errors::{ConnectorError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -44,11 +44,12 @@ pub(crate) mod headers {
 }
 
 // revPAY amounts are major-unit strings with exactly two decimal places
-// ("52.40"). The workspace `StringTwoDecimalUnit` renders the implied-decimal
-// form instead ("5240"), so the request transformer builds the exact wire
-// string in integer space before signing — see
-// `revpay::transformers::format_revpay_amount`.
-macros::create_amount_converter_wrapper!(connector_name: Revpay, amount_type: StringTwoDecimalUnit);
+// ("52.40"). The shared converter preserves that exact wire value for both
+// JSON serialization and signature generation.
+macros::create_amount_converter_wrapper!(
+    connector_name: Revpay,
+    amount_type: StringMajorUnitWithTwoDecimals
+);
 
 // =============================================================================
 // FLOW IMPLEMENTATIONS
@@ -251,9 +252,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         "revpay"
     }
 
-    // The concrete wire encoding is built in the request transformer
-    // (`format_revpay_amount`), starting from the framework's MinorUnit
-    // amount, so the currency unit here is `Minor`.
+    // `RevpayAmountConvertor` converts the framework's MinorUnit amount to the
+    // exact wire string in the request transformers, so the currency unit here
+    // is `Minor`.
     fn get_currency_unit(&self) -> CurrencyUnit {
         CurrencyUnit::Minor
     }
@@ -397,6 +398,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Revpay<T>
 {
+    // revPAY's Inquiry syncs on the merchant's Reference_Number (carried as
+    // `connector_request_reference_id`), NOT on the gateway Transaction_ID —
+    // the default "require connector_transaction_id" gate would skip PSync
+    // whenever the caller only holds the merchant reference. Defer the check
+    // to the request transformer, which errors out on an empty reference.
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), IntegrationError> {
+        if payment_flow_data
+            .connector_request_reference_id
+            .trim()
+            .is_empty()
+        {
+            return Err(error_stack::report!(
+                IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "revPAY Payment Status Inquiry requires the original Authorize \
+                             Reference_Number, carried as connector_request_reference_id; a \
+                             gateway Transaction_ID cannot replace it"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Provide the original Authorize merchant reference as \
+                             connector_request_reference_id on the payment sync request"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                }
+            ));
+        }
+        Ok(())
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -415,29 +452,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Revpay<T>
 {
-    // revPAY's Inquiry syncs on the merchant's Reference_Number (carried as
-    // `connector_request_reference_id`), NOT on the gateway Transaction_ID —
-    // the default "require connector_transaction_id" gate would skip PSync
-    // whenever the caller only holds the merchant reference. Defer the check
-    // to the request transformer, which errors out on an empty reference.
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        payment_flow_data: &PaymentFlowData,
-    ) -> CustomResult<(), IntegrationError> {
-        if payment_flow_data
-            .connector_request_reference_id
-            .trim()
-            .is_empty()
-        {
-            return Err(error_stack::report!(
-                IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
-                }
-            ));
-        }
-        Ok(())
-    }
 }
 
 // ===== INCOMING WEBHOOK — Backend_URL payment notification (Flow 5) =====
@@ -520,6 +534,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let failure = body.failure_details();
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(body.transaction_id)),
             status,
             connector_response_reference_id: Some(body.reference_number.clone()),
@@ -557,9 +573,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 
+    /// Documented success notification (Merchant API §3.29), including the
+    /// signature for its published test key. This is a field-probe fixture;
+    /// live notifications are verified against the configured merchant key.
     fn sample_webhook_body(&self) -> &'static [u8] {
-        // Form-urlencoded payment-result notification (all values dummy).
-        b"Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MBB&Transaction_ID=RT000000000001&Reference_Number=RF000000001&Bank_Reference_Number=BR000001&Amount=1.00&Currency=MYR&Transaction_Description=probe&Response_Code=00&Error_Description=&Key_Index=1&Signature=0000&Request_Datetime=2024-01-01%2000%3A00%3A00&Response_Datetime=2024-01-01%2000%3A00%3A01"
+        b"Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
     }
 }
 

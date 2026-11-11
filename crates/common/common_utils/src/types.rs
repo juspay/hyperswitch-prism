@@ -478,6 +478,104 @@ fn currency_scale(currency: enums::Currency) -> Result<i128, error_stack::Report
     Ok(10_i128.pow(u32::from(exponent)))
 }
 
+/// A major-unit amount with exactly two decimal places and a literal decimal point,
+/// whatever the currency's own ISO 4217 exponent is (for example, `"52.40"`).
+///
+/// Use this when the exact formatted string has semantic meaning, such as when it is
+/// included in a connector signature. Unlike [`StringTwoDecimalUnit`], this does not
+/// drop the decimal point.
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
+pub struct StringMajorUnitWithTwoDecimals(String);
+
+fn parse_major_unit_with_two_decimals(
+    amount: &str,
+) -> Result<i128, error_stack::Report<ParsingError>> {
+    let malformed = || {
+        error_stack::report!(ParsingError::StructParseFailure(
+            "major-unit amount with two decimals"
+        ))
+        .attach_printable(format!("`{amount}` is not in major-with-2-decimals form"))
+    };
+    let (negative, unsigned) = amount
+        .strip_prefix('-')
+        .map_or((false, amount), |value| (true, value));
+    let (whole, fraction) = unsigned.split_once('.').ok_or_else(malformed)?;
+    if whole.is_empty()
+        || fraction.len() != 2
+        || !whole.chars().all(|c| c.is_ascii_digit())
+        || !fraction.chars().all(|c| c.is_ascii_digit())
+    {
+        return Err(malformed());
+    }
+    let whole = whole.parse::<i128>().map_err(|_| malformed())?;
+    let fraction = fraction.parse::<i128>().map_err(|_| malformed())?;
+    let units = whole
+        .checked_mul(100)
+        .and_then(|value| value.checked_add(fraction))
+        .ok_or_else(malformed)?;
+    if negative {
+        units.checked_neg().ok_or_else(malformed)
+    } else {
+        Ok(units)
+    }
+}
+
+impl StringMajorUnitWithTwoDecimals {
+    fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    /// Get the exact wire string, including both fractional digits.
+    pub fn get_amount_as_string(&self) -> &str {
+        &self.0
+    }
+
+    /// Reject a negative amount for gateways whose amount field is unsigned.
+    pub fn validate_unsigned(
+        self,
+        field_name: &'static str,
+    ) -> Result<Self, error_stack::Report<ParsingError>> {
+        if self.0.starts_with('-') {
+            return Err(
+                error_stack::report!(ParsingError::StructParseFailure(field_name))
+                    .attach_printable(format!("{field_name}: `{}` is negative", self.0)),
+            );
+        }
+        Ok(self)
+    }
+
+    fn to_minor_unit_as_i64(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let wire = parse_major_unit_with_two_decimals(&self.0)?;
+        let scaled = wire
+            .checked_mul(currency_scale(currency)?)
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        if scaled % 100 != 0 {
+            return Err(error_stack::report!(ParsingError::StructParseFailure(
+                "major-unit amount with two decimals"
+            ))
+            .attach_printable(format!(
+                "`{}` is not a whole number of {currency:?} minor units",
+                self.0
+            )));
+        }
+        let minor =
+            i64::try_from(scaled / 100).map_err(|_| ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(MinorUnit::new(minor))
+    }
+}
+
+impl FromStr for StringMajorUnitWithTwoDecimals {
+    type Err = error_stack::Report<ParsingError>;
+
+    fn from_str(amount: &str) -> Result<Self, Self::Err> {
+        parse_major_unit_with_two_decimals(amount)?;
+        Ok(Self::new(amount.to_string()))
+    }
+}
+
 /// An amount fixed at **exactly two** implied decimal places, whatever the currency's own
 /// ISO 4217 exponent is.
 ///
@@ -561,6 +659,54 @@ impl StringTwoDecimalUnit {
         let minor = i64::try_from(scaled / divisor)
             .map_err(|_| ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(minor))
+    }
+}
+
+/// Converts domain money to and from a major-unit string with exactly two decimals.
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
+pub struct StringMajorUnitWithTwoDecimalsForConnector;
+
+impl AmountConvertor for StringMajorUnitWithTwoDecimalsForConnector {
+    type Output = StringMajorUnitWithTwoDecimals;
+
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        let minor = i128::from(money.amount.get_amount_as_i64());
+        let currency = money.currency;
+        let scale = currency_scale(currency)?;
+        let scaled = minor
+            .checked_mul(10_i128.pow(TWO_DECIMAL_EXPONENT))
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        if scaled % scale != 0 {
+            return Err(error_stack::report!(ParsingError::StructParseFailure(
+                "major-unit amount with two decimals"
+            ))
+            .attach_printable(format!(
+                "{currency:?} minor amount {minor} has non-zero digits below the two decimals \
+                 this format can represent"
+            )));
+        }
+        let wire = scaled / scale;
+        let (sign, absolute) = if wire < 0 {
+            ("-", wire.abs())
+        } else {
+            ("", wire)
+        };
+        Ok(StringMajorUnitWithTwoDecimals::new(format!(
+            "{sign}{}.{:02}",
+            absolute / 100,
+            absolute % 100
+        )))
+    }
+
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        currency: enums::Currency,
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        Ok(Money {
+            amount: amount.to_minor_unit_as_i64(currency)?,
+            currency,
+        })
     }
 }
 

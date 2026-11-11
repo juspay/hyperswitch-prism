@@ -139,9 +139,16 @@ fn response_code_maps_to_refund_sync_status() {
 #[test]
 fn amount_formats_major_with_two_decimals() {
     // RM 52.40 — the bytes revPAY signs must carry the literal dot.
-    let amount = format_revpay_amount(MinorUnit::new(5240), Currency::MYR)
-        .expect("amount conversion should succeed for MYR");
-    assert_eq!(amount, "52.40");
+    let amount = RevpayAmountConvertor::convert(&common_utils::types::Money {
+        amount: MinorUnit::new(5240),
+        currency: Currency::MYR,
+    })
+    .expect("amount conversion should succeed for MYR");
+    assert_eq!(amount.get_amount_as_string(), "52.40");
+    assert_eq!(
+        serde_json::to_string(&amount).expect("amount serializes"),
+        "\"52.40\""
+    );
 }
 
 #[test]
@@ -390,18 +397,26 @@ fn issuer_country_maps_to_alpha3() {
 
 #[test]
 fn amount_round_trips_through_wire_form() {
-    let amount = format_revpay_amount(MinorUnit::new(1000), Currency::MYR)
-        .expect("amount conversion should succeed");
-    assert_eq!(amount, "10.00");
-    let back = parse_revpay_amount(&amount, Currency::MYR).expect("parse should succeed");
-    assert_eq!(back, MinorUnit::new(1000));
+    let amount = RevpayAmountConvertor::convert(&common_utils::types::Money {
+        amount: MinorUnit::new(1000),
+        currency: Currency::MYR,
+    })
+    .expect("amount conversion should succeed");
+    assert_eq!(amount.get_amount_as_string(), "10.00");
+    let back = RevpayAmountConvertor::convert_back(amount, Currency::MYR)
+        .expect("convert_back should succeed");
+    assert_eq!(back.amount, MinorUnit::new(1000));
 
     // Zero-exponent currency: no minor units, still rendered with two decimals.
-    let jpy = format_revpay_amount(MinorUnit::new(1000), Currency::JPY)
-        .expect("JPY conversion should succeed");
-    assert_eq!(jpy, "1000.00");
-    let back = parse_revpay_amount(&jpy, Currency::JPY).expect("parse should succeed");
-    assert_eq!(back, MinorUnit::new(1000));
+    let jpy = RevpayAmountConvertor::convert(&common_utils::types::Money {
+        amount: MinorUnit::new(1000),
+        currency: Currency::JPY,
+    })
+    .expect("JPY conversion should succeed");
+    assert_eq!(jpy.get_amount_as_string(), "1000.00");
+    let back = RevpayAmountConvertor::convert_back(jpy, Currency::JPY)
+        .expect("convert_back should succeed");
+    assert_eq!(back.amount, MinorUnit::new(1000));
 }
 
 // ============================================================================
