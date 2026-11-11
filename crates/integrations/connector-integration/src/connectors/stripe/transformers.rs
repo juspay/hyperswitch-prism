@@ -872,10 +872,6 @@ pub enum StripePaymentMethodData<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 > {
     CardToken(StripeCardToken<T>),
-    // Same as CardToken but without a CVC -- used when tokenizing a card-on-file for
-    // network-transaction-id-authenticated (merchant-initiated) reuse, where no cardholder is
-    // present to supply one.
-    NtidCardToken(StripeNtidCardToken),
     CardTokenPayment(StripeCardTokenPayment),
     Card(StripeCardData<T>),
     CardNetworkTransactionId(StripeCardNetworkTransactionIdData),
@@ -917,26 +913,10 @@ pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
     pub token_card_exp_month: Secret<String>,
     #[serde(rename = "card[exp_year]")]
     pub token_card_exp_year: Secret<String>,
-    #[serde(rename = "card[cvc]")]
+    /// `None` for cards with no CVC (`CardWithNoCvc`, network-transaction-id card-on-file):
+    /// `card[cvc]` is then left out of the body entirely, which Stripe documents as optional.
+    #[serde(rename = "card[cvc]", skip_serializing_if = "Option::is_none")]
     pub token_card_cvc: Option<Secret<String>>,
-    #[serde(flatten)]
-    pub billing: StripeBillingAddressCardToken,
-}
-
-// Same as StripeCardToken but with no CVC field -- for tokenizing a network-transaction-id
-// card-on-file, where the card details come from CardDetailsForNetworkTransactionId (which has
-// no CVC, matching how CardNetworkTransactionId handles the same domain type for Authorize).
-#[serde_with::skip_serializing_none]
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct StripeNtidCardToken {
-    #[serde(rename = "type")]
-    pub payment_method_type: Option<StripePaymentMethodType>,
-    #[serde(rename = "card[number]")]
-    pub token_card_number: CardNumber,
-    #[serde(rename = "card[exp_month]")]
-    pub token_card_exp_month: Secret<String>,
-    #[serde(rename = "card[exp_year]")]
-    pub token_card_exp_year: Secret<String>,
     #[serde(flatten)]
     pub billing: StripeBillingAddressCardToken,
 }
@@ -2230,7 +2210,7 @@ fn external_three_ds_informational_not_corroborated() -> IntegrationError {
 /// is left out of the body; Stripe documents `cvc` as optional there. Everything else (3DS,
 /// preferred network, incremental/extended auth, overcapture) is the same as for a `Card`.
 #[derive(Debug)]
-pub struct StripeCardDetails<T: PaymentMethodDataTypes> {
+struct StripeCardDetails<T: PaymentMethodDataTypes> {
     number: RawCardNumber<T>,
     exp_month: Secret<String>,
     exp_year: Secret<String>,
@@ -2258,6 +2238,26 @@ impl<T: PaymentMethodDataTypes> From<&payment_method_data::CardWithNoCvc> for St
             exp_year: card.card_exp_year.clone(),
             cvc: None,
             network: card.card_network.clone(),
+        }
+    }
+}
+
+struct StripeCardTokenDetails<T: PaymentMethodDataTypes> {
+    card: StripeCardDetails<T>,
+    billing: StripeBillingAddressCardToken,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    From<StripeCardTokenDetails<T>> for StripeCardToken<T>
+{
+    fn from(StripeCardTokenDetails { card, billing }: StripeCardTokenDetails<T>) -> Self {
+        Self {
+            payment_method_type: Some(StripePaymentMethodType::Card),
+            token_card_number: card.number,
+            token_card_exp_month: card.exp_month,
+            token_card_exp_year: card.exp_year,
+            token_card_cvc: card.cvc,
+            billing,
         }
     }
 }
@@ -7398,36 +7398,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Card flow for tokenization is handled separately because of API contract difference
         let request_payment_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
-                StripePaymentMethodData::CardToken(StripeCardToken {
-                    payment_method_type: Some(StripePaymentMethodType::Card),
-                    token_card_number: card_details.card_number.clone(),
-                    token_card_exp_month: card_details.card_exp_month.clone(),
-                    token_card_exp_year: card_details.card_exp_year.clone(),
-                    token_card_cvc: Some(card_details.card_cvc.clone()),
+                StripePaymentMethodData::CardToken(StripeCardToken::from(StripeCardTokenDetails {
+                    card: StripeCardDetails::from(card_details),
                     billing: billing_address,
-                })
+                }))
             }
             // A card collected without a CVC: same POST /v1/payment_methods body, no card[cvc].
             PaymentMethodData::CardWithNoCvc(card_details) => {
-                StripePaymentMethodData::CardToken(StripeCardToken {
-                    payment_method_type: Some(StripePaymentMethodType::Card),
-                    token_card_number: RawCardNumber(T::inner_from_card_number(
-                        card_details.card_number.clone(),
-                    )),
-                    token_card_exp_month: card_details.card_exp_month.clone(),
-                    token_card_exp_year: card_details.card_exp_year.clone(),
-                    token_card_cvc: None,
+                StripePaymentMethodData::CardToken(StripeCardToken::from(StripeCardTokenDetails {
+                    card: StripeCardDetails::from(card_details),
                     billing: billing_address,
-                })
+                }))
             }
             // Tokenizing a network-transaction-id card-on-file for later merchant-initiated
             // reuse -- no CVC is available (or needed) for this domain type.
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
-                StripePaymentMethodData::NtidCardToken(StripeNtidCardToken {
+                StripePaymentMethodData::CardToken(StripeCardToken {
                     payment_method_type: Some(StripePaymentMethodType::Card),
-                    token_card_number: card_details.card_number.try_card_number("Stripe")?,
+                    token_card_number: RawCardNumber(T::inner_from_card_number(
+                        card_details.card_number.try_card_number("Stripe")?,
+                    )),
                     token_card_exp_month: card_details.card_exp_month.clone(),
                     token_card_exp_year: card_details.card_exp_year.clone(),
+                    token_card_cvc: None,
                     billing: billing_address,
                 })
             }
@@ -7458,11 +7451,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     // POST /v1/tokens answers 400 parameter_unknown for them, so neither is sent,
                     // exactly as for the Apple Pay and Google Pay token bodies.
                     StripePaymentMethodData::CardNetworkTransactionId(card) => {
-                        StripePaymentMethodData::NtidCardToken(StripeNtidCardToken {
+                        StripePaymentMethodData::CardToken(StripeCardToken {
                             payment_method_type: None,
-                            token_card_number: card.payment_method_data_card_number,
+                            token_card_number: RawCardNumber(T::inner_from_card_number(
+                                card.payment_method_data_card_number,
+                            )),
                             token_card_exp_month: card.payment_method_data_card_exp_month,
                             token_card_exp_year: card.payment_method_data_card_exp_year,
+                            token_card_cvc: None,
                             billing: StripeBillingAddressCardToken::default(),
                         })
                     }
