@@ -138,8 +138,9 @@ pub struct WorldpayxmlCardBin {
 
 /// `lastEvent`/`PaymentStatus` values Worldpay reports for an order. Unmodelled values
 /// deserialize to [`WorldpayxmlLastEvent::Unknown`] rather than failing the response.
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, strum::AsRefStr)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum WorldpayxmlLastEvent {
     Authorised,
     Refused,
@@ -163,8 +164,34 @@ pub enum WorldpayxmlLastEvent {
     PushApproved,
     PushRefused,
     SettledByMerchant,
+    ChargedBack,
+    ChargebackReversed,
     #[serde(other)]
     Unknown,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayxmlWebhookBody {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: Secret<String>,
+    pub notify: WorldpayxmlNotify,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlNotify {
+    pub order_status_event: WorldpayxmlOrderStatusEvent,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlOrderStatusEvent {
+    #[serde(rename = "@orderCode")]
+    pub order_code: String,
+    pub payment: WorldpayxmlPayment,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

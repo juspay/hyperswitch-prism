@@ -10,16 +10,23 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMinorUnit};
+use common_utils::{
+    errors::CustomResult,
+    events,
+    ext_traits::{ByteSliceExt, XmlExt},
+    StringMinorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
+        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        PayoutWebhookDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -50,7 +57,7 @@ use responses::{
 use super::macros::{self, GetSoapXml};
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, WebhookError};
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -103,6 +110,102 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Worldpayxml<T>
 {
+    fn verify_webhook_source(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> CustomResult<bool, WebhookError> {
+        // UCS cannot verify the original TLS connection.
+        Ok(false)
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> CustomResult<EventType, WebhookError> {
+        if request.body.is_empty() {
+            return Ok(EventType::EndpointVerification);
+        }
+        Ok(parse_webhook_body(&request.body)?.event_type())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> CustomResult<Option<WebhookResourceReference>, WebhookError> {
+        if request.body.is_empty() {
+            return Ok(None);
+        }
+        parse_webhook_body(&request.body)?.event_reference()
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        event_context: Option<EventContext>,
+    ) -> CustomResult<WebhookDetailsResponse, WebhookError> {
+        parse_webhook_body(&request.body)?.payment_details(event_context)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> CustomResult<RefundWebhookDetailsResponse, WebhookError> {
+        RefundWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> CustomResult<DisputeWebhookDetailsResponse, WebhookError> {
+        DisputeWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+    }
+
+    fn process_payout_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> CustomResult<PayoutWebhookDetailsResponse, WebhookError> {
+        PayoutWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, WebhookError> {
+        Ok(Box::new(parse_webhook_body(&request.body)?))
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        _request: RequestDetails,
+        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> CustomResult<interfaces::api::EventAckResponse, WebhookError> {
+        Ok(interfaces::api::EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: Some(b"[OK]".to_vec()),
+        })
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"<paymentService version="1.4" merchantCode="MERCHANT"><notify><orderStatusEvent orderCode="order_001"><payment><lastEvent>CAPTURED</lastEvent><amount value="1000" currencyCode="EUR" exponent="2"/></payment></orderStatusEvent></notify></paymentService>"#
+    }
+}
+
+fn parse_webhook_body(
+    body: &[u8],
+) -> CustomResult<responses::WorldpayxmlWebhookBody, WebhookError> {
+    std::str::from_utf8(body)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?
+        .parse_xml()
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

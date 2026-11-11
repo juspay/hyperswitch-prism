@@ -12106,6 +12106,19 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let grpc_status = grpc_api_types::payments::DisputeStatus::foreign_from(value.status);
         let grpc_stage = grpc_api_types::payments::DisputeStage::foreign_from(value.stage);
+        let money = crate::utils::convert_back_amount_to_money(
+            &common_utils::types::StringMinorUnitForConnector,
+            value.amount,
+            value.currency,
+        )
+        .change_context(IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        })?;
+        let dispute_amount = connector_money_to_grpc(&money).change_context(
+            IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            },
+        )?;
         let response_headers = value
             .response_headers
             .map(|headers| {
@@ -12127,7 +12140,7 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             dispute_stage: grpc_stage.into(),
             connector_status_code: None,
             error: None,
-            dispute_amount: None,
+            dispute_amount: Some(dispute_amount),
             dispute_date: None,
             service_date: None,
             shipping_date: None,

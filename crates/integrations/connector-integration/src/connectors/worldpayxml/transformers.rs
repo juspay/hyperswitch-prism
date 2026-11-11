@@ -2,20 +2,28 @@ use std::fmt::Debug;
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD_ENGINE, Engine};
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
-use common_utils::{errors::CustomResult, pii::SecretSerdeValue};
+use common_utils::{
+    errors::CustomResult,
+    pii::SecretSerdeValue,
+    types::{MinorUnit, Money, StringMinorUnitForConnector},
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
         Void, VoidPC,
     },
     connector_types::{
-        ContinueRedirectionResponse, MandateReference, MandateReferenceId, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RecipientAccount,
-        RecipientBankAccount, RecipientDetails, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        ContinueRedirectionResponse, DisputeWebhookDetailsResponse, DisputeWebhookReference,
+        EventContext, EventType, MandateReference, MandateReferenceId, PaymentFlowData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, PayoutWebhookDetailsResponse,
+        PayoutWebhookReference, RawConnectorStatus, RecipientAccount, RecipientBankAccount,
+        RecipientDetails, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::{
         Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
@@ -1665,16 +1673,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let info_3d_secure =
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
-        let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(&common_utils::types::Money {
-                amount: router_data
-                    .request
-                    .amount
-                    .as_ref()
-                    .map(|money| money.amount)
-                    .unwrap_or_else(common_utils::types::MinorUnit::zero),
-                currency: router_data.request.currency,
-            })?;
+        let converted_amount = super::WorldpayxmlAmountConvertor::convert(&Money {
+            amount: router_data
+                .request
+                .amount
+                .as_ref()
+                .map(|money| money.amount)
+                .unwrap_or_else(MinorUnit::zero),
+            currency: router_data.request.currency,
+        })?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -2278,6 +2285,285 @@ fn map_worldpayxml_refund_status(
             http_code,
             "worldpayxml: lastEvent is not part of a refund lifecycle.",
         )),
+    }
+}
+
+impl responses::WorldpayxmlWebhookBody {
+    pub fn event_type(&self) -> EventType {
+        match self.notify.order_status_event.payment.last_event {
+            WorldpayxmlLastEvent::Authorised | WorldpayxmlLastEvent::SentForAuthorisation => {
+                EventType::PaymentIntentProcessing
+            }
+            WorldpayxmlLastEvent::Captured | WorldpayxmlLastEvent::Settled => {
+                EventType::PaymentIntentSuccess
+            }
+            WorldpayxmlLastEvent::Cancelled => EventType::PaymentIntentCancelled,
+            WorldpayxmlLastEvent::Refused => EventType::PaymentIntentFailure,
+            WorldpayxmlLastEvent::Refunded | WorldpayxmlLastEvent::RefundedByMerchant => {
+                EventType::RefundSuccess
+            }
+            WorldpayxmlLastEvent::RefundFailed => EventType::RefundFailure,
+            WorldpayxmlLastEvent::ChargedBack => EventType::DisputeOpened,
+            WorldpayxmlLastEvent::ChargebackReversed => EventType::DisputeWon,
+            WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
+                EventType::PayoutProcessing
+            }
+            WorldpayxmlLastEvent::PushApproved | WorldpayxmlLastEvent::SettledByMerchant => {
+                EventType::PayoutSuccess
+            }
+            WorldpayxmlLastEvent::PushRefused => EventType::PayoutFailure,
+            WorldpayxmlLastEvent::SentForRefund
+            | WorldpayxmlLastEvent::SentForFastRefund
+            | WorldpayxmlLastEvent::RefundRequested
+            | WorldpayxmlLastEvent::Expired
+            | WorldpayxmlLastEvent::Error
+            | WorldpayxmlLastEvent::QueryRequired
+            | WorldpayxmlLastEvent::CancelReceived
+            | WorldpayxmlLastEvent::RefundReceived
+            | WorldpayxmlLastEvent::Unknown => EventType::IncomingWebhookEventUnspecified,
+        }
+    }
+
+    pub fn event_reference(&self) -> CustomResult<Option<WebhookResourceReference>, WebhookError> {
+        let event = &self.notify.order_status_event;
+        let order_code = Some(event.order_code.clone());
+        let reference = match event.payment.last_event {
+            WorldpayxmlLastEvent::Authorised
+            | WorldpayxmlLastEvent::Settled
+            | WorldpayxmlLastEvent::Captured
+            | WorldpayxmlLastEvent::SentForAuthorisation
+            | WorldpayxmlLastEvent::Cancelled
+            | WorldpayxmlLastEvent::Refused => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: order_code,
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                })
+            }
+            WorldpayxmlLastEvent::SentForRefund
+            | WorldpayxmlLastEvent::RefundedByMerchant
+            | WorldpayxmlLastEvent::RefundRequested
+            | WorldpayxmlLastEvent::Refunded
+            | WorldpayxmlLastEvent::RefundFailed => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: order_code,
+                    merchant_refund_id: None,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: None,
+                })
+            }
+            WorldpayxmlLastEvent::ChargedBack | WorldpayxmlLastEvent::ChargebackReversed => {
+                WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    connector_dispute_id: None,
+                    connector_transaction_id: order_code,
+                })
+            }
+            WorldpayxmlLastEvent::PushApproved
+            | WorldpayxmlLastEvent::PushPending
+            | WorldpayxmlLastEvent::PushRequested
+            | WorldpayxmlLastEvent::SettledByMerchant
+            | WorldpayxmlLastEvent::PushRefused => {
+                WebhookResourceReference::Payout(PayoutWebhookReference {
+                    connector_payout_id: order_code,
+                    merchant_payout_id: None,
+                })
+            }
+            WorldpayxmlLastEvent::SentForFastRefund
+            | WorldpayxmlLastEvent::Expired
+            | WorldpayxmlLastEvent::Error
+            | WorldpayxmlLastEvent::QueryRequired
+            | WorldpayxmlLastEvent::CancelReceived
+            | WorldpayxmlLastEvent::RefundReceived
+            | WorldpayxmlLastEvent::Unknown => {
+                return Err(WebhookError::WebhookReferenceIdNotFound.into());
+            }
+        };
+        Ok(Some(reference))
+    }
+
+    pub fn payment_details(
+        self,
+        event_context: Option<EventContext>,
+    ) -> CustomResult<WebhookDetailsResponse, WebhookError> {
+        let event = self.notify.order_status_event;
+        let payment = event.payment;
+        let capture_method = if payment.last_event == WorldpayxmlLastEvent::Authorised {
+            event_context
+                .ok_or(WebhookError::WebhookMissingRequiredContext {
+                    field: "capture_method",
+                    origin: "payment authorize",
+                })?
+                .capture_method
+        } else {
+            event_context.and_then(|context| context.capture_method)
+        };
+        let status = map_worldpayxml_authorize_status(
+            &payment.last_event,
+            !matches!(
+                capture_method,
+                Some(CaptureMethod::Manual | CaptureMethod::ManualMultiple)
+            ),
+            None,
+            200,
+        )
+        .change_context(WebhookError::WebhookProcessingFailed)?;
+        let amount = payment.amount.as_ref().map(Money::try_from).transpose()?;
+        let (error_code, error_message) =
+            payment.webhook_error_details(domain_types::utils::is_payment_failure(status));
+
+        Ok(WebhookDetailsResponse {
+            raw_connector_status: Some(RawConnectorStatus {
+                code: Some(payment.last_event.as_ref().to_string()),
+                ..Default::default()
+            }),
+            amount: amount.clone(),
+            resource_id: Some(ResponseId::ConnectorTransactionId(event.order_code.clone())),
+            status,
+            connector_response_reference_id: Some(event.order_code),
+            connector_request_reference_id: None,
+            mandate_reference: None,
+            error_reason: error_message.clone(),
+            error_code,
+            error_message,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+            amount_captured: if status == AttemptStatus::Charged {
+                amount
+            } else {
+                None
+            },
+            network_txn_id: payment
+                .scheme_response
+                .map(|scheme| scheme.transaction_identifier),
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        })
+    }
+}
+
+impl responses::WorldpayxmlPayment {
+    fn webhook_error_details(&self, failed: bool) -> (Option<String>, Option<String>) {
+        if !failed {
+            return (None, None);
+        }
+        let return_code = self.iso8583_return_code.as_ref();
+        (
+            Some(
+                return_code
+                    .and_then(|code| code.code.clone())
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+            ),
+            Some(
+                return_code
+                    .and_then(|code| code.description.clone())
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+            ),
+        )
+    }
+}
+
+impl TryFrom<&responses::WorldpayxmlAmountResponse> for Money {
+    type Error = Report<WebhookError>;
+
+    fn try_from(amount: &responses::WorldpayxmlAmountResponse) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: MinorUnit::new(amount.value.parse::<i64>().change_context(
+                WebhookError::WebhookAmountConversionFailed {
+                    reason: "Invalid Worldpay XML minor-unit amount".to_string(),
+                },
+            )?),
+            currency: amount
+                .currency_code
+                .parse::<common_enums::Currency>()
+                .change_context(WebhookError::WebhookBodyDecodingFailed)?,
+        })
+    }
+}
+
+impl TryFrom<responses::WorldpayxmlWebhookBody> for RefundWebhookDetailsResponse {
+    type Error = Report<WebhookError>;
+
+    fn try_from(body: responses::WorldpayxmlWebhookBody) -> Result<Self, Self::Error> {
+        let event = body.notify.order_status_event;
+        let status =
+            map_worldpayxml_refund_status(&event.payment.last_event, RefundStatus::Pending, 200)
+                .change_context(WebhookError::WebhookProcessingFailed)?;
+        let (error_code, error_message) = event
+            .payment
+            .webhook_error_details(status == RefundStatus::Failure);
+        Ok(Self {
+            raw_connector_status: Some(RawConnectorStatus {
+                code: Some(event.payment.last_event.as_ref().to_string()),
+                ..Default::default()
+            }),
+            connector_refund_id: Some(event.order_code.clone()),
+            merchant_transaction_id: None,
+            status,
+            connector_response_reference_id: Some(event.order_code),
+            error_code,
+            error_message,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+}
+
+impl TryFrom<responses::WorldpayxmlWebhookBody> for DisputeWebhookDetailsResponse {
+    type Error = Report<WebhookError>;
+
+    fn try_from(body: responses::WorldpayxmlWebhookBody) -> Result<Self, Self::Error> {
+        let event = body.notify.order_status_event;
+        let status = match event.payment.last_event {
+            WorldpayxmlLastEvent::ChargedBack => common_enums::DisputeStatus::DisputeOpened,
+            WorldpayxmlLastEvent::ChargebackReversed => common_enums::DisputeStatus::DisputeWon,
+            _ => return Err(WebhookError::WebhookEventTypeNotFound.into()),
+        };
+        let money = Money::try_from(event.payment.amount.as_ref().ok_or(
+            WebhookError::WebhookMissingRequiredField {
+                field: "notify.orderStatusEvent.payment.amount",
+            },
+        )?)?;
+        Ok(Self {
+            amount: domain_types::utils::convert_amount_for_webhook(
+                &StringMinorUnitForConnector,
+                &money,
+            )?,
+            currency: money.currency,
+            dispute_id: event.order_code,
+            status,
+            stage: common_enums::DisputeStage::Dispute,
+            connector_response_reference_id: None,
+            dispute_message: None,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+            connector_reason_code: None,
+            additional_details: None,
+        })
+    }
+}
+
+impl TryFrom<responses::WorldpayxmlWebhookBody> for PayoutWebhookDetailsResponse {
+    type Error = Report<WebhookError>;
+
+    fn try_from(body: responses::WorldpayxmlWebhookBody) -> Result<Self, Self::Error> {
+        let event = body.notify.order_status_event;
+        let status = common_enums::PayoutStatus::try_from(&event.payment.last_event)
+            .change_context(WebhookError::WebhookProcessingFailed)?;
+        let (error_code, error_message) = event
+            .payment
+            .webhook_error_details(status == common_enums::PayoutStatus::Failure);
+        Ok(Self {
+            connector_payout_id: Some(event.order_code),
+            merchant_payout_id: None,
+            status,
+            error_code,
+            error_message,
+            status_code: 200,
+        })
     }
 }
 
