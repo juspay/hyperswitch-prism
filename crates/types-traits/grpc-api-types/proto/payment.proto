@@ -1212,6 +1212,8 @@ message BrowserInformation {
   optional string os_type = 13;
   optional string os_version = 14;
   optional string device_model = 15;
+  optional string challenge_window_size = 16; // EMV 3DS window code 01..05
+
 }
 
 message MandateReferenceDetails {
@@ -1241,6 +1243,8 @@ message ConnectorMandateReferenceId {
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
   optional SecretString mandate_metadata = 4;
+  optional string network_transaction_id = 5;
+  optional string transaction_link_id = 6;
 }
 
 message NetworkMandateId {
@@ -2577,8 +2581,8 @@ message PaymentServiceAuthorizeRequest {
   // into authorization / onboarding decisions.
   optional RiskAssessmentData risk_assessment_data = 58;
 
-  // Opt in to account name inquiry for supported connectors.
-  optional bool enable_ani_check = 61;
+  // Opt in to account name verification for supported connectors.
+  optional bool enable_account_name_verification = 61;
 
  // Controls how the connector response is checked against the request.
   optional IntegritySpecifications integrity_specifications = 59;
@@ -3235,6 +3239,11 @@ message PaymentServiceCaptureRequest {
   // Currency conversion quote and decision data passed through the
   // capture flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 19;
+
+  // Industry-specific capture data, such as airline reservation, passenger, and
+  // flight details. Populated by the caller (for example, Euler Txns from booking
+  // data) and forwarded by the composite capture flow to the connector.
+  optional DomainData domain_data = 20;
 }
 
 // Response message for a payment capture operation
@@ -3723,8 +3732,8 @@ message PaymentServiceSetupRecurringRequest {
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 44;
 
-  // Opt in to account name inquiry for supported connectors.
-  optional bool enable_ani_check = 45;
+  // Opt in to account name verification for supported connectors.
+  optional bool enable_account_name_verification = 45;
 }
 
 // Response message for a mandate setup operation
@@ -5026,9 +5035,17 @@ message CashfreeConfig {
 }
 
 message CheckoutConfig {
+  // The public key (`pk_...`) — consumed only by payment tokenization (`POST /tokens`).
   SecretString api_key = 1;
+  // The secret key (`sk_...`) — the Bearer credential on every request.
   SecretString api_secret = 2;
   SecretString processing_channel_id = 3;
+  // Optional Checkout client ID sourced from Hyperswitch MCA metadata.
+  // Consumed only by Checkout payout URL resolution.
+  optional SecretString connector_client_id = 4;
+  // Optional Checkout currency account (`ca_...`) used as the payout `source.id`.
+  // Payout-only; kept separate from `api_key` (the payment public key).
+  optional SecretString connector_currency_account_id = 5;
   optional string base_url = 50;
 }
 
@@ -5166,6 +5183,10 @@ message PowertranzConfig {
 message RapydConfig {
   SecretString access_key = 1;
   SecretString secret_key = 2;
+  // The merchant supplies the country assigned by Rapyd during onboarding.
+  // HS forwards it from the selected MCA's metadata.country_of_incorporation.
+  // Required for fresh card and wallet payment-method objects, not saved IDs.
+  optional CountryAlpha2 country_of_incorporation = 3;
   optional string base_url = 50;
 }
 

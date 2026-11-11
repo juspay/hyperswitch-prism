@@ -113,7 +113,7 @@ fn fetch_payment_instrument<
                         month: Secret::new(expiry_month),
                         year: Secret::new(expiry_year),
                     },
-                    card_number: card.card_number
+                    card_number: card.card_number,
                 },
                 cvc: card.card_cvc,
                 card_holder_name: billing_address
@@ -122,22 +122,26 @@ fn fetch_payment_instrument<
                 billing_address: billing_address
                     .and_then(|addr| addr.address.clone())
                     .and_then(|address| {
+                        let state = address.get_optional_state();
                         match (address.line1, address.city, address.zip, address.country) {
-                            (Some(address1), Some(city), Some(postal_code), Some(country_code)) => {
-                                Some(BillingAddress {
-                                    address1,
-                                    address2: address.line2,
-                                    address3: address.line3,
-                                    city,
-                                    state: address.state,
-                                    postal_code,
-                                    country_code
-})
-                            }
-                            _ => None
-}
-                    })
-}))
+                            (
+                                Some(address1),
+                                Some(city),
+                                Some(postal_code),
+                                Some(country_code),
+                            ) => Some(BillingAddress {
+                                address1,
+                                address2: address.line2,
+                                address3: address.line3,
+                                city,
+                                state,
+                                postal_code,
+                                country_code,
+                            }),
+                            _ => None,
+                        }
+                    }),
+            }))
         }
         PaymentMethodData::CardDetailsForNetworkTransactionId(raw_card_details) => {
             let exp_month_str = raw_card_details.card_exp_month.peek().to_string();
@@ -489,7 +493,7 @@ fn create_shipping(shipping: Option<&domain_types::payment_address::Address>) ->
                 address2: details.line2.clone(),
                 address3: details.line3.clone(),
                 city,
-                state: details.state.clone(),
+                state: details.get_optional_state(),
                 postal_code,
                 country_code,
             },

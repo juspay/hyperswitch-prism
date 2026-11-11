@@ -95,7 +95,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"APPLE_PAY_DECRYPTED\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"dataType\":\"THREE_D_SECURE\",\"cryptogram\":\"AAAAAA==\",\"cardBrand\":\"VISA\",\"walletEcommerceIndicator\":\"05\",\"walletIndicator\":\"IN_APPLICATION\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"APPLE_PAY_DECRYPTED\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"dataType\":\"THREE_D_SECURE\",\"cryptogram\":\"AAAAAA==\",\"cardBrand\":\"VISA\",\"walletEcommerceIndicator\":\"05\",\"walletIndicator\":\"IN_APPLICATION\"},\"automaticCapture\":true,\"incrementalAuthorization\":false,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -191,7 +191,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"incrementalAuthorization\":false,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       },
       "CashappQr": {
@@ -321,7 +321,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_APPLICATION\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_APPLICATION\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true,\"incrementalAuthorization\":false,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -742,8 +742,39 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by moneris connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "additional_amount": {
+            "minor_amount": 100,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/increment",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"increment_probe_auth_001\",\"amount\":{\"amount\":100,\"currency\":\"USD\"}}"
+        }
       }
     },
     "parse_event": {
@@ -892,7 +923,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_proxy_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+          "body": "{\"idempotencyKey\":\"auth_probe_proxy_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"incrementalAuthorization\":false,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       }
     },

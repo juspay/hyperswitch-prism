@@ -173,6 +173,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let province = billing_address
                     .state
                     .as_ref()
+                    .and_then(|state| state.code_or_name().cloned())
                     .map(|s| Secret::new(s.peek().clone()));
                 let postal_code = billing_address
                     .zip

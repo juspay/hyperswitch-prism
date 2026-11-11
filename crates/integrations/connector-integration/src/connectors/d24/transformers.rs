@@ -788,7 +788,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payer_address = {
             let street = billing.get_optional_line1();
             let city = billing.get_optional_city();
-            let state = billing.state.clone();
+            let state = billing.get_optional_state();
             let zip_code = billing.get_optional_zip();
             // Itaú: the shared address getters fail with `MissingRequiredField`
             // naming the first absent field.

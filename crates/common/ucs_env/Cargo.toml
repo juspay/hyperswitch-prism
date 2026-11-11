@@ -18,9 +18,9 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
 tracing-kafka = { path = "../tracing-kafka", optional = true }
 
 # OpenTelemetry (OTLP metrics push) — optional, enabled via the `otel` feature.
-opentelemetry = { version = "0.27", optional = true, default-features = false, features = ["metrics"] }
-opentelemetry-otlp = { version = "0.27", optional = true, default-features = false, features = ["grpc-tonic", "metrics"] }
-opentelemetry_sdk = { version = "0.27", optional = true, default-features = false, features = ["rt-tokio-current-thread", "metrics"] }
+opentelemetry = { version = "0.32", optional = true, default-features = false, features = ["metrics"] }
+opentelemetry-otlp = { version = "0.32", optional = true, default-features = false, features = ["grpc-tonic", "metrics"] }
+opentelemetry_sdk = { version = "0.32.1", optional = true, default-features = false, features = ["rt-tokio-current-thread", "metrics", "experimental_metrics_periodicreader_with_async_runtime"] }
 
 # Third-party dependencies
 config = "0.14.0"

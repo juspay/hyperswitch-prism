@@ -531,6 +531,8 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                 let status = AttemptStatus::try_from(&payment_event.payment.status)?;
                 if is_payment_failure(status) {
                     Ok(Self {
+                        raw_connector_status: None,
+                        amount: None,
                         connector_returned_payment_method_details: None,
                         status,
                         resource_id: Some(ResponseId::ConnectorTransactionId(
@@ -554,6 +556,8 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                     })
                 } else {
                     Ok(Self {
+                        raw_connector_status: None,
+                        amount: None,
                         connector_returned_payment_method_details: None,
                         status,
                         resource_id: Some(ResponseId::ConnectorTransactionId(

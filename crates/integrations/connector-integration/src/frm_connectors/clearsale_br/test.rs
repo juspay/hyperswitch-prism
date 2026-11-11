@@ -22,6 +22,7 @@ mod tests {
         frm::frm_types::{PostRiskCheckRequest, PreRiskCheckRequest},
         payment_address::{
             Address, AddressDetails, OrderDetailsWithAmount, PaymentAddress, PhoneDetails,
+            StateDetails,
         },
         payment_method_data::{
             ApplePayPaymentData, ApplePayWalletData, ApplepayPaymentMethod, BankDebitData,
@@ -68,7 +69,7 @@ mod tests {
             line1: Some(Secret::new("Rua Augusta, 1234".to_owned())),
             line2: Some(Secret::new("Consolação".to_owned())),
             city: Some(Secret::new("São Paulo".to_owned())),
-            state: Some(Secret::new("SP".to_owned())),
+            state: Some(StateDetails::from_code(Secret::new("SP".to_owned()))),
             zip: Some(Secret::new("01304-001".to_owned())),
             country: Some(common_enums::CountryAlpha2::BR),
             first_name: Some(Secret::new("Maria".to_owned())),
@@ -107,7 +108,7 @@ mod tests {
     }
 
     fn order_details() -> Vec<OrderDetailsWithAmount> {
-        vec![OrderDetailsWithAmount::foreign_try_from((
+        vec![OrderDetailsWithAmount::foreign_try_from(
             grpc_api_types::payments::OrderDetailsWithAmount {
                 product_name: "Passagem São Paulo → Rio".to_owned(),
                 quantity: 2,
@@ -121,8 +122,7 @@ mod tests {
                 sub_category: None,
                 ..Default::default()
             },
-            Currency::BRL,
-        ))
+        )
         .expect("valid order-item fixture")]
     }
 
@@ -447,6 +447,7 @@ mod tests {
                 boarding: Some("2017-10-10T00:00:00.000".to_string()),
                 arriving: Some("2017-10-10T00:00:00.000".to_string()),
                 fare_class: Some("First Class".to_string()),
+                type_of_trip: None,
             }]),
             hotels: Some(vec![ClearSaleHotel {
                 name: "Hotel Name".to_string(),
@@ -738,7 +739,7 @@ mod tests {
         );
 
         let details = AddressDetails {
-            state: Some(Secret::new("SP".to_owned())),
+            state: Some(StateDetails::from_code(Secret::new("SP".to_owned()))),
             ..details
         };
         let err =
@@ -772,7 +773,7 @@ mod tests {
             line1: Some(Secret::new("Rua Augusta, 1234".to_owned())),
             line2: Some(Secret::new("Consolação".to_owned())),
             city: Some(Secret::new("Rio Branco".to_owned())),
-            state: Some(Secret::new("Acre".to_owned())),
+            state: Some(StateDetails::from_name(Secret::new("Acre".to_owned()))),
             zip: Some(Secret::new("69900-000".to_owned())),
             country: Some(common_enums::CountryAlpha2::BR),
             ..AddressDetails::default()
@@ -781,14 +782,14 @@ mod tests {
         assert_eq!(address.state.peek(), "AC");
 
         let details = AddressDetails {
-            state: Some(Secret::new("sp".to_owned())),
+            state: Some(StateDetails::from_code(Secret::new("sp".to_owned()))),
             ..details
         };
         let address = build_clear_sale_address("billing", Some(&details)).expect("SP passes");
         assert_eq!(address.state.peek(), "SP");
 
         let details = AddressDetails {
-            state: Some(Secret::new("Narnia".to_owned())),
+            state: Some(StateDetails::from_code(Secret::new("Narnia".to_owned()))),
             ..details
         };
         let err = build_clear_sale_address("billing", Some(&details))
@@ -1122,6 +1123,96 @@ mod tests {
         assert!(order.shipping.is_none());
     }
 
+    #[test]
+    fn absent_and_empty_optional_blocks_are_omitted() {
+        for order_details in [None, Some(Vec::new())] {
+            let mut req = pre_risk_check_request();
+            req.order_details = order_details;
+            req.address = Some(PaymentAddress::new(
+                Some(Address::default()),
+                Some(billing_address()),
+                None,
+                Some(false),
+            ));
+            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let order = order_from_common(inputs).unwrap().order;
+            assert!(order.shipping.is_none());
+            assert!(order.items.is_empty());
+            assert!(order.item_value.is_none());
+
+            let json = serde_json::to_value(order).expect("order serializes");
+            let object = json.as_object().expect("order object");
+            assert!(!object.contains_key("shipping"));
+            assert!(!object.contains_key("items"));
+        }
+    }
+
+    #[test]
+    fn incomplete_shipping_mandatory_address_fields_omit_shipping() {
+        for details in [
+            AddressDetails {
+                city: Some(Secret::new("São Paulo".to_owned())),
+                ..AddressDetails::default()
+            },
+            AddressDetails {
+                line1: Some(Secret::new("   ".to_owned())),
+                ..billing_address_details()
+            },
+            AddressDetails {
+                line2: None,
+                ..billing_address_details()
+            },
+            AddressDetails {
+                zip: Some(Secret::new("".to_owned())),
+                ..billing_address_details()
+            },
+        ] {
+            let mut req = pre_risk_check_request();
+            req.address = Some(PaymentAddress::new(
+                Some(Address {
+                    address: Some(details),
+                    ..Address::default()
+                }),
+                Some(billing_address()),
+                None,
+                Some(false),
+            ));
+            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let order = order_from_common(inputs).unwrap().order;
+            assert!(order.shipping.is_none());
+            assert!(!serde_json::to_value(order)
+                .expect("order serializes")
+                .as_object()
+                .expect("order object")
+                .contains_key("shipping"));
+        }
+    }
+
+    #[test]
+    fn items_with_a_blank_name_are_omitted() {
+        for name in ["", "   "] {
+            let mut details = order_details();
+            details[0].product_name = name.to_owned();
+            let payment = common_utils::types::Money::zero(Currency::BRL);
+            let items = build_clear_sale_items(&payment, Some(&details), None).unwrap();
+            assert!(items.is_empty());
+
+            let mut req = pre_risk_check_request();
+            req.order_details = Some(details);
+            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let order = order_from_common(inputs).unwrap().order;
+            assert!(order.item_value.is_none());
+            assert!(!serde_json::to_value(order)
+                .expect("order serializes")
+                .as_object()
+                .expect("order object")
+                .contains_key("items"));
+        }
+    }
+
     /// PostRiskCheck must emit the same order body as PreRiskCheck (only the
     /// HTTP method differs). `ip` comes from browser_info; domain_data rides
     /// through; the order code is `merchant_transaction_id` — never the PSP
@@ -1242,7 +1333,12 @@ mod tests {
         let items = build_clear_sale_items(&payment, Some(&order_details()), Some(false)).unwrap();
         assert_eq!(items[0].amount, Some(2));
         assert_eq!(items[0].value, Some(FloatMajorUnit(150.0)));
-        assert!(build_clear_sale_items(&payment, None, None).is_err());
+        assert!(build_clear_sale_items(&payment, None, None)
+            .unwrap()
+            .is_empty());
+        assert!(build_clear_sale_items(&payment, Some(&Vec::new()), None)
+            .unwrap()
+            .is_empty());
     }
 
     /// Card PAN data is credit-only on the wire. A debit card still maps to
@@ -1367,7 +1463,8 @@ mod tests {
                     arrival_date_time: Some("2025-06-01T12:00:00Z".to_owned()),
                     origin: Some("SAO".to_owned()),
                     destination: Some("RIO".to_owned()),
-                    travel_class: Some(common_enums::TravelClass::Economy),
+                    travel_class: Some("semi-leito".to_owned()),
+                    trip_type: Some("ONE_WAY".to_owned()),
                     passengers: vec![Traveller {
                         first_name: Some(Secret::new("Joao".to_owned())),
                         last_name: Some(Secret::new("Silva".to_owned())),
@@ -1433,6 +1530,13 @@ mod tests {
         assert_eq!(c.date.as_deref(), Some("2025-06-01T08:00:00"));
         assert_eq!(c.boarding.as_deref(), Some("2025-06-01T07:30:00"));
         assert_eq!(c.arriving.as_deref(), Some("2025-06-01T12:00:00"));
+        // Free-form seat class passes through verbatim (e.g. Buser's "semi-leito").
+        assert_eq!(c.seat_class.as_deref(), Some("semi-leito"));
+        assert_eq!(c.type_of_trip.as_deref(), Some("ONE_WAY"));
+        assert_eq!(
+            serde_json::to_value(&c).expect("connection serializes")["typeOfTrip"],
+            "ONE_WAY"
+        );
         // "G3-1234" is not numeric — no identificationNumber on the wire.
         // Booking-level `carrier_name` ("LA") wins over the identifier prefix.
         let c2 = travel_segment_to_clear_sale_connection(segments[1].0, segments[1].1)
@@ -1445,9 +1549,17 @@ mod tests {
         let h = accommodation_to_clear_sale(hotels[0]).expect("hotel name present");
         assert_eq!(h.name, "Hotel Rio");
 
+        // reservationDate comes from `TravelData.travel_date`, not from
+        // `connector_feature_data`.
+        assert_eq!(
+            travel.reservation_date.as_deref(),
+            Some("2025-06-01T00:00:00.000")
+        );
+
         // No travel/hotel blocks at all → not a travel order.
         let empty = DomainData::default();
         let bare_travel = ClearSaleTravelData::from_domain_data(Some(&empty));
+        assert!(bare_travel.reservation_date.is_none());
         assert!(bare_travel.passengers.is_none());
         assert!(bare_travel.travel_segments.is_none());
         assert!(bare_travel.accommodations.is_none());

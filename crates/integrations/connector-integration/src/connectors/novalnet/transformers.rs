@@ -2952,6 +2952,8 @@ pub fn webhook_payment_details(
                     );
 
                     Ok(WebhookDetailsResponse {
+                        raw_connector_status: None,
+                        amount: None,
                         connector_returned_payment_method_details: None,
                         status,
                         resource_id: Some(
@@ -2998,6 +3000,8 @@ pub fn webhook_payment_details(
                 // Void response mappers, which return CaptureFailed / VoidFailed. The event
                 // type is inside the signed checksum preimage, so it is safe to branch on.
                 NovalnetAPIStatus::Failure => Ok(WebhookDetailsResponse {
+                    raw_connector_status: None,
+                    amount: None,
                     connector_returned_payment_method_details: None,
                     status: match notif.event.event_type {
                         WebhookEventType::TransactionCapture => {
@@ -3031,6 +3035,8 @@ pub fn webhook_payment_details(
                 // Undocumented result.status: never terminal (o-themes-r3); flow mappers keep
                 // the current status for an unknown value.
                 NovalnetAPIStatus::Unknown => Ok(WebhookDetailsResponse {
+                    raw_connector_status: None,
+                    amount: None,
                     connector_returned_payment_method_details: None,
                     status: common_enums::AttemptStatus::Pending,
                     resource_id: Some(
@@ -3089,6 +3095,8 @@ pub fn webhook_payment_details(
             };
             let error = matches!(notif.result.status, NovalnetAPIStatus::Failure);
             Ok(WebhookDetailsResponse {
+                raw_connector_status: None,
+                amount: None,
                 connector_returned_payment_method_details: None,
                 status,
                 resource_id: Some(ResponseId::ConnectorTransactionId(payment_tid.clone())),
@@ -3151,6 +3159,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
                 };
 
                 Ok(Self {
+                    raw_connector_status: None,
                     connector_refund_id: Some(refund_id),
                     merchant_transaction_id: None,
                     status,
@@ -3164,6 +3173,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
             }
             // Undocumented result.status: never terminal (o-themes-r3).
             NovalnetAPIStatus::Unknown => Ok(Self {
+                raw_connector_status: None,
                 status: common_enums::RefundStatus::Pending,
                 connector_refund_id: Some(refund_id),
                 merchant_transaction_id: None,
@@ -3176,6 +3186,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
             }),
             // spec: ## Webhook Events (result FAILURE -> refund failed)
             NovalnetAPIStatus::Failure => Ok(Self {
+                raw_connector_status: None,
                 status: common_enums::RefundStatus::Failure,
                 connector_refund_id: Some(refund_id),
                 merchant_transaction_id: None,

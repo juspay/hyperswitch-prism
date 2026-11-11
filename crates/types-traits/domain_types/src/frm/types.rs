@@ -190,7 +190,8 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             })
         })?;
 
-        let currency = {
+        // Preserve validation even though scalar order items no longer need currency.
+        let _currency = {
             let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
@@ -277,7 +278,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 value
                     .order_details
                     .into_iter()
-                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
+                    .map(OrderDetailsWithAmount::foreign_try_from)
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -365,7 +366,8 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             })
         })?;
 
-        let currency = {
+        // Preserve validation even though scalar order items no longer need currency.
+        let _currency = {
             let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
@@ -439,7 +441,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 value
                     .order_details
                     .into_iter()
-                    .map(|item| OrderDetailsWithAmount::foreign_try_from((item, currency)))
+                    .map(OrderDetailsWithAmount::foreign_try_from)
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -602,6 +604,16 @@ impl
             })
         })?;
 
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some("Invalid currency in FRM payment outcome".to_owned()),
+                    ..Default::default()
+                },
+            },
+        )?;
+
         let payment_details = match value.notification_type {
             Some(grpc_api_types::payments::frm_notification_content::NotificationType::PaymentDetails(pd)) => pd,
             _ => return Err(error_stack::report!(IntegrationError::MissingRequiredField {
@@ -666,6 +678,16 @@ impl
             })
         })?;
 
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some("Invalid currency in FRM refund processed".to_owned()),
+                    ..Default::default()
+                },
+            },
+        )?;
+
         let refund = match value.notification_type {
             Some(grpc_api_types::payments::frm_notification_content::NotificationType::Refund(
                 r,
@@ -728,6 +750,16 @@ impl
                 },
             })
         })?;
+
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some("Invalid currency in FRM chargeback".to_owned()),
+                    ..Default::default()
+                },
+            },
+        )?;
 
         let chargeback = match value.notification_type {
             Some(

@@ -164,8 +164,8 @@ message CompositeAuthorizeRequest {
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 67;
 
-  // Authorize-only ANI opt-in, forwarded to PaymentServiceAuthorizeRequest.
-  optional bool enable_ani_check = 68;
+  // Authorize-only Account Name Verification opt-in, forwarded to PaymentServiceAuthorizeRequest.
+  optional bool enable_account_name_verification = 68;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -560,6 +560,11 @@ message CompositeCaptureRequest {
 
   // Currency conversion quote and customer decision supplied for the capture.
   optional CurrencyConversionData currency_conversion_data = 20;
+
+  // Industry-specific capture data, such as airline reservation, passenger, and
+  // flight details. Populated by the caller (for example, Euler Txns from booking
+  // data) and forwarded to PaymentServiceCaptureRequest for connector processing.
+  optional DomainData domain_data = 21;
 }
 
 // Response message for composite capture flow.
@@ -906,8 +911,8 @@ message CompositeVerifyRedirectResponseRequest {
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 63;
 
-  // Preserve the ANI opt-in for authorization after redirect verification.
-  optional bool enable_ani_check = 64;
+  // Preserve the Account Name Verification opt-in for authorization after redirect verification.
+  optional bool enable_account_name_verification = 64;
 }
 
 // Response message for composite verify redirect response flow.

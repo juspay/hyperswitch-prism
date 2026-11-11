@@ -215,14 +215,11 @@ impl MinorUnit {
                 "currency decimal configuration",
             ))?;
 
-        let amount_string = if decimal_places == 0 {
-            amount_f64.0.to_string()
-        } else if decimal_places == 3 {
-            format!("{:.3}", amount_f64.0)
-        } else if decimal_places == 4 {
-            format!("{:.4}", amount_f64.0)
-        } else {
-            format!("{:.2}", amount_f64.0) // 2 decimal places
+        let amount_string = match decimal_places {
+            0 => amount_f64.0.to_string(),
+            3 => format!("{:.3}", amount_f64.0),
+            4 => format!("{:.4}", amount_f64.0),
+            _ => format!("{:.2}", amount_f64.0),
         };
         Ok(StringMajorUnit::new(amount_string))
     }
