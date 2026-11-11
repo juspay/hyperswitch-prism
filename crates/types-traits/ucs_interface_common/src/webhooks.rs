@@ -11,9 +11,11 @@ use domain_types::{
     errors::{IntegrationError, IntegrationErrorContext},
 };
 use error_stack::Report;
-use std::str::FromStr;
 use ucs_env::configs::Config;
 
+// TODO(webhook-migration): remove legacy selection and the rollout gate once all
+// supported connectors use Webhook and their compatibility checks pass. The
+// x-webhook-connector header remains permanent provider identity.
 /// Resolve routing policy once; callers only match the returned connector data.
 /// An explicitly selected standalone implementation never falls back to payments.
 pub fn get_webhook_connector_data(
@@ -66,29 +68,3 @@ pub fn get_webhook_connector_data(
 
 /// Compatibility entry point for existing ParseEvent callers.
 pub use get_webhook_connector_data as get_parse_event_connector_data;
-
-/// Payment compatibility context for resource families and the existing external verifier.
-/// Resource ownership is selected later from the classified event, not this header variant.
-pub fn get_webhook_payment_connector_data(
-    connector: &ConnectorVariant,
-) -> CustomResult<
-    ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
-    IntegrationError,
-> {
-    let payment = match connector {
-        ConnectorVariant::Payment(payment) => Some(*payment),
-        ConnectorVariant::Payout(_) => {
-            domain_types::connector_types::ConnectorEnum::from_str(&connector.get_connector_name())
-                .ok()
-        }
-        _ => None,
-    }
-    .ok_or_else(|| {
-        Report::new(IntegrationError::FlowNotSupported {
-            flow: "IncomingWebhook".to_string(),
-            connector: connector.get_connector_name(),
-            context: IntegrationErrorContext::default(),
-        })
-    })?;
-    Ok(ConnectorData::get_connector_by_name(&payment))
-}

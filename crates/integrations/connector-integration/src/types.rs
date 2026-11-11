@@ -30,23 +30,39 @@ pub enum WebhookResourceConnectorData<
     Payout(PayoutConnectorData<T>),
 }
 
-pub fn get_webhook_resource_connector_data<T>(
-    connector: &ConnectorData<T>,
+/// Resolve the resource handler only after the webhook provider classifies the event.
+/// A selected payout handler never falls back to a payment connector.
+pub fn get_webhook_resource_connector_data(
+    connector: &domain_types::connector_types::ConnectorVariant,
     event_type: &domain_types::connector_types::EventType,
-    webhook_common: Option<&dyn interfaces::webhook_common::WebhookCommon>,
-) -> WebhookResourceConnectorData<T>
-where
-    T: PaymentMethodDataTypes + Debug + Default + Send + Sync + Clone + serde::Serialize + 'static,
-{
-    if webhook_common.is_some() && event_type.is_payout_event() {
-        if let Some(payout) = payout_connectors::get_webhook_connector(connector.connector_name) {
-            return WebhookResourceConnectorData::Payout(payout);
-        }
+) -> error_stack::Result<
+    WebhookResourceConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
+    domain_types::errors::WebhookError,
+> {
+    use domain_types::errors::WebhookError;
+    use std::str::FromStr;
+    let name = connector.get_connector_name();
+    if event_type.is_payout_event() {
+        let payout = PayoutConnectorEnum::from_str(&name)
+            .ok()
+            .and_then(payout_connectors::get_webhook_connector)
+            .ok_or(WebhookError::WebhooksNotImplemented {
+                operation: "process_payout_webhook",
+            })?;
+        return Ok(WebhookResourceConnectorData::Payout(payout));
     }
-    WebhookResourceConnectorData::Payment(connector.clone())
+    let payment =
+        ConnectorEnum::from_str(&name).map_err(|_| WebhookError::WebhooksNotImplemented {
+            operation: "process_payment_webhook",
+        })?;
+    Ok(WebhookResourceConnectorData::Payment(
+        ConnectorData::get_connector_by_name(&payment),
+    ))
 }
 
-/// Migration selection for common webhook operations.
+// TODO(webhook-migration): remove the legacy variant and compatibility alias
+// after all supported connectors use Webhook and compatibility checks pass.
+/// Temporary selection during migration to provider webhook operations.
 pub enum ParseEventConnectorData {
     Webhook(WebhookConnectorData),
     Payment(ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>),
@@ -56,7 +72,7 @@ pub enum ParseEventConnectorData {
 pub use ParseEventConnectorData as WebhookConnectorDataSource;
 
 pub struct WebhookConnectorData {
-    pub connector: interfaces::webhook_common::BoxedWebhookConnector,
+    pub connector: interfaces::webhook::BoxedWebhookConnector,
 }
 
 impl WebhookConnectorData {

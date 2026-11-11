@@ -11,8 +11,17 @@ use domain_types::{
 
 use crate::{api::EventAckResponse, connector_types::IncomingWebhookFlowError};
 
-/// Common webhook protocol operations; resource normalization stays in resource connectors.
-pub trait WebhookCommon: Send + Sync {
+/// Provider webhook protocol operations; resource normalization stays in resource connectors.
+pub type WebhookVerificationIntegration<'a> =
+    crate::connector_integration_v2::BoxedConnectorIntegrationV2<
+        'a,
+        domain_types::connector_flow::VerifyWebhookSource,
+        domain_types::connector_types::VerifyWebhookSourceFlowData,
+        domain_types::router_request_types::VerifyWebhookSourceRequestData,
+        domain_types::router_response_types::VerifyWebhookSourceResponseData,
+    >;
+
+pub trait Webhook: Send + Sync {
     /// Classifies the notification and extracts its unverified resource reference.
     fn parse_event(
         &self,
@@ -34,6 +43,18 @@ pub trait WebhookCommon: Send + Sync {
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
         Ok(false)
+    }
+
+    /// Providers can require an external verification call without a payment connector.
+    /// The server's existing configured verification list is also honored.
+    fn requires_external_webhook_verification(&self) -> bool {
+        false
+    }
+
+    /// Supply the provider's verification flow when an external call is required.
+    /// Missing integration is an explicit error, never a local-verification fallback.
+    fn get_external_verification_integration(&self) -> Option<WebhookVerificationIntegration<'_>> {
+        None
     }
 
     fn get_webhook_source_verification_signature(
@@ -70,4 +91,4 @@ pub trait WebhookCommon: Send + Sync {
     }
 }
 
-pub type BoxedWebhookConnector = Box<dyn WebhookCommon>;
+pub type BoxedWebhookConnector = Box<dyn Webhook>;

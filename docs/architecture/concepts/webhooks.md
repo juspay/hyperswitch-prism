@@ -42,7 +42,7 @@ Existing requests use their legacy payment connector's `IncomingWebhook` methods
 See the [framework guide](../../../crates/integrations/connector-integration/src/webhook_connectors/README.md)
 for the registration points and migration steps.
 
-1. Implement [`WebhookCommon`](../../../crates/types-traits/interfaces/src/webhook_common.rs)
+1. Implement [`Webhook`](../../../crates/types-traits/interfaces/src/webhook.rs)
    in `webhook_connectors/<connector>.rs`, with shared payload types and mappings
    in `<connector>/transformers.rs`. Register supported connector variants in
    [`webhook_connectors.rs`](../../../crates/integrations/connector-integration/src/webhook_connectors.rs).

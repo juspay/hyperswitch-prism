@@ -54,6 +54,8 @@ pub struct Config {
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     /// Opt-in rollout for common ParseEvent and HandleEvent operations.
     #[serde(default)]
+    // TODO(webhook-migration): remove this rollout setting after all supported connectors
+    // use Webhook and their parse/handle compatibility checks pass.
     pub webhook_parse: WebhookParseConfig,
     #[serde(default)]
     pub connector_request_kafka: ConnectorRequestKafkaConfig,
@@ -437,20 +439,6 @@ impl Config {
         let config_builder =
             Self::builder(&env)?.add_source(config::File::from(config_path).required(false));
 
-        Self::load_from_builder(config_builder)
-    }
-
-    /// Load embedded TOML with the same environment overrides and validation as the server.
-    pub fn from_embedded_config(embedded_config: &str) -> Result<Self, config::ConfigError> {
-        Self::load_from_builder(config::Config::builder().add_source(config::File::from_str(
-            embedded_config,
-            config::FileFormat::Toml,
-        )))
-    }
-
-    fn load_from_builder(
-        config_builder: config::ConfigBuilder<config::builder::DefaultState>,
-    ) -> Result<Self, config::ConfigError> {
         let environment_source = config::Environment::with_prefix(consts::ENV_PREFIX)
             .try_parsing(true)
             .separator("__")

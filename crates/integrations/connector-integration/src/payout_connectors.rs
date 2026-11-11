@@ -43,7 +43,7 @@ pub use self::mifinity::MifinityPayouts;
 /// Register payout webhook normalization here as providers migrate.
 /// No providers are registered by this framework change.
 pub fn get_webhook_connector<T>(
-    _connector: domain_types::connector_types::ConnectorEnum,
+    _connector: domain_types::connector_types::PayoutConnectorEnum,
 ) -> Option<crate::types::PayoutConnectorData<T>>
 where
     T: domain_types::payment_method_data::PaymentMethodDataTypes

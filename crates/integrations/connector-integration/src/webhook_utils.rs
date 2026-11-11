@@ -10,8 +10,7 @@ use grpc_api_types::payments::{
 };
 
 use crate::types::{
-    get_webhook_resource_connector_data, ConnectorData, PayoutConnectorData, WebhookConnectorData,
-    WebhookResourceConnectorData,
+    ConnectorData, PayoutConnectorData, WebhookConnectorData, WebhookResourceConnectorData,
 };
 
 /// Inputs shared by webhook normalization and ACK generation.
@@ -52,117 +51,58 @@ pub fn process_webhook_event<
     merchant_event_id: Option<String>,
     event_context: Option<EventContext>,
 ) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
-    process_webhook_event_with_common(
-        connector_data,
-        request_details,
-        WebhookHandlingContext {
-            webhook_secrets,
-            connector_config,
-            source_verified,
-            merchant_event_id,
-            event_context,
-        },
-        None,
-    )
-}
-
-/// Common protocol operations may migrate independently of resource normalization.
-pub fn process_webhook_event_with_common<
-    T: PaymentMethodDataTypes
-        + Default
-        + Eq
-        + std::fmt::Debug
-        + Send
-        + serde::Serialize
-        + serde::de::DeserializeOwned
-        + Clone
-        + Sync
-        + 'static,
->(
-    connector_data: ConnectorData<T>,
-    request_details: domain_types::connector_types::RequestDetails,
-    context: WebhookHandlingContext,
-    webhook_common: Option<&dyn interfaces::webhook_common::WebhookCommon>,
-) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
-    let WebhookHandlingContext {
-        webhook_secrets,
-        connector_config,
-        source_verified,
-        merchant_event_id,
-        event_context,
-    } = context;
-    let event_type = match webhook_common {
-        Some(common) => common.get_event_type(request_details.clone()),
-        None => connector_data
-            .connector
-            .get_event_type(request_details.clone()),
-    }?;
+    let event_type = connector_data
+        .connector
+        .get_event_type(request_details.clone())?;
 
     let api_event_type = WebhookEventType::foreign_try_from(event_type.clone())
         .change_context(WebhookError::WebhookProcessingFailed)?;
 
-    let resource_connector =
-        get_webhook_resource_connector_data(&connector_data, &event_type, webhook_common);
-    let event_content = match resource_connector {
-        WebhookResourceConnectorData::Payout(payout) => get_payouts_webhook_content_from_payout(
-            payout,
+    let event_content = if event_type.is_payment_event() {
+        get_payments_webhook_content(
+            connector_data.clone(),
             request_details.clone(),
             webhook_secrets,
             connector_config.clone(),
-        )?,
-        WebhookResourceConnectorData::Payment(connector_data) => {
-            if event_type.is_payment_event() {
-                get_payments_webhook_content(
-                    connector_data.clone(),
-                    request_details.clone(),
-                    webhook_secrets,
-                    connector_config.clone(),
-                    event_context.clone(),
-                )?
-            } else if event_type.is_refund_event() {
-                get_refunds_webhook_content(
-                    connector_data.clone(),
-                    request_details.clone(),
-                    webhook_secrets,
-                    connector_config.clone(),
-                )?
-            } else if event_type.is_dispute_event() {
-                get_disputes_webhook_content(
-                    connector_data.clone(),
-                    request_details.clone(),
-                    webhook_secrets,
-                    connector_config.clone(),
-                )?
-            } else if event_type.is_payout_event() {
-                get_payouts_webhook_content(
-                    connector_data.clone(),
-                    request_details.clone(),
-                    webhook_secrets,
-                    connector_config.clone(),
-                )?
-            } else {
-                // Default: treat as payment event (mandate, recovery, misc).
-                get_payments_webhook_content(
-                    connector_data.clone(),
-                    request_details.clone(),
-                    webhook_secrets,
-                    connector_config.clone(),
-                    event_context,
-                )?
-            }
-        }
+            event_context.clone(),
+        )?
+    } else if event_type.is_refund_event() {
+        get_refunds_webhook_content(
+            connector_data.clone(),
+            request_details.clone(),
+            webhook_secrets,
+            connector_config.clone(),
+        )?
+    } else if event_type.is_dispute_event() {
+        get_disputes_webhook_content(
+            connector_data.clone(),
+            request_details.clone(),
+            webhook_secrets,
+            connector_config.clone(),
+        )?
+    } else if event_type.is_payout_event() {
+        get_payouts_webhook_content(
+            connector_data.clone(),
+            request_details.clone(),
+            webhook_secrets,
+            connector_config.clone(),
+        )?
+    } else {
+        // Default: treat as payment event (mandate, recovery, misc).
+        get_payments_webhook_content(
+            connector_data.clone(),
+            request_details.clone(),
+            webhook_secrets,
+            connector_config.clone(),
+            event_context,
+        )?
     };
 
-    let ack = match webhook_common {
-        Some(common) => {
-            common.get_webhook_api_response(request_details.clone(), None, connector_config)
-        }
-        None => connector_data.connector.get_webhook_api_response(
-            request_details.clone(),
-            None,
-            connector_config,
-        ),
-    }?;
+    let ack = connector_data.connector.get_webhook_api_response(
+        request_details.clone(),
+        None,
+        connector_config,
+    )?;
     let event_ack_response = Some(grpc_api_types::payments::EventAckResponse {
         status_code: ack.status_code,
         headers: ack.headers.into_iter().collect(),
@@ -175,6 +115,65 @@ pub fn process_webhook_event_with_common<
         source_verified,
         merchant_event_id,
         event_ack_response,
+        supported_integrity_checks: vec![],
+    })
+}
+
+/// Handle a provider-classified event using only its selected resource handler.
+/// The caller verifies the source before resource processing.
+pub fn process_provider_webhook_event(
+    webhook: &dyn interfaces::webhook::Webhook,
+    resource: WebhookResourceConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
+    event_type: domain_types::connector_types::EventType,
+    request_details: domain_types::connector_types::RequestDetails,
+    context: WebhookHandlingContext,
+) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
+    let api_event_type = WebhookEventType::foreign_try_from(event_type.clone())
+        .change_context(WebhookError::WebhookProcessingFailed)?;
+    let event_content = match resource {
+        WebhookResourceConnectorData::Payout(payout) => get_payouts_webhook_content_from_payout(
+            payout,
+            request_details.clone(),
+            context.webhook_secrets,
+            context.connector_config.clone(),
+        )?,
+        WebhookResourceConnectorData::Payment(payment) => {
+            if event_type.is_refund_event() {
+                get_refunds_webhook_content(
+                    payment,
+                    request_details.clone(),
+                    context.webhook_secrets,
+                    context.connector_config.clone(),
+                )?
+            } else if event_type.is_dispute_event() {
+                get_disputes_webhook_content(
+                    payment,
+                    request_details.clone(),
+                    context.webhook_secrets,
+                    context.connector_config.clone(),
+                )?
+            } else {
+                get_payments_webhook_content(
+                    payment,
+                    request_details.clone(),
+                    context.webhook_secrets,
+                    context.connector_config.clone(),
+                    context.event_context,
+                )?
+            }
+        }
+    };
+    let ack = webhook.get_webhook_api_response(request_details, None, context.connector_config)?;
+    Ok(EventServiceHandleResponse {
+        event_type: api_event_type.into(),
+        event_content: Some(event_content),
+        source_verified: context.source_verified,
+        merchant_event_id: context.merchant_event_id,
+        event_ack_response: Some(grpc_api_types::payments::EventAckResponse {
+            status_code: ack.status_code,
+            headers: ack.headers.into_iter().collect(),
+            body: ack.body.unwrap_or_default(),
+        }),
         supported_integrity_checks: vec![],
     })
 }

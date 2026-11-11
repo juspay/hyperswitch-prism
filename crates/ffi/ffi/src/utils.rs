@@ -34,17 +34,17 @@ pub fn ffi_headers_to_masked_metadata(
     })
 }
 
-/// Load embedded config through the shared environment override and validation path.
-/// Embedding the base TOML avoids runtime filesystem lookup.
+/// Load development config from the embedded config string.
+/// This avoids runtime path lookup by embedding the config at build time.
 #[allow(clippy::result_large_err)]
 pub fn load_config(embedded_config: &str) -> Result<Arc<Config>, DomainIntegrationError> {
-    Config::from_embedded_config(embedded_config)
-        .map(Arc::new)
-        .map_err(|e| DomainIntegrationError::InvalidDataFormat {
+    toml::from_str(embedded_config).map(Arc::new).map_err(|e| {
+        DomainIntegrationError::InvalidDataFormat {
             field_name: "config",
             context: IntegrationErrorContext {
                 additional_context: Some(e.to_string()),
                 ..Default::default()
             },
-        })
+        }
+    })
 }

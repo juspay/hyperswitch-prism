@@ -1,13 +1,13 @@
 # Common webhook framework
 
 This directory is the registration point for provider implementations of
-`interfaces::webhook_common::WebhookCommon`. No connectors are migrated or
+`interfaces::webhook::Webhook`. No connectors are migrated or
 registered by this change. Existing webhook calls use their payment connector's
 `IncomingWebhook` implementation by default.
 
 ## Adding a provider later
 
-1. Add `<connector>.rs` implementing `WebhookCommon`, with shared payload types
+1. Add `<connector>.rs` implementing `Webhook`, with shared payload types
    and event/reference mappings in `<connector>/transformers.rs`.
 2. Implement `parse_event` to extract the unverified event type and resource
    reference. Override `get_event_type` when HandleEvent classification must not
@@ -35,7 +35,7 @@ Both registries are intentionally empty until a separate connector migration.
 Both gRPC and FFI use the shared `get_webhook_connector_data` resolver. It returns
 `ParseEventConnectorData`, and callers match its variant:
 
-- `Webhook(WebhookConnectorData)` uses `Box<dyn WebhookCommon>`.
+- `Webhook(WebhookConnectorData)` uses `Box<dyn Webhook>`.
 - `Payment(ConnectorData)` uses the existing `IncomingWebhook` methods.
 
 Existing connector metadata selects the legacy path unless the provider is in
