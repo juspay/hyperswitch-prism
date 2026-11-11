@@ -27,7 +27,7 @@ only for source checks and tests (`npm ci --ignore-scripts`, `npm run check`,
 
 The Rust harness uses this launcher automatically for matching connector hooks.
 It requires an already-built image and never falls back to host execution.
-`./scripts/setup-connector-tests.sh` builds the image during local setup; GitHub
+`./tests/regression/scripts/setup-connector-tests.sh` builds the image during local setup; GitHub
 connector certification builds and checks it before running scenarios.
 
 ## Job format

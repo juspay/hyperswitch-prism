@@ -88,17 +88,20 @@ jobs:
               - 'crates/internal/composite-service/**'
               - 'crates/internal/field-probe/**'
               - 'crates/internal/uniffi-bindgen/**'
-              - 'crates/internal/integration-tests/src/harness/**'
-              - 'crates/internal/integration-tests/src/global_suites/**'
-              - 'crates/internal/integration-tests/src/lib.rs'
+              - 'tests/regression/src/harness/**'
+              - 'tests/regression/src/global_suites/**'
+              - 'tests/regression/src/lib.rs'
               - 'Cargo.toml'
               - 'Cargo.lock'
             connector:
               - 'crates/integrations/**'
-              - 'crates/internal/integration-tests/src/connector_specs/**'
+              - 'tests/regression/src/connector_specs/**'
             any-rust:
               - 'crates/**'
-              - 'browser-automation-engine/**'
+              # The regression framework includes Rust, scenario data, its
+              # browser worker, and runner scripts. Any change here must run
+              # the test job; narrower filters below decide certification scope.
+              - 'tests/regression/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'config/**'
@@ -118,7 +121,7 @@ jobs:
             stripe:
               - 'crates/integrations/connector-integration/src/connectors/stripe.rs'
               - 'crates/integrations/connector-integration/src/connectors/stripe/**'
-              - 'crates/internal/integration-tests/src/connector_specs/stripe/**'
+              - 'tests/regression/src/connector_specs/stripe/**'
             any-rs:
               - '**/*.rs'
             ci:
@@ -126,10 +129,11 @@ jobs:
             # Read at run time by certification; they match no connector path.
             # Separate from rust-core, which seven other jobs also gate on.
             certification-inputs:
-              - 'browser-automation-engine/**'
+              - 'tests/regression/browser-automation/**'
+              - 'tests/regression/scripts/**'
               - 'crates/internal/connector-creds/**'
-              - 'crates/internal/integration-tests/src/bin/**'
-              - 'crates/internal/integration-tests/src/webhook_signatures.rs'
+              - 'tests/regression/src/bin/**'
+              - 'tests/regression/src/webhook_signatures.rs'
               - 'scripts/**'
               - 'config/**'
               - '.github/scripts/**'
@@ -150,8 +154,8 @@ jobs:
           # tip before the queued batch) is the only correct base here.
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
-          alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
-          live=crates/internal/integration-tests/src/connector_specs/live_connectors.json
+          alpha=tests/regression/src/connector_specs/alpha_connectors.json
+          live=tests/regression/src/connector_specs/live_connectors.json
           base_ref="${BASE_REF}"
           if [[ -z "${base_ref}" ]]; then
             echo "::error::BASE_REF resolved empty — none of pull_request.base.sha, merge_group.base_sha, or event.before matched this trigger. Diffing against nothing would silently misreport every connector as changed."
@@ -184,18 +188,18 @@ jobs:
             if touched_under "crates/integrations/connector-integration/src/connectors" "${name}"; then
               payment_touched="${payment_touched}${payment_touched:+,}${name}"
             fi
-          done < <(names_in_dir crates/integrations/connector-integration/src/connectors crates/internal/integration-tests/src/connector_specs)
+          done < <(names_in_dir crates/integrations/connector-integration/src/connectors tests/regression/src/connector_specs)
 
           # A connector's specs.json/override.json can change without any of
           # its own Rust files changing, so specs-only edits need their own
           # pass against the same real, known list.
           while IFS= read -r name; do
             [ -n "${name}" ] || continue
-            if touched_under "crates/internal/integration-tests/src/connector_specs" "${name}" && \
+            if touched_under "tests/regression/src/connector_specs" "${name}" && \
                ! echo ",${payment_touched}," | grep -q ",${name},"; then
               payment_touched="${payment_touched}${payment_touched:+,}${name}"
             fi
-          done < <(find crates/internal/integration-tests/src/connector_specs -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -u)
+          done < <(find tests/regression/src/connector_specs -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -u)
 
           # authenticator/payout/surcharge connectors have no connector_specs/
           # entry, so names_in_dir's specs.json check does not apply here —
@@ -258,7 +262,7 @@ jobs:
           new_list=""
           IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
           for c in "${CONNECTORS[@]}"; do
-            spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
+            spec_dir="tests/regression/src/connector_specs/$c"
             # A connector is "new" in this PR if its spec directory does not
             # exist at the PR's base commit, regardless of whether it exists
             # now. Compares against the merge-base, not just the immediate
@@ -281,8 +285,8 @@ jobs:
           # tip before the queued batch) is the only correct base here.
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
-          alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
-          live=crates/internal/integration-tests/src/connector_specs/live_connectors.json
+          alpha=tests/regression/src/connector_specs/alpha_connectors.json
+          live=tests/regression/src/connector_specs/live_connectors.json
           base_ref="${BASE_REF}"
           if [[ -z "${base_ref}" ]]; then
             echo "::error::BASE_REF resolved empty — none of pull_request.base.sha, merge_group.base_sha, or event.before matched this trigger. Diffing against nothing would silently misreport every connector as changed."
@@ -315,7 +319,7 @@ jobs:
 
           IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
           for c in "${CONNECTORS[@]}"; do
-            spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
+            spec_dir="tests/regression/src/connector_specs/$c"
             # A newly added connector has no merge-base content to diff against
             # and is already held to a stricter bar by verify-new-connectors.sh
             # (every failure attributable, no arbitration at all) — skip it here
@@ -841,7 +845,7 @@ jobs:
 
       - name: Build and verify isolated browser worker
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
-        working-directory: browser-automation-engine
+        working-directory: tests/regression/browser-automation
         run: |
           npm install --ignore-scripts
           npm run check

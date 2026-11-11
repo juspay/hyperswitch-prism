@@ -17,7 +17,7 @@
 
 set -uo pipefail
 
-SPECS_ROOT="${SPECS_ROOT:-crates/internal/integration-tests/src/connector_specs}"
+SPECS_ROOT="${SPECS_ROOT:-tests/regression/src/connector_specs}"
 ALPHA_FILE="${SPECS_ROOT}/alpha_connectors.json"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 UNPROVEN_FILE="${UNPROVEN_FILE:-}"
@@ -43,7 +43,7 @@ verify_connector() {
 
   echo "::group::Verify ${name}"
   local rc=0
-  ./scripts/run-tests "${args[@]}" || rc=$?
+  ./tests/regression/scripts/run-tests "${args[@]}" || rc=$?
   echo "::endgroup::"
   return "${rc}"
 }
