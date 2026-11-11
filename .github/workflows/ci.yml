@@ -388,6 +388,9 @@ jobs:
         with:
           shared-key: "ci-clippy"
 
+      - name: Check money boundary enforcement
+        run: bash scripts/validation/check-money-boundary.sh
+
       - name: Run Clippy
         env:
           RUSTFLAGS: "-D warnings"

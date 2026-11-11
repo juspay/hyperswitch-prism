@@ -3,14 +3,15 @@ use common_enums::{MitCategory, PaymentChannel, RefundStatus};
 use common_utils::{types::Money, Email};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, Void,
+        Authorize, Capture, IncrementalAuthorization, PostAuthenticate, PreAuthenticate, RSync,
+        Refund, RepeatPayment, ServerAuthenticationToken, Void,
     },
     connector_types::{
         MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
-        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, ServerAuthenticationTokenResponseData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        ServerAuthenticationTokenResponseData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
@@ -167,6 +168,7 @@ pub struct MonerisPaymentsRequest<
     amount: Money,
     payment_method: PaymentMethod<T>,
     automatic_capture: bool,
+    incremental_authorization: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     ecommerce_indicator: Option<EcommerceIndicator>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -501,6 +503,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let automatic_capture = item.router_data.request.is_auto_capture();
+        let incremental_authorization =
+            item.router_data.request.request_incremental_authorization == Some(true);
+        if incremental_authorization && automatic_capture {
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "capture_method",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Set capture_method=MANUAL when request_incremental_authorization=true."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "Moneris incremental authorization is enabled on a pre-authorization. The request would use automaticCapture=true, which creates a captured purchase."
+                            .to_string(),
+                    ),
+                },
+            }
+            .into());
+        }
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ref req_card) => {
                 let idempotency_key = format!(
@@ -569,7 +592,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         StorePaymentMethod::DoNotStore
                     },
                 });
-                let automatic_capture = item.router_data.request.is_auto_capture();
                 let is_three_ds = item.router_data.resource_common_data.is_three_ds();
                 let is_recurring = item.router_data.request.is_mandate_payment();
                 let has_authentication_cavv = item
@@ -578,10 +600,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .authentication_data
                     .as_ref()
                     .is_some_and(|a| a.cavv.is_some());
-                let amount = Money {
-                    amount: item.router_data.request.amount.amount,
-                    currency: item.router_data.request.currency,
-                };
+                let amount = item.router_data.request.money.clone();
                 let ecommerce_indicator = Some(derive_ecommerce_indicator(
                     item.router_data.request.payment_channel.as_ref(),
                     item.router_data.request.mit_category.as_ref(),
@@ -597,6 +616,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     payment_method,
                     automatic_capture,
+                    incremental_authorization,
                     ecommerce_indicator,
                     three_d_secure_data,
                 })
@@ -608,7 +628,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .connector_request_reference_id
                 );
-                let automatic_capture = item.router_data.request.is_auto_capture();
                 let wallet_indicator = if item.router_data.request.browser_info.is_some() {
                     WalletIndicator::InBrowser
                 } else {
@@ -846,16 +865,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 };
 
-                let amount = Money {
-                    amount: item.router_data.request.amount.amount,
-                    currency: item.router_data.request.currency,
-                };
+                let amount = item.router_data.request.money.clone();
 
                 Ok(Self {
                     idempotency_key,
                     amount,
                     payment_method,
                     automatic_capture,
+                    incremental_authorization,
                     ecommerce_indicator,
                     three_d_secure_data: None,
                 })
@@ -927,7 +944,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.payment_id),
-                incremental_authorization_allowed: None,
+                incremental_authorization_allowed: item
+                    .router_data
+                    .request
+                    .request_incremental_authorization,
                 splits: None,
                 status_code: item.http_code,
                 payment_account_reference: None,
@@ -955,16 +975,33 @@ pub enum MonerisPaymentStatus {
     Declined,
     DeclinedRetry,
     Authorized,
+    Incremented,
 }
 
 impl From<MonerisPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: MonerisPaymentStatus) -> Self {
         match item {
             MonerisPaymentStatus::Succeeded => Self::Charged,
-            MonerisPaymentStatus::Authorized => Self::Authorized,
+            MonerisPaymentStatus::Authorized | MonerisPaymentStatus::Incremented => {
+                Self::Authorized
+            }
             MonerisPaymentStatus::Canceled => Self::Voided,
             MonerisPaymentStatus::Declined | MonerisPaymentStatus::DeclinedRetry => Self::Failure,
             MonerisPaymentStatus::Processing => Self::Pending,
+        }
+    }
+}
+
+impl From<MonerisPaymentStatus> for common_enums::AuthorizationStatus {
+    fn from(item: MonerisPaymentStatus) -> Self {
+        match item {
+            MonerisPaymentStatus::Incremented
+            | MonerisPaymentStatus::Authorized
+            | MonerisPaymentStatus::Succeeded => Self::Success,
+            MonerisPaymentStatus::Processing => Self::Processing,
+            MonerisPaymentStatus::Canceled
+            | MonerisPaymentStatus::Declined
+            | MonerisPaymentStatus::DeclinedRetry => Self::Failure,
         }
     }
 }
@@ -1026,9 +1063,9 @@ impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
             MonerisPaymentStatus::Succeeded => {
-                let captured = item.router_data.request.amount_to_capture.amount;
-                match item.router_data.resource_common_data.amount_capturable {
-                    Some(ref authorized) if captured < authorized.amount => {
+                let captured = item.router_data.request.capture_money.amount();
+                match item.router_data.resource_common_data.capturable_money {
+                    Some(ref authorized) if captured < authorized.amount() => {
                         common_enums::AttemptStatus::PartialCharged
                     }
                     _ => common_enums::AttemptStatus::Charged,
@@ -1053,6 +1090,109 @@ impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
                 splits: None,
                 status_code: item.http_code,
                 payment_account_reference: None,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisIncrementalAuthorizationRequest {
+    idempotency_key: String,
+    amount: Money,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MonerisRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MonerisIncrementalAuthorizationRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: MonerisRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        let idempotency_key = format!(
+            "increment_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
+        let amount = request
+            .additional_money
+            .as_ref()
+            .ok_or_else(|| {
+                IntegrationError::MissingRequiredField {
+                    field_name: "additional_amount",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the increase over the current authorized amount in additional_amount."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Moneris Increment Payment accepts the amount to add; the total authorization amount alone cannot be converted to an increment without the original authorization amount."
+                                .to_string(),
+                        ),
+                    },
+                }
+            })?
+            .clone();
+
+        Ok(Self {
+            idempotency_key,
+            amount,
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisIncrementalAuthorizationResponse {
+    payment_status: MonerisPaymentStatus,
+    payment_id: String,
+    payment_method: MonerisPaymentMethodData,
+}
+
+impl TryFrom<ResponseRouterData<MonerisIncrementalAuthorizationResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MonerisIncrementalAuthorizationResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let authorization_status =
+            common_enums::AuthorizationStatus::from(item.response.payment_status);
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: authorization_status,
+                connector_authorization_id: Some(item.response.payment_id),
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -1140,10 +1280,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         issuer_id: None,
                     }),
                 });
-                let amount = Money {
-                    amount: item.router_data.request.amount.amount,
-                    currency: item.router_data.request.currency,
-                };
+                let amount = item.router_data.request.money.clone();
                 Ok(Self {
                     idempotency_key,
                     amount,
@@ -1197,10 +1334,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = Money {
-            currency: item.router_data.request.currency,
-            amount: item.router_data.request.amount_to_capture.amount,
-        };
+        let amount = item.router_data.request.capture_money.clone();
         let idempotency_key = format!(
             "capture_{}",
             item.router_data
@@ -1250,7 +1384,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisRefundRequest {
     pub refund_amount: Money,
@@ -1274,10 +1408,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let refund_amount = Money {
-            currency: item.router_data.request.currency,
-            amount: item.router_data.request.refund_amount.amount,
-        };
+        let refund_amount = item.router_data.request.refund_money.clone();
         let idempotency_key = format!(
             "refund_{}",
             item.router_data
@@ -1727,10 +1858,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             country: resource.get_optional_billing_country(),
         };
 
-        let amount = Money {
-            currency: req.currency.unwrap_or_default(),
-            amount: req.amount.amount,
-        };
+        let amount = req.money.clone();
 
         let idempotency_key = format!("3ds_{}", resource.connector_request_reference_id);
 

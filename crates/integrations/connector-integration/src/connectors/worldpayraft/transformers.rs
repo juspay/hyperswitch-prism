@@ -1069,14 +1069,14 @@ impl WorldpayraftConnectorMetadata {
             WorldpayraftPosData::for_debit(request.is_auto_capture())
         } else {
             WorldpayraftPosData::for_credit(
-                request.amount.amount,
+                request.money.amount(),
                 network.as_ref(),
                 request.mit_category.as_ref(),
                 kind,
                 request.request_incremental_authorization == Some(true),
             )
         };
-        metadata.set_authorization(&request.amount, payment_id, pos, brand_data, trace);
+        metadata.set_authorization(&request.money, payment_id, pos, brand_data, trace);
         metadata
     }
 
@@ -1090,13 +1090,13 @@ impl WorldpayraftConnectorMetadata {
             Self::try_from(request.connector_feature_data.as_ref()).unwrap_or_default();
         let network = WorldpayraftCardNetwork::from(&request.payment_method_data).0;
         let pos = WorldpayraftPosData::for_credit(
-            request.amount.amount,
+            request.money.amount(),
             network.as_ref(),
             request.mit_category.as_ref(),
             WorldpayraftPaymentKind::Mit,
             false,
         );
-        metadata.set_authorization(&request.amount, payment_id, pos, brand_data, trace);
+        metadata.set_authorization(&request.money, payment_id, pos, brand_data, trace);
         metadata
     }
 }
@@ -1801,7 +1801,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1943,7 +1943,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_transaction_id,
             )?;
             WorldpayraftPosData::for_credit(
-                request.amount.amount,
+                request.money.amount(),
                 network.as_ref(),
                 request.mit_category.as_ref(),
                 kind,
@@ -2299,7 +2299,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount_to_capture)
+            .convert(&router_data.request.capture_money)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -2348,8 +2348,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             metadata
                 .original_authorized_amount
                 .as_ref()
-                .or(router_data.resource_common_data.amount_authorized.as_ref())
-                .or(router_data.resource_common_data.amount.as_ref())
+                .or(router_data.resource_common_data.authorized_money.as_ref())
+                .or(router_data.resource_common_data.money.as_ref())
                 .map(|original_amount| {
                     item.connector
                         .amount_converter
@@ -2646,7 +2646,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.refund_amount)
+            .convert(&router_data.request.refund_money)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -3086,7 +3086,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -3217,7 +3217,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_transaction_id,
         )?;
         let pos = WorldpayraftPosData::for_credit(
-            request.amount.amount,
+            request.money.amount(),
             network.as_ref(),
             request.mit_category.as_ref(),
             WorldpayraftPaymentKind::Mit,
@@ -3419,7 +3419,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let auth = WorldpayraftAuthType::try_from(&router_data.connector_config)?;
 
-        let amount = router_data.request.amount.as_ref().ok_or_else(|| {
+        let amount = router_data.request.money.as_ref().ok_or_else(|| {
             error_stack::report!(errors::IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: errors::IntegrationErrorContext {
@@ -3430,7 +3430,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })
         })?;
-        let currency = router_data.request.currency.ok_or_else(|| {
+        router_data.request.currency.ok_or_else(|| {
             error_stack::report!(errors::IntegrationError::MissingRequiredField {
                 field_name: "currency",
                 context: errors::IntegrationErrorContext {
@@ -3445,10 +3445,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_amount = item
             .connector
             .amount_converter
-            .convert(&Money {
-                amount: amount.amount,
-                currency,
-            })
+            .convert(amount)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -3700,7 +3697,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .into());
         }
         let amount = request
-            .amount
+            .money
             .as_ref()
             .ok_or_else(missing_field_err("amount"))?;
         let transaction_amount = item
@@ -3780,13 +3777,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .ok_or_else(missing_field_err(
                     "connector_feature_data.original_authorized_amount",
                 ))?;
-        if original_amount.currency != amount.currency {
+        if original_amount.currency() != amount.currency() {
             return Err(errors::IntegrationError::InvalidDataFormat {
                 field_name: "amount.currency",
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(format!(
                         "Worldpay RAFT completion reversal currency {} must match the original authorized currency {} from connector_feature_data.original_authorized_amount",
-                        amount.currency, original_amount.currency
+                        amount.currency(), original_amount.currency()
                     )),
                     ..Default::default()
                 },
@@ -3986,12 +3983,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .ok_or_else(missing_field_err("payment_method"))?;
         let auth = WorldpayraftAuthType::try_from(&router_data.connector_config)?;
         let additional_amount = request
-            .additional_amount
+            .additional_money
             .as_ref()
             .ok_or_else(missing_field_err("additional_amount"))?;
-        if additional_amount.currency != request.amount.currency
-            || additional_amount.amount <= MinorUnit::zero()
-            || additional_amount.amount > request.amount.amount
+        if additional_amount.currency() != request.money.currency()
+            || additional_amount.amount() <= MinorUnit::zero()
+            || additional_amount.amount() > request.money.amount()
         {
             return Err(errors::IntegrationError::InvalidDataFormat {
                 field_name: "additional_amount",
@@ -4020,7 +4017,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // The original authorized amount cannot be used to calculate later increases.
         let misc_amounts_balances = WorldpayraftIncrementalAuthorizationAmounts {
             transaction_amount: convert_amount(additional_amount, "TransactionAmount")?,
-            cumulative_amount: convert_amount(&request.amount, "CumulativeAmount")?,
+            cumulative_amount: convert_amount(&request.money, "CumulativeAmount")?,
         };
 
         let connector_transaction_id = request

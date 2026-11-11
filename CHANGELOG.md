@@ -19,6 +19,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.10.0
+
+### Features
+
+- **connector:** Add Fiserv Commercehub void post capture & Incremental auth flow ([#2708](https://github.com/juspay/connector-service/pull/2708)) ([`e83560f`](https://github.com/juspay/connector-service/commit/e83560fecd1e6b944689c22bb9cfb6c8476787ba))
+
+### Refactors
+
+- **connector:** [clearsale_br] update on connections and items h… ([#2710](https://github.com/juspay/connector-service/pull/2710)) ([`866a823`](https://github.com/juspay/connector-service/commit/866a823043781e26e1da148119b888f6c3ceaa23))
+
+**Full Changelog:** [`2026.11.09.0...2026.11.10.0`](https://github.com/juspay/connector-service/compare/2026.11.09.0...2026.11.10.0)
+
+- - -
+
+## 2026.11.09.0
+
+### Features
+
+- **connector:**
+  - [Authorizedotnet] support MOTO payments ([#2695](https://github.com/juspay/connector-service/pull/2695)) ([`8148957`](https://github.com/juspay/connector-service/commit/814895773ad6c6d7c250c02510dea33a9cb2e81e))
+  - Add moneris IncrementalAuthorization flow ([#2711](https://github.com/juspay/connector-service/pull/2711)) ([`e218ddd`](https://github.com/juspay/connector-service/commit/e218ddd1376213b2f6c2a5bb2e9fde6c4a6a7a8e))
+
+### Bug Fixes
+
+- **telemetry:** Upgrade direct OpenTelemetry runtime ([#2707](https://github.com/juspay/connector-service/pull/2707)) ([`95d617c`](https://github.com/juspay/connector-service/commit/95d617c8ef0e35b78a9ab73edb49c879d6aab5ea))
+
+### Miscellaneous Tasks
+
+- **ci:** Pin download-artifact release ([#2712](https://github.com/juspay/connector-service/pull/2712)) ([`7a841d2`](https://github.com/juspay/connector-service/commit/7a841d2670e6f93dddd54c17c0888a80bae96807))
+- **deps:** Update Superposition runtime dependencies ([#2702](https://github.com/juspay/connector-service/pull/2702)) ([`c1d731e`](https://github.com/juspay/connector-service/commit/c1d731e4a0b5a81b7455eaa2e8fd2351b049cc6c))
+
+**Full Changelog:** [`2026.11.06.2...2026.11.09.0`](https://github.com/juspay/connector-service/compare/2026.11.06.2...2026.11.09.0)
+
+- - -
+
+## 2026.11.06.2
+
+### Features
+
+- **connector:** [Checkout] add Apple Pay wallet payout transfers ([#2692](https://github.com/juspay/connector-service/pull/2692)) ([`74fcb16`](https://github.com/juspay/connector-service/commit/74fcb163e08dd7a23ed0cfc32bfb52bd00f33228))
+
+### Bug Fixes
+
+- **connector:** [Authorizedotnet] check decrypted Apple Pay cryptogram and reject it in SetupMandate ([#2589](https://github.com/juspay/connector-service/pull/2589)) ([`02b6104`](https://github.com/juspay/connector-service/commit/02b61049e847c39514879885eb167385680164ff))
+- **rapyd:** Correct card, wallet and refund edge cases ([#2660](https://github.com/juspay/connector-service/pull/2660)) ([`d85e7c5`](https://github.com/juspay/connector-service/commit/d85e7c58bf615bfb4081a82e0d9b9bdbd3863483))
+
+### Refactors
+
+- **sdk:** Remove unused legacy Python gRPC client ([#2689](https://github.com/juspay/connector-service/pull/2689)) ([`86a2062`](https://github.com/juspay/connector-service/commit/86a2062c31c99276a68a80bb1d2204abc6b5d451))
+
+### Miscellaneous Tasks
+
+- **grace:** Remove stale npm lockfile ([#2706](https://github.com/juspay/connector-service/pull/2706)) ([`d6e578f`](https://github.com/juspay/connector-service/commit/d6e578fb079e632df4c98410a49e03689784b7cf))
+
+### Build System / Dependencies
+
+- **docker:** Narrow runtime build inputs ([#2649](https://github.com/juspay/connector-service/pull/2649)) ([`749c081`](https://github.com/juspay/connector-service/commit/749c0811b2cda9772caa758663f95300166bf8a9))
+
+**Full Changelog:** [`2026.11.06.1...2026.11.06.2`](https://github.com/juspay/connector-service/compare/2026.11.06.1...2026.11.06.2)
+
+- - -
+
+## 2026.11.06.1
+
+### Features
+
+- **rapyd:**
+  - Send wallet recurring purpose marker ([#2654](https://github.com/juspay/connector-service/pull/2654)) ([`a108579`](https://github.com/juspay/connector-service/commit/a108579aa86219a1e6e335165e6ead16156fc4cc))
+  - Charge external network tokens ([#2655](https://github.com/juspay/connector-service/pull/2655)) ([`a965af9`](https://github.com/juspay/connector-service/commit/a965af9fea03c99395ddf7db1801a54b4da87677))
+
+### Bug Fixes
+
+- **connectors:** Enable jsonwebtoken crypto provider ([#2705](https://github.com/juspay/connector-service/pull/2705)) ([`96fe24d`](https://github.com/juspay/connector-service/commit/96fe24da2d733b3f2fd6f4b3f02f94f6ed58a74f))
+- **deps:** Apply compatible Rust security patches ([#2684](https://github.com/juspay/connector-service/pull/2684)) ([`cb005a2`](https://github.com/juspay/connector-service/commit/cb005a286fad67b320bbda3ad48eb059814a9702))
+
+### Refactors
+
+- **connector:** Travel_class enum to free-form string on TravelSegment ([#2704](https://github.com/juspay/connector-service/pull/2704)) ([`017dfac`](https://github.com/juspay/connector-service/commit/017dfac529b462b729742242c58e5d9526267d7c))
+
+**Full Changelog:** [`2026.11.06.0...2026.11.06.1`](https://github.com/juspay/connector-service/compare/2026.11.06.0...2026.11.06.1)
+
+- - -
+
 ## 2026.11.06.0
 
 ### Testing

@@ -19,6 +19,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "capture",
     "create_server_authentication_token",
     "get",
+    "incremental_authorization",
     "post_authenticate",
     "pre_authenticate",
     "proxy_authorize",
@@ -149,6 +150,35 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
                 token_type: Some("Bearer".to_string()), // Token type (e.g., "Bearer", "Basic").
             }),
             ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAuthorizationRequest {
+    PaymentServiceIncrementalAuthorizationRequest {
+        merchant_authorization_id: Some("probe_auth_001".to_string()), // Identification.
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        amount: Some(Money {
+            // New total authorized amount, including this increase.
+            minor_amount: 1100,
+            currency: Currency::Usd.into(),
+        }),
+        reason: Some("incremental_auth_probe".to_string()), // Optional Fields.
+        state: Some(ConnectorState {
+            // State Information.
+            access_token: Some(AccessToken {
+                // Access token obtained from connector.
+                token: Some(Secret::new("probe_access_token".to_string())), // The token string.
+                expires_in_seconds: Some(3600), // Expiration timestamp (seconds since epoch).
+                token_type: Some("Bearer".to_string()), // Token type (e.g., "Bearer", "Basic").
+            }),
+            ..Default::default()
+        }),
+        additional_amount: Some(Money {
+            // Increase over the current authorized total. Must use the same currency as amount.
+            minor_amount: 100,
+            currency: Currency::Usd.into(),
         }),
         ..Default::default()
     }
@@ -611,6 +641,22 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+#[allow(dead_code)]
+pub async fn process_incremental_authorization(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .incremental_authorization(
+            build_incremental_authorization_request(),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 #[allow(dead_code)]
 pub async fn process_post_authenticate(
@@ -694,13 +740,16 @@ async fn main() {
             process_create_server_authentication_token(&client, "txn_001").await
         }
         "process_get" => process_get(&client, "txn_001").await,
+        "process_incremental_authorization" => {
+            process_incremental_authorization(&client, "txn_001").await
+        }
         "process_post_authenticate" => process_post_authenticate(&client, "txn_001").await,
         "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_server_authentication_token, process_get, process_post_authenticate, process_pre_authenticate, process_proxy_authorize, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_server_authentication_token, process_get, process_incremental_authorization, process_post_authenticate, process_pre_authenticate, process_proxy_authorize, process_refund_get, process_void", flow);
             return;
         }
     };
