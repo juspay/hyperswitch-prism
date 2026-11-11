@@ -5987,8 +5987,12 @@ message ReddotConfig {
 }
 
 message PayhoundConfig {
+  // Payhound API key, sent as the X-MB-Key header.
   SecretString api_key = 1;
+  // Payhound API secret: the HMAC-SHA512 key for X-MB-Signature on requests, and also the key
+  // Payhound signs incoming callbacks with (there is no separate webhook secret).
   SecretString api_secret = 2;
+  // Overrides the Payhound API host from config (e.g. https://sandbox-api.payhound.com).
   optional string base_url = 50;
 }
 

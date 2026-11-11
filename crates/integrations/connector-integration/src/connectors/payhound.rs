@@ -42,6 +42,7 @@
 //! handling must therefore be idempotent: deduplicate on `(id, status)` so a repeat callback for an
 //! already-charged invoice is not double-counted.
 
+mod test;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -140,14 +141,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: payhound::PayhoundErrorResponse = res
+        // A non-JSON body (e.g. an HTML 502 from a proxy in front of Payhound) falls back to the
+        // raw body so the merchant still sees the upstream status instead of a parse failure.
+        let response: payhound::PayhoundErrorResponse = match res
             .response
             .parse_struct("PayhoundErrorResponse")
-            .change_context(crate::utils::response_deserialization_fail(
-                res.status_code,
-                "payhound: error body did not match the documented `{\"message\": \"...\"}` \
-                 envelope; confirm API version and connector documentation.",
-            ))?;
+        {
+            Ok(response) => response,
+            Err(error_msg) => {
+                tracing::error!(deserialization_error =? error_msg);
+                return crate::utils::handle_json_response_deserialization_failure(res, "payhound");
+            }
+        };
 
         with_error_response_body!(event_builder, response);
 

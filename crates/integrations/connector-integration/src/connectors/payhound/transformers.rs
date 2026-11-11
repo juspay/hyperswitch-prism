@@ -721,39 +721,37 @@ pub(super) fn build_invoice_redirect(invoice_url: &str) -> CustomResult<Url, Con
 #[derive(Debug, Serialize)]
 pub struct PayhoundInvoiceRequest {
     /// Merchant settlement currency.
-    currency: PayhoundSettlementCurrency,
+    pub(super) currency: PayhoundSettlementCurrency,
     /// Invoice amount as a decimal major-unit string, e.g. `"266.45"`.
-    price: StringMajorUnit,
+    pub(super) price: StringMajorUnit,
     /// Crypto asset (and chain) the shopper pays in.
-    invoice_currency: PayhoundInvoiceCurrency,
+    pub(super) invoice_currency: PayhoundInvoiceCurrency,
     #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
+    pub(super) name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub(super) description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    reference: Option<String>,
+    pub(super) reference: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    callback_url: Option<String>,
+    pub(super) callback_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    success_url: Option<String>,
+    pub(super) success_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    cancel_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    notify_email: Option<pii::Email>,
+    pub(super) cancel_url: Option<String>,
     /// Percentage of the settlement Payhound keeps in BTC.
     ///
     /// Always `None`: this mirrors a merchant-level Payhound setting (Payouts → *Percentage Kept
     /// in BTC*) that UCS has no field for, and sending a fabricated value would override the
     /// merchant's own configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
-    share_to_keep_in_btc: Option<u8>,
+    pub(super) share_to_keep_in_btc: Option<u8>,
 }
 
 /// Resolves the Payhound invoice currency from the payment method data.
 ///
 /// The match is exhaustive with no `_` arm so that adding a `PaymentMethodData` variant to the repo
 /// breaks Payhound's build and forces a deliberate decision.
-fn invoice_currency_from_payment_method<
+pub(super) fn invoice_currency_from_payment_method<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     payment_method_data: &PaymentMethodData<T>,
@@ -822,7 +820,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ensure_supported_capture_method(request.capture_method)?;
 
         let invoice_currency = invoice_currency_from_payment_method(&request.payment_method_data)?;
-        let currency = PayhoundSettlementCurrency::try_from(request.currency)?;
+        let currency = PayhoundSettlementCurrency::try_from(request.amount.currency)?;
         // Payhound's `price` is a decimal major-unit string ("266.45"); minor units would be
         // rejected as a wildly different amount.
         let price = PayhoundAmountConvertor::convert(&request.amount)?;
@@ -845,7 +843,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // UCS carries a single return URL, so success and cancel deliberately point at the same
             // place; this duplication is not a copy-paste slip.
             cancel_url: request.router_return_url.clone(),
-            notify_email: request.email.clone(),
             share_to_keep_in_btc: None,
         })
     }
@@ -1169,7 +1166,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let outcome = payhound_invoice_outcome(
             &payhound_response,
             http_code,
-            Some(router_data.request.currency),
+            Some(router_data.request.amount.currency),
         )?;
         let response = payhound_payments_response(
             &payhound_response,
@@ -1207,7 +1204,7 @@ impl<F> TryFrom<ResponseRouterData<PayhoundInvoiceResponse, Self>>
         let outcome = payhound_invoice_outcome(
             &payhound_response,
             http_code,
-            Some(router_data.request.currency),
+            Some(router_data.request.amount.currency),
         )?;
         // PSync surfaces the redirect when Payhound still provides one — useful for a shopper
         // resuming a `pending` invoice — but, unlike Authorize, its absence does not fail the sync:
