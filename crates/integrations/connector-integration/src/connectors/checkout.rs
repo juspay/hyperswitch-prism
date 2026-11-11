@@ -186,17 +186,6 @@ fn get_checkout_client_id(connector_config: &ConnectorSpecificConfig) -> Option<
     }
 }
 
-fn checkout_payment_base_url(
-    configured_base_url: &str,
-    connector_config: &ConnectorSpecificConfig,
-) -> CustomResult<String, IntegrationError> {
-    let base_url = get_checkout_base_url(
-        configured_base_url,
-        get_checkout_client_id(connector_config),
-    )?;
-    Ok(format!("{base_url}/"))
-}
-
 // Type alias for non-generic trait implementations
 
 macros::create_amount_converter_wrapper!(connector_name: Checkout, amount_type: MinorUnit);
@@ -775,9 +764,9 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> CustomResult<String, IntegrationError> {
-            checkout_payment_base_url(
+            get_checkout_base_url(
                 &req.resource_common_data.connectors.checkout.base_url,
-                &req.connector_config,
+                get_checkout_client_id(&req.connector_config),
             )
         }
 
@@ -785,9 +774,9 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, RefundFlowData, Req, Res>,
         ) -> CustomResult<String, IntegrationError> {
-            checkout_payment_base_url(
+            get_checkout_base_url(
                 &req.resource_common_data.connectors.checkout.base_url,
-                &req.connector_config,
+                get_checkout_client_id(&req.connector_config),
             )
         }
 
@@ -795,9 +784,9 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<F, DisputeFlowData, Req, Res>,
         ) -> CustomResult<String, IntegrationError> {
-            checkout_payment_base_url(
+            get_checkout_base_url(
                 &req.resource_common_data.connectors.checkout.base_url,
-                &req.connector_config,
+                get_checkout_client_id(&req.connector_config),
             )
         }
     }
@@ -842,10 +831,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
     /// Returns the configured URL **unresolved** — it may still contain the
     /// `{{optional_client_id}}` placeholder. The `ConnectorCommon` trait returns `&str`, so
-    /// resolution cannot happen here (it allocates); every payment URL goes through
-    /// [`checkout_payment_base_url`] and payouts through [`get_checkout_base_url`], using the
-    /// optional connector client ID in both cases. Never use this raw value to build a request
-    /// URL directly.
+    /// resolution cannot happen here (it allocates). Payment and payout requests resolve this
+    /// value through [`get_checkout_base_url`] with the optional connector client ID. Never use
+    /// this raw value to build a request URL directly.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.checkout.base_url.as_ref()
     }
@@ -992,7 +980,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)?))
+            Ok(format!("{}/payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -1033,7 +1021,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)?))
+            Ok(format!("{}/payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -1073,7 +1061,7 @@ macros::macro_connector_implementation!(
                 SyncRequestType::SinglePaymentSync => ""
 };
             Ok(format!(
-                "{}payments/{}{}",
+                "{}/payments/{}{}",
                 self.connector_base_url_payments(req)?,
                 req.request
                     .connector_transaction_id
@@ -1144,7 +1132,7 @@ macros::macro_connector_implementation!(
                     },
                 }.into())
 };
-            Ok(format!("{}payments/{}/captures", self.connector_base_url_payments(req)?, connector_tx_id))
+            Ok(format!("{}/payments/{}/captures", self.connector_base_url_payments(req)?, connector_tx_id))
         }
         fn get_error_response_v2(
             &self,
@@ -1187,7 +1175,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_tx_id = &req.request.connector_transaction_id;
-            Ok(format!("{}payments/{}/refunds", self.connector_base_url_refunds(req)?, connector_tx_id))
+            Ok(format!("{}/payments/{}/refunds", self.connector_base_url_refunds(req)?, connector_tx_id))
         }
     }
 );
@@ -1216,7 +1204,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let connector_tx_id = &req.request.connector_transaction_id;
             Ok(format!(
-                "{}payments/{}/actions",
+                "{}/payments/{}/actions",
                 self.connector_base_url_refunds(req)?,
                 connector_tx_id
             ))
@@ -1254,7 +1242,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_tx_id = req.request.connector_transaction_id.clone();
-            Ok(format!("{}payments/{}/voids", self.connector_base_url_payments(req)?, connector_tx_id))
+            Ok(format!("{}/payments/{}/voids", self.connector_base_url_payments(req)?, connector_tx_id))
         }
         fn get_error_response_v2(
             &self,
@@ -1296,7 +1284,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)?))
+            Ok(format!("{}/payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -1335,7 +1323,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}tokens", self.connector_base_url_payments(req)?))
+            Ok(format!("{}/tokens", self.connector_base_url_payments(req)?))
         }
     }
 );
@@ -1367,7 +1355,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}disputes/{}/accept",
+                "{}/disputes/{}/accept",
                 self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
@@ -1403,7 +1391,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}disputes/{}/evidence",
+                "{}/disputes/{}/evidence",
                 self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
@@ -1441,7 +1429,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}disputes/{}/evidence",
+                "{}/disputes/{}/evidence",
                 self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
