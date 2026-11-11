@@ -1160,7 +1160,7 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
         // `connector_transaction_id` (revPAY only mints Transaction_ID in its
         // Payment response, and the inquiry cannot be keyed by it) and NEVER
         // fall back to a default — an empty reference resolves nothing and
-        // the payment would be mis-reported as not found. Ensure the original
+        // the payment would be miss-reported as not found. Ensure the original
         // payment carried connector_request_reference_id before syncing.
         let reference_number = item
             .resource_common_data
@@ -1865,9 +1865,9 @@ pub struct RevpayWebhookBody {
     pub bank_reference_number: Option<String>,
     /// The exact 2-decimal wire string — signed verbatim, never reformatted.
     #[serde(rename = "Amount")]
-    pub amount: String,
+    pub amount: RevpayAmount,
     #[serde(rename = "Currency")]
-    pub currency: String,
+    pub currency: Currency,
     #[serde(
         rename = "Transaction_Description",
         skip_serializing_if = "Option::is_none"
@@ -1905,6 +1905,13 @@ impl RevpayWebhookBody {
         if self.key_index.trim() != auth.key_index.peek().trim() {
             return false;
         }
+        // Form notifications must retain the signed amount text exactly.
+        // A numeric amount has lost its original representation and cannot
+        // safely be reconstructed for signature verification.
+        let RevpayAmount::Text(amount) = &self.amount else {
+            return false;
+        };
+        let currency = self.currency.to_string();
         let expected = generate_revpay_signature(
             auth.merchant_key.peek(),
             &[
@@ -1912,8 +1919,8 @@ impl RevpayWebhookBody {
                 &self.transaction_id,
                 self.response_code.as_str(),
                 &self.reference_number,
-                &self.amount,
-                &self.currency,
+                amount,
+                &currency,
             ],
         );
         expected == self.signature.trim().to_lowercase()

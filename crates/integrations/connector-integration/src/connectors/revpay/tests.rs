@@ -444,8 +444,8 @@ fn webhook_body_parses_form_encoded() {
     assert_eq!(body.payment_id, Some(2));
     assert_eq!(body.transaction_id, "RT000000007222");
     assert_eq!(body.reference_number, "RF201774111");
-    assert_eq!(body.amount, "52.40");
-    assert_eq!(body.currency, "MYR");
+    assert_eq!(body.amount, RevpayAmount::Text("52.40".into()));
+    assert_eq!(body.currency, Currency::MYR);
     assert_eq!(body.response_code, RevpayResponseCode::Success);
     assert_eq!(body.error_description, Some(String::new()));
     assert_eq!(body.key_index, "1");
@@ -488,8 +488,8 @@ fn webhook_event_and_status_mapping_follows_response_code() {
         transaction_id: "RT000000007222".to_string(),
         reference_number: "RF201774111".to_string(),
         bank_reference_number: None,
-        amount: "52.40".to_string(),
-        currency: "MYR".to_string(),
+        amount: RevpayAmount::Text("52.40".to_string()),
+        currency: Currency::MYR,
         transaction_description: None,
         fraud_score: None,
         response_code: serde_json::from_str::<RevpayResponseCode>(&format!("\"{code}\""))
@@ -559,4 +559,24 @@ fn response_code_deserializes_known_and_unknown_codes() {
         serde_json::from_str::<RevpayResponseCode>("\"1A\"").expect("1A parses"),
         RevpayResponseCode::Unknown("1A".to_string())
     );
+}
+
+#[test]
+fn webhook_typed_amount_preserves_signed_text() {
+    let body: RevpayWebhookBody =
+        serde_urlencoded::from_str(&webhook_form_body("52.4", "1", WEBHOOK_DOC_SIGNATURE))
+            .expect("webhook parses");
+    assert_eq!(body.amount, RevpayAmount::Text("52.4".into()));
+    // Same numeric value, different signed bytes: never normalize to 52.40.
+    assert!(!body.verifies_against(&webhook_auth()));
+    let mut numeric = body;
+    numeric.amount = RevpayAmount::Number(52.4);
+    assert!(!numeric.verifies_against(&webhook_auth()));
+}
+
+#[test]
+fn webhook_rejects_unknown_currency() {
+    let form = webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE)
+        .replace("Currency=MYR", "Currency=INVALID");
+    assert!(serde_urlencoded::from_str::<RevpayWebhookBody>(&form).is_err());
 }

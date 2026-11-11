@@ -32,17 +32,12 @@ macro_rules! http_handler {
                 grpc_request.extensions_mut().insert(tracker);
             }
             transfer_config_to_grpc_request(&config, &mut grpc_request);
-            let grpc_metadata = http_headers_to_grpc_metadata(&headers).map_err(|status| {
-                tracing::error!(
-                    error = %status.message(),
-                    "invalid request headers — returning 400"
-                );
-                HttpError {
+            let grpc_metadata =
+                http_headers_to_grpc_metadata(&headers).map_err(|status| HttpError {
                     status: StatusCode::BAD_REQUEST,
                     message: status.message().to_string(),
                     details: None,
-                }
-            })?;
+                })?;
             *grpc_request.metadata_mut() = grpc_metadata;
             let grpc_response = state.$service_field.$service_method(grpc_request).await?;
             Ok(Json(grpc_response.into_inner()))
