@@ -387,7 +387,7 @@ impl TryFrom<ResponseRouterData<RapydPSyncResponse, Self>>
 
     fn try_from(item: ResponseRouterData<RapydPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let RapydPSyncResponse(response) = item.response;
-        let is_zero_setup = item.router_data.request.amount.amount == MinorUnit::zero()
+        let is_zero_setup = item.router_data.request.money.amount() == MinorUnit::zero()
             && item.router_data.request.is_mandate_payment()
             && response
                 .data
@@ -803,11 +803,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "rapyd authorize",
-                    &item.router_data.request.amount.amount,
+                    &item.router_data.request.money.amount(),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1059,8 +1059,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                             transaction_amount: item
                                                 .router_data
                                                 .request
-                                                .amount
-                                                .amount,
+                                                .money.amount(),
                                             payment_data_type:
                                                 RapydApplePayPaymentDataType::ThreeDSecure,
                                             payment_data: RapydApplePayCryptogram {
@@ -1393,11 +1392,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount_to_capture)
+            .convert(&item.router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "rapyd capture",
-                    &item.router_data.request.amount_to_capture.amount,
+                    &item.router_data.request.capture_money.amount(),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1428,11 +1427,11 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "rapyd refund",
-                    &item.router_data.request.refund_amount.amount,
+                    &item.router_data.request.refund_money.amount(),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1558,7 +1557,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -1729,7 +1728,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: utils::integration_ctx(
                     "The payment amount could not be encoded",
@@ -1911,7 +1910,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // defaulting here would charge an arbitrary value in the caller's
         // currency (e.g. ¥100 vs $1.00). Require the caller to pass an
         // explicit verification amount.
-        let minor_amount = request.amount.as_ref().map(|money| money.amount).ok_or(
+        let minor_amount = request.money.as_ref().map(|money| money.amount()).ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "minor_amount",
                 context: utils::integration_ctx(
@@ -2149,16 +2148,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let request = &router_data.request;
 
-        let amount = if request.amount.amount == MinorUnit::zero() {
+        let amount = if request.money.amount().get_amount_as_i64() == 0 {
             StringMajorUnit::zero()
         } else {
             item.connector
                 .amount_converter
-                .convert(&request.amount)
+                .convert(&request.money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: utils::amount_conversion_ctx(
                         "rapyd repeat payment",
-                        &request.amount.amount,
+                        &request.money.amount(),
                         &request.currency,
                     ),
                 })?

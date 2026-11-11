@@ -605,7 +605,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         |status| *status == common_enums::TransactionStatus::Success,
                     )
                 });
-                let amount = item.router_data.request.amount.clone();
+                let amount = item.router_data.request.money.clone();
                 let ecommerce_indicator = Some(derive_ecommerce_indicator(
                     item.router_data.request.payment_channel.as_ref(),
                     item.router_data.request.mit_category.as_ref(),
@@ -869,10 +869,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 };
 
-                let amount = Money {
-                    amount: item.router_data.request.amount.amount,
-                    currency: item.router_data.request.currency,
-                };
+                let amount = item.router_data.request.money.clone();
 
                 Ok(Self {
                     idempotency_key,
@@ -1070,9 +1067,9 @@ impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
             MonerisPaymentStatus::Succeeded => {
-                let captured = item.router_data.request.amount_to_capture.amount;
-                match item.router_data.resource_common_data.amount_capturable {
-                    Some(ref authorized) if captured < authorized.amount => {
+                let captured = item.router_data.request.capture_money.amount();
+                match item.router_data.resource_common_data.capturable_money {
+                    Some(ref authorized) if captured < authorized.amount() => {
                         common_enums::AttemptStatus::PartialCharged
                     }
                     _ => common_enums::AttemptStatus::Charged,
@@ -1144,7 +1141,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
         );
         let amount = request
-            .additional_amount
+            .additional_money
             .as_ref()
             .ok_or_else(|| {
                 IntegrationError::MissingRequiredField {
@@ -1287,10 +1284,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         issuer_id: None,
                     }),
                 });
-                let amount = Money {
-                    amount: item.router_data.request.amount.amount,
-                    currency: item.router_data.request.currency,
-                };
+                let amount = item.router_data.request.money.clone();
                 Ok(Self {
                     idempotency_key,
                     amount,
@@ -1344,10 +1338,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = Money {
-            currency: item.router_data.request.currency,
-            amount: item.router_data.request.amount_to_capture.amount,
-        };
+        let amount = item.router_data.request.capture_money.clone();
         let idempotency_key = format!(
             "capture_{}",
             item.router_data
@@ -1397,7 +1388,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisRefundRequest {
     pub refund_amount: Money,
@@ -1421,10 +1412,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let refund_amount = Money {
-            currency: item.router_data.request.currency,
-            amount: item.router_data.request.refund_amount.amount,
-        };
+        let refund_amount = item.router_data.request.refund_money.clone();
         let idempotency_key = format!(
             "refund_{}",
             item.router_data
@@ -2185,7 +2173,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let billing_address = build_moneris_billing_address(resource)?;
         let shipping_address = build_moneris_shipping_address(resource)?;
 
-        let amount = req.amount.clone();
+        let amount = req.money.clone();
 
         let idempotency_key = format!("pre_auth_{}", resource.connector_request_reference_id);
 

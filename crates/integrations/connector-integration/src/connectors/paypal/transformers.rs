@@ -137,7 +137,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let value = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -148,16 +148,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let shipping_value = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item
+            .convert(
+                &item
                     .router_data
                     .request
-                    .shipping_cost
-                    .as_ref()
-                    .map(|money| money.amount)
-                    .unwrap_or(MinorUnit::zero()),
-                currency: item.router_data.request.currency,
-            })
+                    .get_shipping_money()
+                    .clone()
+                    .unwrap_or_else(|| {
+                        common_utils::types::Money::zero(item.router_data.request.currency)
+                    }),
+            )
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -208,23 +208,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let value = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
         let shipping_value = item
             .connector
             .amount_converter
-            .convert(&common_utils::types::Money {
-                amount: item
+            .convert(
+                &item
                     .router_data
                     .request
-                    .shipping_cost
-                    .as_ref()
-                    .map(|money| money.amount)
-                    .unwrap_or(MinorUnit::zero()),
-                currency: item.router_data.request.currency,
-            })
+                    .get_shipping_money()
+                    .clone()
+                    .unwrap_or_else(|| {
+                        common_utils::types::Money::zero(item.router_data.request.currency)
+                    }),
+            )
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -306,7 +306,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let value = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -356,7 +356,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let value = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -855,7 +855,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let value = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1563,7 +1563,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let amount_value = item
                         .connector
                         .amount_converter
-                        .convert(&item.router_data.request.amount)
+                        .convert(&item.router_data.request.money)
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?;
@@ -2920,7 +2920,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let value = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount_to_capture)
+            .convert(&item.router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -3019,17 +3019,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | common_enums::AttemptStatus::VoidPostCaptureInitiated
             | common_enums::AttemptStatus::Expired
             | common_enums::AttemptStatus::Unknown
-            | common_enums::AttemptStatus::PartiallyAuthorized => {
-                Some(common_utils::types::Money {
-                    amount: MinorUnit::zero(),
-                    currency: item.router_data.request.currency,
-                })
-            }
+            | common_enums::AttemptStatus::PartiallyAuthorized => Some(
+                utils::convert_back_amount_to_money(
+                    &common_utils::types::MinorUnitForConnector,
+                    MinorUnit::zero(),
+                    item.router_data.request.currency,
+                )
+                .map_err(|_| {
+                    crate::utils::response_deserialization_fail(
+                        item.http_code,
+                        "paypal: failed to convert captured amount",
+                    )
+                })?,
+            ),
             common_enums::AttemptStatus::Charged
             | common_enums::AttemptStatus::PartialCharged
             | common_enums::AttemptStatus::PartialChargedAndChargeable
             | common_enums::AttemptStatus::IntegrityFailure => {
-                Some(item.router_data.request.amount_to_capture.clone())
+                Some(item.router_data.request.capture_money.clone())
             }
         };
         let connector_payment_id: PaypalMeta = match to_connector_meta(
@@ -3060,7 +3067,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
+                captured_money: amount_captured,
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -3477,7 +3484,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let value = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -4247,7 +4254,7 @@ impl TryFrom<ResponseRouterData<PaypalClientAuthTokenResponse, Self>>
                 transaction_info: Some(PaypalTransactionInfoDomain {
                     flow: PaypalFlowDomain::Checkout,
                     currency_code: item.router_data.request.currency,
-                    total_price: item.router_data.request.amount.amount,
+                    total_price: item.router_data.request.money.amount(),
                 }),
             },
         ));
