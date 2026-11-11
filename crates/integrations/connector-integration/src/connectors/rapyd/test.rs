@@ -26,6 +26,523 @@ type AuthorizeData = RouterDataV2<
 >;
 type TestResult = Result<(), Box<dyn Error>>;
 
+#[test]
+fn payment_webhook_returns_payment_state_and_preserves_routing() -> TestResult {
+    use domain_types::connector_types::{EventType, ResponseId, WebhookResourceReference};
+    use interfaces::connector_types::IncomingWebhook;
+
+    let connector = Rapyd::<DefaultPCIHolder>::new();
+    let body = json!({
+        "type": "PAYMENT_COMPLETED",
+        "data": {
+            "id": "payment_test", "amount": 26.49, "currency_code": "USD",
+            "status": "CLO", "next_action": "not_applicable",
+            "merchant_reference_id": "attempt_test", "captured": true
+        }
+    });
+    let request = webhook_request(serde_json::to_vec(&body)?);
+    if connector.get_event_type(request.clone())? != EventType::PaymentIntentSuccess {
+        return Err("expected a successful payment event".into());
+    }
+    let Some(WebhookResourceReference::Payment(reference)) =
+        connector.get_webhook_event_reference(request.clone())?
+    else {
+        return Err("expected payment reference".into());
+    };
+    if reference.connector_transaction_id.as_deref() != Some("payment_test") {
+        return Err("payment reference does not contain the provider payment ID".into());
+    }
+    if reference.merchant_transaction_id.is_some() {
+        return Err("payment reference unexpectedly changes merchant routing".into());
+    }
+    let response = connector.process_payment_webhook(request, None, None, None)?;
+    let Some(ResponseId::ConnectorTransactionId(id)) = response.resource_id else {
+        return Err("expected payment ID".into());
+    };
+    if id != "payment_test" {
+        return Err(format!("unexpected payment ID: {id}").into());
+    }
+    if response.status != common_enums::AttemptStatus::Charged {
+        return Err(format!("unexpected payment status: {:?}", response.status).into());
+    }
+    if response.connector_request_reference_id.as_deref() != Some("attempt_test") {
+        return Err("merchant payment reference was not preserved".into());
+    }
+    let amount = response.amount.ok_or("missing amount")?;
+    if amount.amount().get_amount_as_i64() != 2649 {
+        return Err("payment amount was not converted to minor units".into());
+    }
+    Ok(())
+}
+
+fn webhook_request(body: Vec<u8>) -> domain_types::connector_types::RequestDetails {
+    domain_types::connector_types::RequestDetails {
+        method: domain_types::connector_types::HttpMethod::Post,
+        uri: Some("/webhooks/merchant/rapyd/mca_test?x=a%2Fb&z=1".to_string()),
+        headers: [
+            ("Host", "hooks.example.com"),
+            ("Salt", "test_salt"),
+            ("Timestamp", "1700000000"),
+            ("Signature", "MDg0MGEyNDc2ZWMzNDM4MzZhNDgzMTRhMmJhNjNiMjExNzE3N2FmMDAwNzg1MGRkY2E2MzQyY2I3NWFlN2Q4NQ=="),
+        ]
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .into(),
+        body,
+        query_params: Some("x=a%2Fb&z=1".to_string()),
+    }
+}
+
+fn webhook_secrets() -> domain_types::connector_types::ConnectorWebhookSecrets {
+    domain_types::connector_types::ConnectorWebhookSecrets {
+        secret: br#"{"access_key":"test_access","secret_key":"test_secret"}"#.to_vec(),
+        additional_secret: None,
+    }
+}
+
+#[test]
+fn refund_webhooks_keep_the_refund_and_parent_payment_distinct() -> TestResult {
+    use domain_types::connector_types::{EventType, WebhookResourceReference};
+    use interfaces::connector_types::IncomingWebhook;
+
+    let connector = Rapyd::<DefaultPCIHolder>::new();
+    for (event, expected_event, expected_status) in [
+        (
+            "REFUND_COMPLETED",
+            EventType::RefundSuccess,
+            common_enums::RefundStatus::Success,
+        ),
+        (
+            "PAYMENT_REFUND_REJECTED",
+            EventType::RefundFailure,
+            common_enums::RefundStatus::Failure,
+        ),
+        (
+            "PAYMENT_REFUND_FAILED",
+            EventType::RefundFailure,
+            common_enums::RefundStatus::Failure,
+        ),
+    ] {
+        let request = webhook_request(serde_json::to_vec(&json!({
+            "type": event,
+            "data": {"id": "refund_test", "payment": "payment_test", "amount": 26.49,
+                "currency": "USD", "status": "PENDING", "failure_reason": "declined"}
+        }))?);
+        if connector.get_event_type(request.clone())? != expected_event {
+            return Err(format!("unexpected refund event type for {event}").into());
+        }
+        let Some(WebhookResourceReference::Refund(reference)) =
+            connector.get_webhook_event_reference(request.clone())?
+        else {
+            return Err("expected refund reference".into());
+        };
+        if reference.connector_refund_id.as_deref() != Some("refund_test") {
+            return Err("refund reference does not contain the provider refund ID".into());
+        }
+        if reference.connector_transaction_id.as_deref() != Some("payment_test") {
+            return Err("refund reference does not contain the parent payment ID".into());
+        }
+        let response = connector.process_refund_webhook(request, None, None)?;
+        if response.connector_refund_id.as_deref() != Some("refund_test") {
+            return Err("refund response does not contain the provider refund ID".into());
+        }
+        if response.status != expected_status {
+            return Err(format!(
+                "unexpected refund status for {event}: {:?}",
+                response.status
+            )
+            .into());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn webhook_signature_authenticates_the_exact_callback_and_body() -> TestResult {
+    use interfaces::connector_types::IncomingWebhook;
+
+    let connector = Rapyd::<DefaultPCIHolder>::new();
+    let request = webhook_request(
+        " {\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_test\"},\"note\":\"café\"}\n"
+            .as_bytes()
+            .to_vec(),
+    );
+    if !connector.verify_webhook_source(request.clone(), Some(webhook_secrets()), None)? {
+        return Err("valid signature was not verified".into());
+    }
+
+    let mut absolute = request.clone();
+    absolute.uri = Some(format!(
+        "https://hooks.example.com{}",
+        absolute.uri.as_deref().ok_or("missing URI")?
+    ));
+    absolute.headers.remove("Host");
+    if !connector.verify_webhook_source(absolute, Some(webhook_secrets()), None)? {
+        return Err("signature for the absolute callback URL was not verified".into());
+    }
+
+    let mut separate_query = request.clone();
+    separate_query.uri = Some("/webhooks/merchant/rapyd/mca_test".to_string());
+    if !connector.verify_webhook_source(separate_query, Some(webhook_secrets()), None)? {
+        return Err("signature with separate query parameters was not verified".into());
+    }
+
+    let mut changed_url = request.clone();
+    changed_url.uri = Some("/webhooks/merchant/rapyd/another_account?x=a%2Fb&z=1".to_string());
+    if connector.verify_webhook_source(changed_url, Some(webhook_secrets()), None)? {
+        return Err("signature verified after the callback URL changed".into());
+    }
+
+    let mut changed = request;
+    changed.body.pop();
+    if connector.verify_webhook_source(changed, Some(webhook_secrets()), None)? {
+        return Err("signature verified after the raw body changed".into());
+    }
+    Ok(())
+}
+
+#[test]
+fn webhook_verification_rejects_missing_or_invalid_inputs() -> TestResult {
+    use interfaces::connector_types::IncomingWebhook;
+    let connector = Rapyd::<DefaultPCIHolder>::new();
+    let request = webhook_request(b"{}".to_vec());
+    if connector
+        .verify_webhook_source(request.clone(), None, None)
+        .is_ok()
+    {
+        return Err("missing webhook secret was accepted".into());
+    }
+    for key in ["Host", "Salt", "Timestamp", "Signature"] {
+        let mut missing = request.clone();
+        missing.headers.remove(key);
+        if connector
+            .verify_webhook_source(missing, Some(webhook_secrets()), None)
+            .is_ok()
+        {
+            return Err(format!("missing {key} header was accepted").into());
+        }
+    }
+    for signature in ["not base64", "bm90IGhleA=="] {
+        let mut invalid = request.clone();
+        invalid
+            .headers
+            .insert("Signature".to_string(), signature.to_string());
+        if connector
+            .verify_webhook_source(invalid, Some(webhook_secrets()), None)
+            .is_ok()
+        {
+            return Err("malformed signature was accepted".into());
+        }
+    }
+    for secret in [
+        b"not json".as_slice(),
+        br#"{"access_key":"","secret_key":"test_secret"}"#,
+    ] {
+        let mut secrets = webhook_secrets();
+        secrets.secret = secret.to_vec();
+        if connector
+            .verify_webhook_source(request.clone(), Some(secrets), None)
+            .is_ok()
+        {
+            return Err("invalid webhook secret was accepted".into());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn dispute_webhooks_use_the_token_and_currency_precision() -> TestResult {
+    use domain_types::connector_types::{EventType, WebhookResourceReference};
+    use interfaces::connector_types::IncomingWebhook;
+
+    let connector = Rapyd::<DefaultPCIHolder>::new();
+    for (event, status, expected_event, expected_status) in [
+        (
+            "PAYMENT_DISPUTE_CREATED",
+            "ACT",
+            EventType::DisputeOpened,
+            common_enums::DisputeStatus::DisputeOpened,
+        ),
+        (
+            "PAYMENT_DISPUTE_UPDATED",
+            "RVW",
+            EventType::DisputeChallenged,
+            common_enums::DisputeStatus::DisputeChallenged,
+        ),
+        (
+            "PAYMENT_DISPUTE_UPDATED",
+            "LOS",
+            EventType::DisputeLost,
+            common_enums::DisputeStatus::DisputeLost,
+        ),
+        (
+            "PAYMENT_DISPUTE_UPDATED",
+            "WIN",
+            EventType::DisputeWon,
+            common_enums::DisputeStatus::DisputeWon,
+        ),
+    ] {
+        for (currency, amount, expected_amount) in [
+            ("USD", 26.49, "2649"),
+            ("JPY", 26.0, "26"),
+            ("BHD", 26.491, "26491"),
+        ] {
+            let request = webhook_request(serde_json::to_vec(&json!({
+                "type": event,
+                "data": {"id": "reserved_id", "token": "dispute_test", "original_transaction_id": "payment_test",
+                    "status": status, "amount": amount, "currency": currency,
+                    "dispute_reason_description": "service not provided", "created_at": 1700000000}
+            }))?);
+            if connector.get_event_type(request.clone())? != expected_event {
+                return Err(format!("unexpected dispute event type for {event}/{status}").into());
+            }
+            let Some(WebhookResourceReference::Dispute(reference)) =
+                connector.get_webhook_event_reference(request.clone())?
+            else {
+                return Err("expected dispute reference".into());
+            };
+            if reference.connector_dispute_id.as_deref() != Some("dispute_test") {
+                return Err("dispute reference does not use the dispute token".into());
+            }
+            if reference.connector_transaction_id.as_deref() != Some("payment_test") {
+                return Err("dispute reference does not contain the parent payment ID".into());
+            }
+            let response = connector.process_dispute_webhook(request, None, None)?;
+            if response.dispute_id != "dispute_test" {
+                return Err("dispute response does not use the dispute token".into());
+            }
+            if response.status != expected_status {
+                return Err(format!("unexpected dispute status for {event}/{status}").into());
+            }
+            if serde_json::to_value(response.amount)? != json!(expected_amount) {
+                return Err(format!("incorrect dispute amount for {currency}").into());
+            }
+            if response.dispute_message.as_deref() != Some("service not provided") {
+                return Err("dispute reason description was not preserved".into());
+            }
+            if response.connector_reason_code.is_some() {
+                return Err("dispute description was incorrectly used as a reason code".into());
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn payment_webhooks_preserve_authorization_and_failure_details() -> TestResult {
+    use domain_types::connector_types::EventType;
+    use interfaces::connector_types::IncomingWebhook;
+
+    let connector = Rapyd::<DefaultPCIHolder>::new();
+    for (event, status, next_action, expected_event, expected_status) in [
+        (
+            "PAYMENT_CAPTURED",
+            "CLO",
+            "not_applicable",
+            EventType::PaymentIntentSuccess,
+            common_enums::AttemptStatus::Charged,
+        ),
+        (
+            "PAYMENT_COMPLETED",
+            "ACT",
+            "pending_capture",
+            EventType::PaymentIntentSuccess,
+            common_enums::AttemptStatus::Authorized,
+        ),
+        (
+            "PAYMENT_FAILED",
+            "ERR",
+            "not_applicable",
+            EventType::PaymentIntentFailure,
+            common_enums::AttemptStatus::Failure,
+        ),
+    ] {
+        let request = webhook_request(serde_json::to_vec(&json!({
+            "type": event, "data": {"id": "payment_test", "amount": 10,
+                "currency_code": "USD", "status": status, "next_action": next_action,
+                "failure_code": "DECLINED", "failure_message": "issuer declined",
+                "payment_method": "card_saved", "payment_method_data": {"network_reference_id": "network_test"}}
+        }))?);
+        if connector.get_event_type(request.clone())? != expected_event {
+            return Err(format!("unexpected payment event type for {event}").into());
+        }
+        let response = connector.process_payment_webhook(request, None, None, None)?;
+        if response.status != expected_status {
+            return Err(format!(
+                "unexpected payment status for {event}: {:?}",
+                response.status
+            )
+            .into());
+        }
+        if response.error_code.as_deref() != (status == "ERR").then_some("DECLINED") {
+            return Err(format!("incorrect payment error code for {event}").into());
+        }
+        if response.network_txn_id.as_deref() != Some("network_test") {
+            return Err("network transaction reference was not preserved".into());
+        }
+        if response
+            .mandate_reference
+            .and_then(|reference| reference.connector_mandate_id)
+            .as_deref()
+            != Some("card_saved")
+        {
+            return Err("saved payment method was not preserved".into());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn unsupported_and_malformed_webhooks_do_not_produce_payment_updates() -> TestResult {
+    use domain_types::connector_types::EventType;
+    use interfaces::connector_types::IncomingWebhook;
+
+    let connector = Rapyd::<DefaultPCIHolder>::new();
+    for body in [
+        json!({"type": "FUTURE_EVENT", "data": {"id": "unrelated"}}),
+        json!({"type": "FUTURE_EVENT", "data": [1, 2, 3]}),
+    ] {
+        let request = webhook_request(serde_json::to_vec(&body)?);
+        if connector.get_event_type(request.clone())? != EventType::IncomingWebhookEventUnspecified
+        {
+            return Err("unknown webhook was assigned a supported event type".into());
+        }
+        if connector
+            .get_webhook_event_reference(request.clone())?
+            .is_some()
+        {
+            return Err("unknown webhook was assigned a payment reference".into());
+        }
+        if connector
+            .process_payment_webhook(request, None, None, None)
+            .is_ok()
+        {
+            return Err("unknown webhook produced a payment update".into());
+        }
+    }
+    for body in [b"not json".as_slice(), br#"{"data":{}}"#] {
+        if connector
+            .get_event_type(webhook_request(body.to_vec()))
+            .is_ok()
+        {
+            return Err("malformed webhook was accepted".into());
+        }
+    }
+    for event in [
+        "PAYMENT_COMPLETED",
+        "REFUND_COMPLETED",
+        "PAYMENT_DISPUTE_UPDATED",
+    ] {
+        let request = webhook_request(serde_json::to_vec(&json!({"type":event,"data":{}}))?);
+        if connector.get_webhook_event_reference(request).is_ok() {
+            return Err(format!("malformed {event} payload was accepted").into());
+        }
+    }
+    let unknown_dispute = webhook_request(serde_json::to_vec(&json!({
+        "type": "PAYMENT_DISPUTE_UPDATED", "data": {
+            "token": "dispute_test", "original_transaction_id": "payment_test",
+            "status": "FUTURE_STATUS", "amount": 10, "currency": "USD",
+            "dispute_reason_description": "unknown state"
+        }
+    }))?);
+    if connector.get_event_type(unknown_dispute.clone())?
+        != EventType::IncomingWebhookEventUnspecified
+    {
+        return Err("unknown dispute status was assigned a supported event type".into());
+    }
+    if connector
+        .process_dispute_webhook(unknown_dispute, None, None)
+        .is_ok()
+    {
+        return Err("unknown dispute status produced a dispute update".into());
+    }
+    Ok(())
+}
+
+#[test]
+fn webhook_dispatch_returns_the_correct_public_response() -> TestResult {
+    use crate::{types::ConnectorData, webhook_utils};
+    use domain_types::connector_types::ConnectorEnum;
+    use grpc::event_content::Content;
+
+    for body in [
+        json!({"type":"PAYMENT_COMPLETED", "data":{"id":"payment_test", "amount":26.49,
+            "currency_code":"USD", "status":"CLO", "next_action":"not_applicable", "merchant_reference_id":"attempt_test"}}),
+        json!({"type":"REFUND_COMPLETED", "data":{"id":"refund_test", "payment":"payment_test",
+            "amount":26.49, "currency":"USD", "status":"COMPLETED"}}),
+        json!({"type":"PAYMENT_DISPUTE_CREATED", "data":{"token":"dispute_test", "original_transaction_id":"payment_test",
+            "amount":26.49, "currency":"USD", "status":"ACT", "dispute_reason_description":"service not provided"}}),
+    ] {
+        let connector_data =
+            ConnectorData::<DefaultPCIHolder>::get_connector_by_name(&ConnectorEnum::Rapyd);
+        let request = webhook_request(serde_json::to_vec(&body)?);
+        let parsed = webhook_utils::parse_webhook_event(connector_data.clone(), request.clone())?;
+        if parsed.reference.is_none() {
+            return Err("parsed webhook has no resource reference".into());
+        }
+        let response = webhook_utils::process_webhook_event(
+            connector_data,
+            request,
+            None,
+            None,
+            true,
+            None,
+            None,
+        )?;
+        if parsed.event_type != Some(response.event_type) {
+            return Err("parsed and processed webhook event types differ".into());
+        }
+        if !response.source_verified {
+            return Err("source verification result was not preserved".into());
+        }
+        if response
+            .event_ack_response
+            .ok_or("missing acknowledgment")?
+            .status_code
+            != 200
+        {
+            return Err("webhook acknowledgment does not return HTTP 200".into());
+        }
+        match response
+            .event_content
+            .and_then(|content| content.content)
+            .ok_or("missing event content")?
+        {
+            Content::PaymentsResponse(payment) => {
+                if body.get("type") != Some(&json!("PAYMENT_COMPLETED")) {
+                    return Err("non-payment webhook produced payment content".into());
+                }
+                if payment.connector_transaction_id != "payment_test" {
+                    return Err("public payment response has an incorrect payment ID".into());
+                }
+                if payment.merchant_transaction_id.as_deref() != Some("attempt_test") {
+                    return Err("public payment response loses the merchant reference".into());
+                }
+                if payment.amount.ok_or("missing payment amount")?.minor_amount != 2649 {
+                    return Err("public payment response has an incorrect minor amount".into());
+                }
+            }
+            Content::RefundsResponse(refund) => {
+                if body.get("type") != Some(&json!("REFUND_COMPLETED")) {
+                    return Err("non-refund webhook produced refund content".into());
+                }
+                if refund.connector_refund_id != "refund_test" {
+                    return Err("public refund response has an incorrect refund ID".into());
+                }
+            }
+            Content::DisputesResponse(dispute) => {
+                if body.get("type") != Some(&json!("PAYMENT_DISPUTE_CREATED")) {
+                    return Err("non-dispute webhook produced dispute content".into());
+                }
+                if dispute.connector_dispute_id.as_deref() != Some("dispute_test") {
+                    return Err("public dispute response has an incorrect dispute ID".into());
+                }
+            }
+            _ => return Err("unexpected webhook content".into()),
+        }
+    }
+    Ok(())
+}
+
 fn card_request() -> Result<grpc::PaymentServiceAuthorizeRequest, Box<dyn Error>> {
     Ok(grpc::PaymentServiceAuthorizeRequest {
         merchant_transaction_id: Some("rapyd_request_test".to_string()),
