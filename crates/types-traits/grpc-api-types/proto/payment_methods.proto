@@ -114,8 +114,8 @@ message PaymentMethod {
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
     NetellerRedirectWallet neteller_redirect = 188;      // Neteller
     PayhereRedirectWallet payhere_redirect = 189;        // PayHere redirect wallet
-    BoostRedirectWallet boost_redirect = 190;            // Axiata Boost
-    AliPayPlusRedirectWallet ali_pay_plus_redirect = 191; // Alipay+ hosted checkout
+    BoostRedirectWallet boost_redirect = 194;            // Axiata Boost
+    AliPayPlusRedirectWallet ali_pay_plus_redirect = 195; // Alipay+ hosted checkout
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
