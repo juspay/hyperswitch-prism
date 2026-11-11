@@ -1538,12 +1538,23 @@ pub fn build_three_d_secure_data(
         return Ok(None);
     };
 
+    // Moneris Create Authentication returns its own resource ID in transaction_id, along with
+    // ECI and cryptogram fields. Only pass transaction_id as a Moneris authentication ID when it
+    // matches Moneris' resource ID format; otherwise it may be a HyperSwitch transaction ID.
+    if let Some(authentication_id) = auth
+        .transaction_id
+        .as_deref()
+        .filter(|id| is_moneris_resource_id(id))
+    {
+        return Ok(Some(MonerisThreeDSecureData::AuthenticationId(
+            MonerisThreeDSecureAuthenticationId {
+                three_d_secure_authentication_id: authentication_id.to_string(),
+            },
+        )));
+    }
+
     if !auth.has_external_authentication() {
-        return Ok(auth.transaction_id.as_ref().map(|auth_id| {
-            MonerisThreeDSecureData::AuthenticationId(MonerisThreeDSecureAuthenticationId {
-                three_d_secure_authentication_id: auth_id.clone(),
-            })
-        }));
+        return Ok(None);
     }
     let directory_server_transaction_id = auth.ds_trans_id.clone().ok_or(
         IntegrationError::MissingRequiredField {
@@ -1575,6 +1586,20 @@ pub fn build_three_d_secure_data(
             three_d_secure_directory_server_transaction_id: directory_server_transaction_id,
         },
     )))
+}
+
+fn is_moneris_resource_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 30
+        && bytes
+            .get(..2)
+            .is_some_and(|prefix| prefix.iter().all(u8::is_ascii_alphabetic))
+        && bytes
+            .get(2..4)
+            .is_some_and(|digits| digits.iter().all(u8::is_ascii_digit))
+        && bytes
+            .get(4..)
+            .is_some_and(|suffix| suffix.iter().all(u8::is_ascii_alphanumeric))
 }
 
 // ---- 3DS Enums ----
@@ -1666,21 +1691,6 @@ pub enum MonerisThreeDSecureTransactionStatus {
 }
 
 impl MonerisThreeDSecureTransactionStatus {
-    fn as_api_value(&self) -> &'static str {
-        match self {
-            Self::Authenticated => "AUTHENTICATED",
-            Self::AuthenticationAttempted => "AUTHENTICATION_ATTEMPTED",
-            Self::ChallengeAuthenticationRequired => "CHALLENGE_AUTHENTICATION_REQUIRED",
-            Self::ChallengeDecoupledAuthenticationConfirmed => {
-                "CHALLENGE_DECOUPLED_AUTHENTICATION_CONFIRMED"
-            }
-            Self::TechnicalIssue => "TECHNICAL_ISSUE",
-            Self::NotAuthenticated => "NOT_AUTHENTICATED",
-            Self::Rejected => "REJECTED",
-            Self::ChallengePreferenceAcknowledged => "CHALLENGE_PREFERENCE_ACKNOWLEDGED",
-        }
-    }
-
     fn to_transaction_status(&self) -> common_enums::TransactionStatus {
         match self {
             Self::Authenticated => common_enums::TransactionStatus::Success,
@@ -1851,8 +1861,10 @@ fn invalid_moneris_street_address(
     IntegrationError::InvalidDataFormat {
         field_name,
         context: utils::integration_ctx(
-            "Moneris Create Authentication requires a non-empty street address line.",
-            format!("Provide a non-empty {address_type} address line1."),
+            "Moneris Create Authentication requires a street number and street name.",
+            format!(
+                "Provide {address_type} address line1 with a street number followed by a street name."
+            ),
         ),
     }
 }
@@ -1879,15 +1891,13 @@ fn split_moneris_street_address(
                 && !street_name.is_empty()
         });
 
-    let (street_number, street_name) = match street_parts {
-        Some((street_number, street_name)) => (
-            street_number.trim_end_matches(',').to_string(),
-            street_name.to_string(),
-        ),
-        None => (String::new(), street_line.to_string()),
-    };
+    let (street_number, street_name) =
+        street_parts.ok_or_else(|| invalid_moneris_street_address(field_name, address_type))?;
 
-    Ok((Secret::new(street_number), Secret::new(street_name)))
+    Ok((
+        Secret::new(street_number.trim_end_matches(',').to_string()),
+        Secret::new(street_name.to_string()),
+    ))
 }
 
 fn build_moneris_billing_address(
@@ -2269,13 +2279,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let is_browser_channel = matches!(&device_channel, ThreeDSecureDeviceChannel::Browser);
         let three_d_secure_notification_url = req
-            .router_return_url
+            .continue_redirection_url
             .as_ref()
             .map(|url| urlencoding::encode(url.as_str()).into_owned());
         if is_browser_channel && three_d_secure_notification_url.is_none() {
             return Err(missing_moneris_three_ds_field(
-                "router_return_url",
-                "Provide a callback URL that can receive the issuer ACS cres POST.",
+                "continue_redirection_url",
+                "Provide the complete-authorize callback URL that can receive the issuer ACS cres POST.",
             )
             .into());
         }
@@ -2656,27 +2666,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        let status = match &response.three_d_secure_transaction_status {
-            MonerisThreeDSecureTransactionStatus::Authenticated
-            | MonerisThreeDSecureTransactionStatus::AuthenticationAttempted => {
-                common_enums::AttemptStatus::AuthenticationSuccessful
-            }
-            MonerisThreeDSecureTransactionStatus::NotAuthenticated
-            | MonerisThreeDSecureTransactionStatus::Rejected => {
-                common_enums::AttemptStatus::AuthenticationFailed
-            }
-            status => {
-                return Err(error_stack::report!(ConnectorError::ResponseHandlingFailed {
-                    context: ResponseTransformationErrorContext {
-                        http_status_code: Some(item.http_code),
-                        additional_context: Some(format!(
-                            "Moneris Authentication Value Lookup returned 3DS status {}. Payment authorization was stopped.",
-                            status.as_api_value()
-                        )),
-                    },
-                }));
-            }
-        };
+        let status = response
+            .three_d_secure_transaction_status
+            .to_attempt_status();
 
         let authentication_data = Some(build_moneris_authentication_data(response.into()));
 

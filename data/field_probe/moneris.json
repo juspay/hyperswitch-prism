@@ -884,6 +884,7 @@
           },
           "enrolled_for_3ds": false,
           "return_url": "https://example.com/3ds-return",
+          "continue_redirection_url": "https://example.com/3ds-complete",
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -905,7 +906,7 @@
             "x-correlation-id": "",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"pre_auth_\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"cardholderName\":\"John Doe\",\"billingAddress\":{\"streetNumber\":\"123\",\"streetName\":\"Main St\",\"city\":\"Seattle\",\"province\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"}},\"threeDSecureMessageCategory\":\"PAYMENT\",\"threeDSecureDeviceChannel\":\"THREE_D_SECURE_REQUESTOR_INITIATED\",\"threeDSecureRequestType\":\"RECURRING\",\"threeDSecureNotificationUrl\":\"https%3A%2F%2Fexample.com%2F3ds-return\",\"threeDSecureCompletionIndicator\":\"UNAVAILABLE\",\"threeDSecureChallengeRequested\":\"NO_PREFERENCE\",\"browserIpAddress\":null}"
+          "body": "{\"idempotencyKey\":\"pre_auth_\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"cardholderName\":\"John Doe\",\"billingAddress\":{\"streetNumber\":\"123\",\"streetName\":\"Main St\",\"city\":\"Seattle\",\"province\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"}},\"threeDSecureMessageCategory\":\"PAYMENT\",\"threeDSecureDeviceChannel\":\"THREE_D_SECURE_REQUESTOR_INITIATED\",\"threeDSecureRequestType\":\"RECURRING\",\"threeDSecureNotificationUrl\":\"https%3A%2F%2Fexample.com%2F3ds-complete\",\"threeDSecureCompletionIndicator\":\"UNAVAILABLE\",\"threeDSecureChallengeRequested\":\"NO_PREFERENCE\",\"browserIpAddress\":null}"
         }
       }
     },

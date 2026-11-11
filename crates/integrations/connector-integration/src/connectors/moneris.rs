@@ -359,9 +359,10 @@ macros::create_all_prerequisites!(
                     moneris::auth_headers::X_MERCHANT_ID.to_string(),
                     auth.merchant_id.expose().into_masked(),
                 ),
-                // reqwest does not set a User-Agent by default. Moneris' staging edge
-                // blocks requests without one; match the local curl control request.
-                (headers::USER_AGENT.to_string(), "curl/8.7.1".to_string().into()),
+                (
+                    headers::USER_AGENT.to_string(),
+                    "hyperswitch-prism".to_string().into(),
+                ),
             ];
             let auth_header = (
                 headers::AUTHORIZATION.to_string(),
