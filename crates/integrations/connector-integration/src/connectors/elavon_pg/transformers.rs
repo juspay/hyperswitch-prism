@@ -221,11 +221,13 @@ pub enum ElavonPgCredentialOnFileType {
 impl From<Option<common_enums::MitCategory>> for ElavonPgCredentialOnFileType {
     fn from(mit_category: Option<common_enums::MitCategory>) -> Self {
         match mit_category {
-            None | Some(common_enums::MitCategory::Recurring) => Self::Recurring,
+            Some(common_enums::MitCategory::Recurring) => Self::Recurring,
             Some(common_enums::MitCategory::Subscription) => Self::Subscription,
             Some(common_enums::MitCategory::Installment) => Self::Installment,
-            // EPG has no type for a retry, and a retry has no timetable of its own.
-            Some(
+            // With no category there is no timetable to claim. EPG has no type for a retry, and a
+            // retry has no timetable of its own.
+            None
+            | Some(
                 common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
             ) => Self::Unscheduled,
         }
