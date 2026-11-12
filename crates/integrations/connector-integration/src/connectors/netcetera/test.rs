@@ -2,7 +2,6 @@
 
 use std::{error::Error, marker::PhantomData};
 
-use common_utils::types::{MinorUnit, Money};
 use domain_types::{
     connector_flow::{Authenticate, PostAuthenticate},
     connector_types::{
@@ -140,19 +139,35 @@ fn wire_request(data: AuthRouterData) -> Result<serde_json::Value, String> {
 
 fn post_auth_data<T: PaymentMethodDataTypes>(
     config: ConnectorSpecificConfig,
-) -> RouterDataV2<
-    PostAuthenticate,
-    PaymentFlowData,
-    PaymentsPostAuthenticateData<T>,
-    PaymentsResponseData,
+) -> Result<
+    RouterDataV2<
+        PostAuthenticate,
+        PaymentFlowData,
+        PaymentsPostAuthenticateData<T>,
+        PaymentsResponseData,
+    >,
+    String,
 > {
-    RouterDataV2 {
+    let request: PaymentsPostAuthenticateData<DefaultPCIHolder> =
+        PaymentsPostAuthenticateData::foreign_try_from((
+            payments::PaymentMethodAuthenticationServicePostAuthenticateRequest {
+                amount: Some(payments::Money {
+                    minor_amount: 2999,
+                    currency: payments::Currency::Usd.into(),
+                }),
+                ..Default::default()
+            },
+            None,
+        ))
+        .map_err(|error| format!("{error:?}"))?;
+
+    Ok(RouterDataV2 {
         flow: PhantomData,
         resource_common_data: common_data(),
         connector_config: config,
         request: PaymentsPostAuthenticateData {
             payment_method_data: None,
-            money: Money::from_minor_unit(MinorUnit::new(2999), common_enums::Currency::USD),
+            money: request.money,
             email: None,
             currency: Some(common_enums::Currency::USD),
             payment_method_type: None,
@@ -165,7 +180,7 @@ fn post_auth_data<T: PaymentMethodDataTypes>(
             connector_order_reference_id: None,
         },
         response: Err(ErrorResponse::default()),
-    }
+    })
 }
 
 #[test]
@@ -312,7 +327,7 @@ fn optional_enum_omission_differs_from_invalid_explicit_values() -> TestResult {
 
 #[test]
 fn post_authenticate_vault_proxy_does_not_require_a_local_certificate() -> TestResult {
-    let data = post_auth_data::<VaultTokenHolder>(config(None, None));
+    let data = post_auth_data::<VaultTokenHolder>(config(None, None))?;
     let connector = Netcetera::<VaultTokenHolder>::new();
     let certificate = ConnectorIntegrationV2::get_certificate(connector, &data)
         .map_err(|error| format!("{error:?}"))?;
@@ -324,22 +339,23 @@ fn post_authenticate_vault_proxy_does_not_require_a_local_certificate() -> TestR
 }
 
 #[test]
-fn post_authenticate_direct_calls_require_both_credentials() {
+fn post_authenticate_direct_calls_require_both_credentials() -> TestResult {
     let connector = Netcetera::<DefaultPCIHolder>::new();
     for cfg in [
         config(None, None),
         config(Some("certificate"), None),
         config(None, Some("key")),
     ] {
-        let data = post_auth_data::<DefaultPCIHolder>(cfg);
+        let data = post_auth_data::<DefaultPCIHolder>(cfg)?;
         assert!(ConnectorIntegrationV2::get_certificate(connector, &data).is_err());
         assert!(ConnectorIntegrationV2::get_certificate_key(connector, &data).is_err());
     }
+    Ok(())
 }
 
 #[test]
 fn post_authenticate_preserves_a_supplied_certificate_pair() -> TestResult {
-    let data = post_auth_data::<DefaultPCIHolder>(config(Some("certificate"), Some("key")));
+    let data = post_auth_data::<DefaultPCIHolder>(config(Some("certificate"), Some("key")))?;
     let connector = Netcetera::<DefaultPCIHolder>::new();
     let certificate = ConnectorIntegrationV2::get_certificate(connector, &data)
         .map_err(|error| format!("{error:?}"))?;
