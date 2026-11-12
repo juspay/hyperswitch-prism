@@ -48,9 +48,9 @@ fn common_data() -> PaymentFlowData {
         address: domain_types::payment_address::PaymentAddress::new(None, None, None, None),
         auth_type: common_enums::AuthenticationType::ThreeDs,
         connector_feature_data: None,
-        amount_captured: None,
-        amount_capturable: None,
-        amount: None,
+        captured_money: None,
+        capturable_money: None,
+        money: None,
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -71,7 +71,7 @@ fn common_data() -> PaymentFlowData {
         connector_response: None,
         recurring_mandate_payment_data: None,
         order_details: None,
-        amount_authorized: None,
+        authorized_money: None,
         l2_l3_data: None,
         merchant_request_id: None,
         sender_payment_instrument_id: None,
@@ -152,7 +152,7 @@ fn post_auth_data<T: PaymentMethodDataTypes>(
         connector_config: config,
         request: PaymentsPostAuthenticateData {
             payment_method_data: None,
-            amount: Money {
+            money: Money {
                 amount: MinorUnit::new(2999),
                 currency: common_enums::Currency::USD,
             },
