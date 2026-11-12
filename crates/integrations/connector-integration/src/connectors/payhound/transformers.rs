@@ -820,10 +820,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ensure_supported_capture_method(request.capture_method)?;
 
         let invoice_currency = invoice_currency_from_payment_method(&request.payment_method_data)?;
-        let currency = PayhoundSettlementCurrency::try_from(request.amount.currency)?;
+        let currency = PayhoundSettlementCurrency::try_from(request.money.currency())?;
         // Payhound's `price` is a decimal major-unit string ("266.45"); minor units would be
         // rejected as a wildly different amount.
-        let price = PayhoundAmountConvertor::convert(&request.amount)?;
+        let price = PayhoundAmountConvertor::convert(&request.money)?;
 
         Ok(Self {
             currency,
@@ -1166,7 +1166,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let outcome = payhound_invoice_outcome(
             &payhound_response,
             http_code,
-            Some(router_data.request.amount.currency),
+            Some(router_data.request.money.currency()),
         )?;
         let response = payhound_payments_response(
             &payhound_response,
@@ -1178,7 +1178,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: outcome.status,
-                amount_captured: outcome.amount_captured,
+                captured_money: outcome.amount_captured,
                 ..router_data.resource_common_data
             },
             response,
@@ -1204,7 +1204,7 @@ impl<F> TryFrom<ResponseRouterData<PayhoundInvoiceResponse, Self>>
         let outcome = payhound_invoice_outcome(
             &payhound_response,
             http_code,
-            Some(router_data.request.amount.currency),
+            Some(router_data.request.money.currency()),
         )?;
         // PSync surfaces the redirect when Payhound still provides one — useful for a shopper
         // resuming a `pending` invoice — but, unlike Authorize, its absence does not fail the sync:
@@ -1219,7 +1219,7 @@ impl<F> TryFrom<ResponseRouterData<PayhoundInvoiceResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: outcome.status,
-                amount_captured: outcome.amount_captured,
+                captured_money: outcome.amount_captured,
                 ..router_data.resource_common_data
             },
             response,
@@ -1271,7 +1271,7 @@ pub(super) fn payhound_webhook_details(
         error_code,
         error_message,
         error_reason,
-        amount_captured: outcome.amount_captured,
+        captured_money: outcome.amount_captured,
         raw_connector_response: None,
         response_headers: None,
         network_txn_id: None,

@@ -5,7 +5,7 @@
 mod tests {
     use common_utils::{
         crypto::{self, SignMessage},
-        types::{MinorUnit, Money},
+        types::Money,
     };
     use domain_types::{
         errors::IntegrationError,
@@ -151,10 +151,13 @@ mod tests {
     ) -> PayhoundInvoiceRequest {
         PayhoundInvoiceRequest {
             currency: PayhoundSettlementCurrency::try_from(currency).expect("supported currency"),
-            price: PayhoundAmountConvertor::convert(&Money {
-                amount: MinorUnit::new(minor_amount),
-                currency,
-            })
+            price: PayhoundAmountConvertor::convert(
+                // `Money::from_minor_unit` is disallowed in connector code; deserialize instead.
+                &serde_json::from_value::<Money>(
+                    serde_json::json!({ "amount": minor_amount, "currency": currency }),
+                )
+                .expect("money"),
+            )
             .expect("amount conversion"),
             invoice_currency: PayhoundInvoiceCurrency::Btc,
             name: None,
