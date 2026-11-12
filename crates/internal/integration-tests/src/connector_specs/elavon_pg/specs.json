@@ -10,6 +10,8 @@
     "PaymentService/Refund",
     "PaymentService/SetupRecurring",
     "RefundService/Get",
-    "PaymentMethodAuthenticationService/PreAuthenticate"
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "CustomerService/Create",
+    "PaymentMethodService/Tokenize"
   ]
 }

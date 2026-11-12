@@ -1744,6 +1744,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         //     we don't want payment to fail, even if we don't get browser info from sdk, and these default values are present in Trustpay's doc,
         //     Trustpay required to pass this values, when we don't get from sdk. That's why this values are hard coded.
         let default_browser_info = BrowserInformation {
+            challenge_window_size: None,
             color_depth: Some(browser_info.color_depth.unwrap_or(24)),
             java_enabled: Some(browser_info.java_enabled.unwrap_or(false)),
             java_script_enabled: Some(browser_info.java_script_enabled.unwrap_or(true)),

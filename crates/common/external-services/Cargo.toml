@@ -39,13 +39,13 @@ tracing-subscriber = { version = "0.3.18", default-features = true, features = [
 ] }
 tracing-attributes = "0.1.27"
 tonic = { workspace = true }
-prometheus = "0.13.4"
+prometheus = "0.14.0"
 tower = "0.5.2"
 # Diagnostics below depend on these versions' fixed transport error messages.
 hyper = "=1.8.1"
 hyper-util = { version = "=0.1.20", features = ["client-legacy"] }
 native-tls = "=0.2.18"
-rustls = { version = "=0.23.37", default-features = false }
+rustls = { version = "=0.23.46", default-features = false }
 http-body = "1.0.1"
 domain_types = { path = "../../types-traits/domain_types" }
 interfaces = { path = "../../types-traits/interfaces" }
@@ -60,7 +60,7 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
     "time",
 ] }
 # TODO! update to latest Hyperswitch Tag once hyperswitch_masking crate changes are merged to hyperswitch main
-injector = { git = "https://github.com/juspay/hyperswitch", tag = "2026.09.30.0", optional = true }
+injector = { git = "https://github.com/juspay/hyperswitch", tag = "2026.10.20.0", optional = true }
 connector_request_kafka = { path = "../connector_request_kafka", optional = true }
 url = "2.5.0"
 chrono = "0.4.31"
@@ -70,17 +70,17 @@ log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc2
 ] }
 
 # OpenTelemetry (OTLP metrics push) — optional, enabled via the `otel` feature.
-opentelemetry = { version = "0.27", optional = true, default-features = false, features = [
+opentelemetry = { version = "0.32", optional = true, default-features = false, features = [
     "metrics",
 ] }
 deja = { git = "https://github.com/juspay/deja", rev = "8da135688c353e2536386274819b37de12eb3113", optional = true, default-features = false }
 
 [features]
-# injector-client pulls in hyperswitch's injector crate (which transitively
-# brings diesel via hyperswitch's common_enums). Only the gRPC server path that
-# actually makes outbound HTTP calls to connectors needs this. The FFI build
-# (connector_service_ffi.dylib) only uses response-processing helpers and must
-# not compile injector to keep the binary lean and fast to link.
+# injector-client pulls in Hyperswitch's injector and HTTP client stack. Only
+# the gRPC server path that makes outbound HTTP calls to connectors needs this.
+# The FFI build (connector_service_ffi.dylib) only uses response-processing
+# helpers and must not compile injector to keep the binary lean and fast to
+# link.
 default = ["injector-client"]
 injector-client = ["dep:injector"]
 connector-request-kafka = ["dep:connector_request_kafka"]
@@ -91,7 +91,7 @@ log-transformations = ["common_utils/log-transformations"]
 deja = ["dep:deja", "common_utils/deja", "domain_types/deja", "common_enums/deja"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-openssl = "=0.10.76"
+openssl = "=0.10.81"
 
 [lints]
 workspace = true

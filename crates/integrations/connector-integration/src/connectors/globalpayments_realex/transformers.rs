@@ -4078,7 +4078,7 @@ fn build_billing_address(
             .zip
             .clone()
             .ok_or_else(|| missing("billing.address.zip"))?,
-        state: details.state.clone(),
+        state: details.get_optional_state(),
         country: format!("{:03}", CountryAlpha2::to_numeric(country)),
     })
 }
@@ -4633,16 +4633,13 @@ mod tests {
 
     use super::*;
 
-    fn order_detail(amount: i64, currency: common_enums::Currency) -> OrderDetailsWithAmount {
-        OrderDetailsWithAmount::foreign_try_from((
-            grpc_api_types::payments::OrderDetailsWithAmount {
-                product_name: "amount formatting fixture".to_owned(),
-                quantity: 1,
-                amount,
-                ..Default::default()
-            },
-            currency,
-        ))
+    fn order_detail(amount: i64) -> OrderDetailsWithAmount {
+        OrderDetailsWithAmount::foreign_try_from(grpc_api_types::payments::OrderDetailsWithAmount {
+            product_name: "amount formatting fixture".to_owned(),
+            quantity: 1,
+            amount,
+            ..Default::default()
+        })
         .expect("valid order fixture")
     }
 
@@ -4963,7 +4960,7 @@ mod tests {
                 currency,
                 value: format_amount(
                     common_utils::types::ConnectorMinorUnitForConnector.convert(
-                        &order_detail(1001, currency)
+                        &order_detail(1001)
                             .get_unit_money(&common_utils::types::Money::zero(currency)),
                     ),
                     currency,
@@ -4978,7 +4975,7 @@ mod tests {
                     currency,
                     format_amount(
                         common_utils::types::ConnectorMinorUnitForConnector.convert(
-                            &order_detail(1001, currency)
+                            &order_detail(1001)
                                 .get_unit_money(&common_utils::types::Money::zero(currency))
                         ),
                         currency
@@ -5001,7 +4998,7 @@ mod tests {
         assert_eq!(
             format_amount(
                 common_utils::types::ConnectorMinorUnitForConnector.convert(
-                    &order_detail(1000, Currency::JPY)
+                    &order_detail(1000)
                         .get_unit_money(&common_utils::types::Money::zero(Currency::JPY))
                 ),
                 Currency::JPY
@@ -5014,7 +5011,7 @@ mod tests {
         assert_eq!(
             format_amount(
                 common_utils::types::ConnectorMinorUnitForConnector.convert(
-                    &order_detail(1001, Currency::EUR)
+                    &order_detail(1001)
                         .get_unit_money(&common_utils::types::Money::zero(Currency::EUR))
                 ),
                 Currency::EUR
@@ -5025,7 +5022,7 @@ mod tests {
         assert_eq!(
             format_amount(
                 common_utils::types::ConnectorMinorUnitForConnector.convert(
-                    &order_detail(1000, Currency::KRW)
+                    &order_detail(1000)
                         .get_unit_money(&common_utils::types::Money::zero(Currency::KRW))
                 ),
                 Currency::KRW
@@ -5039,8 +5036,7 @@ mod tests {
         assert!(format_amount(ConnectorMinorUnit::zero(), Currency::EUR).is_err());
         assert!(format_amount(
             common_utils::types::ConnectorMinorUnitForConnector.convert(
-                &order_detail(-1, Currency::EUR)
-                    .get_unit_money(&common_utils::types::Money::zero(Currency::EUR))
+                &order_detail(-1).get_unit_money(&common_utils::types::Money::zero(Currency::EUR))
             ),
             Currency::EUR
         )
@@ -5048,7 +5044,7 @@ mod tests {
         // The JPY multiply is checked, not wrapping.
         assert!(format_amount(
             common_utils::types::ConnectorMinorUnitForConnector.convert(
-                &order_detail(i64::MAX, Currency::JPY)
+                &order_detail(i64::MAX)
                     .get_unit_money(&common_utils::types::Money::zero(Currency::JPY))
             ),
             Currency::JPY

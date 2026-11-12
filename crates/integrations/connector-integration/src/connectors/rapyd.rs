@@ -1,5 +1,8 @@
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use base64::Engine;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
 use domain_types::{
@@ -31,12 +34,12 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     CaptureRequest, RapydAuthType, RapydClientAuthRequest, RapydClientAuthResponse,
-    RapydCreateOrderRequest, RapydCreateOrderResponse, RapydPaymentsRequest,
-    RapydPaymentsResponse as RapydCaptureResponse, RapydPaymentsResponse as RapydPSyncResponse,
-    RapydPaymentsResponse, RapydPaymentsResponse as RapydVoidResponse,
-    RapydPaymentsResponse as RapydAuthorizeResponse, RapydRefundRequest, RapydRepeatPaymentRequest,
-    RapydRepeatPaymentResponse, RapydSetupMandateRequest, RapydSetupMandateResponse,
-    RefundResponse, RefundResponse as RapydRSyncResponse,
+    RapydCreateOrderRequest, RapydCreateOrderResponse, RapydErrorResponse, RapydPSyncResponse,
+    RapydPaymentsRequest, RapydPaymentsResponse as RapydCaptureResponse,
+    RapydPaymentsResponse as RapydVoidResponse, RapydPaymentsResponse as RapydAuthorizeResponse,
+    RapydRefundRequest, RapydRepeatPaymentRequest, RapydRepeatPaymentResponse,
+    RapydSetupMandateRequest, RapydSetupMandateResponse, RefundResponse,
+    RefundResponse as RapydRSyncResponse,
 };
 
 use super::macros;
@@ -167,7 +170,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: Result<RapydPaymentsResponse, Report<common_utils::errors::ParsingError>> =
+        let response: Result<RapydErrorResponse, Report<common_utils::errors::ParsingError>> =
             res.response.parse_struct("rapyd ErrorResponse");
 
         match response {
@@ -584,7 +587,7 @@ macros::macro_connector_implementation!(
 );
 
 // SetupMandate flow – reuses the standard `/v1/payments` endpoint for
-// card-on-file verification. The returned payment id is surfaced as the
+// card-on-file verification. The saved payment method ID is surfaced as the
 // connector_mandate_id for subsequent RepeatPayment (MIT) calls.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -650,8 +653,8 @@ macros::macro_connector_implementation!(
 
 // RepeatPayment (MIT) – Rapyd has no dedicated recurring endpoint. It reuses
 // `/v1/payments` but substitutes the card object with a stored
-// `payment_method` token (the card_* id returned by SetupMandate) paired
-// with the `customer` id and `initiation_type: recurring`.
+// `payment_method` token (the card_* id returned by SetupMandate) with
+// `initiation_type: recurring`.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Rapyd,

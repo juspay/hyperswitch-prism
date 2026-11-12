@@ -18,6 +18,10 @@ publish = false
 
 [workspace]
 
+# Standalone crates do not inherit patches; keep this aligned with the root manifest.
+[patch.crates-io]
+hyperswitch_masking = { git = "https://github.com/juspay/framework-libs-rs", rev = "f1c0ee2abdb56d0aec81c2bf13f2026ecaa010f6" }
+
 [dependencies]
 common_utils = { package = "ucs_common_utils", path = "$root/crates/common/common_utils", features = ["superposition"] }
 common_enums = { package = "ucs_common_enums", path = "$root/crates/common/common_enums" }

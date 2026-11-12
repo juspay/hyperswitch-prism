@@ -237,6 +237,8 @@ impl GlomopayWebhookPayload {
             _ => (None, None),
         };
         WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(self.data.id.clone())),
             status,
@@ -335,6 +337,7 @@ impl GlomopayRefundWebhookPayload {
             _ => (None, None),
         };
         RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(self.data.id.clone()),
             merchant_transaction_id: None,
             status: self.get_refund_status(),

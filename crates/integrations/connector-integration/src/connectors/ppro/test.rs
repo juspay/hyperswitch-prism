@@ -938,15 +938,14 @@ mod transformer_tests {
     use domain_types::{payment_address::OrderDetailsWithAmount, utils::ForeignTryFrom};
 
     fn order_detail(amount: i64) -> Result<OrderDetailsWithAmount, Box<dyn std::error::Error>> {
-        Ok(OrderDetailsWithAmount::foreign_try_from((
+        Ok(OrderDetailsWithAmount::foreign_try_from(
             grpc_api_types::payments::OrderDetailsWithAmount {
                 product_name: "serialization fixture".to_owned(),
                 quantity: 1,
                 amount,
                 ..Default::default()
             },
-            common_enums::Currency::EUR,
-        ))?)
+        )?)
     }
 
     macro_rules! ensure_eq {
@@ -1672,7 +1671,7 @@ mod satispay_request_tests {
                 customer: None,
                 business_country: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
             },
             response: Err(ErrorResponse::default()),
         })

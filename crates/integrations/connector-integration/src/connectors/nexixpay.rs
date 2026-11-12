@@ -338,6 +338,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None, None)
         };
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 operation.order_id.clone(),
             )),
@@ -382,6 +384,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None)
         };
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(operation.operation_id),
             merchant_transaction_id: None,
             status,
@@ -433,6 +436,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: RedirectState,
         completed_step: Option<AuthenticationStep>,
+        _payment_method_data: Option<
+            &PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> AuthenticationStep {
         if auth_type != common_enums::AuthenticationType::ThreeDs
             || payment_method != common_enums::PaymentMethod::Card

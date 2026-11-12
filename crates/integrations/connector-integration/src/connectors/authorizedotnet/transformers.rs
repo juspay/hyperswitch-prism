@@ -534,7 +534,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<&WalletData> for PaymentDetails<T> {
 /// Returns `None` for an encrypted token (and for every other wallet), which
 /// stays on the `opaqueData` path above.
 ///
-/// - Apple Pay decrypted data always carries an online payment cryptogram.
+/// - Apple Pay decrypted data always carries an online payment cryptogram; an
+///   empty one is rejected here, before Authorize.Net sees the request.
 /// - Google Pay decrypted data carries one for `CRYPTOGRAM_3DS` tokens only; a
 ///   `PAN_ONLY` token has none and is a plain card, so `isPaymentToken` is omitted.
 fn get_decrypted_wallet_card(
@@ -542,12 +543,23 @@ fn get_decrypted_wallet_card(
 ) -> Result<Option<DecryptedWalletCardDetails>, Error> {
     match wallet_data {
         WalletData::ApplePay(apple_pay) => match &apple_pay.payment_data {
-            ApplePayPaymentData::Decrypted(decrypted) => Ok(Some(DecryptedWalletCardDetails {
-                card_number: decrypted.application_primary_account_number.clone(),
-                expiration_date: decrypted.get_expiry_date_as_yyyymm("-"),
-                is_payment_token: Some(true),
-                cryptogram: Some(decrypted.payment_data.online_payment_cryptogram.clone()),
-            })),
+            ApplePayPaymentData::Decrypted(decrypted) => {
+                let cryptogram = decrypted.payment_data.online_payment_cryptogram.clone();
+                if cryptogram.peek().is_empty() {
+                    return Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "apple_pay_cryptogram",
+                            context: Default::default(),
+                        }
+                    ));
+                }
+                Ok(Some(DecryptedWalletCardDetails {
+                    card_number: decrypted.application_primary_account_number.clone(),
+                    expiration_date: decrypted.get_expiry_date_as_yyyymm("-"),
+                    is_payment_token: Some(true),
+                    cryptogram: Some(cryptogram),
+                }))
+            }
             ApplePayPaymentData::Encrypted(_) => Ok(None),
         },
         WalletData::GooglePay(google_pay) => match &google_pay.tokenization_data {
@@ -716,7 +728,7 @@ impl From<&Address> for BillTo {
             // line1, line2 and line3 joined under the 60-character limit
             address: details.and_then(|a| get_address_line(&a.line1, &a.line2, &a.line3)),
             city: details.and_then(|a| a.city.clone()),
-            state: details.and_then(|a| a.state.clone()),
+            state: details.and_then(|a| a.get_optional_state()),
             zip: details.and_then(|a| a.zip.clone()),
             country: details.and_then(|a| a.country),
             // Country code + number. `phoneNumber` is limited to 25 characters and an
@@ -759,7 +771,7 @@ impl From<&Address> for ShipTo {
             // Same 60-character joining rule as billTo.address
             address: details.and_then(|a| get_address_line(&a.line1, &a.line2, &a.line3)),
             city: details.and_then(|a| a.city.clone()),
-            state: details.and_then(|a| a.state.clone()),
+            state: details.and_then(|a| a.get_optional_state()),
             zip: details.and_then(|a| a.zip.clone()),
             country: details.and_then(|a| a.country),
         }
@@ -909,7 +921,7 @@ pub struct AuthorizedotnetTransactionRequest<T: PaymentMethodDataTypes> {
     // Authorize.Net validates the element order of `transactionRequest` against its
     // XSD (`transactionRequestType`); a field in the wrong position is rejected with
     // E00003. Keep: order, lineItems, tax, duty, shipping, taxExempt, poNumber,
-    // customer, billTo, shipTo, cardholderAuthentication, userFields,
+    // customer, billTo, shipTo, cardholderAuthentication, retail, userFields,
     // merchantDescriptor, processingOptions, subsequentAuthInformation.
     line_items: Option<LineItems>,
     tax: Option<ExtendedAmount>,
@@ -921,11 +933,48 @@ pub struct AuthorizedotnetTransactionRequest<T: PaymentMethodDataTypes> {
     bill_to: Option<BillTo>,
     ship_to: Option<ShipTo>,
     cardholder_authentication: Option<CardholderAuthentication>,
+    retail: Option<Retail>,
     user_fields: Option<UserFields>,
     merchant_descriptor: Option<String>,
     processing_options: Option<ProcessingOptions>,
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     ref_trans_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Retail {
+    market_type: MarketType,
+    device_type: DeviceType,
+}
+
+/// `retail.marketType` (a numeric string).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum MarketType {
+    #[serde(rename = "1")]
+    Moto,
+}
+
+/// `retail.deviceType` (a numeric string). A MOTO payment is keyed in by the merchant
+/// through this API, not captured on a terminal, so the device is reported as unknown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum DeviceType {
+    #[serde(rename = "1")]
+    Unknown,
+}
+
+/// The `retail` element for a MOTO card payment; `None` otherwise. MOTO applies to keyed
+/// card payments only: a wallet or bank payment is never a mail / telephone order.
+fn build_moto_retail<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    payment_channel: Option<&common_enums::PaymentChannel>,
+) -> Option<Retail> {
+    (matches!(payment_method_data, PaymentMethodData::Card(_))
+        && crate::utils::is_moto_payment_channel(payment_channel))
+    .then_some(Retail {
+        market_type: MarketType::Moto,
+        device_type: DeviceType::Unknown,
+    })
 }
 
 /// `transactionRequest.cardholderAuthentication`: the result of a 3D Secure
@@ -1118,6 +1167,10 @@ fn create_regular_transaction_request<
     >,
     currency: api_enums::Currency,
 ) -> Result<AuthorizedotnetTransactionRequest<T>, Error> {
+    let retail = build_moto_retail(
+        &item.router_data.request.payment_method_data,
+        item.router_data.request.payment_channel.as_ref(),
+    );
     // External 3DS data is carried on card payments only (never on the wallet or
     // bank arms: Apple Pay opaque data may not include 3D Secure data).
     let mut cardholder_authentication = None;
@@ -1471,6 +1524,7 @@ fn create_regular_transaction_request<
         bill_to,
         ship_to,
         cardholder_authentication,
+        retail,
         user_fields,
         merchant_descriptor,
         processing_options: None,
@@ -4020,7 +4074,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 last_name: address.last_name.clone(),
                 address: get_address_line(&address.line1, &address.line2, &address.line3),
                 city: address.city.clone(),
-                state: address.state.clone(),
+                state: address.get_optional_state(),
                 zip: address.zip.clone(),
                 country: address.country,
                 // The stored payment profile keeps its existing billTo shape.
@@ -4041,6 +4095,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiration_date: Secret::new(expiration_date),
                     card_code: Some(ccard.card_cvc.clone()),
                 })
+            }
+            // A saved profile is charged later, but the cryptogram of a decrypted token is
+            // single-use, so only the encrypted Apple Pay token is stored
+            PaymentMethodData::Wallet(WalletData::ApplePay(applepay_token))
+                if matches!(
+                    applepay_token.payment_data,
+                    ApplePayPaymentData::Decrypted(_)
+                ) =>
+            {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Decrypted Apple Pay token for saving a payment profile".to_string(),
+                    connector: "authorizedotnet",
+                    context: Default::default()
+                }))
             }
             PaymentMethodData::Wallet(wallet_data) => PaymentDetails::try_from(wallet_data)?,
             pm => {
@@ -4463,7 +4531,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         // line2 was present-but-empty.
                         address: address.line1.clone(),
                         city: address.city.clone(),
-                        state: address.state.clone(),
+                        state: address.get_optional_state(),
                         zip: address.zip.clone(),
                         country: address.country,
                         phone_number: shipping

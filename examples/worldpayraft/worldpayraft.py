@@ -75,7 +75,6 @@ def _build_incremental_authorization_request():
             minor_amount=100,
             currency=common_types_pb2.Currency.Value("USD"),
         ),
-        network_transaction_id="263010131742906",  # Network transaction ID returned by the original authorization.
         payment_method=payment_methods_pb2.PaymentMethod(  # Original payment method, for connectors that require it again on an increase (e.g. Worldpay RAFT).
             card_with_no_cvc=payment_methods_pb2.CardDetailsWithNoCvc(
                 card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.

@@ -2326,6 +2326,8 @@ pub(super) fn build_finix_payment_webhook_response(
     let status = get_finix_webhook_attempt_status(&resource.state, flow, resource.is_void);
 
     Ok(WebhookDetailsResponse {
+        raw_connector_status: None,
+        amount: None,
         connector_returned_payment_method_details: None,
         resource_id: Some(ResponseId::ConnectorTransactionId(resource.id.clone())),
         status,
@@ -2370,6 +2372,7 @@ pub(super) fn build_finix_refund_webhook_response(
     };
 
     Ok(RefundWebhookDetailsResponse {
+        raw_connector_status: None,
         connector_refund_id: Some(transfer.id),
         // Finix REVERSAL webhooks only carry connector-side ids — no merchant
         // reference for the original payment.

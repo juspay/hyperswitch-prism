@@ -860,6 +860,8 @@ impl BoostWebhookBody {
         };
 
         WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(self.uuid.clone())),
             status,

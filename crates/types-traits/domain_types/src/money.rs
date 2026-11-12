@@ -3,6 +3,8 @@ use common_utils::types::{MinorUnit, Money};
 use crate::{utils::ForeignTryFrom, IntegrationError};
 
 /// Proto mapping stays in this crate: common_utils cannot depend on grpc-api-types.
+/// Callers with strict currency validation must check the raw enum integer first;
+/// the generated currency accessor maps unknown values to Unspecified.
 pub(crate) fn from_proto_money(
     value: grpc_api_types::payments::Money,
 ) -> Result<Money, error_stack::Report<IntegrationError>> {

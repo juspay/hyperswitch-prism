@@ -1519,16 +1519,16 @@ impl TryFrom<ResponseRouterData<ReddotRefundSyncResponse, Self>>
             });
         }
 
-        if !item
+        if item
             .response
             .transaction_status
             .as_deref()
-            .is_some_and(|status| !status.is_empty())
-            && !item
+            .is_none_or(|status| status.is_empty())
+            && item
                 .response
                 .refund
                 .as_ref()
-                .is_some_and(|history| !history.is_empty())
+                .is_none_or(|history| history.is_empty())
         {
             return Err(ConnectorError::response_handling_failed_with_context(
                 item.http_code,
