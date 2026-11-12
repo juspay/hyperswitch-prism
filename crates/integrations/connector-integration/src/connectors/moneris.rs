@@ -50,8 +50,11 @@ use super::macros;
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 
 pub(crate) mod headers {
+    pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
+    pub(crate) const X_CORRELATION_ID: &str = "X-Correlation-Id";
+    pub(crate) const USER_AGENT: &str = "User-Agent";
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -116,6 +119,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         true
     }
 
+    fn requires_authentication_data(&self) -> bool {
+        true
+    }
+
     fn next_authentication_step(
         &self,
         auth_type: common_enums::AuthenticationType,
@@ -127,12 +134,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 domain_types::payment_method_data::DefaultPCIHolder,
             >,
         >,
-        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+        authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> AuthenticationStep {
         if auth_type == common_enums::AuthenticationType::ThreeDs
             && matches!(payment_method, common_enums::PaymentMethod::Card)
+            && !authentication_data.is_some_and(|data| data.has_external_authentication())
         {
             match (redirect_state, completed_step) {
+                // PostAuthenticate completed after the ACS callback → authorize only
+                // after the connector has accepted the Authentication Value Lookup result.
+                (_, Some(AuthenticationStep::PostAuthenticate)) => AuthenticationStep::Authorize,
                 (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
                 // Frictionless: PreAuthenticate completed with no redirect → go straight to Authorize
                 (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
@@ -142,8 +153,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 (RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams, _) => {
                     AuthenticationStep::PostAuthenticate
                 }
-                // After PostAuthenticate → Authorize
-                (_, Some(AuthenticationStep::PostAuthenticate)) => AuthenticationStep::Authorize,
                 _ => AuthenticationStep::Authorize,
             }
         } else {
@@ -324,12 +333,21 @@ macros::create_all_prerequisites!(
             &self,
             access_token: &str,
             connector_config: &ConnectorSpecificConfig,
+            correlation_id: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = moneris::MonerisAuthType::try_from(connector_config)?;
             let mut header = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
                     self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::ACCEPT.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::X_CORRELATION_ID.to_string(),
+                    correlation_id.to_string().into(),
                 ),
                 (
                     moneris::auth_headers::API_VERSION.to_string(),
@@ -340,6 +358,10 @@ macros::create_all_prerequisites!(
                 (
                     moneris::auth_headers::X_MERCHANT_ID.to_string(),
                     auth.merchant_id.expose().into_masked(),
+                ),
+                (
+                    headers::USER_AGENT.to_string(),
+                    "hyperswitch-prism".to_string().into(),
                 ),
             ];
             let auth_header = (
@@ -354,6 +376,7 @@ macros::create_all_prerequisites!(
             &self,
             access_token: Option<ServerAuthenticationTokenResponseData>,
             connector_config: &ConnectorSpecificConfig,
+            correlation_id: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = access_token.ok_or_else(|| IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
@@ -370,7 +393,7 @@ macros::create_all_prerequisites!(
                     ),
                 },
             })?;
-            self.build_headers(&token.access_token.expose(), connector_config)
+            self.build_headers(&token.access_token.expose(), connector_config, correlation_id)
         }
 
         pub fn connector_base_url_payments<'a, F, Req, Res>(
@@ -476,6 +499,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -507,6 +531,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
 
@@ -538,6 +563,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -573,6 +599,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -608,6 +635,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -659,6 +687,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -694,6 +723,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -724,6 +754,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -756,6 +787,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -790,6 +822,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(

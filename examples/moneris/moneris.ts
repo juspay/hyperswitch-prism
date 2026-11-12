@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx moneris.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -170,11 +170,13 @@ function _buildPreAuthenticateRequest(): types.IPaymentMethodAuthenticationServi
                 "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
             }
         },
-        "customer": {  // Customer Information.
-            "email": {"value": "test@example.com"}
-        },
         "address": {  // Address Information.
             "billingAddress": {
+                "line1": {"value": "123 Main St"},
+                "city": {"value": "Seattle"},
+                "zipCode": {"value": "98101"},
+                "countryAlpha2Code": CountryAlpha2.US,
+                "stateCodeIso": {"value": "WA"}
             }
         },
         "enrolledFor_3ds": false,  // Authentication Details.
