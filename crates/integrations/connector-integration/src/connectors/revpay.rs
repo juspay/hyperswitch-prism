@@ -28,8 +28,12 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::Maskable;
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    decode::BodyDecoding, verification::SourceVerification,
+    api::ConnectorCommon,
+    connector_integration_v2::ConnectorIntegrationV2,
+    connector_types,
+    decode::BodyDecoding,
+    verification::SourceVerification,
+    webhooks::{IncomingWebhook, IncomingWebhookFlowError},
 };
 use serde::Serialize;
 use transformers as revpay;
@@ -460,8 +464,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // application/x-www-form-urlencoded (NOT JSON). Verification recomputes the
 // in-body SHA-512 signature (§3.3) with the merchant key taken from the
 // connector account config — the same credential extraction the flows use.
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Revpay<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> IncomingWebhook
+    for Revpay<T>
 {
     fn verify_webhook_source(
         &self,
@@ -564,7 +568,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_api_response(
         &self,
         _request: RequestDetails,
-        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _error_kind: Option<IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<WebhookError>> {
         Ok(interfaces::api::EventAckResponse {

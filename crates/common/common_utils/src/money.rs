@@ -784,7 +784,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exact_decimal_conversion_and_signature_bytes() -> Result<(), Box<dyn std::error::Error>> {
+    #[allow(clippy::expect_used)]
+    fn exact_decimal_conversion_and_signature_bytes() {
         let converter = StringMajorUnitWithTwoDecimalsForConnector;
         for (currency, minor, wire) in [
             (enums::Currency::MYR, 5240, "52.40"),
@@ -799,12 +800,20 @@ mod tests {
                 amount: MinorUnit::new(minor),
                 currency,
             };
-            let amount = converter.convert(&money)?;
-            assert_eq!(serde_json::to_value(&amount)?, wire);
+            let amount = converter.convert(&money).expect("exact amount conversion");
+            assert_eq!(
+                serde_json::to_value(&amount).expect("amount serialization"),
+                wire
+            );
             let mut signed = Vec::new();
             crate::crypto::update_signature(&[&amount], |bytes| signed.extend_from_slice(bytes));
             assert_eq!(signed, wire.as_bytes());
-            assert_eq!(converter.convert_back(amount, currency)?, money);
+            assert_eq!(
+                converter
+                    .convert_back(amount, currency)
+                    .expect("amount round trip"),
+                money
+            );
         }
         assert!(converter
             .convert(&Money {
@@ -812,7 +821,6 @@ mod tests {
                 currency: enums::Currency::KWD
             })
             .is_err());
-        Ok(())
     }
 
     #[test]
