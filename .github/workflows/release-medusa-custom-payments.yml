@@ -32,24 +32,44 @@ permissions:
   contents: read
 
 jobs:
+  authorize:
+    uses: ./.github/workflows/authorize-release.yml
+    # The membership check authenticates with a GitHub app token minted
+    # from the secrets below and never uses GITHUB_TOKEN.
+    permissions: {}
+    secrets:
+      HYPERSWITCH_BOT_APP_ID: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+      HYPERSWITCH_BOT_APP_PRIVATE_KEY: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
   bump-version:
     name: Bump Version
     runs-on: ubuntu-latest
+    needs: [authorize]
     if: ${{ inputs.version_bump != 'none' && inputs.preview_only == false }}
+    # Checkout and the commit/tag push authenticate with a hyperswitch-bot app
+    # token, which is allowed to push to the protected main branch;
+    # GITHUB_TOKEN is not used for the push.
     permissions:
-      contents: write
+      contents: read
     outputs:
       sha: ${{ steps.push.outputs.sha }}
     steps:
+      - name: Generate GitHub app token
+        id: generate_app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.generate_app_token.outputs.token }}
 
       - name: Setup git user
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name 'hyperswitch-bot[bot]'
+          git config user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
 
       - name: Bump package version
         id: bump
@@ -76,8 +96,8 @@ jobs:
   build:
     name: Build Package
     runs-on: ubuntu-latest
-    needs: [bump-version]
-    if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    needs: [authorize, bump-version]
+    if: always() && needs.authorize.result == 'success' && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
