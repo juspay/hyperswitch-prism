@@ -47,65 +47,50 @@ pub fn process_webhook_event<
     let api_event_type = WebhookEventType::foreign_try_from(event_type.clone())
         .change_context(WebhookError::WebhookProcessingFailed)?;
 
-    if event_type == domain_types::connector_types::EventType::EndpointVerification {
-        let ack = connector_data.connector.get_webhook_api_response(
-            request_details,
-            None,
-            connector_config,
-        )?;
-        return Ok(EventServiceHandleResponse {
-            event_type: api_event_type.into(),
-            event_content: None,
-            source_verified,
-            merchant_event_id,
-            event_ack_response: Some(grpc_api_types::payments::EventAckResponse {
-                status_code: ack.status_code,
-                headers: ack.headers.into_iter().collect(),
-                body: ack.body.unwrap_or_default(),
-            }),
-            supported_integrity_checks: vec![],
-        });
-    }
-
-    let event_content = if event_type.is_payment_event() {
-        get_payments_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-            event_context.clone(),
-        )?
-    } else if event_type.is_refund_event() {
-        get_refunds_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-        )?
-    } else if event_type.is_dispute_event() {
-        get_disputes_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-        )?
-    } else if event_type.is_payout_event() {
-        get_payouts_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-        )?
-    } else {
-        // Default: treat as payment event (mandate, recovery, misc).
-        get_payments_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-            event_context,
-        )?
-    };
+    let event_content =
+        if event_type == domain_types::connector_types::EventType::EndpointVerification {
+            None
+        } else {
+            Some(if event_type.is_payment_event() {
+                get_payments_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                    event_context.clone(),
+                )?
+            } else if event_type.is_refund_event() {
+                get_refunds_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                )?
+            } else if event_type.is_dispute_event() {
+                get_disputes_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                )?
+            } else if event_type.is_payout_event() {
+                get_payouts_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                )?
+            } else {
+                // Default: treat as payment event (mandate, recovery, misc).
+                get_payments_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                    event_context,
+                )?
+            })
+        };
 
     let ack = connector_data.connector.get_webhook_api_response(
         request_details.clone(),
@@ -120,7 +105,7 @@ pub fn process_webhook_event<
 
     Ok(EventServiceHandleResponse {
         event_type: api_event_type.into(),
-        event_content: Some(event_content),
+        event_content,
         source_verified,
         merchant_event_id,
         event_ack_response,
