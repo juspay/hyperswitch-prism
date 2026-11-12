@@ -26,6 +26,18 @@
   },
   "overrides": {
     "handlebars": "^4.7.10",
-    "proxy-addr": "^2.0.8"
+    "proxy-addr": "^2.0.8",
+    "ajv": "^8.18.0",
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1",
+    "test-exclude": "^8.0.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "koffi": true,
+    "protobufjs": true,
+    "@medusajs/telemetry": false,
+    "@parcel/watcher": false,
+    "fsevents": false
   }
 }
