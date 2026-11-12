@@ -1186,6 +1186,12 @@ pub enum ConnectorSpecificConfig {
         secret_key: Secret<String>,
         base_url: Option<String>,
     },
+    Kgp {
+        api_key: Secret<String>,
+        public_key: Option<Secret<String>>,
+        base_url: Option<String>,
+        secondary_base_url: Option<String>,
+    },
 }
 
 /// Config-patch key for a `ConnectorSpecificConfig` variant.
@@ -1646,6 +1652,7 @@ impl ConnectorSpecificConfig {
                 project_id,
                 secret_key
             },
+            Kgp { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
@@ -1716,6 +1723,9 @@ impl ConnectorSpecificConfig {
                 secondary_base_url, ..
             }
             | Self::Mollie {
+                secondary_base_url, ..
+            }
+            | Self::Kgp {
                 secondary_base_url, ..
             }
             | Self::Truelayer {
@@ -2201,6 +2211,7 @@ impl ConnectorSpecificConfig {
                     project_id,
                     secret_key
                 },
+                Kgp { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
@@ -3005,6 +3016,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 project_id: ecommpay.project_id.ok_or_else(err)?,
                 secret_key: ecommpay.secret_key.ok_or_else(err)?,
                 base_url: ecommpay.base_url,
+            }),
+            AuthType::Kgp(kgp) => Ok(Self::Kgp {
+                api_key: kgp.api_key.ok_or_else(err)?,
+                public_key: kgp.public_key,
+                base_url: kgp.base_url,
+                secondary_base_url: kgp.secondary_base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -4467,6 +4484,23 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         secret_key: api_key.clone(),
                         project_id: key1.clone(),
                         base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Kgp => match auth {
+                    // api_key = Omise secret key (api.omise.co)
+                    // key1    = Omise public key (vault.omise.co tokens)
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kgp {
+                        api_key: api_key.clone(),
+                        public_key: None,
+                        base_url: None,
+                        secondary_base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Kgp {
+                        api_key: api_key.clone(),
+                        public_key: Some(key1.clone()),
+                        base_url: None,
+                        secondary_base_url: None,
                     }),
                     _ => Err(err().into()),
                 },
