@@ -11427,6 +11427,10 @@ impl ForeignTryFrom<RefundServiceVoidPostRefundRequest> for RefundVoidPostRefund
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_refund_id: value.connector_refund_id,
+            payment_method_data: value
+                .payment_method
+                .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
+                .transpose()?,
             cancellation_reason: value.cancellation_reason,
             refund_connector_metadata: value
                 .refund_metadata
@@ -11434,7 +11438,10 @@ impl ForeignTryFrom<RefundServiceVoidPostRefundRequest> for RefundVoidPostRefund
                 .transpose()?,
             refund_status: common_enums::RefundStatus::Success,
             connector_feature_data,
-            refund_money: None,
+            refund_money: value
+                .refund_amount
+                .map(crate::money::from_proto_money)
+                .transpose()?,
             connector_order_id: value.connector_order_id,
             integrity_object: None,
         })

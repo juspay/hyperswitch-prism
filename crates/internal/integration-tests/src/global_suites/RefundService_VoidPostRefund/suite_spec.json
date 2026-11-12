@@ -1,0 +1,18 @@
+{
+  "suite": "RefundService/VoidPostRefund",
+  "suite_type": "dependent",
+  "depends_on": [
+    {
+      "suite": "PaymentService/Refund",
+      "scenario": "refund_full_amount",
+      "context_map": {
+        "connector_refund_id": "res.connector_refund_id",
+        "connector_order_id": "req.connector_order_id",
+        "payment_method": "req.payment_method",
+        "refund_amount": "req.refund_amount"
+      }
+    }
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": true
+}
