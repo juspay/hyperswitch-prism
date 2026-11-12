@@ -77,6 +77,24 @@ message FrmServicePreRiskCheckRequest {
   // Domain-specific order context (travel, hotel, airline…) as a typed object.
   // Producers populate the blocks they have data for.
   optional DomainData domain_data = 16;
+
+  // Merchant/business order identifier, distinct from the payment-attempt ID.
+  optional string merchant_order_id = 17;
+
+  // Installment information for FRM scoring.
+  optional EmiDetails emi_details = 18;
+
+  // Typed order description; connector metadata remains in connector_feature_data.
+  optional FrmOrderInfo order_info = 19;
+}
+
+message FrmOrderInfo {
+  string description = 1;
+}
+
+message EmiDetails {
+  // Installment count.
+  uint32 emi_tenure = 1;
 }
 
 // Response for FrmService.PreRiskCheck
@@ -164,6 +182,14 @@ message FrmServicePostRiskCheckRequest {
   // Domain-specific order context (travel, hotel, airline…) as a typed object
   // (same as PreRiskCheck). Re-analysis must replay the same order body.
   optional DomainData domain_data = 17;
+
+  // Reanalysis must address the same merchant/business order as creation.
+  optional string merchant_order_id = 18;
+
+  optional EmiDetails emi_details = 19;
+
+  // The same order information must be replayed during reanalysis.
+  optional FrmOrderInfo order_info = 20;
 }
 
 // Response for FrmService.PostRiskCheck

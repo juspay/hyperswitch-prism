@@ -10,8 +10,8 @@ use domain_types::{
     },
     errors,
     frm::frm_types::{
-        FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, PostRiskCheckRequest,
-        PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
+        FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, OrderInfo,
+        PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::OrderDetailsWithAmount,
@@ -926,9 +926,11 @@ pub(crate) fn clearsale_currency_code(currency: Currency) -> Result<u32, Error> 
 pub(crate) struct OrderInputs<'a> {
     code: String,
     session_id: String,
-    feature_data: &'a ClearSaleFeatureData,
-    b2b_b2c: Option<CustomerType>,
+    order_info_metadata: ClearSaleOrderInfoMetadata,
+    connector_feature_data: ClearSaleConnectorFeatureData,
+    installments: Option<u32>,
     config_product: Option<u32>,
+    b2b_b2c: Option<CustomerType>,
     email: Email,
     money: common_utils::types::Money,
     ip: Option<String>,
@@ -946,20 +948,26 @@ pub(crate) struct OrderInputs<'a> {
 impl<'a> OrderInputs<'a> {
     pub(crate) fn from_pre_risk_check(
         req: &'a PreRiskCheckRequest,
-        feature_data: &'a ClearSaleFeatureData,
         b2b_b2c: Option<CustomerType>,
         config_product: Option<u32>,
     ) -> Result<Self, Error> {
+        let connector_feature_data =
+            ClearSaleConnectorFeatureData::parse(req.connector_feature_data.as_ref())?;
         let travel_data = ClearSaleTravelData::from_domain_data(req.domain_data.as_ref());
         Ok(Self {
             code: req
-                .merchant_transaction_id
+                .merchant_order_id
                 .clone()
-                .ok_or_else(|| missing_field_err("merchant_transaction_id"))?,
+                .ok_or_else(|| missing_field_err("merchant_order_id"))?,
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
-            feature_data,
-            b2b_b2c,
+            order_info_metadata: resolve_order_info_metadata(
+                &connector_feature_data.order_info_metadata,
+                req.order_info.as_ref(),
+            ),
+            connector_feature_data,
+            installments: req.emi_details.map(|details| details.emi_tenure),
             config_product,
+            b2b_b2c,
             travel_data,
             email: req
                 .customer_info
@@ -982,20 +990,26 @@ impl<'a> OrderInputs<'a> {
 
     pub(crate) fn from_post_risk_check(
         req: &'a PostRiskCheckRequest,
-        feature_data: &'a ClearSaleFeatureData,
         b2b_b2c: Option<CustomerType>,
         config_product: Option<u32>,
     ) -> Result<Self, Error> {
+        let connector_feature_data =
+            ClearSaleConnectorFeatureData::parse(req.connector_feature_data.as_ref())?;
         let travel_data = ClearSaleTravelData::from_domain_data(req.domain_data.as_ref());
         Ok(Self {
             code: req
-                .merchant_transaction_id
+                .merchant_order_id
                 .clone()
-                .ok_or_else(|| missing_field_err("merchant_transaction_id"))?,
+                .ok_or_else(|| missing_field_err("merchant_order_id"))?,
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
-            feature_data,
-            b2b_b2c,
+            order_info_metadata: resolve_order_info_metadata(
+                &connector_feature_data.order_info_metadata,
+                req.order_info.as_ref(),
+            ),
+            connector_feature_data,
+            installments: req.emi_details.map(|details| details.emi_tenure),
             config_product,
+            b2b_b2c,
             travel_data,
             email: req
                 .customer_info
@@ -1314,7 +1328,7 @@ pub(crate) fn build_person(
     customer_info: Option<&domain_types::connector_types::CustomerInfo>,
     document: Option<&Secret<String>>,
     document_kind: Option<&DocumentKind>,
-    feature_data: &ClearSaleFeatureData,
+    order_info_metadata: &ClearSaleOrderInfoMetadata,
 ) -> Result<ClearSalePerson, Error> {
     let address_details = address.and_then(|addr| addr.address.as_ref());
     let primary_document = primary_document(document).ok_or_else(|| {
@@ -1343,10 +1357,10 @@ pub(crate) fn build_person(
         })
     })?;
     let phone_type = match label {
-        "billing" => feature_data
+        "billing" => order_info_metadata
             .billing_phone_type
             .unwrap_or(CLEARSALE_PHONE_TYPE_HOME),
-        _ => feature_data
+        _ => order_info_metadata
             .shipping_phone_type
             .unwrap_or(CLEARSALE_PHONE_TYPE_HOME),
     };
@@ -1717,7 +1731,8 @@ fn items_subtotal(items: &[ClearSaleItem]) -> Option<FloatMajorUnit> {
 
 pub(crate) fn build_order_request(
     parts: OrderRequestParts,
-    feature_data: &ClearSaleFeatureData,
+    order_info_metadata: &ClearSaleOrderInfoMetadata,
+    installments: Option<u32>,
     travel_data: &ClearSaleTravelData<'_>,
 ) -> ClearSaleOrderCreateRequest {
     let OrderRequestParts {
@@ -1750,19 +1765,19 @@ pub(crate) fn build_order_request(
             b2b_b2c,
             item_value: items_subtotal(&items),
             total_value,
-            number_of_installments: feature_data.installments,
+            number_of_installments: installments,
             ip,
-            is_gift: feature_data.is_gift,
-            gift_message: feature_data.gift_message.clone(),
-            observation: feature_data.observation.clone(),
-            status: feature_data.status,
+            is_gift: order_info_metadata.is_gift,
+            gift_message: order_info_metadata.gift_message.clone(),
+            observation: order_info_metadata.observation.clone(),
+            status: order_info_metadata.status,
             origin,
             channel_id,
             reservation_date: travel_data.reservation_date.clone(),
             country: country.clone().or_else(|| Some("Brasil".to_owned())),
-            nationality: feature_data.nationality.clone(),
+            nationality: order_info_metadata.nationality.clone(),
             product,
-            custom_sla: feature_data.custom_sla,
+            custom_sla: order_info_metadata.custom_sla,
             bank_authentication: None,
             billing,
             shipping,
@@ -1770,7 +1785,7 @@ pub(crate) fn build_order_request(
             items,
             list: None,
             purchase_information: None,
-            social_network: feature_data.social_network.as_ref().map(|social| {
+            social_network: order_info_metadata.social_network.as_ref().map(|social| {
                 ClearSaleSocialNetwork {
                     opt_in_compre_confie: social.opt_in_compre_confie,
                     type_social_network: social.type_social_network,
@@ -1805,7 +1820,7 @@ pub(crate) fn build_order_request(
 
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ClearSaleFeatureData {
+pub struct ClearSaleOrderInfoMetadata {
     #[serde(default)]
     pub origin: Option<String>,
     #[serde(default)]
@@ -1830,11 +1845,17 @@ pub struct ClearSaleFeatureData {
     #[serde(default)]
     pub shipping_phone_type: Option<u32>,
     #[serde(default)]
-    pub installments: Option<u32>,
+    pub nationality: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearSaleConnectorFeatureData {
     #[serde(default)]
     pub product: Option<u32>,
-    #[serde(default)]
-    pub nationality: Option<String>,
+    /// Opaque everywhere except this connector's feature-data decoder.
+    #[serde(default, rename = "orderInfoMetadata")]
+    pub order_info_metadata: ClearSaleOrderInfoMetadata,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -2060,7 +2081,7 @@ pub(crate) fn accommodation_to_clear_sale(a: &HotelSegment) -> Option<ClearSaleH
 }
 
 /// Merchant-supplied `socialNetwork` block carried in
-/// `connector_feature_data` (ClearSale's Compre e Confie program).
+/// `connector_feature_data.orderInfoMetadata` (ClearSale's Compre e Confie program).
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearSaleSocialNetworkFeature {
@@ -2072,7 +2093,7 @@ pub struct ClearSaleSocialNetworkFeature {
     pub authentication_token: Option<Secret<String>>,
 }
 
-impl ClearSaleFeatureData {
+impl ClearSaleConnectorFeatureData {
     /// Parse `connector_feature_data` into ClearSale extras. A present but
     /// malformed blob is an error — never silently defaulted.
     pub(crate) fn parse(raw: Option<&Secret<String>>) -> Result<Self, Error> {
@@ -2086,7 +2107,7 @@ impl ClearSaleFeatureData {
                             "ClearSale connector_feature_data must be a JSON object: {err}"
                         )),
                         suggested_action: Some(
-                            "Send a JSON object matching ClearSaleFeatureData".to_owned(),
+                            "Send a JSON object matching ClearSaleConnectorFeatureData".to_owned(),
                         ),
                         doc_url: Some(CLEARSALE_DOC_URL.to_owned()),
                     },
@@ -2096,6 +2117,20 @@ impl ClearSaleFeatureData {
     }
 }
 
+fn resolve_order_info_metadata(
+    legacy: &ClearSaleOrderInfoMetadata,
+    typed_order_info: Option<&OrderInfo>,
+) -> ClearSaleOrderInfoMetadata {
+    let mut order_info_metadata = legacy.clone();
+    if let Some(description) = typed_order_info
+        .map(|order_info| order_info.description.trim())
+        .filter(|description| !description.is_empty())
+    {
+        order_info_metadata.observation = Some(description.to_owned());
+    }
+    order_info_metadata
+}
+
 /// Build the ClearSale order body shared by PreRiskCheck and PostRiskCheck.
 pub(crate) fn order_from_common(
     inputs: OrderInputs<'_>,
@@ -2103,7 +2138,9 @@ pub(crate) fn order_from_common(
     let OrderInputs {
         code,
         session_id,
-        feature_data,
+        order_info_metadata,
+        connector_feature_data,
+        installments,
         b2b_b2c,
         config_product,
         email,
@@ -2139,7 +2176,7 @@ pub(crate) fn order_from_common(
         customer_info,
         billing_document.as_ref(),
         billing_document_kind.as_ref(),
-        feature_data,
+        &order_info_metadata,
     )?;
 
     let shipping = address
@@ -2164,7 +2201,7 @@ pub(crate) fn order_from_common(
                 customer_info,
                 shipping_document.as_ref(),
                 shipping_document_kind.as_ref(),
-                feature_data,
+                &order_info_metadata,
             )
         })
         .transpose()?;
@@ -2179,11 +2216,11 @@ pub(crate) fn order_from_common(
         payment_method,
         total_value,
         &now,
-        feature_data.installments,
+        installments,
         Some(billing.primary_document.clone()),
         money.currency(),
     )?];
-    let items = build_clear_sale_items(&money, order_details, feature_data.is_gift)?;
+    let items = build_clear_sale_items(&money, order_details, order_info_metadata.is_gift)?;
     let billing_country = billing_address
         .address
         .as_ref()
@@ -2200,21 +2237,22 @@ pub(crate) fn order_from_common(
             payments,
             items,
             ip,
-            origin: feature_data.origin.clone(),
-            channel_id: feature_data.channel_id.clone(),
+            origin: order_info_metadata.origin.clone(),
+            channel_id: order_info_metadata.channel_id.clone(),
             b2b_b2c,
             // Two scopes, one value: `connector_feature_data.product` is the
             // per-request override, `config_product` is the account-wide
             // default on the connector config. A merchant provisioned for one
             // product never sets the request field; one who sells under more
             // than one product picks per order. Falls back to Total Garantido.
-            product: feature_data
+            product: connector_feature_data
                 .product
                 .or(config_product)
                 .unwrap_or(DEFAULT_CLEARSALE_PRODUCT_TOTAL_GARANTIDO),
             country: billing_country,
         },
-        feature_data,
+        &order_info_metadata,
+        installments,
         &travel_data,
     ))
 }
@@ -2234,12 +2272,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let req = &item.router_data.request;
-        let feature_data = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref())?;
         let auth = ClearSaleAuthType::try_from(&item.router_data.connector_config)?;
         order_from_common(OrderInputs::from_pre_risk_check(
-            req,
-            &feature_data,
+            &item.router_data.request,
             auth.b2b_b2c,
             auth.product,
         )?)
@@ -2262,12 +2297,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let req = &item.router_data.request;
-        let feature_data = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref())?;
         let auth = ClearSaleAuthType::try_from(&item.router_data.connector_config)?;
         order_from_common(OrderInputs::from_post_risk_check(
-            req,
-            &feature_data,
+            &item.router_data.request,
             auth.b2b_b2c,
             auth.product,
         )?)
@@ -2309,7 +2341,7 @@ impl TryFrom<ResponseRouterData<ClearSaleOrderCreateResponse, Self>>
                 risk_score: score,
                 reason: Some(format!("packageID: {}", item.response.package_id)),
                 frm_transaction_id: order_code
-                    .or_else(|| item.router_data.request.merchant_transaction_id.clone()),
+                    .or_else(|| item.router_data.request.merchant_order_id.clone()),
                 status_code: item.http_code,
             }),
             ..item.router_data
@@ -2332,7 +2364,7 @@ impl TryFrom<ResponseRouterData<ClearSaleOrderReanalysisResponse, Self>>
                 risk_score: score,
                 reason: Some(format!("packageID: {}", item.response.0.package_id)),
                 frm_transaction_id: order_code
-                    .or_else(|| item.router_data.request.merchant_transaction_id.clone()),
+                    .or_else(|| item.router_data.request.merchant_order_id.clone()),
                 status_code: item.http_code,
             }),
             ..item.router_data
