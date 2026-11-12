@@ -198,7 +198,7 @@ pub trait IncomingWebhook {
     }
 }
 
-pub trait WebHookParseEvent {
+pub trait IncomingWebhookEventParser {
     fn get_event_type(
         &self,
         _request: RequestDetails,

@@ -11,7 +11,7 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
 };
 use error_stack::report;
-use interfaces::webhooks::WebHookParseEvent;
+use interfaces::webhooks::IncomingWebhookEventParser;
 use serde::Serialize;
 
 use self::transformers::AdyenNotificationRequestItemWH;
@@ -35,8 +35,8 @@ impl<T> Default for Adyen<T> {
     }
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> WebHookParseEvent
-    for Adyen<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    IncomingWebhookEventParser for Adyen<T>
 {
     fn get_event_type(
         &self,
