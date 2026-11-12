@@ -1,0 +1,672 @@
+{
+  "connector": "revpay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for revpay"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Card": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "PaySafeCard": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Skrill": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Webpay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for revpay"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for revpay"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for revpay"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for revpay"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for revpay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for revpay"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for revpay"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for revpay"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for revpay"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for revpay"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by revpay connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for revpay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for revpay"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for revpay"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for revpay"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for revpay"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for revpay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for revpay"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for revpay"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for revpay"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for revpay"
+      }
+    }
+  }
+}
