@@ -869,7 +869,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Grabpay<T>
+    interfaces::webhooks::IncomingWebhook for Grabpay<T>
 {
     fn verify_webhook_source(
         &self,

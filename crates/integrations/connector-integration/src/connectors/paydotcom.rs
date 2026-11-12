@@ -838,7 +838,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Pay.com does publish webhooks, but they are out of scope for this card-only,
 // one-time-payment integration.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Paydotcom<T>
+    interfaces::webhooks::IncomingWebhook for Paydotcom<T>
 {
 }
 

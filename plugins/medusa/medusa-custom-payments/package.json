@@ -1,6 +1,6 @@
 {
   "name": "@juspay-tech/medusa-custom-payments",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Custom payments provider for Medusa v2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -56,7 +56,7 @@
     "@types/jest": "^30.0.0",
     "@types/express": "^4.17.21",
     "jest": "^30.4.2",
-    "rimraf": "^5.0.0",
+    "rimraf": "^6.1.4",
     "ts-jest": "^29.4.11",
     "tsx": "^4.19.2",
     "typescript": "^5.3.0"

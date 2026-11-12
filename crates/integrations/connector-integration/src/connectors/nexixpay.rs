@@ -251,7 +251,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ===== DISPUTE FLOW TRAIT IMPLEMENTATIONS =====
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Nexixpay<T>
+    interfaces::webhooks::IncomingWebhook for Nexixpay<T>
 {
     /// Always reports the notification as unverified (`Ok(false)`), by design.
     ///

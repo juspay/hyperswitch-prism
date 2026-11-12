@@ -29,7 +29,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 #[test]
 fn payment_webhook_returns_payment_state_and_preserves_routing() -> TestResult {
     use domain_types::connector_types::{EventType, ResponseId, WebhookResourceReference};
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
     let body = json!({
@@ -102,7 +102,7 @@ fn webhook_secrets() -> domain_types::connector_types::ConnectorWebhookSecrets {
 #[test]
 fn refund_webhooks_keep_the_refund_and_parent_payment_distinct() -> TestResult {
     use domain_types::connector_types::{EventType, WebhookResourceReference};
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
     for (event, expected_event, expected_status) in [
@@ -158,7 +158,7 @@ fn refund_webhooks_keep_the_refund_and_parent_payment_distinct() -> TestResult {
 
 #[test]
 fn webhook_signature_authenticates_the_exact_callback_and_body() -> TestResult {
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
     let request = webhook_request(
@@ -202,7 +202,7 @@ fn webhook_signature_authenticates_the_exact_callback_and_body() -> TestResult {
 
 #[test]
 fn webhook_verification_rejects_missing_or_invalid_inputs() -> TestResult {
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
     let connector = Rapyd::<DefaultPCIHolder>::new();
     let request = webhook_request(b"{}".to_vec());
     if connector
@@ -252,7 +252,7 @@ fn webhook_verification_rejects_missing_or_invalid_inputs() -> TestResult {
 #[test]
 fn dispute_webhooks_use_the_token_and_currency_precision() -> TestResult {
     use domain_types::connector_types::{EventType, WebhookResourceReference};
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
     for (event, status, expected_event, expected_status) in [
@@ -330,7 +330,7 @@ fn dispute_webhooks_use_the_token_and_currency_precision() -> TestResult {
 #[test]
 fn payment_webhooks_preserve_authorization_and_failure_details() -> TestResult {
     use domain_types::connector_types::EventType;
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
     for (event, status, next_action, expected_event, expected_status) in [
@@ -394,7 +394,7 @@ fn payment_webhooks_preserve_authorization_and_failure_details() -> TestResult {
 #[test]
 fn unsupported_and_malformed_webhooks_do_not_produce_payment_updates() -> TestResult {
     use domain_types::connector_types::EventType;
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
     for body in [

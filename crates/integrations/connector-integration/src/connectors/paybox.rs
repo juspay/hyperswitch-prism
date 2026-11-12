@@ -325,7 +325,7 @@ macros::macro_connector_payout_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Paybox<T>
+    interfaces::webhooks::IncomingWebhook for Paybox<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

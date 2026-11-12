@@ -61,7 +61,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Calida<T>
+    interfaces::webhooks::IncomingWebhook for Calida<T>
 {
     fn verify_webhook_source(
         &self,

@@ -123,7 +123,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Rapyd<T>
+    interfaces::webhooks::IncomingWebhook for Rapyd<T>
 {
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         let event: transformers::RapydIncomingWebhook = request
