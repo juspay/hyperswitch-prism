@@ -2429,6 +2429,8 @@ message SenderAddress {
   optional SecretString line1 = 1;
   // Second line of the street address (e.g. flat, suite or building).
   optional SecretString line2 = 2;
+  // Third line of the street address (e.g. district or additional locality detail).
+  optional SecretString line3 = 7;
   // City or locality.
   optional SecretString city = 3;
   // State, province or region. Some connectors require it for US and CA addresses.

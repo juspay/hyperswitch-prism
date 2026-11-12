@@ -94,6 +94,7 @@ fn sender_address() -> SenderAddress {
     SenderAddress {
         line1: Some(secret("10 Downing St")),
         line2: Some(secret("Flat 2")),
+        line3: None,
         city: Some(secret("London")),
         state: None,
         zip: Some(secret("SW1A 2AA")),

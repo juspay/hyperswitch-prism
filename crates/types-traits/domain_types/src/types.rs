@@ -15904,6 +15904,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SenderAddress> for connector_types
         Ok(Self {
             line1: value.line1,
             line2: value.line2,
+            line3: value.line3,
             city: value.city,
             state: value.state,
             zip: value.zip_code,

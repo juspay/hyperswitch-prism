@@ -6852,6 +6852,7 @@ pub struct RecipientDetails {
 pub struct SenderAddress {
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
+    pub line3: Option<Secret<String>>,
     pub city: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
@@ -6863,6 +6864,7 @@ impl SenderAddress {
     pub fn is_empty(&self) -> bool {
         self.line1.is_none()
             && self.line2.is_none()
+            && self.line3.is_none()
             && self.city.is_none()
             && self.state.is_none()
             && self.zip.is_none()

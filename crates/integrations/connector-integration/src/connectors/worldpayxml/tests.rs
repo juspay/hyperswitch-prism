@@ -418,6 +418,7 @@ mod sender_party {
         SenderAddress {
             line1: Some(secret("10 Downing St")),
             line2: None,
+            line3: None,
             city: Some(secret("London")),
             state: Some(secret("Westminster")),
             zip: Some(secret("SW1A 2AA")),

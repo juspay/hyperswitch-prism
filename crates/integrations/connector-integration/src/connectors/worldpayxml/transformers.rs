@@ -1268,6 +1268,7 @@ fn build_worldpayxml_sender_funding_address(
             .clone()
             .ok_or_else(utils::missing_field_err("sender_details.address.line1"))?,
         address2: address.line2.clone(),
+        address3: address.line3.clone(),
         postal_code: address
             .zip
             .clone()
