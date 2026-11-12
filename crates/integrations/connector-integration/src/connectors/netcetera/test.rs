@@ -152,10 +152,7 @@ fn post_auth_data<T: PaymentMethodDataTypes>(
         connector_config: config,
         request: PaymentsPostAuthenticateData {
             payment_method_data: None,
-            money: Money {
-                amount: MinorUnit::new(2999),
-                currency: common_enums::Currency::USD,
-            },
+            money: Money::from_minor_unit(MinorUnit::new(2999), common_enums::Currency::USD),
             email: None,
             currency: Some(common_enums::Currency::USD),
             payment_method_type: None,
