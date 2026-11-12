@@ -263,11 +263,12 @@ jobs:
           IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
           for c in "${CONNECTORS[@]}"; do
             spec_dir="tests/regression/src/connector_specs/$c"
+            legacy_spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
             # A connector is "new" in this PR if its spec directory does not
-            # exist at the PR's base commit, regardless of whether it exists
-            # now. Compares against the merge-base, not just the immediate
-            # parent, so it's correct for PRs with multiple commits.
-            if ! git cat-file -e "${base_ref}:${spec_dir}" 2>/dev/null; then
+            # exist at the PR's base commit. A directory moved unchanged from
+            # the legacy regression-test location is an existing connector.
+            if ! git cat-file -e "${base_ref}:${spec_dir}" 2>/dev/null && \
+               ! git cat-file -e "${base_ref}:${legacy_spec_dir}" 2>/dev/null; then
               new_list="${new_list}${new_list:+,}${c}"
             fi
           done
