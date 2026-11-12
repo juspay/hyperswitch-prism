@@ -27,13 +27,12 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorSpecifications,
         ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        DisputeWebhookReference, EventContext, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundWebhookDetailsResponse,
-        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, SetupMandateRequestData, SubmitEvidenceData,
-        SupportedPaymentMethodsExt, WebhookDetailsResponse, WebhookResourceReference,
+        EventContext, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, SetupMandateRequestData, SubmitEvidenceData,
+        SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
@@ -884,113 +883,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"notificationItems":[{"NotificationRequestItem":{"pspReference":"probe_ref_001","merchantReference":"probe_order_001","merchantAccountCode":"ProbeAccount","eventCode":"AUTHORISATION","success":"true","amount":{"currency":"USD","value":1000},"additionalData":{}}}]}"#
-    }
-
-    fn get_event_type(
-        &self,
-        request: RequestDetails,
-    ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        if request.body.is_empty() {
-            return Ok(domain_types::connector_types::EventType::EndpointVerification);
-        }
-        let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
-                report!(WebhookError::WebhookBodyDecodingFailed)
-                    .attach_printable(format!("error while decoding webhook body {err}"))
-            })?;
-        transformers::get_adyen_webhook_event_type(
-            notif.event_code,
-            notif.success,
-            notif.additional_data.dispute_status,
-        )
-        .map_err(|e| report!(e))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        use transformers::WebhookEventCode;
-
-        let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
-                report!(WebhookError::WebhookBodyDecodingFailed)
-                    .attach_printable(format!("error while decoding webhook body {err}"))
-            })?;
-
-        let reference = match notif.event_code {
-            // Capture/cancellation/adjustment events: psp_reference is the event's own PSP ref;
-            // original_reference is the parent authorisation's PSP ref — that's the lookup key.
-            WebhookEventCode::Capture
-            | WebhookEventCode::CaptureFailed
-            | WebhookEventCode::Cancellation
-            | WebhookEventCode::AuthorisationAdjustment => {
-                WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: notif.original_reference,
-                    merchant_transaction_id: Some(notif.merchant_reference),
-                    connector_preprocessing_id: None,
-                })
-            }
-            // AUTHORISATION-like events carry both the Adyen PSP reference and
-            // the merchant reference. Return both so Prism remains a transparent
-            // parse layer; HS is responsible for choosing the lookup key.
-            WebhookEventCode::Authorisation
-            | WebhookEventCode::OfferClosed
-            | WebhookEventCode::RecurringContract => {
-                WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(notif.psp_reference),
-                    merchant_transaction_id: Some(notif.merchant_reference),
-                    connector_preprocessing_id: None,
-                })
-            }
-            // Refund events carry the refund PSP reference, merchant refund
-            // reference, and parent payment PSP reference. Return all of them.
-            WebhookEventCode::Refund
-            | WebhookEventCode::CancelOrRefund
-            | WebhookEventCode::RefundFailed
-            | WebhookEventCode::RefundReversed => {
-                WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(notif.psp_reference),
-                    merchant_refund_id: Some(notif.merchant_reference),
-                    connector_transaction_id: notif.original_reference,
-                    merchant_transaction_id: None,
-                })
-            }
-            // Dispute events carry the dispute PSP reference and the parent
-            // payment PSP reference (originalReference). Return both so Prism
-            // stays a transparent parse layer; the HS bridge prefers the
-            // parent payment reference (connector_transaction_id) for the
-            // payment lookup, matching the Direct path.
-            WebhookEventCode::NotificationOfChargeback
-            | WebhookEventCode::Chargeback
-            | WebhookEventCode::ChargebackReversed
-            | WebhookEventCode::PrearbitrationWon
-            | WebhookEventCode::SecondChargeback
-            | WebhookEventCode::PrearbitrationLost
-            | WebhookEventCode::RequestForInformation
-            | WebhookEventCode::InformationSupplied
-            | WebhookEventCode::PrearbitrationOpen
-            | WebhookEventCode::PrearbitrationAccepted
-            | WebhookEventCode::PrearbitrationDeclined
-            | WebhookEventCode::PrearbitrationIssuerWithdrawn
-            | WebhookEventCode::SchemeArbitration
-            | WebhookEventCode::SchemeArbitrationWon
-            | WebhookEventCode::SchemeArbitrationLost
-            | WebhookEventCode::DisputeDefensePeriodEnded
-            | WebhookEventCode::IssuerResponseTimeframeExpired => {
-                WebhookResourceReference::Dispute(DisputeWebhookReference {
-                    connector_dispute_id: Some(notif.psp_reference),
-                    connector_transaction_id: notif.original_reference,
-                })
-            }
-            WebhookEventCode::NotificationOfFraud | WebhookEventCode::IssuerComments => {
-                return Ok(None);
-            }
-            // Unknown: no actionable reference.
-            WebhookEventCode::Unknown => return Ok(None),
-        };
-
-        Ok(Some(reference))
     }
 
     fn process_payment_webhook(

@@ -197,3 +197,22 @@ pub trait IncomingWebhook {
         })
     }
 }
+
+pub trait WebHookParseEvent {
+    fn get_event_type(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "get_event_type",
+        }
+        .into())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        Ok(None)
+    }
+}

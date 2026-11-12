@@ -16,6 +16,7 @@ pub mod surcharge_connectors;
 pub mod types;
 pub mod utils;
 pub mod webhook_utils;
+pub mod webhooks;
 
 pub use domain_types::errors;
 pub use domain_types::{ConnectorError, IntegrationError};
