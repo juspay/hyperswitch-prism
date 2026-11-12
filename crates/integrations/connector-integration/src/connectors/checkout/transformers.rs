@@ -596,8 +596,18 @@ pub(super) fn build_checkout_sender(
 
     match sender_details {
         SenderDetails::Individual(individual) => Ok(CheckoutSender::Individual {
-            first_name: individual.first_name.clone(),
-            last_name: individual.last_name.clone(),
+            first_name: individual
+                .first_name
+                .clone()
+                .ok_or_else(utils::missing_field_err(
+                    "sender_details.individual.first_name",
+                ))?,
+            last_name: individual
+                .last_name
+                .clone()
+                .ok_or_else(utils::missing_field_err(
+                    "sender_details.individual.last_name",
+                ))?,
             // For backward compatibility, fall back to the customer's date of birth, which was
             // the only source of the sender's date of birth before sender details were added.
             date_of_birth: match individual.date_of_birth.clone() {
@@ -606,10 +616,14 @@ pub(super) fn build_checkout_sender(
             },
             address,
         }),
-        SenderDetails::Corporate(corporate) => Ok(CheckoutSender::Corporate {
-            company_name: corporate.company_name.clone(),
-            address,
-        }),
+        SenderDetails::Corporate(corporate) => {
+            Ok(CheckoutSender::Corporate {
+                company_name: corporate.company_name.clone().ok_or_else(
+                    utils::missing_field_err("sender_details.corporate.company_name"),
+                )?,
+                address,
+            })
+        }
     }
 }
 
@@ -724,7 +738,7 @@ fn build_shipping(common: &PaymentFlowData) -> Option<CheckoutShipping> {
 /// Customer name and tax number come from Level 2/3 data. Email and phone are
 /// independent of Level 2/3 processing.
 fn build_customer(
-    customer: Option<&domain_types::connector_types::CustomerInfo>,
+    customer: Option<&CustomerInfo>,
     l2l3_data: Option<&domain_types::connector_types::L2L3Data>,
     email: Option<common_utils::pii::Email>,
 ) -> Option<CheckoutCustomer> {

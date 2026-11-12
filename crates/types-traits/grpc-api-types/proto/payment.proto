@@ -2443,8 +2443,8 @@ message SenderAddress {
 
 // An individual (natural person) providing the funds in an AFT.
 message IndividualSenderDetails {
-  SecretString first_name = 1;               // Mandatory, enforced in conversion
-  SecretString last_name = 2;                // Mandatory, enforced in conversion
+  SecretString first_name = 1;               // Required for AFT, enforced by the connector
+  SecretString last_name = 2;                // Required for AFT, enforced by the connector
   optional SecretString date_of_birth = 3;   // ISO 8601: yyyy-MM-dd
   optional SenderAddress address = 4;
   optional SecretString email = 5;
@@ -2454,7 +2454,7 @@ message IndividualSenderDetails {
 
 // A company (legal entity) providing the funds in an AFT.
 message CorporateSenderDetails {
-  SecretString company_name = 1;             // Mandatory, enforced in conversion
+  SecretString company_name = 1;             // Required for AFT, enforced by the connector
   optional SenderAddress address = 2;
   optional SecretString email = 3;
   optional SecretString phone_number = 4;

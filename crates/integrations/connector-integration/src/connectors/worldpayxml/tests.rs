@@ -444,7 +444,7 @@ mod sender_party {
 
     fn corporate(company_name: &str, phone_number: Option<&str>) -> SenderDetails {
         SenderDetails::Corporate(CorporateSenderDetails {
-            company_name: secret(company_name),
+            company_name: Some(secret(company_name)),
             address: Some(sender_address()),
             email: None,
             phone_number: phone_number.map(secret),
@@ -484,8 +484,8 @@ mod sender_party {
     #[test]
     fn individual_from_sender_details() {
         let sender = SenderDetails::Individual(IndividualSenderDetails {
-            first_name: secret("John"),
-            last_name: secret("Smith"),
+            first_name: Some(secret("John")),
+            last_name: Some(secret("Smith")),
             date_of_birth: Some(Secret::new(time::macros::date!(1985 - 04 - 12))),
             address: Some(sender_address()),
             email: None,
@@ -505,8 +505,8 @@ mod sender_party {
     #[test]
     fn individual_falls_back_to_customer_date_of_birth_and_billing_phone() {
         let sender = SenderDetails::Individual(IndividualSenderDetails {
-            first_name: secret("John"),
-            last_name: secret("Smith"),
+            first_name: Some(secret("John")),
+            last_name: Some(secret("Smith")),
             date_of_birth: None,
             address: Some(sender_address()),
             email: None,
@@ -598,7 +598,7 @@ mod sender_party {
     #[test]
     fn sender_details_require_an_address() {
         let sender = SenderDetails::Corporate(CorporateSenderDetails {
-            company_name: secret("Acme Ltd"),
+            company_name: Some(secret("Acme Ltd")),
             address: None,
             email: None,
             phone_number: None,

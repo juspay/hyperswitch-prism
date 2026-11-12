@@ -1325,9 +1325,19 @@ pub(super) fn build_worldpayxml_sender_party(
         }
         Some(SenderDetails::Individual(individual)) => (
             requests::WorldpayxmlFullName {
-                first: individual.first_name.clone(),
+                first: individual
+                    .first_name
+                    .clone()
+                    .ok_or_else(utils::missing_field_err(
+                        "sender_details.individual.first_name",
+                    ))?,
                 middle: None,
-                last: individual.last_name.clone(),
+                last: individual
+                    .last_name
+                    .clone()
+                    .ok_or_else(utils::missing_field_err(
+                        "sender_details.individual.last_name",
+                    ))?,
             },
             individual
                 .address
@@ -1349,7 +1359,9 @@ pub(super) fn build_worldpayxml_sender_party(
             }),
         ),
         Some(SenderDetails::Corporate(corporate)) => (
-            get_worldpayxml_company_full_name(&corporate.company_name)?,
+            get_worldpayxml_company_full_name(corporate.company_name.as_ref().ok_or_else(
+                utils::missing_field_err("sender_details.corporate.company_name"),
+            )?)?,
             corporate
                 .address
                 .as_ref()

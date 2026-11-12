@@ -15843,28 +15843,11 @@ impl ForeignTryFrom<grpc_api_types::payments::RecipientDetails>
     }
 }
 
-/// Unwraps a mandatory sender field, rejecting both an absent and a blank value.
-fn required_sender_field(
-    value: Option<Secret<String>>,
-    field_name: &'static str,
-    variant: &str,
-) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    value
-        .filter(|secret| !secret.peek().trim().is_empty())
-        .ok_or_else(|| {
-            report!(IntegrationError::InvalidDataFormat {
-                field_name,
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "{field_name} is required and must not be blank for the {variant} variant"
-                    )),
-                    suggested_action: Some(format!(
-                        "Provide a non-empty {field_name} in SenderDetails"
-                    )),
-                    doc_url: None,
-                },
-            })
-        })
+/// Normalises an optional sender name: a blank value is treated as absent. Presence is not
+/// enforced here because `sender_details` can arrive on non-AFT payments, where it is unused;
+/// connectors enforce the names when they build an AFT sender.
+fn optional_sender_field(value: Option<Secret<String>>) -> Option<Secret<String>> {
+    value.filter(|secret| !secret.peek().trim().is_empty())
 }
 
 fn sender_email(
@@ -15922,16 +15905,8 @@ impl ForeignTryFrom<grpc_api_types::payments::SenderDetails> for connector_types
         match value.sender_type {
             Some(SenderType::Individual(individual)) => {
                 Ok(Self::Individual(connector_types::IndividualSenderDetails {
-                    first_name: required_sender_field(
-                        individual.first_name,
-                        "sender_details.individual.first_name",
-                        "Individual",
-                    )?,
-                    last_name: required_sender_field(
-                        individual.last_name,
-                        "sender_details.individual.last_name",
-                        "Individual",
-                    )?,
+                    first_name: optional_sender_field(individual.first_name),
+                    last_name: optional_sender_field(individual.last_name),
                     date_of_birth: individual
                         .date_of_birth
                         .map(|date_of_birth| {
@@ -15952,11 +15927,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SenderDetails> for connector_types
             }
             Some(SenderType::Corporate(corporate)) => {
                 Ok(Self::Corporate(connector_types::CorporateSenderDetails {
-                    company_name: required_sender_field(
-                        corporate.company_name,
-                        "sender_details.corporate.company_name",
-                        "Corporate",
-                    )?,
+                    company_name: optional_sender_field(corporate.company_name),
                     address: corporate
                         .address
                         .map(connector_types::SenderAddress::foreign_try_from)
@@ -23241,6 +23212,35 @@ impl From<grpc_payment_types::IntegritySpecifications> for IntegritySpecificatio
     fn from(value: grpc_payment_types::IntegritySpecifications) -> Self {
         Self {
             allow_amount_mismatch: value.allow_amount_mismatch,
+        }
+    }
+}
+
+#[cfg(test)]
+mod sender_details_conversion_tests {
+    use super::*;
+
+    /// Hyperswitch sends `sender_details` built from billing on every authorize, including
+    /// non-AFT payments. A nameless sender must parse; AFT connectors enforce the names.
+    #[test]
+    fn individual_sender_without_names_parses() {
+        let value = grpc_api_types::payments::SenderDetails {
+            sender_type: Some(SenderType::Individual(
+                grpc_api_types::payments::IndividualSenderDetails {
+                    first_name: Some(Secret::new("John".to_string())),
+                    last_name: Some(Secret::new("  ".to_string())),
+                    ..Default::default()
+                },
+            )),
+        };
+        let parsed = connector_types::SenderDetails::foreign_try_from(value)
+            .expect("missing names must not fail parsing");
+        match parsed {
+            connector_types::SenderDetails::Individual(individual) => {
+                assert!(individual.first_name.is_some());
+                assert!(individual.last_name.is_none(), "blank is treated as absent");
+            }
+            connector_types::SenderDetails::Corporate(_) => panic!("expected individual"),
         }
     }
 }

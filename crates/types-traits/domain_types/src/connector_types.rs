@@ -6862,8 +6862,9 @@ pub struct SenderAddress {
 /// An individual (natural person) providing the funds in an account-funded transaction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IndividualSenderDetails {
-    pub first_name: Secret<String>,
-    pub last_name: Secret<String>,
+    /// Required by connectors only when the payment is an AFT; validated there, not at parse time.
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
     pub date_of_birth: Option<Secret<time::Date>>,
     pub address: Option<SenderAddress>,
     pub email: Option<Email>,
@@ -6874,7 +6875,8 @@ pub struct IndividualSenderDetails {
 /// A company (legal entity) providing the funds in an account-funded transaction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CorporateSenderDetails {
-    pub company_name: Secret<String>,
+    /// Required by connectors only when the payment is an AFT; validated there, not at parse time.
+    pub company_name: Option<Secret<String>>,
     pub address: Option<SenderAddress>,
     pub email: Option<Email>,
     pub phone_number: Option<Secret<String>>,

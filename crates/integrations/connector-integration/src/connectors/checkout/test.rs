@@ -120,8 +120,8 @@ fn customer(date_of_birth: Option<time::Date>) -> CustomerInfo {
 
 fn individual(date_of_birth: Option<time::Date>) -> SenderDetails {
     SenderDetails::Individual(IndividualSenderDetails {
-        first_name: secret("John"),
-        last_name: secret("Smith"),
+        first_name: Some(secret("John")),
+        last_name: Some(secret("Smith")),
         date_of_birth: date_of_birth.map(Secret::new),
         address: Some(sender_address()),
         email: None,
@@ -185,7 +185,7 @@ fn individual_date_of_birth_falls_back_to_customer() {
 #[test]
 fn corporate_from_sender_details() {
     let sender = SenderDetails::Corporate(CorporateSenderDetails {
-        company_name: secret("Example Trading Ltd"),
+        company_name: Some(secret("Example Trading Ltd")),
         address: Some(sender_address()),
         email: None,
         phone_number: None,
@@ -211,8 +211,8 @@ fn corporate_from_sender_details() {
 #[test]
 fn sender_details_require_an_address() {
     let sender = SenderDetails::Individual(IndividualSenderDetails {
-        first_name: secret("John"),
-        last_name: secret("Smith"),
+        first_name: Some(secret("John")),
+        last_name: Some(secret("Smith")),
         date_of_birth: Some(Secret::new(time::macros::date!(1985 - 04 - 12))),
         address: None,
         email: None,
@@ -290,4 +290,37 @@ fn without_sender_details_the_request_is_unchanged() {
 
     let error = build(None, None).expect_err("date of birth is required");
     assert_eq!(missing_field(&error), "customer.date_of_birth");
+}
+
+/// `sender_details` can reach an AFT without names (e.g. built from a nameless billing address);
+/// the names are enforced here, when the AFT sender is built, not when the request is parsed.
+#[test]
+fn aft_individual_sender_requires_both_names() {
+    let date_of_birth = Some(time::macros::date!(1985 - 04 - 12));
+    for (sender, field_name) in [
+        (
+            SenderDetails::Individual(IndividualSenderDetails {
+                first_name: None,
+                ..individual_details(date_of_birth)
+            }),
+            "sender_details.individual.first_name",
+        ),
+        (
+            SenderDetails::Individual(IndividualSenderDetails {
+                last_name: None,
+                ..individual_details(date_of_birth)
+            }),
+            "sender_details.individual.last_name",
+        ),
+    ] {
+        let error = build(Some(&sender), None).expect_err("names are required for AFT");
+        assert_eq!(missing_field(&error), field_name);
+    }
+}
+
+fn individual_details(date_of_birth: Option<time::Date>) -> IndividualSenderDetails {
+    match individual(date_of_birth) {
+        SenderDetails::Individual(details) => details,
+        SenderDetails::Corporate(_) => unreachable!(),
+    }
 }
