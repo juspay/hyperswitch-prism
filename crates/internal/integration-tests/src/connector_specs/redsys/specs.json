@@ -8,6 +8,109 @@
     "PaymentService/Refund",
     "PaymentService/Void",
     "PaymentService/Get",
-    "RefundService/Get"
-  ]
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_apple_pay_decrypted": "SANDBOX_NOT_PROVISIONED: run:test/capabilities.json#Authorize/Wallet (test/evidence/baseline/probe_Authorize__Wallet.txt, SIS0496) — terminal is not wallet-enabled and Redsys wallets are production-only (Google Pay guide v1.9, Apple Pay guide v3.2); no device-minted token or merchant key exists; request built by matrix rows Authorize/Wallet/*",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "SANDBOX_NOT_PROVISIONED: run:test/capabilities.json#Authorize/Wallet (test/evidence/baseline/probe_Authorize__Wallet.txt, SIS0496) — terminal is not wallet-enabled and Redsys wallets are production-only (Google Pay guide v1.9, Apple Pay guide v3.2); no device-minted token or merchant key exists; request built by matrix rows Authorize/Wallet/*",
+      "no3ds_auto_capture_google_pay_decrypted": "SANDBOX_NOT_PROVISIONED: run:test/capabilities.json#Authorize/Wallet (test/evidence/baseline/probe_Authorize__Wallet.txt, SIS0496) — terminal is not wallet-enabled and Redsys wallets are production-only (Google Pay guide v1.9, Apple Pay guide v3.2); no device-minted token or merchant key exists; request built by matrix rows Authorize/Wallet/*",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "SANDBOX_NOT_PROVISIONED: run:test/capabilities.json#Authorize/Wallet (test/evidence/baseline/probe_Authorize__Wallet.txt, SIS0496) — terminal is not wallet-enabled and Redsys wallets are production-only (Google Pay guide v1.9, Apple Pay guide v3.2); no device-minted token or merchant key exists; request built by matrix rows Authorize/Wallet/*",
+      "no3ds_auto_capture_google_pay_encrypted": "SANDBOX_NOT_PROVISIONED: run:test/capabilities.json#Authorize/Wallet (test/evidence/baseline/probe_Authorize__Wallet.txt, SIS0496) — terminal is not wallet-enabled and Redsys wallets are production-only (Google Pay guide v1.9, Apple Pay guide v3.2); no device-minted token or merchant key exists; request built by matrix rows Authorize/Wallet/*"
+    }
+  },
+  "suite_dependencies": {
+    "PaymentService/Capture": {
+      "replace": [
+        {
+          "suite": "PaymentService/SetupRecurring",
+          "scenario": "setup_recurring",
+          "context_map": {
+            "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id"
+          }
+        },
+        {
+          "suite": "RecurringPaymentService/Charge",
+          "scenario": "recurring_charge_with_order_context",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "amount_to_capture.minor_amount": "req.amount.minor_amount",
+            "amount_to_capture.currency": "req.amount.currency"
+          }
+        }
+      ]
+    },
+    "PaymentService/Void": {
+      "replace": [
+        {
+          "suite": "PaymentService/SetupRecurring",
+          "scenario": "setup_recurring",
+          "context_map": {
+            "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id"
+          }
+        },
+        {
+          "suite": "RecurringPaymentService/Charge",
+          "scenario": "recurring_charge_with_order_context",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "amount.minor_amount": "req.amount.minor_amount",
+            "amount.currency": "req.amount.currency"
+          }
+        }
+      ]
+    },
+    "PaymentService/Refund": {
+      "replace": [
+        {
+          "suite": "PaymentService/SetupRecurring",
+          "scenario": "setup_recurring",
+          "context_map": {
+            "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id"
+          }
+        },
+        {
+          "suite": "RecurringPaymentService/Charge",
+          "scenario": "recurring_charge",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "payment_amount": "req.amount.minor_amount",
+            "refund_amount.currency": "req.amount.currency"
+          }
+        }
+      ]
+    },
+    "RefundService/Get": {
+      "replace": [
+        {
+          "suite": "PaymentService/SetupRecurring",
+          "scenario": "setup_recurring",
+          "context_map": {
+            "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id"
+          }
+        },
+        {
+          "suite": "RecurringPaymentService/Charge",
+          "scenario": "recurring_charge",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "payment_amount": "req.amount.minor_amount",
+            "refund_amount.currency": "req.amount.currency"
+          }
+        },
+        {
+          "suite": "PaymentService/Refund",
+          "scenario": "refund_full_amount",
+          "context_map": {
+            "connector_refund_id": "res.connector_refund_id",
+            "connector_transaction_id": "res.connector_transaction_id",
+            "refund_id": "res.connector_refund_id"
+          }
+        }
+      ]
+    }
+  }
 }

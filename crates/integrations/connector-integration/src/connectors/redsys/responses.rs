@@ -11,6 +11,8 @@ pub type RedsysAuthorizeResponse = RedsysResponse;
 pub type RedsysCaptureResponse = RedsysResponse;
 pub type RedsysVoidResponse = RedsysResponse;
 pub type RedsysRefundResponse = RedsysResponse;
+pub type RedsysSetupMandateResponse = RedsysResponse;
+pub type RedsysRepeatPaymentResponse = RedsysResponse;
 
 /// Main response enum that handles both success and error responses
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,6 +37,12 @@ pub struct RedsysPaymentsResponse {
     pub ds_response: Option<DsResponse>,
     #[serde(rename = "Ds_Response_Description")]
     pub ds_response_description: Option<String>,
+    /// Card-on-file reference returned when DS_MERCHANT_IDENTIFIER=REQUIRED was sent
+    #[serde(rename = "Ds_Merchant_Identifier")]
+    pub ds_merchant_identifier: Option<Secret<String>>,
+    /// Network transaction id of the card-on-file operation
+    #[serde(rename = "Ds_Merchant_Cof_Txnid")]
+    pub ds_merchant_cof_txnid: Option<Secret<String>>,
 }
 
 /// PSD2 compliance indicator
@@ -159,7 +167,7 @@ pub struct SyncErrorCode {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum DsState {
     /// Authenticating
     A,
@@ -181,6 +189,9 @@ pub enum DsState {
     T,
     /// Redirected to a wallet
     W,
+    /// Undocumented state - sync keeps the current status
+    #[serde(other)]
+    Unknown,
 }
 
 /// Sync response transaction data
@@ -194,7 +205,7 @@ pub struct RedsysSyncResponseData {
     pub ds_currency: Option<String>,
     pub ds_date: Option<String>,
     pub ds_hour: Option<String>,
-    pub ds_merchantcode: Option<String>,
+    pub ds_merchantcode: Option<Secret<String>>,
     pub ds_order: String,
     pub ds_response: Option<DsResponse>,
     pub ds_securepayment: Option<String>,

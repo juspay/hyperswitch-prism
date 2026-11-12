@@ -9,6 +9,8 @@ pub type RedsysAuthorizeRequest = super::transformers::RedsysTransaction;
 pub type RedsysCaptureRequest = super::transformers::RedsysTransaction;
 pub type RedsysVoidRequest = super::transformers::RedsysTransaction;
 pub type RedsysRefundRequest = super::transformers::RedsysTransaction;
+pub type RedsysSetupMandateRequest = super::transformers::RedsysTransaction;
+pub type RedsysRepeatPaymentRequest = super::transformers::RedsysTransaction;
 
 /// Main payment request structure for Redsys API
 #[derive(Debug, Serialize)]
@@ -16,19 +18,170 @@ pub type RedsysRefundRequest = super::transformers::RedsysTransaction;
 pub struct RedsysPaymentRequest {
     pub ds_merchant_amount: StringMinorUnit,
     pub ds_merchant_currency: String,
-    pub ds_merchant_cvv2: Secret<String>,
+    // PAN/expiry/CVV are absent on identifier-based MIT and wallet requests
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_cvv2: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ds_merchant_emv3ds: Option<RedsysEmvThreeDsRequestData>,
-    pub ds_merchant_expirydate: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_expirydate: Option<Secret<String>>,
     pub ds_merchant_merchantcode: Secret<String>,
     pub ds_merchant_order: String,
-    pub ds_merchant_pan: cards::CardNumber,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_pan: Option<cards::CardNumber>,
     pub ds_merchant_terminal: Secret<String>,
     pub ds_merchant_transactiontype: RedsysTransactionType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ds_merchant_excep_sca: Option<RedsysStrongCustomerAuthenticationException>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ds_merchant_directpayment: Option<bool>,
+    /// External 3DS result (authentication done outside Redsys), spec "External MPI"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_mpiexternal: Option<RedsysMpiExternal>,
+    /// Card-on-file reference: "REQUIRED" on a CIT asks Redsys to generate one
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_identifier: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_cof_ini: Option<RedsysCofIni>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_cof_type: Option<RedsysCofType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_cof_txnid: Option<Secret<String>>,
+    /// Server-to-server notification URL (max 250)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_merchanturl: Option<String>,
+    /// Dynamic statement descriptor (max 25, requires bank activation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_merchant_merchantdescriptor: Option<String>,
+    /// Encrypted wallet token, Redsys decrypts (Apple: hex paymentData; Google: base64
+    /// paymentMethodData). Mutually exclusive with ds_xpaydecodeddata.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_xpaydata: Option<Secret<String>>,
+    /// JSON-encoded RedsysXpayDecodedData (wallet decrypted before reaching Redsys)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_xpaydecodeddata: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_xpaytype: Option<RedsysXpayType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_xpayorigen: Option<RedsysXpayOrigen>,
+}
+
+/// DS_XPAYTYPE (Apple/Google Pay guides; the parameters page swaps TYPE/ORIGEN, guides win)
+#[derive(Debug, Serialize)]
+pub enum RedsysXpayType {
+    Apple,
+    Google,
+}
+
+/// DS_XPAYORIGEN
+#[derive(Debug, Serialize)]
+pub enum RedsysXpayOrigen {
+    InApp,
+    #[serde(rename = "WEB")]
+    Web,
+}
+
+/// Google Pay decrypted card type: CARD = PAN_ONLY, TOKENIZED_CARD = CRYPTOGRAM_3DS
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RedsysGooglePayMethod {
+    Card,
+    TokenizedCard,
+}
+
+/// DS_XPAYDECODEDDATA content
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedsysXpayDecodedData {
+    /// DPAN (Apple) / pan (Google)
+    pub token: cards::CardNumber,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_ind: Option<String>,
+    /// YYMM
+    pub expiration_date: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method: Option<RedsysGooglePayMethod>,
+}
+
+/// Google Pay `paymentMethodData` as Google returns it (camelCase), base64-encoded into
+/// DS_XPAYDATA for Redsys-side decryption
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedsysGooglePayPaymentMethodData {
+    #[serde(rename = "type")]
+    pub pm_type: String,
+    pub description: String,
+    pub info: RedsysGooglePayInfo,
+    pub tokenization_data: RedsysGooglePayTokenizationData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedsysGooglePayInfo {
+    pub card_network: String,
+    pub card_details: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assurance_details: Option<RedsysGooglePayAssuranceDetails>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedsysGooglePayAssuranceDetails {
+    pub card_holder_authenticated: bool,
+    pub account_verified: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RedsysGooglePayTokenizationData {
+    #[serde(rename = "type")]
+    pub token_type: String,
+    pub token: Secret<String>,
+}
+
+/// External MPI authentication result (DS_MERCHANT_MPIEXTERNAL); wire names per the
+/// Redsys sample `{"threeDSServerTransID","dsTransID","authenticationValue","protocolVersion","Eci"}`
+#[derive(Debug, Serialize)]
+pub struct RedsysMpiExternal {
+    #[serde(rename = "threeDSServerTransID")]
+    pub three_d_s_server_trans_i_d: String,
+    #[serde(rename = "dsTransID")]
+    pub ds_trans_i_d: String,
+    #[serde(rename = "authenticationValue")]
+    pub authentication_value: Secret<String>,
+    #[serde(rename = "protocolVersion")]
+    pub protocol_version: String,
+    #[serde(rename = "Eci")]
+    pub eci: String,
+}
+
+/// DS_MERCHANT_COF_INI: S = first card-on-file transaction, N = subsequent
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RedsysCofIni {
+    S,
+    N,
+}
+
+/// DS_MERCHANT_COF_TYPE
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RedsysCofType {
+    /// Installments
+    I,
+    /// Recurring
+    R,
+    /// Reauthorization
+    H,
+    /// Resubmission
+    E,
+    /// Delayed
+    D,
+    /// Incremental
+    M,
+    /// No-show
+    N,
+    /// Other (documented default)
+    C,
 }
 
 #[derive(Debug, Serialize)]
@@ -66,6 +219,9 @@ pub enum RedsysTransactionType {
     /// Cancellation (void)
     #[serde(rename = "9")]
     Cancellation,
+    /// Card validation (no charge); with DS_MERCHANT_IDENTIFIER=REQUIRED it stores the card
+    #[serde(rename = "7")]
+    Validation,
 }
 
 /// EMV 3DS request data for 3D Secure authentication

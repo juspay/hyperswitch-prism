@@ -1,0 +1,71 @@
+{
+  "_webhook_config": {
+    "webhook_secret_key": "fixture_webhook_secret",
+    "note": "Offline fixtures. Redsys signs inside the body (Ds_Signature over Ds_MerchantParameters, per-order 3DES key, HMAC_SHA256_V1, REST manual v4.0.1 Annex 2), so bodies carry precomputed signatures; the harness signs nothing. Signed with a FIXTURE-ONLY terminal key (random 24-byte 3DES key, 32-char base64) generated for these fixtures and supplied as webhook_secrets; it is not a Redsys key and matches no value in creds.json, so no credential is used. fixture_webhook_secret is absent from creds.json so the harness keeps it. invalid_signature is payment_succeeded re-signed with a different random key, so it fails verification under the fixture key.",
+    "signature_algorithm": "HMAC_SHA256_V1: key = 3DES-CBC(zero IV, zero padding) of Ds_Order with base64-decoded terminal key; Ds_Signature = base64(HMAC-SHA256(key, Ds_MerchantParameters as sent)). Body is application/x-www-form-urlencoded Ds_SignatureVersion, Ds_MerchantParameters, Ds_Signature."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/redsys",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "RHNfU2lnbmF0dXJlVmVyc2lvbj1ITUFDX1NIQTI1Nl9WMSZEc19NZXJjaGFudFBhcmFtZXRlcnM9ZXlKRWMxOUVZWFJsSWpvaU1USWxNa1l4TVNVeVJqSXdNallpTENKRWMxOUliM1Z5SWpvaU1UQWxNMEV3TUNJc0lrUnpYMU5sWTNWeVpWQmhlVzFsYm5RaU9pSXhJaXdpUkhOZlFXMXZkVzUwSWpvaU1UQXdNQ0lzSWtSelgwTjFjbkpsYm1ONUlqb2lPVGM0SWl3aVJITmZUM0prWlhJaU9pSjNhREF3TURBd01EQXdNREVpTENKRWMxOU5aWEpqYUdGdWRFTnZaR1VpT2lJNU9Ua3dNRGc0T0RFaUxDSkVjMTlVWlhKdGFXNWhiQ0k2SWpFaUxDSkVjMTlTWlhOd2IyNXpaU0k2SWpBd01EQWlMQ0pFYzE5TlpYSmphR0Z1ZEVSaGRHRWlPaUlpTENKRWMxOVVjbUZ1YzJGamRHbHZibFI1Y0dVaU9pSXdJaXdpUkhOZlEyOXVjM1Z0WlhKTVlXNW5kV0ZuWlNJNklqRWlMQ0pFYzE5QmRYUm9iM0pwYzJGMGFXOXVRMjlrWlNJNklqTTNNalkyTXlKOSZEc19TaWduYXR1cmU9Skt5RFFQTEdHNm5HUU5xTFZ5VTdKejF2UkRQZmlBWk1WbHEyQjljV0ltZyUzRA=="
+      },
+      "merchant_event_id": "redsys_webhook_payment_succeeded",
+      "webhook_secrets": {
+        "secret": "xRZYTay6LbCxNmT/jAjfuYHC4ZYJ2LTo"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/redsys",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "RHNfU2lnbmF0dXJlVmVyc2lvbj1ITUFDX1NIQTI1Nl9WMSZEc19NZXJjaGFudFBhcmFtZXRlcnM9ZXlKRWMxOUVZWFJsSWpvaU1USWxNa1l4TVNVeVJqSXdNallpTENKRWMxOUliM1Z5SWpvaU1UQWxNMEV3TUNJc0lrUnpYMU5sWTNWeVpWQmhlVzFsYm5RaU9pSXhJaXdpUkhOZlFXMXZkVzUwSWpvaU1UQXdNQ0lzSWtSelgwTjFjbkpsYm1ONUlqb2lPVGM0SWl3aVJITmZUM0prWlhJaU9pSjNhREF3TURBd01EQXdNRElpTENKRWMxOU5aWEpqYUdGdWRFTnZaR1VpT2lJNU9Ua3dNRGc0T0RFaUxDSkVjMTlVWlhKdGFXNWhiQ0k2SWpFaUxDSkVjMTlTWlhOd2IyNXpaU0k2SWpBeE9UQWlMQ0pFYzE5TlpYSmphR0Z1ZEVSaGRHRWlPaUlpTENKRWMxOVVjbUZ1YzJGamRHbHZibFI1Y0dVaU9pSXdJaXdpUkhOZlEyOXVjM1Z0WlhKTVlXNW5kV0ZuWlNJNklqRWlmUSUzRCUzRCZEc19TaWduYXR1cmU9Q1gzTTdlSURiSE9TeHFjJTJGYmtPdzU3Njcya1NWdnlIczZiTEx6WUZBUGxJJTNE"
+      },
+      "merchant_event_id": "redsys_webhook_payment_failed",
+      "webhook_secrets": {
+        "secret": "xRZYTay6LbCxNmT/jAjfuYHC4ZYJ2LTo"
+      }
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/redsys",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "RHNfU2lnbmF0dXJlVmVyc2lvbj1ITUFDX1NIQTI1Nl9WMSZEc19NZXJjaGFudFBhcmFtZXRlcnM9ZXlKRWMxOUVZWFJsSWpvaU1USWxNa1l4TVNVeVJqSXdNallpTENKRWMxOUliM1Z5SWpvaU1UQWxNMEV3TUNJc0lrUnpYMU5sWTNWeVpWQmhlVzFsYm5RaU9pSXhJaXdpUkhOZlFXMXZkVzUwSWpvaU1UQXdNQ0lzSWtSelgwTjFjbkpsYm1ONUlqb2lPVGM0SWl3aVJITmZUM0prWlhJaU9pSjNhREF3TURBd01EQXdNRE1pTENKRWMxOU5aWEpqYUdGdWRFTnZaR1VpT2lJNU9Ua3dNRGc0T0RFaUxDSkVjMTlVWlhKdGFXNWhiQ0k2SWpFaUxDSkVjMTlTWlhOd2IyNXpaU0k2SWpBNU1EQWlMQ0pFYzE5TlpYSmphR0Z1ZEVSaGRHRWlPaUlpTENKRWMxOVVjbUZ1YzJGamRHbHZibFI1Y0dVaU9pSXpJaXdpUkhOZlEyOXVjM1Z0WlhKTVlXNW5kV0ZuWlNJNklqRWlmUSUzRCUzRCZEc19TaWduYXR1cmU9UUZ3NXltbmd4Z3BxTTk4NiUyQjNDS042T3Z6MyUyRkc0WjIwNGRrJTJCVFRnSFpRQSUzRA=="
+      },
+      "merchant_event_id": "redsys_webhook_refund_succeeded",
+      "webhook_secrets": {
+        "secret": "xRZYTay6LbCxNmT/jAjfuYHC4ZYJ2LTo"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "uri": "/webhooks/redsys",
+        "headers": {
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        "body": "RHNfU2lnbmF0dXJlVmVyc2lvbj1ITUFDX1NIQTI1Nl9WMSZEc19NZXJjaGFudFBhcmFtZXRlcnM9ZXlKRWMxOUVZWFJsSWpvaU1USWxNa1l4TVNVeVJqSXdNallpTENKRWMxOUliM1Z5SWpvaU1UQWxNMEV3TUNJc0lrUnpYMU5sWTNWeVpWQmhlVzFsYm5RaU9pSXhJaXdpUkhOZlFXMXZkVzUwSWpvaU1UQXdNQ0lzSWtSelgwTjFjbkpsYm1ONUlqb2lPVGM0SWl3aVJITmZUM0prWlhJaU9pSjNhREF3TURBd01EQXdNREVpTENKRWMxOU5aWEpqYUdGdWRFTnZaR1VpT2lJNU9Ua3dNRGc0T0RFaUxDSkVjMTlVWlhKdGFXNWhiQ0k2SWpFaUxDSkVjMTlTWlhOd2IyNXpaU0k2SWpBd01EQWlMQ0pFYzE5TlpYSmphR0Z1ZEVSaGRHRWlPaUlpTENKRWMxOVVjbUZ1YzJGamRHbHZibFI1Y0dVaU9pSXdJaXdpUkhOZlEyOXVjM1Z0WlhKTVlXNW5kV0ZuWlNJNklqRWlMQ0pFYzE5QmRYUm9iM0pwYzJGMGFXOXVRMjlrWlNJNklqTTNNalkyTXlKOSZEc19TaWduYXR1cmU9QzIxOUtpJTJCZFRlSmZnJTJCUFZGN3NLOTZFMUxtSjlHRTExVXpMdExpRDVKNzglM0Q="
+      },
+      "merchant_event_id": "redsys_webhook_invalid_signature",
+      "webhook_secrets": {
+        "secret": "xRZYTay6LbCxNmT/jAjfuYHC4ZYJ2LTo"
+      }
+    }
+  }
+}
