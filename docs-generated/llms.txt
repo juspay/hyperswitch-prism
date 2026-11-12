@@ -331,7 +331,7 @@ connector_id: fiservcommercehub
 doc: docs/connectors/fiservcommercehub.md
 scenarios: none
 payment_methods: none
-flows: capture, create_server_authentication_token, get, recurring_charge, refund, refund_get, void
+flows: capture, create_server_authentication_token, get, incremental_authorization, recurring_charge, refund, refund_get, reverse, void
 examples_python: none
 
 ## Fiservemea
@@ -587,7 +587,7 @@ connector_id: moneris
 doc: docs/connectors/moneris.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, create_server_authentication_token, get, post_authenticate, pre_authenticate, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_server_authentication_token, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, refund, refund_get, void
 examples_python: examples/moneris/moneris.py
 
 ## Multisafepay

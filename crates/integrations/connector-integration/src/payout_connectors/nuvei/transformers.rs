@@ -107,9 +107,14 @@ fn convert_payout_amount(
     destination_currency: common_enums::Currency,
 ) -> Result<StringMajorUnit, Report<IntegrationError>> {
     StringMajorUnitForConnector
-        .convert(&common_utils::types::Money {
-            amount,
-            currency: destination_currency,
+        .convert(&{
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "Temporary payout currency contract: nuvei-transfer-amount; see PR #2642"
+            )]
+            let legacy_money =
+                common_utils::types::Money::from_minor_unit(amount, destination_currency);
+            legacy_money
         })
         .change_context(IntegrationError::InvalidDataFormat {
             field_name: "amount",
@@ -144,7 +149,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })),
         }?;
         let request = &data.request;
-        let amount = convert_payout_amount(request.amount, request.destination_currency)?;
+        let amount = convert_payout_amount(request.money.amount(), request.destination_currency)?;
         let currency = request.destination_currency.to_string();
         let time_stamp = NuveiAuthType::get_timestamp();
         let reference = match &data.resource_common_data.connector_request_reference_id {

@@ -633,9 +633,14 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
     Checkout {
+        /// Payment public key (`pk_...`), used by `POST /tokens` only.
         api_key: Secret<String>,
+        /// Secret key (`sk_...`), the Bearer credential on every request.
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
+        connector_client_id: Option<Secret<String>>,
+        /// Payout-only Checkout currency account (`ca_...`) used as `source.id`.
+        connector_currency_account_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Cybersource {
@@ -2340,6 +2345,8 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: checkout.api_key.ok_or_else(err)?,
                 api_secret: checkout.api_secret.ok_or_else(err)?,
                 processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
+                connector_client_id: checkout.connector_client_id,
+                connector_currency_account_id: checkout.connector_currency_account_id,
                 base_url: checkout.base_url,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
@@ -3654,6 +3661,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
+                        connector_client_id: None,
+                        connector_currency_account_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4659,6 +4668,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 }
             }
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
+                PayoutConnectorEnum::Checkout => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Checkout {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        processing_channel_id: key1.clone(),
+                        connector_client_id: None,
+                        connector_currency_account_id: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Nuvei => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -5026,13 +5050,13 @@ pub struct PazeDynamicData {
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
-    pub original_payment_authorized_amount: Option<Money>,
+    pub original_payment_authorized_money: Option<Money>,
     pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl RecurringMandatePaymentData {
     pub fn get_original_payment_amount(&self) -> Result<Money, Error> {
-        self.original_payment_authorized_amount
+        self.original_payment_authorized_money
             .clone()
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }

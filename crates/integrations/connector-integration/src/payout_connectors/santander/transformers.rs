@@ -442,12 +442,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
-        let payment_value = converter
-            .convert(&common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.source_currency,
-            })
-            .change_context(IntegrationError::RequestEncodingFailed {
+        let payment_value = converter.convert(&req.request.money).change_context(
+            IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "Failed to convert payout amount to string major unit".to_string(),
@@ -457,7 +453,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                     ),
                     doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                 },
-            })?;
+            },
+        )?;
 
         let (dict_code, dict_code_type, qr_code, beneficiary) = match req
             .request
@@ -721,12 +718,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let converter = StringMajorUnitForConnector;
-        let payment_value = converter
-            .convert(&common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.source_currency,
-            })
-            .change_context(IntegrationError::RequestEncodingFailed {
+        let payment_value = converter.convert(&req.request.money).change_context(
+            IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "Failed to convert payout amount to string major unit".to_string(),
@@ -736,7 +729,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                     ),
                     doc_url: Some(SANTANDER_TED_DOCS_URL.to_string()),
                 },
-            })?;
+            },
+        )?;
 
         let ted = match req.request.payout_method_data.clone() {
             Some(PayoutMethodData::Bank(Bank::Ted(ted))) => ted,
@@ -919,12 +913,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let doc_url = santander_doc_url(&req.request.payout_method_data)?;
         let converter = StringMajorUnitForConnector;
-        let payment_value = converter
-            .convert(&common_utils::types::Money {
-                amount: req.request.amount,
-                currency: req.request.source_currency,
-            })
-            .change_context(IntegrationError::RequestEncodingFailed {
+        let payment_value = converter.convert(&req.request.money).change_context(
+            IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "Failed to convert payout amount to string major unit".to_string(),
@@ -934,7 +924,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                     ),
                     doc_url: Some(doc_url.to_string()),
                 },
-            })?;
+            },
+        )?;
 
         let debit_account = match req.request.source_bank_data.clone() {
             Some(Bank::Pix(PixBankTransfer {

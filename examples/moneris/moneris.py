@@ -13,7 +13,7 @@ from payments import PaymentMethodAuthenticationClient
 from payments import RefundClient
 from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -96,6 +96,28 @@ def _build_get_request(connector_transaction_id: str):
                 expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
                 token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
             ),
+        ),
+    )
+
+def _build_incremental_authorization_request():
+    return payment_pb2.PaymentServiceIncrementalAuthorizationRequest(
+        merchant_authorization_id="probe_auth_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        amount=common_types_pb2.Money(  # New total authorized amount, including this increase.
+            minor_amount=1100,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        reason="incremental_auth_probe",  # Optional Fields.
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+        additional_amount=common_types_pb2.Money(  # Increase over the current authorized total. Must use the same currency as amount.
+            minor_amount=100,
+            currency=common_types_pb2.Currency.Value("USD"),
         ),
     )
 
@@ -384,6 +406,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_incremental_authorization(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.IncrementalAuthorization"""
+    payment_client = PaymentClient(config)
+
+    incremental_response = await payment_client.incremental_authorization(_build_incremental_authorization_request())
+
+    return {"status": incremental_response.status}
 
 
 async def process_post_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

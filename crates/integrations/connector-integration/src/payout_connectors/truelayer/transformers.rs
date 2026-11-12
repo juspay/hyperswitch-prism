@@ -332,7 +332,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
 
         Ok(Self {
             merchant_account_id: metadata.merchant_account_id,
-            amount_in_minor: req.request.amount,
+            amount_in_minor: domain_types::utils::convert_amount(
+                &common_utils::types::MinorUnitForConnector,
+                &req.request.money,
+            )?,
             currency: req.request.destination_currency,
             metadata: request_metadata,
             beneficiary,
