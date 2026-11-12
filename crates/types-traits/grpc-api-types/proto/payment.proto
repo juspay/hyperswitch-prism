@@ -2635,7 +2635,7 @@ message PaymentServiceAuthorizeRequest {
   optional bool is_stored_credential = 60;
 
   // Details about the sender of funds for account funding transactions.
-  optional SenderDetails sender_details = 61;
+  optional SenderDetails sender_details = 62;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
