@@ -92,7 +92,8 @@ message CompositeFrmPreRiskCheckRequest {
   // Merchant/business order identifier, distinct from the payment-attempt ID.
   optional string merchant_order_id = 19;
 
-  optional EmiDetails emi_details = 20;
+  // EMI details supplied by the application creating the FRM request,
+  optional FrmEmiDetails emi_details = 20;
 
   // Typed order description; connector metadata remains in connector_feature_data.
   optional FrmOrderInfo order_info = 21;
@@ -162,7 +163,8 @@ message CompositeFrmPostRiskCheckRequest {
   // Reanalysis must address the same merchant/business order as creation.
   optional string merchant_order_id = 20;
 
-  optional EmiDetails emi_details = 21;
+  // EMI details supplied by the application creating the FRM request;
+  optional FrmEmiDetails emi_details = 21;
 
   // The same order information must be replayed during reanalysis.
   optional FrmOrderInfo order_info = 22;

@@ -148,7 +148,7 @@ mod tests {
             merchant_transaction_id: Some("txn-abc-001".to_owned()),
             merchant_order_id: Some("merchant-order-abc-001".to_owned()),
             connector_feature_data: Some(Secret::new(
-                r#"{"product":4,"orderInfoMetadata":{"observation":"Legacy connector observation","installments":99}}"#.to_owned(),
+                r#"{"product":4,"installments":99,"orderInfoMetadata":{"observation":"Legacy connector observation"}}"#.to_owned(),
             )),
             emi_details: Some(domain_types::frm::frm_types::EmiDetails { emi_tenure: 3 }),
             order_info: Some(OrderInfo {
@@ -567,6 +567,23 @@ mod tests {
         assert_eq!(order_info_metadata.billing_phone_type, Some(2));
         assert!(order_info_metadata.social_network.is_some());
 
+        let overridden = ClearSaleConnectorFeatureData::parse(Some(&Secret::new(
+            r#"{
+                "origin":"Flat",
+                "isGift":false,
+                "channelId":"flat-channel",
+                "orderInfoMetadata":{"origin":"Nested","channelId":"nested-channel"}
+            }"#
+            .to_owned(),
+        )))
+        .expect("legacy and nested feature data");
+        let order_info_metadata = overridden.order_info_metadata;
+        assert_eq!(order_info_metadata.origin.as_deref(), Some("Nested"));
+        assert_eq!(order_info_metadata.is_gift, Some(false));
+        assert_eq!(
+            order_info_metadata.channel_id.as_deref(),
+            Some("nested-channel")
+        );
         let metadata = Secret::new(
             r#"{"session_id":"sdk-session-42","custom_fields":{"origin":"ignored"}}"#.to_owned(),
         );
@@ -579,6 +596,45 @@ mod tests {
             get_session_id_from_metadata(Some(&camel)).expect("session id"),
             "sdk-session-42"
         );
+    }
+
+    #[test]
+    fn legacy_flat_feature_data_is_retained_instead_of_silently_dropped() {
+        let mut req = pre_risk_check_request();
+        req.emi_details = None;
+        req.order_info = None;
+        req.connector_feature_data = Some(Secret::new(
+            r#"{
+                "origin":"Legacy",
+                "isGift":true,
+                "billingPhoneType":2,
+                "installments":3,
+                "observation":"Flat observation",
+                "orderInfoMetadata":{"origin":"Nested"}
+            }"#
+            .to_owned(),
+        ));
+        let pre_order =
+            order_from_common(OrderInputs::from_pre_risk_check(&req, None, None).unwrap())
+                .unwrap()
+                .order;
+        let mut post = post_risk_check_request();
+        post.emi_details = None;
+        post.order_info = None;
+        post.connector_feature_data = req.connector_feature_data.clone();
+        let post_order =
+            order_from_common(OrderInputs::from_post_risk_check(&post, None, None).unwrap())
+                .unwrap()
+                .order;
+
+        for order in [pre_order, post_order] {
+            assert_eq!(order.origin.as_deref(), Some("Nested"));
+            assert_eq!(order.observation.as_deref(), Some("Flat observation"));
+            assert_eq!(order.is_gift, Some(true));
+            assert_eq!(order.number_of_installments, Some(3));
+            assert_eq!(order.payments[0].installments, Some(3));
+            assert_eq!(order.billing.phones[0].phone_type, 2);
+        }
     }
 
     #[test]
@@ -1381,8 +1437,9 @@ mod tests {
     }
 
     #[test]
-    fn absent_emi_details_leave_installments_unset() {
+    fn absent_emi_and_legacy_installments_leave_installments_unset() {
         let mut req = pre_risk_check_request();
+        req.connector_feature_data = None;
         req.emi_details = None;
         let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
         let order = order_from_common(inputs).unwrap().order;

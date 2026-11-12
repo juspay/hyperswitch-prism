@@ -927,7 +927,7 @@ pub(crate) struct OrderInputs<'a> {
     code: String,
     session_id: String,
     order_info_metadata: ClearSaleOrderInfoMetadata,
-    connector_feature_data: ClearSaleConnectorFeatureData,
+    product: Option<u32>,
     installments: Option<u32>,
     config_product: Option<u32>,
     b2b_b2c: Option<CustomerType>,
@@ -961,11 +961,15 @@ impl<'a> OrderInputs<'a> {
                 .ok_or_else(|| missing_field_err("merchant_order_id"))?,
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
             order_info_metadata: resolve_order_info_metadata(
-                &connector_feature_data.order_info_metadata,
+                connector_feature_data.order_info_metadata,
                 req.order_info.as_ref(),
             ),
-            connector_feature_data,
-            installments: req.emi_details.map(|details| details.emi_tenure),
+            installments: req
+                .emi_details
+                .map(|details| details.emi_tenure)
+                .filter(|tenure| *tenure > 0)
+                .or(connector_feature_data.installments),
+            product: connector_feature_data.product,
             config_product,
             b2b_b2c,
             travel_data,
@@ -1003,11 +1007,15 @@ impl<'a> OrderInputs<'a> {
                 .ok_or_else(|| missing_field_err("merchant_order_id"))?,
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
             order_info_metadata: resolve_order_info_metadata(
-                &connector_feature_data.order_info_metadata,
+                connector_feature_data.order_info_metadata,
                 req.order_info.as_ref(),
             ),
-            connector_feature_data,
-            installments: req.emi_details.map(|details| details.emi_tenure),
+            installments: req
+                .emi_details
+                .map(|details| details.emi_tenure)
+                .filter(|tenure| *tenure > 0)
+                .or(connector_feature_data.installments),
+            product: connector_feature_data.product,
             config_product,
             b2b_b2c,
             travel_data,
@@ -1848,13 +1856,35 @@ pub struct ClearSaleOrderInfoMetadata {
     pub nationality: Option<String>,
 }
 
+impl ClearSaleOrderInfoMetadata {
+    fn or_fallback(&self, legacy: Self) -> Self {
+        Self {
+            origin: self.origin.clone().or(legacy.origin),
+            channel_id: self.channel_id.clone().or(legacy.channel_id),
+            is_gift: self.is_gift.or(legacy.is_gift),
+            gift_message: self.gift_message.clone().or(legacy.gift_message),
+            observation: self.observation.clone().or(legacy.observation),
+            status: self.status.or(legacy.status),
+            custom_sla: self.custom_sla.or(legacy.custom_sla),
+            social_network: self.social_network.clone().or(legacy.social_network),
+            billing_phone_type: self.billing_phone_type.or(legacy.billing_phone_type),
+            shipping_phone_type: self.shipping_phone_type.or(legacy.shipping_phone_type),
+            nationality: self.nationality.clone().or(legacy.nationality),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearSaleConnectorFeatureData {
     #[serde(default)]
     pub product: Option<u32>,
-    /// Opaque everywhere except this connector's feature-data decoder.
-    #[serde(default, rename = "orderInfoMetadata")]
+    #[serde(flatten)]
+    legacy_order_info_metadata: ClearSaleOrderInfoMetadata,
+    #[serde(default)]
+    installments: Option<u32>,
+    /// Nested metadata takes precedence over equivalent legacy top-level keys.
+    #[serde(default)]
     pub order_info_metadata: ClearSaleOrderInfoMetadata,
 }
 
@@ -2099,29 +2129,36 @@ impl ClearSaleConnectorFeatureData {
     pub(crate) fn parse(raw: Option<&Secret<String>>) -> Result<Self, Error> {
         match raw {
             None => Ok(Self::default()),
-            Some(data) => serde_json::from_str(data.peek()).map_err(|err| {
-                error_stack::report!(errors::IntegrationError::InvalidDataFormat {
-                    field_name: "connector_feature_data",
-                    context: errors::IntegrationErrorContext {
-                        additional_context: Some(format!(
-                            "ClearSale connector_feature_data must be a JSON object: {err}"
-                        )),
-                        suggested_action: Some(
-                            "Send a JSON object matching ClearSaleConnectorFeatureData".to_owned(),
-                        ),
-                        doc_url: Some(CLEARSALE_DOC_URL.to_owned()),
-                    },
+            Some(data) => serde_json::from_str(data.peek())
+                .map(|mut feature_data: Self| {
+                    feature_data.order_info_metadata = feature_data
+                        .order_info_metadata
+                        .or_fallback(std::mem::take(&mut feature_data.legacy_order_info_metadata));
+                    feature_data
                 })
-            }),
+                .map_err(|err| {
+                    error_stack::report!(errors::IntegrationError::InvalidDataFormat {
+                        field_name: "connector_feature_data",
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(format!(
+                                "ClearSale connector_feature_data must be a JSON object: {err}"
+                            )),
+                            suggested_action: Some(
+                                "Send a JSON object matching ClearSaleConnectorFeatureData"
+                                    .to_owned(),
+                            ),
+                            doc_url: Some(CLEARSALE_DOC_URL.to_owned()),
+                        },
+                    })
+                }),
         }
     }
 }
 
 fn resolve_order_info_metadata(
-    legacy: &ClearSaleOrderInfoMetadata,
+    mut order_info_metadata: ClearSaleOrderInfoMetadata,
     typed_order_info: Option<&OrderInfo>,
 ) -> ClearSaleOrderInfoMetadata {
-    let mut order_info_metadata = legacy.clone();
     if let Some(description) = typed_order_info
         .map(|order_info| order_info.description.trim())
         .filter(|description| !description.is_empty())
@@ -2139,7 +2176,7 @@ pub(crate) fn order_from_common(
         code,
         session_id,
         order_info_metadata,
-        connector_feature_data,
+        product,
         installments,
         b2b_b2c,
         config_product,
@@ -2245,8 +2282,7 @@ pub(crate) fn order_from_common(
             // default on the connector config. A merchant provisioned for one
             // product never sets the request field; one who sells under more
             // than one product picks per order. Falls back to Total Garantido.
-            product: connector_feature_data
-                .product
+            product: product
                 .or(config_product)
                 .unwrap_or(DEFAULT_CLEARSALE_PRODUCT_TOTAL_GARANTIDO),
             country: billing_country,

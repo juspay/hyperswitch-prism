@@ -81,19 +81,22 @@ message FrmServicePreRiskCheckRequest {
   // Merchant/business order identifier, distinct from the payment-attempt ID.
   optional string merchant_order_id = 17;
 
-  // Installment information for FRM scoring.
-  optional EmiDetails emi_details = 18;
+  // EMI details supplied by the merchant application creating the
+  optional FrmEmiDetails emi_details = 18;
 
   // Typed order description; connector metadata remains in connector_feature_data.
   optional FrmOrderInfo order_info = 19;
 }
 
+// Order-level context supplied by the merchant application creating the FRM request.
 message FrmOrderInfo {
+  // Merchant-provided description of the order for connector risk analysis.
   string description = 1;
 }
 
-message EmiDetails {
-  // Installment count.
+// EMI details supplied by the merchant application creating the FRM request.
+message FrmEmiDetails {
+  // Number of EMI installments in the payment plan.
   uint32 emi_tenure = 1;
 }
 
@@ -186,7 +189,8 @@ message FrmServicePostRiskCheckRequest {
   // Reanalysis must address the same merchant/business order as creation.
   optional string merchant_order_id = 18;
 
-  optional EmiDetails emi_details = 19;
+  // EMI details supplied by the application creating the FRM request;
+  optional FrmEmiDetails emi_details = 19;
 
   // The same order information must be replayed during reanalysis.
   optional FrmOrderInfo order_info = 20;
