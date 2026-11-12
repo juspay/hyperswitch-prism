@@ -6,7 +6,13 @@ import {
   InitiatePaymentOutput,
 } from "@medusajs/framework/types"
 import { PaymentSessionStatus } from "@medusajs/framework/utils"
-import { buildError, extractValue, mapPrismStatus, toCurrency } from "../../utils"
+import {
+  buildError,
+  extractValue,
+  mapPrismStatus,
+  pickStrings,
+  toCurrency,
+} from "../../utils"
 import { logger } from "../../utils/logger"
 import { HyperswitchPrismOptions } from "../../types"
 import { InitiateConnectorContext } from "../types"
@@ -55,24 +61,48 @@ export type MollieReInitiateContext = {
   merchantClientSessionId: string
   currencyCode: string
   minorAmount: number
+  profileId?: string | null
 }
+
+const KLARNA_BILLING_FIELDS = [
+  "firstName",
+  "lastName",
+  "email",
+  "line1",
+  "line2",
+  "city",
+  "postalCode",
+  "country",
+] as const
 
 // Mollie Components re-initiation: store the client-tokenized cardToken (and the
 // storefront return URL for the 3DS redirect) on the session — no network call.
-// Mirrors prism-globalpay reInitiatePayment.
+//
+// The storefront's `data` is untrusted: only the allow-listed fields below are
+// persisted. In particular `id` / `connectorTransactionId` are never taken from
+// the client — authorizePayment status-syncs an existing payment when
+// `connectorTransactionId` is set, so a client-supplied value would let a
+// shopper complete a cart against a different (already paid) Mollie payment.
 export async function reInitiatePayment({
   data,
   merchantClientSessionId,
   currencyCode,
   minorAmount,
+  profileId,
 }: MollieReInitiateContext): Promise<InitiatePaymentOutput> {
   const d = data as any
+  const billingSource = d?.billing ?? d?.klarnaBilling
+  const billing = billingSource
+    ? pickStrings(billingSource, KLARNA_BILLING_FIELDS)
+    : undefined
   return {
-    id: d?.id ?? merchantClientSessionId,
+    id: merchantClientSessionId,
     data: {
-      ...d,
-      cardToken: d?.cardToken,
-      returnUrl: d?.returnUrl,
+      ...pickStrings(d, ["cardToken", "returnUrl", "paymentMethodType"] as const),
+      ...(billing ? { billing } : {}),
+      ...(profileId ? { profileId } : {}),
+      id: merchantClientSessionId,
+      merchantClientSessionId,
       connector: "mollie",
       minorAmount,
       currency: currencyCode,
@@ -162,12 +192,18 @@ export async function authorizePayment(
   // call must NOT re-authorize — it must status-sync (PSync) the existing payment
   // and report its final status (`paid` -> CAPTURED). `data.id` was set to the
   // Mollie reference on the first authorize so the sync targets the right payment.
+  // `connectorTransactionId` is only ever written by this function (below) from
+  // the connector's response — reInitiatePayment never accepts it from the
+  // client. Sync against it explicitly rather than `data.id`.
   if (data?.connectorTransactionId) {
     logger.error(
       "[PrismService.authorizePayment] mollie: existing payment %s — syncing status instead of re-authorizing",
       data.connectorTransactionId
     )
-    return await getPaymentStatus(input)
+    return await getPaymentStatus({
+      ...input,
+      data: { ...data, id: data.connectorTransactionId },
+    })
   }
 
   const isKlarna =

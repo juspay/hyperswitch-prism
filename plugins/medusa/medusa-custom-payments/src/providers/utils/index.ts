@@ -79,6 +79,42 @@ export function extractValue(raw: any): string | null {
   return null
 }
 
+/**
+ * Copies only the named string fields from storefront-supplied session data.
+ *
+ * Re-initiation `data` comes straight from the store API, so it must never be
+ * spread into the persisted session: fields such as `id`,
+ * `connectorTransactionId`, `merchantClientSessionId` or `connector` drive
+ * server-side decisions (status sync, void, refund) and must only ever be set
+ * by the plugin itself.
+ */
+export function pickStrings<K extends string>(
+  source: unknown,
+  keys: readonly K[]
+): Partial<Record<K, string>> {
+  const out: Partial<Record<K, string>> = {}
+  if (!source || typeof source !== "object") return out
+  for (const key of keys) {
+    const value = (source as Record<string, unknown>)[key]
+    if (typeof value === "string" && value !== "") {
+      out[key] = value
+    }
+  }
+  return out
+}
+
+/** Billing fields a storefront may attach to a session for card/AVS checks. */
+export const BILLING_FIELDS = [
+  "firstName",
+  "lastName",
+  "line1",
+  "city",
+  "state",
+  "zipCode",
+  "email",
+  "country",
+] as const
+
 export function toCurrency(currencyCode: string): types.Currency {
   const key = currencyCode.toUpperCase() as keyof typeof types.Currency
   return (types.Currency[key] ??
@@ -89,12 +125,16 @@ export function mapPrismStatus(status: number): PaymentSessionStatus {
   const { PaymentStatus } = types
   switch (status) {
     case PaymentStatus.AUTHORIZED:
-    case PaymentStatus.PARTIALLY_AUTHORIZED:
       return PaymentSessionStatus.AUTHORIZED
     case PaymentStatus.CHARGED:
+      return PaymentSessionStatus.CAPTURED
+    // Partial outcomes must not complete the cart: Medusa records the full
+    // session amount on AUTHORIZED/CAPTURED and never compares it with what
+    // the connector actually authorized or collected.
+    case PaymentStatus.PARTIALLY_AUTHORIZED:
     case PaymentStatus.PARTIAL_CHARGED:
     case PaymentStatus.PARTIAL_CHARGED_AND_CHARGEABLE:
-      return PaymentSessionStatus.CAPTURED
+      return PaymentSessionStatus.ERROR
     case PaymentStatus.AUTHENTICATION_PENDING:
     case PaymentStatus.CONFIRMATION_AWAITED:
     case PaymentStatus.PAYMENT_METHOD_AWAITED:

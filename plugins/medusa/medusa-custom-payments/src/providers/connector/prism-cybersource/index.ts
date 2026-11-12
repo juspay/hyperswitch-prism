@@ -7,7 +7,14 @@ import {
 } from "@medusajs/framework/types"
 import { PaymentSessionStatus } from "@medusajs/framework/utils"
 import { HyperswitchPrismOptions } from "../../types"
-import { buildError, extractValue, mapPrismStatus, toCurrency } from "../../utils"
+import {
+  BILLING_FIELDS,
+  buildError,
+  extractValue,
+  mapPrismStatus,
+  pickStrings,
+  toCurrency,
+} from "../../utils"
 import { logger } from "../../utils/logger"
 import { InitiateConnectorContext } from "../types"
 
@@ -21,18 +28,20 @@ export type CybersourceReInitiateContext = {
 // Re-initiation with the Flex transient token — the Microform SDK has already
 // tokenised the card on the client, so we only persist the token in the session.
 // No network call: authorizePayment forwards it to UCS as the connectorToken.
+// The storefront's `data` is untrusted: only allow-listed fields are persisted,
+// never ids or connector state (see pickStrings).
 export async function reInitiatePayment({
   data,
   merchantClientSessionId,
   currencyCode,
   minorAmount,
 }: CybersourceReInitiateContext): Promise<InitiatePaymentOutput> {
-  const transientToken = (data as any).transientToken as string
   return {
-    id: (data as any)?.id ?? merchantClientSessionId,
+    id: merchantClientSessionId,
     data: {
-      ...(data as any),
-      transientToken,
+      ...pickStrings(data, ["transientToken", ...BILLING_FIELDS] as const),
+      id: merchantClientSessionId,
+      merchantClientSessionId,
       connector: "cybersource",
       minorAmount,
       currency: currencyCode,

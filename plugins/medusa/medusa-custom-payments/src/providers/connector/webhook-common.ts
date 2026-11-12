@@ -82,12 +82,17 @@ export async function parsePaymentReference(
 
 // Mandatory verification gate — applies in dev and prod alike, no bypass.
 // A webhook whose source cannot be verified must never drive payment state.
+// Fail closed: only an explicit `true` passes — a missing or non-boolean
+// `sourceVerified` (e.g. a response decoded without proto defaults) is rejected.
 export function isSourceVerified(res: unknown, connector: string): boolean {
-  const verified = (res as any).sourceVerified as boolean | undefined
-  if (verified === false) {
-    return false
+  if ((res as any)?.sourceVerified === true) {
+    return true
   }
-  return true
+  logger.error(
+    "[webhook-common.isSourceVerified] %s webhook source not verified — event rejected",
+    connector
+  )
+  return false
 }
 
 function buildPaymentActionData(

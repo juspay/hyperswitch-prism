@@ -252,6 +252,7 @@ Webhook events that cannot be source-verified are **always rejected** — in dev
 
 - Without a configured `webhookSecret`, adyen/paypal webhooks are rejected before reaching the connector service.
 - An event whose signature fails verification (wrong key, tampered payload, forged request) is acknowledged but never mapped to a payment action.
+- Only an explicit `sourceVerified: true` from the connector service passes; a missing or malformed verification result is treated as unverified.
 
 ### Setup
 

@@ -175,6 +175,9 @@ class PrismService {
     // reinitiates with paymentMethodType="klarna" + billing, which is stored as-is
     // and consumed by authorizePayment (which builds the Klarna redirect payment).
     if (this.options_.connector === "mollie") {
+      const profileId = extractValue(
+        (this.options_.connectorConfig as any)?.profileToken
+      )
       const isKlarnaReinit =
         String((data as any)?.paymentMethodType ?? "").toLowerCase() === "klarna"
       if ((data as any)?.cardToken || isKlarnaReinit) {
@@ -183,11 +186,9 @@ class PrismService {
           merchantClientSessionId,
           currencyCode: currency_code,
           minorAmount,
+          profileId,
         })
       }
-      const profileId = extractValue(
-        (this.options_.connectorConfig as any)?.profileToken
-      )
       return {
         id: merchantClientSessionId,
         data: {
@@ -207,6 +208,7 @@ class PrismService {
     // First init returns a synthetic pending session so the card form can render;
     // re-initiation persists the card entered in the test client.
     if (this.options_.connector === "authorizedotnet") {
+      connectors.authorizedotnet.assertNotProduction(this.options_)
       if ((data as any)?.cardNumber) {
         return connectors.authorizedotnet.reInitiatePayment({
           data,

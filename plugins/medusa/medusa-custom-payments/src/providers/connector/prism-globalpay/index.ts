@@ -18,6 +18,7 @@ import {
   extractValue,
   mapPrismStatus,
   normalizeAmount,
+  pickStrings,
   toCurrency,
   toMinorAmount,
 } from "../../utils"
@@ -31,19 +32,21 @@ export type GlobalpayReInitiateContext = {
   minorAmount: number
 }
 
-// Re-initiation with card token — skip access-token fetch, just store the token
+// Re-initiation with card token — skip access-token fetch, just store the token.
+// The storefront's `data` is untrusted: only allow-listed fields are persisted,
+// never ids or connector state (see pickStrings).
 export async function reInitiatePayment({
   data,
   merchantClientSessionId,
   currencyCode,
   minorAmount,
 }: GlobalpayReInitiateContext): Promise<InitiatePaymentOutput> {
-  const paymentReference = (data as any).paymentReference as string
   return {
-    id: (data as any)?.id ?? merchantClientSessionId,
+    id: merchantClientSessionId,
     data: {
-      ...(data as any),
-      paymentReference,
+      ...pickStrings(data, ["paymentReference", "returnUrl", "country"] as const),
+      id: merchantClientSessionId,
+      merchantClientSessionId,
       connector: "globalpay",
       minorAmount,
       currency: currencyCode,
