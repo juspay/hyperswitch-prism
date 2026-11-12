@@ -292,7 +292,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
+                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.money)?;
 
                 Ok(Self::Card(BluesnapPaymentsRequest {
                     amount,
@@ -384,7 +384,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
+                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.money)?;
 
                 Ok(Self::Card(BluesnapPaymentsRequest {
                     amount,
@@ -431,7 +431,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let account_type = map_ecp_account_type(*bank_type, *bank_holder_type)?;
 
                     let amount =
-                        super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
+                        super::BluesnapAmountConvertor::convert(&router_data.request.money)?;
 
                     let transaction_fraud_info = Some(TransactionFraudInfo {
                         fraud_session_id: router_data
@@ -474,7 +474,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .unwrap_or_else(|| "de".to_string()); // Default to DE for SEPA
 
                     let amount =
-                        super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
+                        super::BluesnapAmountConvertor::convert(&router_data.request.money)?;
 
                     let transaction_fraud_info = Some(TransactionFraudInfo {
                         fraud_session_id: router_data
@@ -536,7 +536,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         });
 
-                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.amount)?;
+                let amount = super::BluesnapAmountConvertor::convert(&router_data.request.money)?;
 
                 Ok(Self::CardToken(BluesnapCompletePaymentsRequest {
                     amount,
@@ -596,8 +596,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let amount =
-            super::BluesnapAmountConvertor::convert(&router_data.request.amount_to_capture)?;
+        let amount = super::BluesnapAmountConvertor::convert(&router_data.request.capture_money)?;
 
         Ok(Self {
             card_transaction_type: BluesnapTxnType::Capture,
@@ -660,7 +659,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        let amount = super::BluesnapAmountConvertor::convert(&router_data.request.refund_amount)?;
+        let amount = super::BluesnapAmountConvertor::convert(&router_data.request.refund_money)?;
 
         Ok(Self {
             amount: Some(amount),

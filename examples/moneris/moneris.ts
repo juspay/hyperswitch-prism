@@ -7,7 +7,7 @@
 
 import { PaymentClient, MerchantAuthenticationClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -94,6 +94,29 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
+        }
+    };
+}
+
+function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrementalAuthorizationRequest {
+    return {
+        "merchantAuthorizationId": "probe_auth_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "amount": {  // New total authorized amount, including this increase.
+            "minorAmount": 1100,
+            "currency": Currency.USD
+        },
+        "reason": "incremental_auth_probe",  // Optional Fields.
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        },
+        "additionalAmount": {  // Increase over the current authorized total. Must use the same currency as amount.
+            "minorAmount": 100,
+            "currency": Currency.USD
         }
     };
 }
@@ -400,6 +423,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: PaymentService.IncrementalAuthorization
+async function incrementalAuthorization(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const incrementalResponse = await paymentClient.incrementalAuthorization(_buildIncrementalAuthorizationRequest());
+
+    return incrementalResponse;
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 async function postAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
@@ -457,7 +489,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

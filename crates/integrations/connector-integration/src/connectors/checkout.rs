@@ -123,6 +123,21 @@ fn checkout_error_attempt_status(
     }
 }
 
+pub const OPTIONAL_CLIENT_ID: &str = "{{optional_client_id}}";
+
+pub fn resolve_checkout_base_url(configured_base_url: &str, optional_client_id: &str) -> String {
+    configured_base_url.replace(OPTIONAL_CLIENT_ID, optional_client_id)
+}
+
+fn checkout_payment_base_url(configured_base_url: &str) -> String {
+    let resolved_base_url = resolve_checkout_base_url(configured_base_url, "");
+    if resolved_base_url.ends_with('/') {
+        resolved_base_url
+    } else {
+        format!("{resolved_base_url}/")
+    }
+}
+
 // Type alias for non-generic trait implementations
 
 macros::create_amount_converter_wrapper!(connector_name: Checkout, amount_type: MinorUnit);
@@ -394,7 +409,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: body.data.scheme_id,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -479,10 +494,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = convert_amount_for_webhook(
             &StringMinorUnitForConnector,
-            &common_utils::types::Money {
-                amount: dispute_amount,
+            &domain_types::utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                dispute_amount,
                 currency,
-            },
+            )?,
         )?;
 
         Ok(DisputeWebhookDetailsResponse {
@@ -697,25 +713,31 @@ macros::create_all_prerequisites!(
             Ok(error)
         }
 
-        pub fn connector_base_url_payments<'a, F, Req, Res>(
+        pub fn connector_base_url_payments<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> String {
+            checkout_payment_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+            )
         }
 
-        pub fn connector_base_url_refunds<'a, F, Req, Res>(
+        pub fn connector_base_url_refunds<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> String {
+            checkout_payment_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+            )
         }
 
-        pub fn connector_base_url_disputes<'a, F, Req, Res>(
+        pub fn connector_base_url_disputes<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, DisputeFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, DisputeFlowData, Req, Res>,
+        ) -> String {
+            checkout_payment_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+            )
         }
     }
 );
@@ -757,6 +779,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )])
     }
 
+    /// Returns the configured URL **unresolved** — it may still contain the
+    /// `{{optional_client_id}}` placeholder. The `ConnectorCommon` trait returns `&str`, so
+    /// resolution cannot happen here (it allocates); every payment URL goes through
+    /// [`checkout_payment_base_url`] (which resolves with an empty client ID) and payouts
+    /// through `payout_connectors::checkout::get_checkout_payout_base_url`. Never use this
+    /// raw value to build a request URL directly.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.checkout.base_url.as_ref()
     }
