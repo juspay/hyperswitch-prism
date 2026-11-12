@@ -32,6 +32,7 @@ readonly TEMPLATE_DIR="$SCRIPT_DIR/template-generation"
 readonly CRATES_TRAITS="$ROOT_DIR/crates/types-traits"
 readonly CRATES_INTEGRATIONS="$ROOT_DIR/crates/integrations"
 readonly CRATES_INTERNAL="$ROOT_DIR/crates/internal"
+readonly TOOLS_DIR="$ROOT_DIR/tools"
 readonly CONFIG_DIR="$ROOT_DIR/config"
 
 # File paths
@@ -47,7 +48,7 @@ readonly CONFIG_FILE="$CONFIG_DIR/development.toml"
 readonly SANDBOX_CONFIG_FILE="$CONFIG_DIR/sandbox.toml"
 readonly PRODUCTION_CONFIG_FILE="$CONFIG_DIR/production.toml"
 readonly SUPERPOSITION_CONFIG_FILE="$CONFIG_DIR/superposition.toml"
-readonly FIELD_PROBE_FILE="$CRATES_INTERNAL/field-probe/src/auth.rs"
+readonly FIELD_PROBE_FILE="$TOOLS_DIR/field-probe/src/auth.rs"
 readonly CONNECTOR_SPECS_ROOT="$CRATES_INTERNAL/integration-tests/src/connector_specs"
 
 # payment.proto path relative to the repo root. Used to read the UPSTREAM copy of
@@ -2873,7 +2874,7 @@ update_field_probe() {
     # field-probe's `dummy_auth` matches ConnectorEnum EXHAUSTIVELY (no `_` arm),
     # so it needs an arm for every payment connector and for none of the others -
     # payout/surcharge/authenticator connectors are not in ConnectorEnum at all.
-    #   Verify: grep -n 'fn dummy_auth' crates/internal/field-probe/src/auth.rs
+    #   Verify: grep -n 'fn dummy_auth' tools/field-probe/src/auth.rs
     if [[ "$KIND_NEEDS_FIELD_PROBE" != "true" ]]; then
         log_info "Skipping field-probe auth.rs - --kind $CONNECTOR_KIND is not in ConnectorEnum"
         return 0
@@ -3248,7 +3249,7 @@ show_implementation_plan() {
     echo "   ├── crates/integrations/connector-integration/src/${KIND_DIR}.rs"
     echo "   ├── crates/integrations/connector-integration/src/types.rs    ($KIND_PROVIDER)"
     [[ "$KIND_NEEDS_DEFAULT_IMPLS" == "true" ]] && echo "   ├── crates/integrations/connector-integration/src/default_implementations.rs"
-    [[ "$KIND_NEEDS_FIELD_PROBE" == "true" ]] && echo "   ├── crates/internal/field-probe/src/auth.rs"
+    [[ "$KIND_NEEDS_FIELD_PROBE" == "true" ]] && echo "   ├── tools/field-probe/src/auth.rs"
     [[ "$KIND_NEEDS_SUPERPOSITION" == "true" ]] && echo "   ├── config/superposition.toml"
     echo "   └── config/development.toml, sandbox.toml, production.toml"
     echo

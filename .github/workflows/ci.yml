@@ -86,8 +86,8 @@ jobs:
               - 'crates/grpc-server/**'
               - 'crates/ffi/**'
               - 'crates/internal/composite-service/**'
-              - 'crates/internal/field-probe/**'
-              - 'crates/internal/uniffi-bindgen/**'
+              - 'tools/field-probe/**'
+              - 'sdk/codegen/uniffi-bindgen/**'
               - 'crates/internal/integration-tests/src/harness/**'
               - 'crates/internal/integration-tests/src/global_suites/**'
               - 'crates/internal/integration-tests/src/lib.rs'
@@ -98,6 +98,9 @@ jobs:
               - 'crates/internal/integration-tests/src/connector_specs/**'
             any-rust:
               - 'crates/**'
+              - 'tools/**'
+              - 'tests/support/**'
+              - 'sdk/codegen/**'
               - 'browser-automation-engine/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -110,7 +113,7 @@ jobs:
             docs-trigger:
               - 'crates/integrations/**'
               - 'crates/types-traits/**'
-              - 'crates/internal/field-probe/**'
+              - 'tools/field-probe/**'
               - 'docs/**'
               - 'docs-generated/**'
               - 'examples/**'
@@ -127,7 +130,7 @@ jobs:
             # Separate from rust-core, which seven other jobs also gate on.
             certification-inputs:
               - 'browser-automation-engine/**'
-              - 'crates/internal/connector-creds/**'
+              - 'tests/support/connector-creds/**'
               - 'crates/internal/integration-tests/src/bin/**'
               - 'crates/internal/integration-tests/src/webhook_signatures.rs'
               - 'scripts/**'
@@ -504,7 +507,7 @@ jobs:
             target/x86_64-unknown-linux-gnu/release-fast/field-probe
             target/x86_64-unknown-linux-gnu/release-fast/libconnector_service_ffi.so
             target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
-          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto', 'tools/field-probe/**', 'sdk/codegen/uniffi-bindgen/**') }}
 
       - name: Build field-probe + FFI + uniffi-bindgen (cache miss)
         if: >-
@@ -526,7 +529,7 @@ jobs:
             target/x86_64-unknown-linux-gnu/release-fast/field-probe
             target/x86_64-unknown-linux-gnu/release-fast/libconnector_service_ffi.so
             target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
-          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
+          key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto', 'tools/field-probe/**', 'sdk/codegen/uniffi-bindgen/**') }}
 
       - name: Generate Java protobuf stubs
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
@@ -986,7 +989,7 @@ jobs:
 
       - name: Compute SDK binaries cache key
         id: cache-key
-        run: echo "key=sdk-v2-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=sdk-v2-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'sdk/codegen/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore SDK binaries cache
         id: sdk-cache-restore
