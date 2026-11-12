@@ -3307,14 +3307,16 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::DirectCarrierBilling => {
                 Ok(PaymentMethodType::DirectCarrierBilling)
             }
-            grpc_api_types::payments::PaymentMethodType::Klarna => Ok(PaymentMethodType::Klarna),
+            grpc_api_types::payments::PaymentMethodType::KlarnaBnpl => {
+                Ok(PaymentMethodType::Klarna)
+            }
             grpc_api_types::payments::PaymentMethodType::Bluecode => {
                 Ok(PaymentMethodType::Bluecode)
             }
             grpc_api_types::payments::PaymentMethodType::IndonesianBankTransfer => {
                 Ok(PaymentMethodType::IndonesianBankTransfer)
             }
-            grpc_api_types::payments::PaymentMethodType::Mifinity => {
+            grpc_api_types::payments::PaymentMethodType::MifinityWallet => {
                 Ok(PaymentMethodType::Mifinity)
             }
             grpc_api_types::payments::PaymentMethodType::Paysera => Ok(PaymentMethodType::Paysera),
@@ -10445,7 +10447,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::TamaraRedirect
             | grpc_api_types::payments::PaymentMethodType::TamaraBnpl => Ok(Self::PayLater),
-            grpc_api_types::payments::PaymentMethodType::Klarna => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethodType::KlarnaBnpl => Ok(Self::PayLater),
 
             grpc_api_types::payments::PaymentMethodType::BancontactCard => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Interac => Ok(Self::BankRedirect),
