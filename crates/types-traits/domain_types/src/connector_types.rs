@@ -6859,19 +6859,6 @@ pub struct SenderAddress {
     pub country: Option<common_enums::CountryAlpha2>,
 }
 
-impl SenderAddress {
-    /// Returns true when no address field is set.
-    pub fn is_empty(&self) -> bool {
-        self.line1.is_none()
-            && self.line2.is_none()
-            && self.line3.is_none()
-            && self.city.is_none()
-            && self.state.is_none()
-            && self.zip.is_none()
-            && self.country.is_none()
-    }
-}
-
 /// An individual (natural person) providing the funds in an account-funded transaction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IndividualSenderDetails {
