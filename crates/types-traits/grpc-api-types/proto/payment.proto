@@ -1338,6 +1338,15 @@ message L2L3Data {
 
   // Tax information
   optional TaxInfo tax_info = 2;
+
+  // Customer details
+  optional Customer customer_info = 3;
+
+  // Shipping address
+  optional Address shipping_details = 4;
+
+  // Billing address
+  optional Address billing_details = 5;
 }
 
 // Redirection response data
