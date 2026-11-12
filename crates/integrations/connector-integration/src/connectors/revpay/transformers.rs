@@ -632,10 +632,10 @@ impl<T: PaymentMethodDataTypes> RevpayPaymentsRequest<T> {
             })
         })?;
 
-        let currency = item.request.currency;
+        let currency = item.request.money.currency();
         let currency_str = currency.to_string();
         let amount = converter
-            .convert(&item.request.amount)
+            .convert(&item.request.money)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -1005,20 +1005,20 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
             Some(amount) => parse_revpay_amount(
                 &StringMajorUnitWithTwoDecimalsForConnector,
                 &amount.as_two_decimal_string(),
-                router_data.request.currency,
+                router_data.request.money.currency(),
             )
             .change_context(crate::utils::response_handling_fail_for_connector(
                 item.http_code,
                 "revpay",
             ))
             .attach_printable("revpay: echoed Amount is not in revPAY's 2-decimal form")?,
-            None => router_data.request.amount.clone(),
+            None => router_data.request.money.clone(),
         };
         let integrity_currency = response
             .currency
             .as_deref()
             .and_then(|echoed| Currency::from_str(echoed).ok())
-            .unwrap_or(router_data.request.currency);
+            .unwrap_or(router_data.request.money.currency());
 
         // 09 → shopper must open Bank_Redirect_URL with a plain HTTP GET;
         // RedirectForm::Uri navigates callers directly to the URL as-is.
@@ -1049,7 +1049,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
             response: Ok(payments_response_data),
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: integrity_amount.amount,
+                    amount: integrity_amount.amount(),
                     currency: integrity_currency,
                 }),
                 ..router_data.request.clone()
@@ -1142,14 +1142,14 @@ impl RevpayPSyncRequest {
 
         // The inquiry must re-send the ORIGINAL payment amount with the same
         // 2-decimal encoding that was signed at Payment time.
-        // `PaymentsSyncData.amount` is mandatory in the framework's
+        // `PaymentsSyncData.money` is mandatory in the framework's
         // PaymentServiceGet → PaymentsSyncData conversion, so the exact
         // authorize-time figure (and currency) is available here without any
         // reconstruction.
-        let currency = item.request.currency;
+        let currency = item.request.money.currency();
         let currency_str = currency.to_string();
         let amount = converter
-            .convert(&item.request.amount)
+            .convert(&item.request.money)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -1261,7 +1261,7 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
             .currency
             .as_deref()
             .and_then(|echoed| Currency::from_str(echoed).ok())
-            .unwrap_or(router_data.request.currency);
+            .unwrap_or(router_data.request.money.currency());
         let integrity_amount = match &response.amount {
             Some(amount) => parse_revpay_amount(
                 &StringMajorUnitWithTwoDecimalsForConnector,
@@ -1273,7 +1273,7 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
                 "revpay",
             ))
             .attach_printable("revpay: inquiry echoed Amount is not in revPAY's 2-decimal form")?,
-            None => router_data.request.amount.clone(),
+            None => router_data.request.money.clone(),
         };
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -1308,7 +1308,7 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
             response: Ok(payments_response_data),
             request: PaymentsSyncData {
                 integrity_object: Some(PaymentSynIntegrityObject {
-                    amount: integrity_amount.amount,
+                    amount: integrity_amount.amount(),
                     currency: integrity_currency,
                 }),
                 ..router_data.request.clone()
@@ -1425,7 +1425,7 @@ impl RevpayRefundRequest {
         // Refund_Amount in the exact 2-decimal form that is also signed;
         // partial refunds are supported by the API (§2.5).
         let refund_amount = converter
-            .convert(&item.request.refund_amount)
+            .convert(&item.request.refund_money)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: IntegrationErrorContext::default(),
@@ -1567,7 +1567,7 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
         // carries NO Currency field and echoes Refund_Amount, so the amount is
         // parsed from the echo whenever present; currency can only come from
         // the request side (§2.5 refund table has no currency echo).
-        let integrity_currency = router_data.request.currency;
+        let integrity_currency = router_data.request.refund_money.currency();
         let integrity_amount = match &response.refund_amount {
             Some(amount) => parse_revpay_amount(
                 &StringMajorUnitWithTwoDecimalsForConnector,
@@ -1579,7 +1579,7 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
                 "revpay",
             ))
             .attach_printable("revpay: echoed Refund_Amount is not in revPAY's 2-decimal form")?,
-            None => router_data.request.refund_amount.clone(),
+            None => router_data.request.refund_money.clone(),
         };
 
         Ok(Self {
@@ -1591,7 +1591,7 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
             }),
             request: RefundsData {
                 integrity_object: Some(RefundIntegrityObject {
-                    refund_amount: integrity_amount.amount,
+                    refund_amount: integrity_amount.amount(),
                     currency: integrity_currency,
                 }),
                 ..router_data.request.clone()
@@ -1715,7 +1715,7 @@ impl RevpayRSyncRequest {
                 },
             })
         })?;
-        let currency = refund_money.currency;
+        let currency = refund_money.currency();
         let currency_str = currency.to_string();
         let amount = converter
             .convert(refund_money)

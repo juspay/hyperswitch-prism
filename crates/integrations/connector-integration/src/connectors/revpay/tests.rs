@@ -141,10 +141,10 @@ fn response_code_maps_to_refund_sync_status() {
 #[test]
 fn amount_formats_major_with_two_decimals() {
     // RM 52.40 — the bytes revPAY signs must carry the literal dot.
-    let amount = RevpayAmountConvertor::convert(&Money {
-        amount: MinorUnit::new(5240),
-        currency: Currency::MYR,
-    })
+    let amount = RevpayAmountConvertor::convert(
+        &serde_json::from_value::<Money>(serde_json::json!({"amount": 5240, "currency": "MYR"}))
+            .expect("domain money fixture"),
+    )
     .expect("amount conversion should succeed for MYR");
     assert_eq!(
         serde_json::to_value(&amount).expect("amount serialization"),
@@ -402,10 +402,10 @@ fn issuer_country_maps_to_alpha3() {
 
 #[test]
 fn amount_round_trips_through_wire_form() {
-    let amount = RevpayAmountConvertor::convert(&Money {
-        amount: MinorUnit::new(1000),
-        currency: Currency::MYR,
-    })
+    let amount = RevpayAmountConvertor::convert(
+        &serde_json::from_value::<Money>(serde_json::json!({"amount": 1000, "currency": "MYR"}))
+            .expect("domain money fixture"),
+    )
     .expect("amount conversion should succeed");
     assert_eq!(
         serde_json::to_value(&amount).expect("amount serialization"),
@@ -413,13 +413,13 @@ fn amount_round_trips_through_wire_form() {
     );
     let back = RevpayAmountConvertor::convert_back(amount, Currency::MYR)
         .expect("convert_back should succeed");
-    assert_eq!(back.amount, MinorUnit::new(1000));
+    assert_eq!(back.amount(), MinorUnit::new(1000));
 
     // Zero-exponent currency: no minor units, still rendered with two decimals.
-    let jpy = RevpayAmountConvertor::convert(&Money {
-        amount: MinorUnit::new(1000),
-        currency: Currency::JPY,
-    })
+    let jpy = RevpayAmountConvertor::convert(
+        &serde_json::from_value::<Money>(serde_json::json!({"amount": 1000, "currency": "JPY"}))
+            .expect("domain money fixture"),
+    )
     .expect("JPY conversion should succeed");
     assert_eq!(
         serde_json::to_value(&jpy).expect("amount serialization"),
@@ -427,7 +427,7 @@ fn amount_round_trips_through_wire_form() {
     );
     let back = RevpayAmountConvertor::convert_back(jpy, Currency::JPY)
         .expect("convert_back should succeed");
-    assert_eq!(back.amount, MinorUnit::new(1000));
+    assert_eq!(back.amount(), MinorUnit::new(1000));
 }
 
 // ============================================================================

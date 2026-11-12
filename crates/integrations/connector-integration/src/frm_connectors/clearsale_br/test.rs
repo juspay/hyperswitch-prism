@@ -13,10 +13,7 @@ mod tests {
     use std::str::FromStr;
 
     use common_enums::{AttemptStatus, CardNetwork, Currency, CustomerType, FrmDecision, Gender};
-    use common_utils::{
-        pii::Email,
-        types::{FloatMajorUnit, MinorUnit, Money},
-    };
+    use common_utils::{pii::Email, types::FloatMajorUnit};
     use domain_types::{
         connector_types::{
             CustomerInfo, DomainData, HotelData, HotelSegment, TravelData, TravelSegment, Traveller,
@@ -36,6 +33,7 @@ mod tests {
             WalletData,
         },
         router_request_types::BrowserInformation,
+        utils::ForeignTryFrom,
     };
     use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
@@ -110,27 +108,37 @@ mod tests {
     }
 
     fn order_details() -> Vec<OrderDetailsWithAmount> {
-        vec![OrderDetailsWithAmount {
-            product_name: "Passagem São Paulo → Rio".to_owned(),
-            quantity: 2,
-            amount: MinorUnit(15000),
-            tax_rate: None,
-            total_tax_amount: None,
-            requires_shipping: None,
-            product_img_link: None,
-            product_id: Some("SKU-1".to_owned()),
-            category: Some("travel".to_owned()),
-            sub_category: None,
-            ..OrderDetailsWithAmount::default()
-        }]
+        vec![OrderDetailsWithAmount::foreign_try_from(
+            grpc_api_types::payments::OrderDetailsWithAmount {
+                product_name: "Passagem São Paulo → Rio".to_owned(),
+                quantity: 2,
+                amount: 15000,
+                tax_rate: None,
+                total_tax_amount: None,
+                requires_shipping: None,
+                product_img_link: None,
+                product_id: Some("SKU-1".to_owned()),
+                category: Some("travel".to_owned()),
+                sub_category: None,
+                ..Default::default()
+            },
+        )
+        .expect("valid order-item fixture")]
     }
 
     fn pre_risk_check_request() -> PreRiskCheckRequest {
-        PreRiskCheckRequest {
-            amount: Money {
-                amount: MinorUnit(30000),
-                currency: Currency::BRL,
+        let request = PreRiskCheckRequest::foreign_try_from(
+            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 30000,
+                    currency: grpc_api_types::payments::Currency::Brl.into(),
+                }),
+                ..Default::default()
             },
+        )
+        .expect("valid pre-risk-check fixture");
+        PreRiskCheckRequest {
+            money: request.money,
             customer_info: Some(customer_info()),
             payment_method: Some(card()),
             browser_info: Some(BrowserInformation {
@@ -158,7 +166,7 @@ mod tests {
     fn post_risk_check_request() -> PostRiskCheckRequest {
         let pre = pre_risk_check_request();
         PostRiskCheckRequest {
-            amount: pre.amount,
+            money: pre.money,
             customer_info: pre.customer_info,
             payment_method: pre.payment_method,
             browser_info: pre.browser_info,
@@ -1187,7 +1195,8 @@ mod tests {
         for name in ["", "   "] {
             let mut details = order_details();
             details[0].product_name = name.to_owned();
-            let items = build_clear_sale_items(Some(&details), Currency::BRL, None).unwrap();
+            let payment = common_utils::types::Money::zero(Currency::BRL);
+            let items = build_clear_sale_items(&payment, Some(&details), None).unwrap();
             assert!(items.is_empty());
 
             let mut req = pre_risk_check_request();
@@ -1254,10 +1263,17 @@ mod tests {
     #[test]
     fn non_brl_currency_is_rejected() {
         let mut req = pre_risk_check_request();
-        req.amount = Money {
-            amount: MinorUnit(1000),
-            currency: Currency::USD,
-        };
+        req.money = PreRiskCheckRequest::foreign_try_from(
+            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 1000,
+                    currency: grpc_api_types::payments::Currency::Usd.into(),
+                }),
+                ..Default::default()
+            },
+        )
+        .expect("valid USD pre-risk-check fixture")
+        .money;
         let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
         let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
         let err = order_from_common(inputs).expect_err("USD must fail");
@@ -1313,18 +1329,16 @@ mod tests {
     /// and not the line total). The unused `total_value` guard param is gone.
     #[test]
     fn build_clear_sale_items_uses_integer_quantity() {
-        let items =
-            build_clear_sale_items(Some(&order_details()), Currency::BRL, Some(false)).unwrap();
+        let payment = common_utils::types::Money::zero(Currency::BRL);
+        let items = build_clear_sale_items(&payment, Some(&order_details()), Some(false)).unwrap();
         assert_eq!(items[0].amount, Some(2));
         assert_eq!(items[0].value, Some(FloatMajorUnit(150.0)));
-        assert!(build_clear_sale_items(None, Currency::BRL, None)
+        assert!(build_clear_sale_items(&payment, None, None)
             .unwrap()
             .is_empty());
-        assert!(
-            build_clear_sale_items(Some(&Vec::new()), Currency::BRL, None)
-                .unwrap()
-                .is_empty()
-        );
+        assert!(build_clear_sale_items(&payment, Some(&Vec::new()), None)
+            .unwrap()
+            .is_empty());
     }
 
     /// Card PAN data is credit-only on the wire. A debit card still maps to

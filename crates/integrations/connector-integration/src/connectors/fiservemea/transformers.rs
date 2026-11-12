@@ -377,7 +377,7 @@ impl<T: PaymentMethodDataTypes>
     ) -> Result<Self, Self::Error> {
         // Use StringMajorUnitForConnector to properly convert minor to major unit
         let converter = StringMajorUnitForConnector;
-        let amount_major = converter.convert(&item.request.amount).change_context(
+        let amount_major = converter.convert(&item.request.money).change_context(
             IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             },
@@ -470,7 +470,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // Use StringMajorUnitForConnector to properly convert minor to major unit
         let converter = StringMajorUnitForConnector;
         let amount_major = converter
-            .convert(&item.request.amount_to_capture)
+            .convert(&item.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -498,7 +498,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         // Use StringMajorUnitForConnector to properly convert minor to major unit
         let converter = StringMajorUnitForConnector;
         let amount_major = converter
-            .convert(&item.request.refund_amount)
+            .convert(&item.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
