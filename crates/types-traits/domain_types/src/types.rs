@@ -594,6 +594,41 @@ impl Connectors {
         bundles
     }
 
+    /// Patch webhook provider URLs by config key, without selecting a resource family.
+    pub fn patch_webhook_provider_urls(
+        &self,
+        provider: &connector_types::WebhookProvider,
+        urls: &common_utils::superposition_config::ConnectorUrls,
+    ) -> Result<Self, IntegrationError> {
+        let mut fields = serde_json::Map::new();
+        for (name, value) in [
+            ("base_url", &urls.base_url),
+            ("dispute_base_url", &urls.dispute_base_url),
+            ("secondary_base_url", &urls.secondary_base_url),
+            ("third_base_url", &urls.third_base_url),
+            ("base_url_bank_redirects", &urls.base_url_bank_redirects),
+        ] {
+            if let Some(value) = value {
+                fields.insert(name.to_owned(), serde_json::Value::String(value.clone()));
+            }
+        }
+        let mut provider_patch = serde_json::Map::new();
+        provider_patch.insert(
+            provider.as_str().to_owned(),
+            serde_json::Value::Object(fields),
+        );
+        let patch =
+            serde_json::from_value::<ConnectorsPatch>(serde_json::Value::Object(provider_patch))
+                .map_err(|error| IntegrationError::ConfigurationError {
+                    code: "URL_PATCHING_FAILED".to_string(),
+                    message: format!("Webhook provider URL patching failed: {error}"),
+                    context: IntegrationErrorContext::default(),
+                })?;
+        let mut patched = self.clone();
+        patched.apply(patch);
+        Ok(patched)
+    }
+
     /// Patch the specified connector's URL configuration with resolved URLs from superposition.
     ///
     /// This method creates a new `Connectors` instance with the specified connector's
@@ -23343,5 +23378,44 @@ impl From<grpc_payment_types::IntegritySpecifications> for IntegritySpecificatio
         Self {
             allow_amount_mismatch: value.allow_amount_mismatch,
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod webhook_provider_url_tests {
+    use super::*;
+    use crate::connector_types::WebhookProvider;
+    use common_utils::superposition_config::ConnectorUrls;
+
+    #[test]
+    fn provider_urls_patch_without_assigning_payment_or_payout_identity() {
+        let mut original = Connectors::default();
+        original.deutschebank.server_ca_bundle = Some("existing_bundle".to_string());
+        let urls = ConnectorUrls {
+            base_url: Some("https://provider.test/".to_string()),
+            ..Default::default()
+        };
+        for name in ["paypal", "deutschebank"] {
+            let patched = original
+                .patch_webhook_provider_urls(&WebhookProvider::new(name).unwrap(), &urls)
+                .unwrap();
+            if name == "paypal" {
+                assert_eq!(patched.paypal.base_url, "https://provider.test/");
+            } else {
+                assert_eq!(patched.deutschebank.base_url, "https://provider.test/");
+                assert_eq!(
+                    patched.deutschebank.server_ca_bundle,
+                    original.deutschebank.server_ca_bundle
+                );
+            }
+            assert_eq!(patched.stripe, original.stripe);
+        }
+        assert!(original
+            .patch_webhook_provider_urls(
+                &WebhookProvider::new("unregistered_provider").unwrap(),
+                &urls
+            )
+            .is_err());
     }
 }

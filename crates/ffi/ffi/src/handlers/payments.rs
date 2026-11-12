@@ -381,7 +381,7 @@ pub fn handle_event_handler(
 ) -> Result<grpc_api_types::payments::EventServiceHandleResponse, IntegrationError> {
     let config = get_config(environment)?;
     let connector = request.extracted_metadata.connector;
-    crate::services::payments::handle_event_transformer_with_connector_variant(
+    crate::services::payments::handle_event_transformer(
         request.payload,
         &config,
         connector,

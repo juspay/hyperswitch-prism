@@ -400,9 +400,29 @@ impl ForeignTryFrom<AuthType> for AuthenticatorConnectorEnum {
     }
 }
 
-/// Unified connector enum that can represent either payment, surcharge, payout, FRM, or authenticator connectors
+/// Provider identity for common webhook operations before resource classification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WebhookProvider(String);
+
+impl WebhookProvider {
+    pub fn new(name: &str) -> Option<Self> {
+        (!name.is_empty()
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'))
+        .then(|| Self(name.to_owned()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Resource connector identity, or a resource-neutral provider for common webhook operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
+    /// Resource-neutral identity; only valid for common webhook operations.
+    Webhook(WebhookProvider),
     Payment(ConnectorEnum),
     Surcharge(SurchargeConnectorEnum),
     Payout(PayoutConnectorEnum),
@@ -453,6 +473,7 @@ impl ConnectorVariant {
 
     pub fn get_connector_name(&self) -> String {
         match self {
+            ConnectorVariant::Webhook(provider) => provider.as_str().to_owned(),
             ConnectorVariant::Payment(conn) => conn.to_string(),
             ConnectorVariant::Surcharge(conn) => conn.to_string(),
             ConnectorVariant::Payout(conn) => conn.to_string(),

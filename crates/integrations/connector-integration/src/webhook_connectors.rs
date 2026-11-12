@@ -1,15 +1,29 @@
-//! Provider-level parsing, local verification, and acknowledgement operations.
+//! Standalone provider webhook modules and registry.
 //!
-//! Future providers implement `interfaces::webhook::Webhook` in
-//! `<connector>.rs`, with payload types and mappings in `<connector>/transformers.rs`.
-//! Register implementations below when a provider is ready for migration.
+//! Implement `Webhook` in `webhook_connectors/<provider>.rs` and declare its module
+//! here. Add one registration so both runtime dispatch and field-probe discover it.
 
-use domain_types::connector_types::ConnectorVariant;
+use domain_types::connector_types::WebhookProvider;
 use interfaces::webhook::BoxedWebhookConnector;
 
-/// Register standalone webhook implementations here as providers migrate.
-/// The migration resolver rejects explicit or configured selection when unregistered.
-/// No providers are migrated by this framework change.
-pub fn get_connector(_variant: &ConnectorVariant) -> Option<BoxedWebhookConnector> {
-    None
+struct Registration {
+    name: &'static str,
+    build: fn() -> BoxedWebhookConnector,
+}
+
+// No production providers are migrated by this framework change.
+const PROVIDERS: &[Registration] = &[];
+
+/// Enumerate provider identities independently of payment and payout connector enums.
+pub fn registered_providers() -> impl Iterator<Item = WebhookProvider> {
+    PROVIDERS
+        .iter()
+        .filter_map(|entry| WebhookProvider::new(entry.name))
+}
+
+pub fn get_connector(provider: &WebhookProvider) -> Option<BoxedWebhookConnector> {
+    PROVIDERS
+        .iter()
+        .find(|entry| entry.name == provider.as_str())
+        .map(|entry| (entry.build)())
 }

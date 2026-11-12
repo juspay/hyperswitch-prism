@@ -42,11 +42,27 @@ or migrated in this PR. Existing requests retain their legacy `IncomingWebhook`
 handling. See the [framework guide](../../../crates/integrations/connector-integration/src/webhook_connectors/README.md)
 for registration and migration steps.
 
-Implement [`Webhook`](../../../crates/types-traits/interfaces/src/webhook.rs) for
-provider-level parsing, classification, local verification and ACKs. External gRPC
-verification uses the provider's own static verification integration. Keep payment,
-refund and dispute resource normalization on `IncomingWebhook`; implement payout
-normalization on `PayoutServiceTrait` and register it in the payout webhook registry.
+Implement [`Webhook`](../../../crates/types-traits/interfaces/src/webhook.rs) on a
+standalone provider type in `src/webhook_connectors/<provider>.rs`, with webhook
+payloads and event/reference mappings in
+`src/webhook_connectors/<provider>/transformers.rs`. These paths are relative to
+`crates/integrations/connector-integration/`. This implementation owns provider-level
+parsing, classification, local verification, ACKs and integrity declarations.
+Declare its module and register the provider in `src/webhook_connectors.rs`.
+Common webhook operations must be usable without constructing a payment connector.
+Each provider also supplies a required `sample_webhook_request`; the field probe
+validates it through `parse_event`, including standalone and payout-only providers.
+Parsing errors are reported as errors.
+
+External gRPC verification uses the provider's own verification integration, which
+may borrow the provider, supplied by `Webhook::get_external_verification_integration`. Keep payment, refund
+and dispute resource normalization on `IncomingWebhook` in
+`src/connectors/<connector>.rs` and its transformers. Implement payout normalization
+on `PayoutServiceTrait` in `src/payout_connectors/<payout_connector>.rs` and its
+transformers, and register it in `src/payout_connectors.rs` under the matching
+`PayoutConnectorEnum` variant. Its Rust type can differ (for example `PaypalPayouts`);
+the handler resolver matches the enum by provider name after classification. The
+framework guide above lists the individual methods and their implementation locations.
 
 The resolver selects a legacy or provider branch. Legacy HandleEvent remains
 unchanged. Provider HandleEvent classifies the event, resolves only the required
@@ -55,7 +71,10 @@ returns its ACK. Payout events never require a payment connector or fall back to
 payment processing when their handler is absent. Native FFI keeps local verification
 only and its existing empty integrity declarations.
 
-`x-webhook-connector` is permanent provider identity. The rollout config and its
+`x-webhook-connector` is permanent provider identity, represented without choosing
+a payment/payout enum when typed configuration is absent. Concrete registry lookup
+and migration registration validation live in `connector-integration::webhook_dispatch`;
+the shared interface layer only parses metadata. The rollout config and its
 legacy/provider switch are temporary: remove them, compatibility aliases and legacy
 handler branches once every supported connector migrates and compatibility checks
 pass. Both registries are currently empty. Explicit or configured selection of an

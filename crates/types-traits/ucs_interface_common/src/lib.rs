@@ -6,4 +6,3 @@ pub mod headers;
 pub mod metadata;
 pub mod middleware;
 pub mod request;
-pub mod webhooks;

@@ -10,6 +10,9 @@ use connector_integration::types::{
     ConnectorData, ConnectorDataProvider, FrmConnectorData, ParseEventConnectorData,
     SurchargeConnectorData,
 };
+use connector_integration::webhook_dispatch::{
+    get_parse_event_connector_data, get_webhook_connector_data,
+};
 use connector_integration::webhook_utils::{parse_payment_webhook_event, parse_webhook_event};
 use domain_types::{
     connector_flow::{
@@ -50,7 +53,6 @@ use ucs_env::{
     configs::Config,
     error::{ReportExtGrpcError, ResultExtGrpc, ResultExtGrpcError},
 };
-use ucs_interface_common::webhooks::{get_parse_event_connector_data, get_webhook_connector_data};
 
 #[derive(Debug, Clone)]
 pub struct EventServiceImpl;
@@ -94,7 +96,7 @@ impl EventService for EventServiceImpl {
             &service_name,
             config,
             FlowName::IncomingWebhook,
-            RequestData::from_grpc_parse_event_request,
+            RequestData::from_grpc_webhook_request,
             move |request_data| {
                 Box::pin(async move {
                     let payload = request_data.payload;
@@ -116,8 +118,13 @@ impl EventService for EventServiceImpl {
 
                     let connector_data = get_parse_event_connector_data(
                         &metadata_payload.connector,
-                        &parse_event_config,
-                        &request_data.masked_metadata,
+                        parse_event_config
+                            .webhook_parse
+                            .is_migrated(&metadata_payload.connector),
+                        request_data
+                            .masked_metadata
+                            .get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME)
+                            .as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -210,7 +217,8 @@ impl EventService for EventServiceImpl {
                             e.to_grpc_error()
                         })?;
                     let common_data = get_webhook_connector_data(
-                        &metadata_payload.connector, &config, &request_data.masked_metadata,
+                        &metadata_payload.connector, config.webhook_parse.is_migrated(&metadata_payload.connector),
+                        request_data.masked_metadata.get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME).as_deref(),
                     ).to_grpc_error()?;
                     let (mut response, supported_integrity_checks) = match common_data {
                         // TODO(webhook-migration): delete this branch after all connectors migrate
@@ -220,7 +228,7 @@ impl EventService for EventServiceImpl {
                                 config.webhook_source_verification_call.connectors_with_webhook_source_verification_call.as_ref(),
                             );
                             let source_verified = if requires_external {
-                                verify_webhook_source_external(
+                                verify_webhook_source_external_legacy(
                                     config.as_ref(), &connector_data, &request_details,
                                     webhook_secrets.clone(), connector_config, &metadata_payload, &service_name_clone,
                                 ).await?
@@ -243,7 +251,7 @@ impl EventService for EventServiceImpl {
                         ParseEventConnectorData::Webhook(provider) => {
                             let webhook = provider.connector.as_ref();
                             let event_type = webhook.get_event_type(request_details.clone()).to_grpc_error()?;
-                            let resource = connector_integration::types::get_webhook_resource_connector_data(
+                            let resource = connector_integration::types::get_webhook_handler_connector_data(
                                 &metadata_payload.connector, &event_type,
                             ).to_grpc_error()?;
                             let provider_name = metadata_payload.connector.get_connector_name();
@@ -255,7 +263,7 @@ impl EventService for EventServiceImpl {
                                     .ok_or_else(|| error_stack::report!(WebhookError::WebhooksNotImplemented {
                                         operation: "verify_webhook_source_external",
                                     })).to_grpc_error()?;
-                                verify_webhook_source_with_integration(
+                                verify_webhook_source_external(
                                     config.as_ref(), WebhookVerificationConnector { name: &provider_name, integration },
                                     &request_details, webhook_secrets.clone(), connector_config,
                                     &metadata_payload, &service_name_clone,
@@ -1021,9 +1029,10 @@ impl EventServiceImpl {
     }
 }
 
-/// For connectors requiring external webhook source verification (e.g., PayPal).
+// TODO(webhook-migration): remove this payment adapter once all providers migrate.
+/// Legacy payment adapter for external webhook source verification.
 /// Executes the VerifyWebhookSource flow via the connector integration.
-async fn verify_webhook_source_external(
+async fn verify_webhook_source_external_legacy(
     config: &Config,
     connector_data: &ConnectorData<DefaultPCIHolder>,
     request_details: &domain_types::connector_types::RequestDetails,
@@ -1032,7 +1041,7 @@ async fn verify_webhook_source_external(
     metadata_payload: &utils::MetadataPayload,
     service_name: &str,
 ) -> Result<bool, error_stack::Report<ucs_env::error::GrpcError>> {
-    verify_webhook_source_with_integration(
+    verify_webhook_source_external(
         config,
         WebhookVerificationConnector {
             name: connector_data.connector.id(),
@@ -1049,11 +1058,11 @@ async fn verify_webhook_source_external(
 
 struct WebhookVerificationConnector<'a> {
     name: &'a str,
-    integration: interfaces::webhook::WebhookVerificationIntegration,
+    integration: interfaces::webhook::WebhookVerificationIntegration<'a>,
 }
 
 /// Execute a provider verification integration without constructing a payment connector.
-async fn verify_webhook_source_with_integration(
+async fn verify_webhook_source_external(
     config: &Config,
     verifier: WebhookVerificationConnector<'_>,
     request_details: &domain_types::connector_types::RequestDetails,

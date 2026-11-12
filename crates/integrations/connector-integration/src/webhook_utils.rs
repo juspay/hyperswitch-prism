@@ -10,7 +10,7 @@ use grpc_api_types::payments::{
 };
 
 use crate::types::{
-    ConnectorData, PayoutConnectorData, WebhookConnectorData, WebhookResourceConnectorData,
+    ConnectorData, PayoutConnectorData, WebhookConnectorData, WebhookHandlerConnectorData,
 };
 
 /// Inputs shared by webhook normalization and ACK generation.
@@ -123,7 +123,7 @@ pub fn process_webhook_event<
 /// The caller verifies the source before resource processing.
 pub fn process_provider_webhook_event(
     webhook: &dyn interfaces::webhook::Webhook,
-    resource: WebhookResourceConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
+    resource: WebhookHandlerConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
     event_type: domain_types::connector_types::EventType,
     request_details: domain_types::connector_types::RequestDetails,
     context: WebhookHandlingContext,
@@ -131,13 +131,13 @@ pub fn process_provider_webhook_event(
     let api_event_type = WebhookEventType::foreign_try_from(event_type.clone())
         .change_context(WebhookError::WebhookProcessingFailed)?;
     let event_content = match resource {
-        WebhookResourceConnectorData::Payout(payout) => get_payouts_webhook_content_from_payout(
+        WebhookHandlerConnectorData::Payout(payout) => get_payouts_webhook_content_from_payout(
             payout,
             request_details.clone(),
             context.webhook_secrets,
             context.connector_config.clone(),
         )?,
-        WebhookResourceConnectorData::Payment(payment) => {
+        WebhookHandlerConnectorData::Payment(payment) => {
             if event_type.is_refund_event() {
                 get_refunds_webhook_content(
                     payment,
@@ -381,6 +381,9 @@ mod provider_tests {
         }
     }
     impl Webhook for TestWebhook {
+        fn sample_webhook_request(&self) -> RequestDetails {
+            request("payment_captured")
+        }
         fn parse_event(
             &self,
             _request: &RequestDetails,
@@ -433,7 +436,7 @@ mod provider_tests {
         verified: bool,
     ) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
         let event = provider.get_event_type(body.clone())?;
-        let resource = crate::types::get_webhook_resource_connector_data(
+        let resource = crate::types::get_webhook_handler_connector_data(
             &ConnectorVariant::Payment(ConnectorEnum::Checkout),
             &event,
         )?;
@@ -513,7 +516,7 @@ mod provider_tests {
         body.body = b"invalid".to_vec();
         let error = process_provider_webhook_event(
             &provider,
-            WebhookResourceConnectorData::Payout(payout),
+            WebhookHandlerConnectorData::Payout(payout),
             EventType::PayoutSuccess,
             body,
             context(true),
@@ -531,7 +534,7 @@ mod provider_tests {
     }
     #[test]
     fn payout_resolution_requires_no_payment_identity_and_rejects_unregistered_handler() {
-        let error = crate::types::get_webhook_resource_connector_data(
+        let error = crate::types::get_webhook_handler_connector_data(
             &ConnectorVariant::Payout(PayoutConnectorEnum::GotymeSanlam),
             &EventType::PayoutSuccess,
         )
@@ -546,11 +549,11 @@ mod provider_tests {
     }
     #[test]
     fn event_family_selects_resource_even_with_payout_metadata() {
-        let selected = crate::types::get_webhook_resource_connector_data(
+        let selected = crate::types::get_webhook_handler_connector_data(
             &ConnectorVariant::Payout(PayoutConnectorEnum::Checkout),
             &EventType::RefundSuccess,
         )
         .unwrap();
-        assert!(matches!(selected, WebhookResourceConnectorData::Payment(_)));
+        assert!(matches!(selected, WebhookHandlerConnectorData::Payment(_)));
     }
 }

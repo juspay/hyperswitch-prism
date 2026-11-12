@@ -11,10 +11,10 @@ use domain_types::{
 
 use crate::{api::EventAckResponse, connector_types::IncomingWebhookFlowError};
 
-/// Static verification integration used by the existing HTTP execution machinery.
-pub type WebhookVerificationIntegration =
+/// Verification integration borrowing the provider for the HTTP execution call.
+pub type WebhookVerificationIntegration<'a> =
     crate::connector_integration_v2::BoxedConnectorIntegrationV2<
-        'static,
+        'a,
         domain_types::connector_flow::VerifyWebhookSource,
         domain_types::connector_types::VerifyWebhookSourceFlowData,
         domain_types::router_request_types::VerifyWebhookSourceRequestData,
@@ -23,6 +23,9 @@ pub type WebhookVerificationIntegration =
 
 /// Provider webhook protocol operations; resource normalization stays in resource connectors.
 pub trait Webhook: Send + Sync {
+    /// Representative request used to validate parsing, including required headers and URI.
+    fn sample_webhook_request(&self) -> RequestDetails;
+
     /// Classifies the notification and extracts its unverified resource reference.
     fn parse_event(
         &self,
@@ -54,7 +57,7 @@ pub trait Webhook: Send + Sync {
 
     /// Supply the provider's verification flow when an external call is required.
     /// Missing integration is an explicit error, never a local-verification fallback.
-    fn get_external_verification_integration(&self) -> Option<WebhookVerificationIntegration> {
+    fn get_external_verification_integration(&self) -> Option<WebhookVerificationIntegration<'_>> {
         None
     }
 
@@ -93,3 +96,80 @@ pub trait Webhook: Send + Sync {
 }
 
 pub type BoxedWebhookConnector = Box<dyn Webhook>;
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use crate::{api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2};
+    use domain_types::{
+        connector_flow::VerifyWebhookSource,
+        connector_types::{HttpMethod, VerifyWebhookSourceFlowData},
+        router_data_v2::RouterDataV2,
+        router_request_types::VerifyWebhookSourceRequestData,
+        router_response_types::VerifyWebhookSourceResponseData,
+    };
+
+    struct Provider {
+        name: String,
+    }
+    impl ConnectorCommon for Provider {
+        fn id(&self) -> &'static str {
+            "test_provider"
+        }
+        fn base_url<'a>(&self, _connectors: &'a domain_types::types::Connectors) -> &'a str {
+            ""
+        }
+    }
+    impl
+        ConnectorIntegrationV2<
+            VerifyWebhookSource,
+            VerifyWebhookSourceFlowData,
+            VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
+        > for Provider
+    {
+        fn get_url(
+            &self,
+            _request: &RouterDataV2<
+                VerifyWebhookSource,
+                VerifyWebhookSourceFlowData,
+                VerifyWebhookSourceRequestData,
+                VerifyWebhookSourceResponseData,
+            >,
+        ) -> common_utils::CustomResult<String, domain_types::errors::IntegrationError> {
+            Ok(self.name.clone())
+        }
+    }
+    impl Webhook for Provider {
+        fn sample_webhook_request(&self) -> RequestDetails {
+            RequestDetails {
+                method: HttpMethod::Post,
+                uri: None,
+                headers: Default::default(),
+                body: vec![],
+                query_params: None,
+            }
+        }
+        fn parse_event(
+            &self,
+            _request: &RequestDetails,
+        ) -> error_stack::Result<WebhookParseResponse, WebhookError> {
+            Err(WebhookError::WebhookEventTypeNotFound.into())
+        }
+        fn get_external_verification_integration(
+            &self,
+        ) -> Option<WebhookVerificationIntegration<'_>> {
+            Some(Box::new(self))
+        }
+    }
+
+    #[test]
+    fn verification_integration_can_borrow_a_heap_owned_provider() {
+        let provider: Box<dyn Webhook> = Box::new(Provider {
+            name: String::from("owned_verifier"),
+        });
+        let integration = provider.get_external_verification_integration().unwrap();
+        assert_eq!(integration.id(), "test_provider");
+    }
+}

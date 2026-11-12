@@ -23,7 +23,7 @@ pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sy
 }
 
 /// Selected normalization implementation, independent of common protocol operations.
-pub enum WebhookResourceConnectorData<
+pub enum WebhookHandlerConnectorData<
     T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static,
 > {
     Payment(ConnectorData<T>),
@@ -32,11 +32,11 @@ pub enum WebhookResourceConnectorData<
 
 /// Resolve the resource handler only after the webhook provider classifies the event.
 /// A selected payout handler never falls back to a payment connector.
-pub fn get_webhook_resource_connector_data(
+pub fn get_webhook_handler_connector_data(
     connector: &domain_types::connector_types::ConnectorVariant,
     event_type: &domain_types::connector_types::EventType,
 ) -> error_stack::Result<
-    WebhookResourceConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
+    WebhookHandlerConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
     domain_types::errors::WebhookError,
 > {
     use domain_types::errors::WebhookError;
@@ -49,15 +49,16 @@ pub fn get_webhook_resource_connector_data(
             .ok_or(WebhookError::WebhooksNotImplemented {
                 operation: "process_payout_webhook",
             })?;
-        return Ok(WebhookResourceConnectorData::Payout(payout));
+        Ok(WebhookHandlerConnectorData::Payout(payout))
+    } else {
+        let payment =
+            ConnectorEnum::from_str(&name).map_err(|_| WebhookError::WebhooksNotImplemented {
+                operation: "process_payment_webhook",
+            })?;
+        Ok(WebhookHandlerConnectorData::Payment(
+            ConnectorData::get_connector_by_name(&payment),
+        ))
     }
-    let payment =
-        ConnectorEnum::from_str(&name).map_err(|_| WebhookError::WebhooksNotImplemented {
-            operation: "process_payment_webhook",
-        })?;
-    Ok(WebhookResourceConnectorData::Payment(
-        ConnectorData::get_connector_by_name(&payment),
-    ))
 }
 
 // TODO(webhook-migration): remove the legacy variant and compatibility alias
@@ -79,7 +80,9 @@ impl WebhookConnectorData {
     pub fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
     ) -> Option<Self> {
-        crate::webhook_connectors::get_connector(variant).map(|connector| Self { connector })
+        domain_types::connector_types::WebhookProvider::new(&variant.get_connector_name())
+            .and_then(|provider| crate::webhook_connectors::get_connector(&provider))
+            .map(|connector| Self { connector })
     }
 }
 

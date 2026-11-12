@@ -1546,13 +1546,13 @@ impl PaymentService for Payments {
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
             FlowName::Refund,
             |request_data| async move { self.internal_refund(request_data).await },
-        )
+        ))
         .await
     }
 
@@ -2273,7 +2273,8 @@ impl PaymentMethodService for PaymentMethod {
                             };
                             tonic::Response::new(payment_method_tokenize_response)
                         }
-                        ConnectorVariant::Payout(_)
+                        ConnectorVariant::Webhook(_)
+                        | ConnectorVariant::Payout(_)
                         | ConnectorVariant::Frm(_)
                         | ConnectorVariant::Surcharge(_) => {
                             return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(

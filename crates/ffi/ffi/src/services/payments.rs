@@ -780,12 +780,12 @@ pub fn parse_event_transformer(
     metadata: &common_utils::metadata::MaskedMetadata,
 ) -> Result<grpc_api_types::payments::EventServiceParseResponse, IntegrationError> {
     use common_utils::errors::ErrorSwitch as _;
+    use connector_integration::webhook_dispatch::get_parse_event_connector_data;
     use connector_integration::{
         types::ParseEventConnectorData,
         webhook_utils::{parse_payment_webhook_event, parse_webhook_event},
     };
     use domain_types::utils::ForeignTryFrom as _;
-    use ucs_interface_common::webhooks::get_parse_event_connector_data;
 
     let request_details = RequestDetails::foreign_try_from(
         payload
@@ -797,8 +797,14 @@ pub fn parse_event_transformer(
         |e: error_stack::Report<domain_types::errors::WebhookError>| e.current_context().switch(),
     )?;
 
-    let connector_data = get_parse_event_connector_data(&connector, config, metadata)
-        .map_err(|e| e.current_context().switch())?;
+    let connector_data = get_parse_event_connector_data(
+        &connector,
+        config.webhook_parse.is_migrated(&connector),
+        metadata
+            .get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME)
+            .as_deref(),
+    )
+    .map_err(|e| e.current_context().switch())?;
 
     match connector_data {
         ParseEventConnectorData::Webhook(connector) => {
@@ -820,23 +826,6 @@ pub fn parse_event_transformer(
 /// performed here; only local synchronous signature verification is done.
 /// The gRPC server performs external verification before calling its equivalent path.
 pub fn handle_event_transformer(
-    payload: EventServiceHandleRequest,
-    config: &std::sync::Arc<ucs_env::configs::Config>,
-    connector: domain_types::connector_types::ConnectorEnum,
-    connector_config: Option<domain_types::router_data::ConnectorSpecificConfig>,
-    metadata: &common_utils::metadata::MaskedMetadata,
-) -> Result<EventServiceHandleResponse, IntegrationError> {
-    handle_event_transformer_with_connector_variant(
-        payload,
-        config,
-        domain_types::connector_types::ConnectorVariant::Payment(connector),
-        connector_config,
-        metadata,
-    )
-}
-
-/// Variant-aware entry point; the legacy payment service signature remains available.
-pub fn handle_event_transformer_with_connector_variant(
     payload: EventServiceHandleRequest,
     config: &std::sync::Arc<ucs_env::configs::Config>,
     connector: domain_types::connector_types::ConnectorVariant,
@@ -876,9 +865,14 @@ pub fn handle_event_transformer_with_connector_variant(
             },
         )?;
 
-    let common_data =
-        ucs_interface_common::webhooks::get_webhook_connector_data(&connector, config, metadata)
-            .map_err(|e| e.current_context().switch())?;
+    let common_data = connector_integration::webhook_dispatch::get_webhook_connector_data(
+        &connector,
+        config.webhook_parse.is_migrated(&connector),
+        metadata
+            .get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME)
+            .as_deref(),
+    )
+    .map_err(|e| e.current_context().switch())?;
     match common_data {
         // TODO(webhook-migration): delete this legacy branch after all connectors
         // migrate and their compatibility checks pass.
@@ -906,7 +900,7 @@ pub fn handle_event_transformer_with_connector_variant(
             let event_type = webhook
                 .get_event_type(request_details.clone())
                 .map_err(|e| e.current_context().switch())?;
-            let resource = connector_integration::types::get_webhook_resource_connector_data(
+            let resource = connector_integration::types::get_webhook_handler_connector_data(
                 &connector,
                 &event_type,
             )

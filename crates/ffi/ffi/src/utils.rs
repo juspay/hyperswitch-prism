@@ -46,15 +46,16 @@ pub fn load_config(embedded_config: &str) -> Result<Arc<Config>, DomainIntegrati
                 ..Default::default()
             },
         })?;
-    ucs_interface_common::webhooks::validate_webhook_migration_config(&config).map_err(
-        |error| DomainIntegrationError::InvalidDataFormat {
-            field_name: "webhook_parse.migrated_connectors",
-            context: IntegrationErrorContext {
-                additional_context: Some(error.to_string()),
-                ..Default::default()
-            },
+    connector_integration::webhook_dispatch::validate_webhook_migration_config(
+        config.webhook_parse.migrated_connectors.as_ref(),
+    )
+    .map_err(|error| DomainIntegrationError::InvalidDataFormat {
+        field_name: "webhook_parse.migrated_connectors",
+        context: IntegrationErrorContext {
+            additional_context: Some(error.to_string()),
+            ..Default::default()
         },
-    )?;
+    })?;
     Ok(Arc::new(config))
 }
 
