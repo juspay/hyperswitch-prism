@@ -1180,7 +1180,7 @@ fn build_worldpayxml_recipient_party(
             address1: address.get_line1()?.clone(),
             address2: address.get_optional_line2(),
             address3: address.line3.clone(),
-            postal_code: address.get_zip()?.clone(),
+            postal_code: address.get_optional_zip(),
             city: address.get_city()?.clone().expose(),
             state: get_worldpayxml_funding_state(
                 address.get_optional_state(),
@@ -1272,8 +1272,7 @@ fn build_worldpayxml_sender_funding_address(
         address3: address.line3.clone(),
         postal_code: address
             .zip
-            .clone()
-            .ok_or_else(utils::missing_field_err("sender_details.address.zip"))?,
+            .clone(),
         city: address
             .city
             .clone()
@@ -1311,7 +1310,7 @@ pub(super) fn build_worldpayxml_sender_party(
                     address1: resource_common_data.get_billing_line1()?,
                     address2: resource_common_data.get_optional_billing_line2(),
                     address3: resource_common_data.get_optional_billing_line3(),
-                    postal_code: resource_common_data.get_billing_zip()?,
+                    postal_code: resource_common_data.get_optional_billing_zip(),
                     city: resource_common_data.get_billing_city()?.expose(),
                     state: get_worldpayxml_funding_state(
                         resource_common_data.get_optional_billing_state(),

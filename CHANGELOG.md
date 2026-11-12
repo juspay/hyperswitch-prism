@@ -19,6 +19,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.12.1
+
+### Features
+
+- **connector:** Omit ecommerce_indicator for raft unscheduled cof ([#2725](https://github.com/juspay/connector-service/pull/2725)) ([`278a424`](https://github.com/juspay/connector-service/commit/278a42491c59e918aa381c797bcca2920ac0d4b4))
+
+### Bug Fixes
+
+- **connector:** [checkout] pass browser info and handle name verification check ([#2723](https://github.com/juspay/connector-service/pull/2723)) ([`fd4249e`](https://github.com/juspay/connector-service/commit/fd4249efca21efa3dbd7a9d5dfb2a6445d6b9e80))
+
+**Full Changelog:** [`2026.11.12.0...2026.11.12.1`](https://github.com/juspay/connector-service/compare/2026.11.12.0...2026.11.12.1)
+
+- - -
+
+## 2026.11.12.0
+
+### Features
+
+- **connector:** [Stripe] support card_with_no_cvc in authorize, setup_mandate and tokenization ([#2713](https://github.com/juspay/connector-service/pull/2713)) ([`fe803d0`](https://github.com/juspay/connector-service/commit/fe803d0cc9bb4160fcfbbdae9df9274fd0b63083))
+
+### Bug Fixes
+
+- **connector:** [Elavon PG] default credentialOnFileType to unscheduled ([#2718](https://github.com/juspay/connector-service/pull/2718)) ([`8e9bea1`](https://github.com/juspay/connector-service/commit/8e9bea1b8326eaa57f5eac00ddf405cbc4955a77))
+
+### Refactors
+
+- **money:** Enforce domain construction boundary ([#2642](https://github.com/juspay/connector-service/pull/2642)) ([`791381d`](https://github.com/juspay/connector-service/commit/791381d9850159bb2486d6db15695029fd06b009))
+
+**Full Changelog:** [`2026.11.10.0...2026.11.12.0`](https://github.com/juspay/connector-service/compare/2026.11.10.0...2026.11.12.0)
+
+- - -
+
 ## 2026.11.10.0
 
 ### Features
