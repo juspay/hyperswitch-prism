@@ -132,7 +132,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Paypal<T>
+    interfaces::webhooks::IncomingWebhook for Paypal<T>
 {
     fn verify_webhook_source(
         &self,

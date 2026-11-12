@@ -123,7 +123,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 // ===== DISPUTE FLOW TRAIT IMPLEMENTATIONS =====
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Bluesnap<T>
+    interfaces::webhooks::IncomingWebhook for Bluesnap<T>
 {
     fn verify_webhook_source(
         &self,

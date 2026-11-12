@@ -557,7 +557,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for RazorpayV2<T>
+    interfaces::webhooks::IncomingWebhook for RazorpayV2<T>
 {
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>

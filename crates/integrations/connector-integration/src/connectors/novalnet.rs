@@ -647,7 +647,7 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Novalnet<T>
+    interfaces::webhooks::IncomingWebhook for Novalnet<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
