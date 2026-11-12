@@ -160,6 +160,7 @@ mod tests {
             }),
             shipping_document_data: None,
             domain_data: None,
+            data_collection_no_inquiry: None,
         }
     }
 

@@ -2167,6 +2167,20 @@ impl TryFrom<ResponseRouterData<KountPreRiskCheckResponse, Self>>
         let parsed = &item.response.0.parsed_response;
         let order = parsed.order.as_ref();
         let risk = order.and_then(|order| order.risk_inquiry.as_ref());
+        // Leak tripwire: in data-only mode (`data_collection_no_inquiry`) we ask
+        // Kount NOT to evaluate the order (`?riskInquiry=false`), so a risk
+        // decision back means Kount evaluated it anyway. Alerting keys on this
+        // event name; do not rename it.
+        if item.router_data.request.data_collection_no_inquiry == Some(true)
+            && risk.is_some_and(|inquiry| inquiry.decision.is_some())
+        {
+            tracing::error!(
+                target: "kount_leak",
+                event = "kount_eval_with_inquiry_while_data_collection_set",
+                order_id = ?order.and_then(|order| order.order_id.as_deref()),
+                "data_collection_no_inquiry is set but Kount returned a riskInquiry decision"
+            );
+        }
         Ok(Self {
             response: Ok(PreRiskCheckResponse {
                 frm_decision: risk

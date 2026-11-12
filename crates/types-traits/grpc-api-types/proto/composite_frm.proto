@@ -86,8 +86,12 @@ message CompositeFrmPreRiskCheckRequest {
   optional CustomerDocumentDetails shipping_document_data = 17;
 
   // Domain-specific order context (travel, hotel, airline…) as a typed
-  // object. 
+  // object.
   optional DomainData domain_data = 18;
+
+  // Data-only mode: when true, the evaluate call is data-only (Kount
+  // `riskInquiry=false`) — no fraud evaluation, for model training.
+  optional bool data_collection_no_inquiry = 19;
 }
 
 // Composite request for PostRiskCheck that includes all fields from

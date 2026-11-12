@@ -557,11 +557,32 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>,
         ) -> CustomResult<String, IntegrationError> {
             // `?riskInquiry=true` is required for Kount to return a risk decision
-            // (omniscore/decision); without it the order is logged but riskInquiry is null.
-            Ok(format!(
-                "{}{}?riskInquiry=true",
+            // (omniscore/decision); without it the order is logged but riskInquiry
+            // is null. Data-only (model-training) mode instead sends
+            // `?riskInquiry=false` so the order is logged but never evaluated.
+            let risk_inquiry = match req.request.data_collection_no_inquiry {
+                Some(true) => "false",
+                _ => "true",
+            };
+            let url = format!(
+                "{}{}?riskInquiry={risk_inquiry}",
                 req.resource_common_data.connectors.kount.base_url, KOUNT_ORDERS_PATH
-            ))
+            );
+            // Leak tripwire: with `data_collection_no_inquiry` set, the evaluate
+            // URL must never carry `riskInquiry=true` — that would evaluate an
+            // order we promised to log only. Alerting keys on this event name;
+            // do not rename it.
+            if req.request.data_collection_no_inquiry == Some(true)
+                && url.contains("riskInquiry=true")
+            {
+                tracing::error!(
+                    target: "kount_leak",
+                    event = "kount_eval_with_inquiry_while_data_collection_set",
+                    url = %url,
+                    "data_collection_no_inquiry is set but the evaluate URL carries riskInquiry=true"
+                );
+            }
+            Ok(url)
         }
     }
 );
@@ -706,4 +727,97 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::FrmChargebackReceivedV2 for Kount<T>
 {
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    use std::{marker::PhantomData, sync::Arc};
+
+    use common_enums::Currency;
+    use common_utils::types::MinorUnit;
+    use domain_types::{
+        connector_flow::PreRiskCheck,
+        frm::frm_types::{FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse},
+        payment_method_data::DefaultPCIHolder,
+        router_data::{ConnectorSpecificConfig, ErrorResponse},
+        router_data_v2::RouterDataV2,
+        types::{ConnectorParams, Connectors},
+    };
+    use hyperswitch_masking::Secret;
+    use interfaces::connector_integration_v2::ConnectorIntegrationV2;
+
+    use super::Kount;
+
+    fn pre_risk_check_router_data(
+        data_collection_no_inquiry: Option<bool>,
+    ) -> RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse> {
+        RouterDataV2 {
+            flow: PhantomData::<PreRiskCheck>,
+            resource_common_data: FrmFlowData {
+                merchant_id: common_utils::id_type::MerchantId::default(),
+                connectors: Arc::new(Connectors {
+                    kount: ConnectorParams {
+                        base_url: "https://kount.example/".to_string(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }),
+                access_token: None,
+                raw_connector_response: None,
+                typed_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+                connector_response_headers: None,
+            },
+            connector_config: ConnectorSpecificConfig::Kount {
+                api_key: Secret::new("test_kount_api_key".to_string()),
+                client_id: None,
+                auth_server_id: None,
+                khash_config_key: None,
+                base_url: None,
+            },
+            request: PreRiskCheckRequest {
+                amount: common_utils::types::Money {
+                    amount: MinorUnit::new(100),
+                    currency: Currency::USD,
+                },
+                customer_info: None,
+                payment_method: None,
+                browser_info: None,
+                merchant_transaction_id: None,
+                order_details: None,
+                address: None,
+                metadata: None,
+                connector_feature_data: None,
+                test_mode: None,
+                mandate_details: None,
+                merchant_details: None,
+                payment_method_type: None,
+                data_collection_no_inquiry,
+                billing_document_data: None,
+                shipping_document_data: None,
+                domain_data: None,
+            },
+            response: Err(ErrorResponse::default()),
+        }
+    }
+
+    /// Data-only mode (`data_collection_no_inquiry = Some(true)`) must ask Kount
+    /// NOT to evaluate (`?riskInquiry=false`); absent/false keeps today's
+    /// behavior (`?riskInquiry=true`).
+    #[test]
+    fn data_collection_no_inquiry_gates_kount_risk_inquiry_query() {
+        let connector = Kount::<DefaultPCIHolder>::new();
+
+        let data_only = pre_risk_check_router_data(Some(true));
+        let url = connector.get_url(&data_only).expect("url should build");
+        assert!(url.ends_with("?riskInquiry=false"), "unexpected url: {url}");
+
+        for flag in [None, Some(false)] {
+            let evaluating = pre_risk_check_router_data(flag);
+            let url = connector.get_url(&evaluating).expect("url should build");
+            assert!(url.ends_with("?riskInquiry=true"), "unexpected url: {url}");
+        }
+    }
 }
