@@ -240,24 +240,8 @@ prepare_base() {
 # Decided from git facts only; what each one runs comes from its specs.json.
 declare -a CONNECTORS=()
 
-if [[ "${SHARED_CHANGED:-}" == "true" ]]; then
-  # All 100+ is the nightly's job; a PR clears the ones carrying real traffic,
-  # as declared centrally in live_connectors.json — a connector goes live only
-  # by a deliberate, separately-raised PR editing that one file, so keeping
-  # the list there (rather than a per-connector flag) is just as deliberate
-  # and far easier to review at a glance.
-  echo "Shared code changed — certifying connectors live in production"
-  if [[ ! -f "${LIVE_FILE}" ]]; then
-    echo "::error::Shared code changed but ${LIVE_FILE} is missing — nothing would be certified."
-    exit 1
-  fi
-  mapfile -t CONNECTORS < <(jq -r '.connectors | keys[]' "${LIVE_FILE}")
-  if [[ ${#CONNECTORS[@]} -eq 0 ]]; then
-    echo "::error::Shared code changed but ${LIVE_FILE} lists no connectors — nothing would be certified."
-    exit 1
-  fi
-else
-  echo "Certifying connectors touched by this PR"
+append_touched_connectors() {
+  local name specs
   IFS=',' read -ra TOUCHED <<< "${CHANGED_CONNECTORS:-}"
   for name in ${TOUCHED[@]+"${TOUCHED[@]}"}; do
     [[ -n "${name}" ]] || continue
@@ -278,7 +262,43 @@ else
 
     CONNECTORS+=("${name}")
   done
+}
+
+if [[ "${SHARED_CHANGED:-}" == "true" ]]; then
+  # All 100+ is the nightly's job; a PR clears the ones carrying real traffic,
+  # as declared centrally in live_connectors.json — a connector goes live only
+  # by a deliberate, separately-raised PR editing that one file, so keeping
+  # the list there (rather than a per-connector flag) is just as deliberate
+  # and far easier to review at a glance.
+  echo "Shared code changed — certifying connectors live in production"
+  if [[ ! -f "${LIVE_FILE}" ]]; then
+    echo "::error::Shared code changed but ${LIVE_FILE} is missing — nothing would be certified."
+    exit 1
+  fi
+  mapfile -t CONNECTORS < <(jq -r '.connectors | keys[]' "${LIVE_FILE}")
+  if [[ ${#CONNECTORS[@]} -eq 0 ]]; then
+    echo "::error::Shared code changed but ${LIVE_FILE} lists no connectors — nothing would be certified."
+    exit 1
+  fi
+  # Shared changes broaden certification to the production-live set. They do
+  # not erase connector ownership: a connector edited by this same PR must
+  # still run even when it is not in live_connectors.json.
+  echo "Also certifying connectors touched by this PR"
+  append_touched_connectors
+else
+  echo "Certifying connectors touched by this PR"
+  append_touched_connectors
 fi
+
+# A touched connector may already be in the live set. Run it once.
+declare -A SEEN_CONNECTORS=()
+declare -a UNIQUE_CONNECTORS=()
+for name in ${CONNECTORS[@]+"${CONNECTORS[@]}"}; do
+  [[ -n "${SEEN_CONNECTORS[${name}]:-}" ]] && continue
+  SEEN_CONNECTORS["${name}"]=1
+  UNIQUE_CONNECTORS+=("${name}")
+done
+CONNECTORS=("${UNIQUE_CONNECTORS[@]}")
 
 count=${#CONNECTORS[@]}
 if [[ "${count}" -eq 0 ]]; then
