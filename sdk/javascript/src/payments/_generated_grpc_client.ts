@@ -465,7 +465,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   MandateReference: { "connectorMandateId": "ConnectorMandateReferenceId", "networkMandateId": "NetworkMandateId", "networkTokenWithNti": "NetworkTokenWithNTI" },
   PaymentAddress: { "shippingAddress": "Address", "billingAddress": "Address" },
   OrderInfo: { "orderDetails": "OrderDetailsWithAmount" },
-  L2L3Data: { "orderInfo": "OrderInfo", "taxInfo": "TaxInfo" },
+  L2L3Data: { "orderInfo": "OrderInfo", "taxInfo": "TaxInfo", "customerInfo": "Customer", "shippingDetails": "Address", "billingDetails": "Address" },
   RedirectionResponse: { "payload": "PayloadEntry" },
   RedirectForm: { "form": "FormData", "html": "HtmlData", "uri": "UriData", "braintree": "BraintreeData", "mifinity": "MifinityData", "nmi": "NmiData", "hostedIframe": "HostedIframeData", "qrData": "QrData", "script": "ScriptData", "worldpayxmlDdc": "WorldpayxmlDdcData", "worldpayxmlChallenge": "WorldpayxmlChallengeData" },
   FormData: { "formFields": "FormFieldsEntry" },
