@@ -3347,15 +3347,15 @@ pub enum HttpMethod {
 #[derive(Debug, Clone)]
 pub struct RequestDetails {
     pub method: HttpMethod,
-    pub uri: Option<String>,
-    pub headers: HashMap<String, String>,
-    pub body: Vec<u8>,
-    pub query_params: Option<String>,
+    pub uri: Option<Secret<String>>,
+    pub headers: HashMap<String, Secret<String>>,
+    pub body: Secret<Vec<u8>>,
+    pub query_params: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ConnectorWebhookSecrets {
-    pub secret: Vec<u8>,
+    pub secret: Secret<Vec<u8>>,
     pub additional_secret: Option<Secret<String>>,
 }
 
@@ -3366,7 +3366,7 @@ pub struct EventContext {
 
 #[derive(Debug, Clone)]
 pub struct ConnectorRedirectResponseSecrets {
-    pub secret: Vec<u8>,
+    pub secret: Secret<Vec<u8>>,
     pub additional_secret: Option<Secret<String>>,
 }
 
@@ -3755,6 +3755,7 @@ impl ForeignTryFrom<grpc_api_types::payments::HttpMethod> for HttpMethod {
     }
 }
 
+#[allow(deprecated)] // Read legacy wire fields until all callers migrate.
 impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails {
     type Error = WebhookError;
 
@@ -3765,14 +3766,26 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
 
         Ok(Self {
             method,
-            uri: value.uri,
-            headers: value.headers,
-            body: value.body,
-            query_params: value.query_params,
+            uri: value.uri.or_else(|| value.legacy_uri.map(Secret::new)),
+            headers: value
+                .headers
+                .map(|headers| headers.values)
+                .unwrap_or_else(|| {
+                    value
+                        .legacy_headers
+                        .into_iter()
+                        .map(|(key, value)| (key, Secret::new(value)))
+                        .collect()
+                }),
+            body: value.body.unwrap_or_else(|| Secret::new(value.legacy_body)),
+            query_params: value
+                .query_params
+                .or_else(|| value.legacy_query_params.map(Secret::new)),
         })
     }
 }
 
+#[allow(deprecated)] // Read legacy wire fields until all callers migrate.
 impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebhookSecrets {
     type Error = WebhookError;
 
@@ -3780,8 +3793,13 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookSecrets> for ConnectorWebho
         value: grpc_api_types::payments::WebhookSecrets,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            secret: value.secret.into(),
-            additional_secret: value.additional_secret.map(Secret::new),
+            secret: value
+                .secret
+                .unwrap_or_else(|| Secret::new(value.legacy_secret))
+                .map(String::into_bytes),
+            additional_secret: value
+                .additional_secret
+                .or_else(|| value.legacy_additional_secret.map(Secret::new)),
         })
     }
 }
@@ -3818,6 +3836,7 @@ impl ForeignTryFrom<grpc_api_types::payments::EventContext> for EventContext {
     }
 }
 
+#[allow(deprecated)] // Read legacy wire fields until all callers migrate.
 impl ForeignTryFrom<grpc_api_types::payments::RedirectResponseSecrets>
     for ConnectorRedirectResponseSecrets
 {
@@ -3827,8 +3846,13 @@ impl ForeignTryFrom<grpc_api_types::payments::RedirectResponseSecrets>
         value: grpc_api_types::payments::RedirectResponseSecrets,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            secret: value.secret.into(),
-            additional_secret: value.additional_secret.map(Secret::new),
+            secret: value
+                .secret
+                .unwrap_or_else(|| Secret::new(value.legacy_secret))
+                .map(String::into_bytes),
+            additional_secret: value
+                .additional_secret
+                .or_else(|| value.legacy_additional_secret.map(Secret::new)),
         })
     }
 }

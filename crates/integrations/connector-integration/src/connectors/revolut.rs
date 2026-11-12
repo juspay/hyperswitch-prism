@@ -152,6 +152,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let signature_header = request
             .headers
             .get("revolut-signature")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))
             .attach_printable("Missing incoming webhook signature for Revolut")?;
 
@@ -178,11 +179,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let timestamp = request
             .headers
             .get("revolut-request-timestamp")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))
             .attach_printable("Missing timestamp header for Revolut")?;
 
         // 2. Get the Raw Body
-        let body = std::str::from_utf8(&request.body)
+        let body = std::str::from_utf8(request.body.peek())
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Webhook source verification message parsing failed for Revolut")?;
 
@@ -215,11 +217,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ConnectorWebhookSecrets {
                     secret: auth
                         .signing_secret
-                        .as_ref()
                         .ok_or_else(|| report!(WebhookError::WebhookVerificationSecretNotFound))?
-                        .peek()
-                        .as_bytes()
-                        .to_vec(),
+                        .map(String::into_bytes),
                     additional_secret: None,
                 }
             }
@@ -232,7 +231,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
         algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Webhook source verification failed for Revolut")
     }
@@ -247,6 +250,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let notif: revolut::RevolutWebhookBody = request
             .body
+            .peek()
             .parse_struct("RevolutWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         match notif.event {
@@ -282,6 +286,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let notif: revolut::RevolutWebhookBody = request
             .body
+            .peek()
             .parse_struct("RevolutWebhookBody")
             .attach_printable("Failed to parse Revolut webhook body")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -290,7 +295,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         response.map(|mut response| {
             response.raw_connector_response =
-                Some(String::from_utf8_lossy(&request.body).to_string());
+                Some(String::from_utf8_lossy(request.body.peek()).to_string());
             response
         })
     }

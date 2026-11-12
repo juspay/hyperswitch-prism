@@ -1,5 +1,7 @@
 pub mod transformers;
 
+use hyperswitch_masking::PeekInterface;
+
 use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
 
@@ -140,7 +142,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         use common_utils::crypto::SignMessage;
         common_utils::crypto::HmacSha256
-            .sign_message(&connector_webhook_secrets.secret, &message)
+            .sign_message(connector_webhook_secrets.secret.peek(), &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to sign the NMI webhook message with HMAC-SHA256")
             .map(|expected_signature| expected_signature == signature)
@@ -171,7 +173,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
 
         // Byte-exact hyperswitch message: `format!("{}.{}", nonce, raw_body)`.
-        let message = format!("{}.{}", nonce, String::from_utf8_lossy(&request.body));
+        let message = format!("{}.{}", nonce, String::from_utf8_lossy(request.body.peek()));
         Ok(message.into_bytes())
     }
 
@@ -180,7 +182,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let event_type_body: transformers::NmiWebhookEventBody =
-            serde_json::from_slice(&request.body)
+            serde_json::from_slice(request.body.peek())
                 .change_context(WebhookError::WebhookResourceObjectNotFound)
                 .attach_printable("Failed to decode the NMI webhook event body")?;
 
@@ -200,7 +202,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         let reference_body: transformers::NmiWebhookObjectReference =
-            serde_json::from_slice(&request.body)
+            serde_json::from_slice(request.body.peek())
                 .change_context(WebhookError::WebhookResourceObjectNotFound)
                 .attach_printable("Failed to decode the NMI webhook object reference")?;
 
@@ -239,9 +241,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<domain_types::connector_types::EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let webhook_body: transformers::NmiWebhookBody = serde_json::from_slice(&request.body)
-            .change_context(WebhookError::WebhookResourceObjectNotFound)
-            .attach_printable("Failed to decode the NMI webhook body")?;
+        let webhook_body: transformers::NmiWebhookBody =
+            serde_json::from_slice(request.body.peek())
+                .change_context(WebhookError::WebhookResourceObjectNotFound)
+                .attach_printable("Failed to decode the NMI webhook body")?;
 
         // HS reshapes payment webhooks into the PSync `SyncResponse` and maps
         // `condition` -> NmiStatus -> AttemptStatus.
@@ -263,7 +266,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             captured_money: None,
@@ -279,9 +282,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let webhook_body: transformers::NmiWebhookBody = serde_json::from_slice(&request.body)
-            .change_context(WebhookError::WebhookResourceObjectNotFound)
-            .attach_printable("Failed to decode the NMI webhook body")?;
+        let webhook_body: transformers::NmiWebhookBody =
+            serde_json::from_slice(request.body.peek())
+                .change_context(WebhookError::WebhookResourceObjectNotFound)
+                .attach_printable("Failed to decode the NMI webhook body")?;
 
         // `transaction_id` is the NMI-assigned id of the refund transaction;
         // `condition` -> NmiStatus -> RefundStatus mirrors the HS mapping.
@@ -299,7 +303,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: None,
             error_code: None,
             error_message: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
         })
@@ -313,9 +317,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let webhook_body: transformers::NmiWebhookBody = serde_json::from_slice(&request.body)
-            .change_context(WebhookError::WebhookResourceObjectNotFound)
-            .attach_printable("Failed to decode the NMI webhook body")?;
+        let webhook_body: transformers::NmiWebhookBody =
+            serde_json::from_slice(request.body.peek())
+                .change_context(WebhookError::WebhookResourceObjectNotFound)
+                .attach_printable("Failed to decode the NMI webhook body")?;
 
         match webhook_body.event_body.action.action_type {
             transformers::NmiActionType::Sale

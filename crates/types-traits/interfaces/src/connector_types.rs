@@ -1,3 +1,5 @@
+use hyperswitch_masking::PeekInterface;
+
 use std::collections::HashSet;
 use std::str::FromStr;
 
@@ -784,7 +786,7 @@ pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {
         request: &RequestDetails,
         secrets: Option<ConnectorSourceVerificationSecrets>,
     ) -> CustomResult<Vec<u8>, domain_types::errors::IntegrationError> {
-        self.decode(secrets, &request.body)
+        self.decode(secrets, request.body.peek())
     }
 
     fn verify_redirect_response_source(
@@ -799,7 +801,7 @@ pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {
             },
         )?;
 
-        self.verify(connector_source_verifacation_secrets, &request.body)
+        self.verify(connector_source_verifacation_secrets, request.body.peek())
     }
 
     fn process_redirect_response(

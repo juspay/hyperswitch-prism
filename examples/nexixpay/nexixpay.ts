@@ -78,10 +78,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -90,10 +90,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"eventId\":\"554ccc00-28fb-4344-a3fa-4bb8d1999bd5\",\"eventTime\":\"2022-09-01T01:20:00.001Z\",\"securityToken\":\"2f0ea5059b41414ca3744fe672327d85\",\"operation\":{\"orderId\":\"btid2384983\",\"operationId\":\"3470744\",\"channel\":\"ECOMMERCE\",\"operationType\":\"CAPTURE\",\"operationResult\":\"EXECUTED\",\"operationTime\":\"2022-09-01T01:20:00.001Z\",\"paymentMethod\":\"CARD\",\"paymentCircuit\":\"VISA\",\"paymentInstrumentInfo\":\"***6152\",\"paymentEndToEndId\":\"e723hedsdew\",\"cancelledOperationId\":\"\",\"operationAmount\":\"3545\",\"operationCurrency\":\"EUR\",\"additionalData\":{\"authorizationCode\":\"647189\",\"cardCountry\":\"ITA\",\"threeDS\":\"FULL_SECURE\",\"schemaTID\":\"MCS01198U\"}}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

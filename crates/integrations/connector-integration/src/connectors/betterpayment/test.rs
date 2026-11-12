@@ -16,7 +16,7 @@ use domain_types::{
     types::AuthorizationRequest,
     utils::ForeignTryFrom,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use interfaces::{api::ConnectorCommon, connector_types::IncomingWebhook};
 use serde_json::json;
 
@@ -187,9 +187,9 @@ fn webhook_signature_rejects_tampered_body_wrong_key_and_invalid_headers() {
         uri: None,
         headers: std::collections::HashMap::from([(
             "gateway-webhook-signature".to_owned(),
-            "97yD9DBThCSxMpjmqm+xQ+9NWaFJRhdZl0edvC0aPNg=".to_owned(),
+            Secret::new("97yD9DBThCSxMpjmqm+xQ+9NWaFJRhdZl0edvC0aPNg=".to_owned()),
         )]),
-        body: b"The quick brown fox jumps over the lazy dog".to_vec(),
+        body: Secret::new(b"The quick brown fox jumps over the lazy dog".to_vec()),
         query_params: None,
     };
     assert!(connector
@@ -202,13 +202,16 @@ fn webhook_signature_rejects_tampered_body_wrong_key_and_invalid_headers() {
     assert!(!connector
         .verify_webhook_source(request.clone(), None, Some(wrong_key))
         .expect("reject wrong key"));
-    request.body.push(b'!');
+    request.body = request.body.map(|mut body| {
+        body.push(b'!');
+        body
+    });
     assert!(!connector
         .verify_webhook_source(request.clone(), None, Some(config()))
         .expect("reject tampered body"));
     request.headers.insert(
         "gateway-webhook-signature".to_owned(),
-        "not base64!".to_owned(),
+        Secret::new("not base64!".to_owned()),
     );
     assert!(connector
         .verify_webhook_source(request.clone(), None, Some(config()))
@@ -242,9 +245,9 @@ fn form_webhook(body: &str) -> RequestDetails {
         uri: None,
         headers: std::collections::HashMap::from([(
             "content-type".to_owned(),
-            "application/x-www-form-urlencoded".to_owned(),
+            Secret::new("application/x-www-form-urlencoded".to_owned()),
         )]),
-        body: body.as_bytes().to_vec(),
+        body: Secret::new(body.as_bytes().to_vec()),
         query_params: None,
     }
 }
@@ -255,7 +258,7 @@ fn captured_wero_form_postback_decodes_and_routes() {
     let raw = "transaction_id=f585d8d3-93c0-4e1a-9021-30611639674e&payment_type=wero&status_code=5&status=canceled&order_id=34533343&message=CONSENT%20DENIED&additional_transaction_data=customer_id%3D123ABC%2C%20billing_info%3D12345678&amount=15.9&recurring=0&included_fees=0.00&checksum=bc2423a3f1c94d1f49c3af563a3f16726f483a63";
     let request = form_webhook(raw);
     let parsed: BetterpaymentWebhookBody =
-        serde_urlencoded::from_bytes(&request.body).expect("decode captured form");
+        serde_urlencoded::from_bytes(request.body.peek()).expect("decode captured form");
     assert_eq!(parsed.message.as_deref(), Some("CONSENT DENIED"));
     assert_eq!(
         connector.get_event_type(request.clone()).expect("event"),
@@ -334,7 +337,7 @@ fn form_signature_is_verified_on_original_encoded_bytes() {
     let mut request = form_webhook("id=123&name=John%20Doe");
     request.headers.insert(
         "gateway-webhook-signature".to_owned(),
-        "bsixvztdAkDkFFcfrKTSHfv0lv+Mu7BQCg6IZKwBSBQ=".to_owned(),
+        Secret::new("bsixvztdAkDkFFcfrKTSHfv0lv+Mu7BQCg6IZKwBSBQ=".to_owned()),
     );
     let mut auth = config();
     if let ConnectorSpecificConfig::Betterpayment { webhook_key, .. } = &mut auth {
@@ -343,7 +346,7 @@ fn form_signature_is_verified_on_original_encoded_bytes() {
     assert!(connector
         .verify_webhook_source(request.clone(), None, Some(auth.clone()))
         .expect("form signature"));
-    request.body = b"id=123&name=John+Doe".to_vec();
+    request.body = Secret::new(b"id=123&name=John+Doe".to_vec());
     assert!(!connector
         .verify_webhook_source(request, None, Some(auth))
         .expect("changed encoding invalidates signature"));

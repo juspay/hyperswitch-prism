@@ -1,3 +1,5 @@
+use hyperswitch_masking::PeekInterface;
+
 use common_enums;
 use common_utils::consts;
 use hyperswitch_masking::Secret;
@@ -777,12 +779,12 @@ pub enum PproWebhookData {
 /// `get_signature_elements_from_header`. The lookup is case-insensitive because
 /// HTTP intermediaries may normalise header casing.
 pub(crate) fn get_ppro_signature_elements_from_header(
-    headers: &std::collections::HashMap<String, String>,
+    headers: &std::collections::HashMap<String, Secret<String>>,
 ) -> Result<std::collections::HashMap<String, String>, error_stack::Report<WebhookError>> {
     let security_header = headers
         .iter()
         .find(|(key, _)| key.eq_ignore_ascii_case(super::headers::PPRO_SIGNATURE))
-        .map(|(_, value)| value.clone())
+        .map(|(_, value)| value.peek().clone())
         .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
 
     let mut signature_elements = std::collections::HashMap::new();

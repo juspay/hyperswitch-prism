@@ -1431,7 +1431,7 @@ pub struct RazorpayWebhookCard {
 }
 
 pub fn get_webhook_object_from_body(
-    body: Vec<u8>,
+    body: &[u8],
 ) -> Result<Payload, error_stack::Report<WebhookError>> {
     let webhook: RazorpayWebhook = body
         .parse_struct("RazorpayWebhook")
@@ -1675,8 +1675,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         use domain_types::payment_method_data::{PaymentMethodData, UpiData};
-        use hyperswitch_masking::PeekInterface;
-
         // Determine flow type and extract VPA based on UPI payment method
         let (flow_type, vpa) = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Upi(UpiData::UpiCollect(collect_data)) => {

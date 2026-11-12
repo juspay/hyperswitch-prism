@@ -49,7 +49,7 @@ use domain_types::{
 };
 use error_stack::{report, ResultExt};
 use hex;
-use hyperswitch_masking::{Mask, Maskable};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -800,7 +800,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body.clone()).map_err(|err| {
+            transformers::get_webhook_object_from_body(request.body.peek()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -820,7 +820,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body.clone()).map_err(|err| {
+            transformers::get_webhook_object_from_body(request.body.peek()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -861,7 +861,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
         // Adyen webhook secret is hex-encoded, need to decode it
-        let raw_key = hex::decode(&connector_webhook_secrets.secret)
+        let raw_key = hex::decode(connector_webhook_secrets.secret.peek())
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to decode hex webhook secret for Adyen")?;
 
@@ -890,11 +890,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(domain_types::connector_types::EventType::EndpointVerification);
         }
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            transformers::get_webhook_object_from_body(request.body.peek()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -913,7 +913,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         use transformers::WebhookEventCode;
 
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            transformers::get_webhook_object_from_body(request.body.peek()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -1000,9 +1000,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            transformers::get_webhook_object_from_body(request.body.peek()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -1057,9 +1057,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            transformers::get_webhook_object_from_body(request.body.peek()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -1097,9 +1097,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeWebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            transformers::get_webhook_object_from_body(request.body.peek()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;

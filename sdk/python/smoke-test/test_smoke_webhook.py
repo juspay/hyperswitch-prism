@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 try:
     from payments import EventClient, IntegrationError, ConnectorError
-    from payments.generated import events_pb2, payment_pb2, sdk_config_pb2
+    from payments.generated import events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 except ImportError as e:
     print(f"Error importing payments package: {e}")
     print("Run: cd sdk/python && PYTHONPATH=src python3 smoke-test/test_smoke_webhook.py")
@@ -81,6 +81,21 @@ ADYEN_WEBHOOK_BODY = json.dumps({
 
 ADYEN_HEADERS = {"content-type": "application/json", "accept": "*/*"}
 
+
+def build_request_details(body: bytes):
+    return payment_pb2.RequestDetails(
+        method=payment_pb2.HttpMethod.HTTP_METHOD_POST,
+        uri=payment_methods_pb2.SecretString(value="/webhooks/adyen"),
+        headers=payment_methods_pb2.SecretStringMap(
+            values={
+                key: payment_methods_pb2.SecretString(value=value)
+                for key, value in ADYEN_HEADERS.items()
+            }
+        ),
+        body=payment_methods_pb2.SecretBytes(value=body),
+    )
+
+
 # ── Connector identity only — no API creds, no webhook secret ─────────────────
 def build_config():
     config = sdk_config_pb2.ConnectorConfig(
@@ -99,12 +114,7 @@ def test_handle_event() -> bool:
 
     request = events_pb2.EventServiceHandleRequest(
         merchant_event_id="smoke_wh_adyen_auth",
-        request_details=payment_pb2.RequestDetails(
-            method=payment_pb2.HttpMethod.HTTP_METHOD_POST,
-            uri="/webhooks/adyen",
-            headers=ADYEN_HEADERS,
-            body=ADYEN_WEBHOOK_BODY,
-        ),
+        request_details=build_request_details(ADYEN_WEBHOOK_BODY),
         # capture_method is the EventContext use case:
         # Adyen AUTHORISATION maps to AUTHORIZED (manual) or CAPTURED (automatic)
         event_context=events_pb2.EventContext(
@@ -137,12 +147,7 @@ def test_parse_event() -> bool:
     client = EventClient(build_config())
 
     request = events_pb2.EventServiceParseRequest(
-        request_details=payment_pb2.RequestDetails(
-            method=payment_pb2.HttpMethod.HTTP_METHOD_POST,
-            uri="/webhooks/adyen",
-            headers=ADYEN_HEADERS,
-            body=ADYEN_WEBHOOK_BODY,
-        ),
+        request_details=build_request_details(ADYEN_WEBHOOK_BODY),
     )
 
     try:
@@ -165,12 +170,7 @@ def test_malformed_body() -> bool:
     client = EventClient(build_config())
 
     request = events_pb2.EventServiceHandleRequest(
-        request_details=payment_pb2.RequestDetails(
-            method=payment_pb2.HttpMethod.HTTP_METHOD_POST,
-            uri="/webhooks/adyen",
-            headers=ADYEN_HEADERS,
-            body=b"not valid json {{{{",
-        ),
+        request_details=build_request_details(b"not valid json {{{{"),
     )
 
     try:
@@ -194,12 +194,7 @@ def test_unknown_event_code() -> bool:
     body["notificationItems"][0]["NotificationRequestItem"]["eventCode"] = "SOME_UNKNOWN_EVENT"
 
     request = events_pb2.EventServiceHandleRequest(
-        request_details=payment_pb2.RequestDetails(
-            method=payment_pb2.HttpMethod.HTTP_METHOD_POST,
-            uri="/webhooks/adyen",
-            headers=ADYEN_HEADERS,
-            body=json.dumps(body).encode(),
-        ),
+        request_details=build_request_details(json.dumps(body).encode()),
     )
 
     try:

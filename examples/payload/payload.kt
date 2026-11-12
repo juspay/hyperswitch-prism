@@ -317,9 +317,9 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = EventServiceParseRequest.newBuilder().apply {
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}")  // Body of the HTTP request.
+            putAllLegacyHeaders(mapOf())  // Headers of the HTTP request.
+            bodyBuilder.value = com.google.protobuf.ByteString.copyFromUtf8("{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}")  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uriBuilder.value = "https://example.com/webhook"
         }
     }.build()
     val response = client.parse_event(request)

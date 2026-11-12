@@ -1461,7 +1461,7 @@ impl PaymentService for Payments {
                             &request_details,
                             secrets.clone(),
                         ) {
-                            Ok(result) => result,
+                            Ok(result) => Secret::new(result),
                             Err(err) => {
                                 tracing::warn!(
                                     target: "decode_redirect_response_body",

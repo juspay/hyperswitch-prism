@@ -72,6 +72,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ".types.SecretString",
         "::hyperswitch_masking::Secret<String>",
     );
+    config.extern_path(
+        ".types.SecretBytes",
+        "::hyperswitch_masking::Secret<Vec<u8>>",
+    );
+
+    // TODO: Remove these attributes and the lib.rs helpers after all HTTP/gRPC callers and
+    // rollback versions have migrated off the legacy webhook fields.
+    for field in [
+        ".types.WebhookSecrets.legacy_secret",
+        ".types.RedirectResponseSecrets.legacy_secret",
+        ".types.RequestDetails.legacy_body",
+    ] {
+        config.field_attribute(
+            field,
+            "#[serde(default, serialize_with = \"crate::serialize_legacy_secret\")]",
+        );
+    }
+    for field in [
+        ".types.WebhookSecrets.legacy_additional_secret",
+        ".types.RedirectResponseSecrets.legacy_additional_secret",
+        ".types.RequestDetails.legacy_uri",
+        ".types.RequestDetails.legacy_query_params",
+    ] {
+        config.field_attribute(
+            field,
+            "#[serde(serialize_with = \"crate::serialize_optional_legacy_secret\")]",
+        );
+    }
+    config.field_attribute(
+        ".types.RequestDetails.legacy_headers",
+        "#[serde(default, serialize_with = \"crate::serialize_legacy_headers\")]",
+    );
+    // Preserve the existing flat HTTP header map. This remains necessary after migration.
+    config.type_attribute(".types.SecretStringMap", "#[serde(transparent)]");
     // Add serde rename_all = "snake_case" for oneof enum types to output proper proto JSON
     // This ensures variant names like "ApplePay" serialize as "apple_pay"
     config.type_attribute(

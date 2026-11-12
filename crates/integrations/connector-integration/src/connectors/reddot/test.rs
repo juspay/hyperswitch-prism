@@ -693,7 +693,7 @@ fn webhook_statuses_follow_rdp_mapping_and_are_never_treated_as_verified() {
     ] {
         let request = RequestDetails {
             method: domain_types::connector_types::HttpMethod::Post, uri: None, headers: Default::default(), query_params: None,
-            body: serde_json::to_vec(&json!({"response_code": code, "transaction_id": "payment-1", "merchant_reference": "attempt-1"})).unwrap(),
+            body: Secret::new(serde_json::to_vec(&json!({"response_code": code, "transaction_id": "payment-1", "merchant_reference": "attempt-1"})).unwrap()),
         };
         assert!(!connector
             .verify_webhook_source(request.clone(), None, None)

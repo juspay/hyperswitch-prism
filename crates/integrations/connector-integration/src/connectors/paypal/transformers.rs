@@ -40,7 +40,7 @@ use domain_types::{
     utils,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use url::Url;
@@ -3871,11 +3871,11 @@ pub struct PaypalAccessTokenResponse {
 
 // Normalize headers to lowercase keys (HTTP header names are case-insensitive per RFC 7230).
 fn webhook_headers_lowercase(
-    headers: &std::collections::HashMap<String, String>,
+    headers: &std::collections::HashMap<String, Secret<String>>,
 ) -> std::collections::HashMap<String, String> {
     headers
         .iter()
-        .map(|(k, v)| (k.to_lowercase(), v.clone()))
+        .map(|(k, v)| (k.to_lowercase(), v.peek().clone()))
         .collect()
 }
 
@@ -3885,7 +3885,7 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
     fn try_from(req: &VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
         // Parse the webhook body into serde_json::Value
         // With preserve_order feature enabled, this preserves field order (uses IndexMap, not BTreeMap)
-        let webhook_event = serde_json::from_slice(&req.webhook_body)
+        let webhook_event = serde_json::from_slice(req.webhook_body.peek())
             .change_context(IntegrationError::NotImplemented(
                 "webhook body decoding failed".to_string(),
                 Default::default(),
@@ -3930,7 +3930,7 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
                     context: Default::default(),
                 })?
                 .clone(),
-            webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
+            webhook_id: String::from_utf8(req.merchant_secret.secret.peek().to_vec())
                 .change_context(IntegrationError::NotImplemented(
                     "webhook verification secret not found".to_string(),
                     Default::default(),

@@ -1420,6 +1420,16 @@ message SecretString {
   string value = 1;
 }
 
+// Opaque binary data, preserved exactly for source verification.
+message SecretBytes {
+  bytes value = 1;
+}
+
+// Preserves absent versus explicitly empty maps with secret string values.
+message SecretStringMap {
+  map<string, SecretString> values = 1;
+}
+
 // ============================================================================
 // GIFT CARDS
 // ============================================================================

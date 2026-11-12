@@ -230,6 +230,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let event: PproWebhookEvent = request
             .body
+            .peek()
             .parse_struct("PproWebhookEvent")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
@@ -245,6 +246,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let event: PproWebhookEvent = request
             .body
+            .peek()
             .parse_struct("PproWebhookEvent")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
@@ -285,7 +287,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code,
             error_message,
             error_reason,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             mandate_reference: None,
             response_headers: None,
@@ -307,6 +309,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let event: PproWebhookEvent = request
             .body
+            .peek()
             .parse_struct("PproWebhookEvent")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
@@ -338,7 +341,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector_response_reference_id: charge.merchant_refund_reference.clone(),
                 error_code,
                 error_message,
-                raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+                raw_connector_response: Some(
+                    String::from_utf8_lossy(request.body.peek()).to_string(),
+                ),
                 status_code: 200,
                 response_headers: None,
             },
@@ -369,14 +374,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // (`webhook_secret` on `PproConfig`), falling back to the RPC
         // `webhook_secrets` field when the config field is absent — legacy
         // `ConnectorAuthType` callers can only supply the RPC secret.
-        let secret_bytes: Vec<u8> = match (&connector_account_details, connector_webhook_secret) {
+        let secret_bytes = match (&connector_account_details, connector_webhook_secret) {
             (
                 Some(ConnectorSpecificConfig::Ppro {
                     webhook_secret: Some(secret),
                     ..
                 }),
                 _,
-            ) => secret.peek().as_bytes().to_vec(),
+            ) => secret.clone().map(String::into_bytes),
             (_, Some(rpc_secret)) => rpc_secret.secret,
             _ => {
                 return Err(error_stack::report!(
@@ -402,10 +407,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // The timestamp is only an HMAC input; no freshness window is enforced.
         let mut message = timestamp.as_bytes().to_vec();
         message.push(b'.');
-        message.extend_from_slice(&request.body);
+        message.extend_from_slice(request.body.peek());
 
         crypto::HmacSha256
-            .verify_signature(&secret_bytes, &expected_signature, &message)
+            .verify_signature(secret_bytes.peek(), &expected_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -416,6 +421,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let event: PproWebhookEvent = request
             .body
+            .peek()
             .parse_struct("PproWebhookEvent")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
@@ -442,11 +448,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
-        let charge_id = request.query_params.as_deref().and_then(|qs| {
-            url::form_urlencoded::parse(qs.as_bytes())
-                .find(|(k, _)| k == "payment-charge-id")
-                .map(|(_, v)| v.into_owned())
-        });
+        let charge_id = request
+            .query_params
+            .as_ref()
+            .map(|value| value.peek().as_str())
+            .and_then(|qs| {
+                url::form_urlencoded::parse(qs.as_bytes())
+                    .find(|(k, _)| k == "payment-charge-id")
+                    .map(|(_, v)| v.into_owned())
+            });
 
         Ok(RedirectDetailsResponse {
             resource_id: charge_id.map(ResponseId::ConnectorTransactionId),

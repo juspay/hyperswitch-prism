@@ -207,6 +207,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let webhook_body: noon::NoonWebhookSignature = request
             .body
+            .peek()
             .parse_struct("NoonWebhookSignature")
             .change_context(WebhookError::WebhookSignatureNotFound)
             .attach_printable("Missing incoming webhook signature for noon")?;
@@ -224,6 +225,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let webhook_body: noon::NoonWebhookBody = request
             .body
+            .peek()
             .parse_struct("NoonWebhookBody")
             .change_context(WebhookError::WebhookSignatureNotFound)
             .attach_printable("Missing incoming webhook signature for noon")?;
@@ -249,11 +251,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         // Noon checks the endpoint with an empty body.
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(EventType::EndpointVerification);
         }
         let details: noon::NoonWebhookEvent = request
             .body
+            .peek()
             .parse_struct("NoonWebhookEvent")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse webhook event type from Noon webhook body")?;
@@ -286,7 +289,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
         algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Noon webhook signature verification failed")
     }
@@ -297,6 +304,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         let webhook_object: noon::NoonWebhookObject = request
             .body
+            .peek()
             .parse_struct("NoonWebhookObject")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse NoonWebhookObject for reference extraction")?;
@@ -346,6 +354,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let webhook_object: noon::NoonWebhookObject = request
             .body
+            .peek()
             .parse_struct("NoonWebhookObject")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse payment webhook details from Noon webhook body")?;
@@ -374,7 +383,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_request_reference_id: Some(connector_order_id),
             error_code: None,
             error_message: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             mandate_reference: None,
@@ -394,6 +403,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let webhook_object: noon::NoonWebhookObject = request
             .body
+            .peek()
             .parse_struct("NoonWebhookObject")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse refund webhook details from Noon webhook body")?;
@@ -427,7 +437,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: None,
             error_code: None,
             error_message: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
         })
@@ -440,6 +450,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let webhook_object: noon::NoonWebhookObject = request
             .body
+            .peek()
             .parse_struct("NoonWebhookObject")
             .change_context(WebhookError::WebhookResourceObjectNotFound)
             .attach_printable("Failed to parse webhook resource object from Noon webhook body")?;

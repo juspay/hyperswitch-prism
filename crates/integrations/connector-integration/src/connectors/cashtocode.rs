@@ -78,11 +78,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let base64_signature = request
             .headers
             .get("authorization")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
         let signature = base64_signature.as_bytes();
 
-        let secret_auth = String::from_utf8(webhook_secret.secret.to_vec())
+        let secret_auth = String::from_utf8(webhook_secret.secret.peek().to_vec())
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
         let signature_auth = String::from_utf8(signature.to_vec())
@@ -114,6 +115,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let webhook: transformers::CashtocodePaymentsSyncResponse = request
             .body
+            .peek()
             .parse_struct("CashtocodePaymentsSyncResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -133,7 +135,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_request_reference_id: None,
             error_code: None,
             error_message: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             response_headers: None,
             captured_money: None,
             error_reason: None,
