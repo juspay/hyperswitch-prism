@@ -171,7 +171,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   RecipientBankAccountTruncatedPan: ["cardIsin", "last4"],
   RecipientAccount: ["cardNumber", "walletId", "email", "phoneNumber", "socialNetworkId"],
   RecipientDetails: ["phoneNumber", "taxId"],
-  SenderAddress: ["line1", "line2", "city", "state", "zipCode"],
+  SenderAddress: ["line1", "line2", "line3", "city", "state", "zipCode"],
   IndividualSenderDetails: ["firstName", "lastName", "dateOfBirth", "email", "phoneNumber"],
   CorporateSenderDetails: ["companyName", "email", "phoneNumber"],
   PaymentServiceAuthorizeRequest: ["metadata", "connectorFeatureData"],
