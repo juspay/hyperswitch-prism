@@ -4277,11 +4277,19 @@ pub enum CybersourceDeviceChannel {
     Sdk,
 }
 
-impl From<&DeviceChannel> for CybersourceDeviceChannel {
-    fn from(channel: &DeviceChannel) -> Self {
+impl TryFrom<&DeviceChannel> for CybersourceDeviceChannel {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(channel: &DeviceChannel) -> Result<Self, Self::Error> {
         match channel {
-            DeviceChannel::Browser => Self::Browser,
-            DeviceChannel::App => Self::Sdk,
+            DeviceChannel::Browser => Ok(Self::Browser),
+            DeviceChannel::App => Ok(Self::Sdk),
+            DeviceChannel::ThreeRi => Err(IntegrationError::NotSupported {
+                message: "3DS Requestor Initiated authentication".to_string(),
+                connector: "Cybersource",
+                context: Default::default(),
+            }
+            .into()),
         }
     }
 }
@@ -4835,7 +4843,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .device_channel
             .as_ref()
-            .map(CybersourceDeviceChannel::from);
+            .map(CybersourceDeviceChannel::try_from)
+            .transpose()?;
 
         Ok(Self {
             payment_information,
