@@ -422,15 +422,18 @@ pub struct RapydIncomingWebhook {
     #[serde(rename = "type")]
     pub webhook_type: RapydWebhookEventType,
     #[serde(default)]
-    pub data: serde_json::Value,
+    pub data: common_utils::pii::SecretSerdeValue,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RapydWebhookEventType {
+    PaymentSucceeded,
     PaymentCompleted,
     PaymentCaptured,
     PaymentFailed,
+    PaymentCanceled,
+    PaymentExpired,
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
@@ -438,6 +441,49 @@ pub enum RapydWebhookEventType {
     PaymentDisputeUpdated,
     #[serde(other)]
     Unknown,
+}
+
+impl TryFrom<RapydIncomingWebhook> for domain_types::connector_types::EventType {
+    type Error = error_stack::Report<domain_types::errors::WebhookError>;
+
+    fn try_from(event: RapydIncomingWebhook) -> Result<Self, Self::Error> {
+        Ok(match event.webhook_type {
+            RapydWebhookEventType::PaymentSucceeded => {
+                let data = event.payment_data()?;
+                match (data.status, data.next_action) {
+                    (RapydPaymentStatus::Closed, _) => Self::PaymentIntentSuccess,
+                    (
+                        RapydPaymentStatus::Active,
+                        NextAction::PendingCapture | NextAction::NotApplicable,
+                    ) => Self::PaymentIntentAuthorizationSuccess,
+                    (
+                        RapydPaymentStatus::Active,
+                        NextAction::ThreedsVerification | NextAction::PendingConfirmation,
+                    )
+                    | (RapydPaymentStatus::New, _) => Self::PaymentIntentProcessing,
+                    (
+                        RapydPaymentStatus::CanceledByClientOrBank
+                        | RapydPaymentStatus::ReversedByRapyd,
+                        _,
+                    ) => Self::PaymentIntentCancelled,
+                    (RapydPaymentStatus::Expired, _) => Self::PaymentIntentExpired,
+                    (RapydPaymentStatus::Error, _) => Self::PaymentIntentFailure,
+                }
+            }
+            RapydWebhookEventType::PaymentCompleted | RapydWebhookEventType::PaymentCaptured => {
+                Self::PaymentIntentSuccess
+            }
+            RapydWebhookEventType::PaymentFailed => Self::PaymentIntentFailure,
+            RapydWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelled,
+            RapydWebhookEventType::PaymentExpired => Self::PaymentIntentExpired,
+            RapydWebhookEventType::RefundCompleted => Self::RefundSuccess,
+            RapydWebhookEventType::PaymentRefundRejected
+            | RapydWebhookEventType::PaymentRefundFailed => Self::RefundFailure,
+            RapydWebhookEventType::PaymentDisputeCreated => Self::DisputeOpened,
+            RapydWebhookEventType::PaymentDisputeUpdated => event.dispute_data()?.status.into(),
+            RapydWebhookEventType::Unknown => Self::IncomingWebhookEventUnspecified,
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -460,7 +506,7 @@ pub struct RapydWebhookDisputeData {
     pub amount: FloatMajorUnit,
     pub currency: common_enums::Currency,
     pub token: String,
-    pub dispute_reason_description: String,
+    pub dispute_reason_description: Option<String>,
     pub status: RapydWebhookDisputeStatus,
     pub original_transaction_id: String,
 }
@@ -515,8 +561,10 @@ impl RapydIncomingWebhook {
         use domain_types::errors::WebhookError;
         match self.webhook_type {
             RapydWebhookEventType::PaymentDisputeCreated
-            | RapydWebhookEventType::PaymentDisputeUpdated => serde_json::from_value(self.data)
-                .change_context(WebhookError::WebhookBodyDecodingFailed),
+            | RapydWebhookEventType::PaymentDisputeUpdated => {
+                serde_json::from_value(self.data.expose())
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)
+            }
             _ => Err(WebhookError::WebhookEventTypeNotFound.into()),
         }
     }
@@ -528,8 +576,10 @@ impl RapydIncomingWebhook {
         match self.webhook_type {
             RapydWebhookEventType::RefundCompleted
             | RapydWebhookEventType::PaymentRefundRejected
-            | RapydWebhookEventType::PaymentRefundFailed => serde_json::from_value(self.data)
-                .change_context(WebhookError::WebhookBodyDecodingFailed),
+            | RapydWebhookEventType::PaymentRefundFailed => {
+                serde_json::from_value(self.data.expose())
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)
+            }
             _ => Err(WebhookError::WebhookEventTypeNotFound.into()),
         }
     }
@@ -540,9 +590,12 @@ impl RapydIncomingWebhook {
     {
         use domain_types::errors::WebhookError;
         match self.webhook_type {
-            RapydWebhookEventType::PaymentCompleted
+            RapydWebhookEventType::PaymentSucceeded
+            | RapydWebhookEventType::PaymentCompleted
             | RapydWebhookEventType::PaymentCaptured
-            | RapydWebhookEventType::PaymentFailed => serde_json::from_value(self.data)
+            | RapydWebhookEventType::PaymentCanceled
+            | RapydWebhookEventType::PaymentExpired
+            | RapydWebhookEventType::PaymentFailed => serde_json::from_value(self.data.expose())
                 .change_context(WebhookError::WebhookBodyDecodingFailed),
             _ => Err(WebhookError::WebhookEventTypeNotFound.into()),
         }
@@ -1562,7 +1615,33 @@ pub struct ResponseData {
 /// Subset of Rapyd's response `payment_method_data` object.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RapydResponsePaymentMethodData {
+    #[serde(default, deserialize_with = "deserialize_network_reference_id")]
     pub network_reference_id: Option<Secret<String>>,
+}
+
+fn deserialize_network_reference_id<'de, D>(
+    deserializer: D,
+) -> Result<Option<Secret<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum NetworkReferenceId {
+        String(String),
+        Signed(i64),
+        Unsigned(u64),
+    }
+
+    Option::<NetworkReferenceId>::deserialize(deserializer).map(|reference| {
+        reference.map(|reference| {
+            Secret::new(match reference {
+                NetworkReferenceId::String(value) => value,
+                NetworkReferenceId::Signed(value) => value.to_string(),
+                NetworkReferenceId::Unsigned(value) => value.to_string(),
+            })
+        })
+    })
 }
 
 // Capture Request
