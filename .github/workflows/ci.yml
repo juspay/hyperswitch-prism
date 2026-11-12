@@ -986,7 +986,8 @@ jobs:
 
       - name: Compute SDK binaries cache key
         id: cache-key
-        run: echo "key=sdk-v2-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}" >> "$GITHUB_OUTPUT"
+        # SDK binaries also contain connector, domain and common-utils code.
+        run: echo "key=sdk-v3-${{ runner.os }}-${{ hashFiles('crates/**/*.rs', 'crates/**/Cargo.toml', 'sdk/**/*.rs', 'sdk/**/Cargo.toml', 'Cargo.toml', 'Cargo.lock', 'crates/types-traits/grpc-api-types/proto/**', 'scripts/generators/code/**', '.cargo/**', 'rust-toolchain*', '.github/workflows/ci.yml') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore SDK binaries cache
         id: sdk-cache-restore
