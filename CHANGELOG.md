@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.12.1
+
+### Features
+
+- **connector:** Omit ecommerce_indicator for raft unscheduled cof ([#2725](https://github.com/juspay/connector-service/pull/2725)) ([`278a424`](https://github.com/juspay/connector-service/commit/278a42491c59e918aa381c797bcca2920ac0d4b4))
+
+### Bug Fixes
+
+- **connector:** [checkout] pass browser info and handle name verification check ([#2723](https://github.com/juspay/connector-service/pull/2723)) ([`fd4249e`](https://github.com/juspay/connector-service/commit/fd4249efca21efa3dbd7a9d5dfb2a6445d6b9e80))
+
+**Full Changelog:** [`2026.11.12.0...2026.11.12.1`](https://github.com/juspay/connector-service/compare/2026.11.12.0...2026.11.12.1)
+
+- - -
+
 ## 2026.11.12.0
 
 ### Features
