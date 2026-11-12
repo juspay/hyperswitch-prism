@@ -680,7 +680,7 @@ impl WorldpayraftPosEnvironment {
 /// Only the POS fields shared by Authorize, RepeatPayment and completion.
 struct WorldpayraftPosData {
     terminal_data: WorldpayraftTerminalData,
-    ecommerce_data: WorldpayraftEcommerceData,
+    ecommerce_data: Option<WorldpayraftEcommerceData>,
     proc_flags: Option<WorldpayraftProcFlags>,
 }
 
@@ -693,11 +693,11 @@ impl WorldpayraftPosData {
                 terminal_entry_cap: WorldpayraftTerminalEntryCapability::Unspecified,
                 pos_environment: None,
             },
-            ecommerce_data: WorldpayraftEcommerceData {
+            ecommerce_data: Some(WorldpayraftEcommerceData {
                 ecommerce_indicator: WorldpayraftEcommerceIndicator::Cryptogram(
                     wallet.ecommerce_indicator.clone(),
                 ),
-            },
+            }),
             proc_flags: matches!(
                 wallet.network,
                 CardNetwork::Mastercard | CardNetwork::Maestro
@@ -753,16 +753,24 @@ impl WorldpayraftPosData {
                     !estimated_auth,
                 ),
             },
-            ecommerce_data: WorldpayraftEcommerceData {
-                ecommerce_indicator: if !is_mit {
-                    WorldpayraftEcommerceIndicator::NonThreeDs
-                } else if is_recurring {
-                    WorldpayraftEcommerceIndicator::Recurring
-                } else if is_installment {
-                    WorldpayraftEcommerceIndicator::Installment
-                } else {
-                    WorldpayraftEcommerceIndicator::Unscheduled
-                },
+            ecommerce_data: if kind == WorldpayraftPaymentKind::Mit
+                && category == Some(&MitCategory::Unscheduled)
+            {
+                // The COF guide marks RAFT E-commerceIndicator as not applicable
+                // for subsequent unscheduled COF transactions.
+                None
+            } else {
+                Some(WorldpayraftEcommerceData {
+                    ecommerce_indicator: if !is_mit {
+                        WorldpayraftEcommerceIndicator::NonThreeDs
+                    } else if is_recurring {
+                        WorldpayraftEcommerceIndicator::Recurring
+                    } else if is_installment {
+                        WorldpayraftEcommerceIndicator::Installment
+                    } else {
+                        WorldpayraftEcommerceIndicator::Unscheduled
+                    },
+                })
             },
             // COF is identified by the POS fields. Do not send optional CIT/MIT
             // or RecurringBillPay flags, and request TLID for Mastercard/Maestro.
@@ -786,9 +794,9 @@ impl WorldpayraftPosData {
                 terminal_entry_cap: WorldpayraftTerminalEntryCapability::Unspecified,
                 pos_environment: None,
             },
-            ecommerce_data: WorldpayraftEcommerceData {
+            ecommerce_data: Some(WorldpayraftEcommerceData {
                 ecommerce_indicator: WorldpayraftEcommerceIndicator::NonThreeDs,
-            },
+            }),
             proc_flags: None,
         }
     }
@@ -1038,7 +1046,7 @@ impl WorldpayraftConnectorMetadata {
     ) {
         self.original_authorized_amount = Some(amount.clone());
         self.terminal_data = Some(pos.terminal_data);
-        self.ecommerce_data = Some(pos.ecommerce_data);
+        self.ecommerce_data = pos.ecommerce_data;
         self.proc_flags_indicators = pos.proc_flags;
         self.api_transaction_id = Some(truncate_api_transaction_id(payment_id));
         let response_link_id = trace.and_then(|trace| trace.transaction_link_id.clone());
@@ -1244,8 +1252,8 @@ pub struct WorldpayraftEcommerceData {
 // Keep the single-use cryptogram out of the ECI data persisted in connector metadata.
 #[derive(Debug, Serialize)]
 pub struct WorldpayraftAuthorizeEcommerceData {
-    #[serde(flatten)]
-    pub ecommerce_data: WorldpayraftEcommerceData,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub ecommerce_data: Option<WorldpayraftEcommerceData>,
     #[serde(rename = "3dSecureData", skip_serializing_if = "Option::is_none")]
     pub cryptogram: Option<Secret<String>>,
 }
@@ -1270,8 +1278,8 @@ pub struct WorldpayraftCardAuthInner<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address_verification_data: Option<WorldpayraftAddressVerificationData>,
     pub terminal_data: WorldpayraftTerminalData,
-    #[serde(rename = "E-commerceData")]
-    pub ecommerce_data: WorldpayraftAuthorizeEcommerceData,
+    #[serde(rename = "E-commerceData", skip_serializing_if = "Option::is_none")]
+    pub ecommerce_data: Option<WorldpayraftAuthorizeEcommerceData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proc_flags_indicators: Option<WorldpayraftProcFlags>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1957,11 +1965,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
         if let Some(token) = network_token.filter(|_| kind != WorldpayraftPaymentKind::Mit) {
             pos.terminal_data.entry_mode = WorldpayraftEntryMode::Ecommerce;
-            pos.ecommerce_data.ecommerce_indicator =
-                WorldpayraftEcommerceIndicator::Cryptogram(required_ecommerce_indicator(
-                    token.eci.as_deref(),
-                    "payment_method_data.network_token.eci",
-                )?);
+            pos.ecommerce_data = Some(WorldpayraftEcommerceData {
+                ecommerce_indicator: WorldpayraftEcommerceIndicator::Cryptogram(
+                    required_ecommerce_indicator(
+                        token.eci.as_deref(),
+                        "payment_method_data.network_token.eci",
+                    )?,
+                ),
+            });
         }
         let brand_specific_data = if !is_debit && kind == WorldpayraftPaymentKind::Mit {
             WorldpayraftBrandSpecificData::for_mit(
@@ -2033,11 +2044,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card_verification_data,
             address_verification_data,
             terminal_data: pos.terminal_data,
-            ecommerce_data: WorldpayraftAuthorizeEcommerceData {
-                ecommerce_data: pos.ecommerce_data,
-                cryptogram: wallet
+            ecommerce_data: {
+                let cryptogram = wallet
                     .map(|wallet| wallet.cryptogram)
-                    .or(network_token_cryptogram),
+                    .or(network_token_cryptogram);
+                (pos.ecommerce_data.is_some() || cryptogram.is_some()).then_some(
+                    WorldpayraftAuthorizeEcommerceData {
+                        ecommerce_data: pos.ecommerce_data,
+                        cryptogram,
+                    },
+                )
             },
             proc_flags_indicators: pos.proc_flags,
             reference_trace_numbers,
@@ -2702,12 +2718,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     terminal_entry_cap: WorldpayraftTerminalEntryCapability::Unspecified,
                     pos_environment: None,
                 },
-                ecommerce_data: wallet_metadata
-                    .as_ref()
-                    .and_then(|metadata| metadata.ecommerce_data.clone())
-                    .unwrap_or(WorldpayraftEcommerceData {
-                        ecommerce_indicator: WorldpayraftEcommerceIndicator::NonThreeDs,
-                    }),
+                ecommerce_data: Some(
+                    wallet_metadata
+                        .as_ref()
+                        .and_then(|metadata| metadata.ecommerce_data.clone())
+                        .unwrap_or(WorldpayraftEcommerceData {
+                            ecommerce_indicator: WorldpayraftEcommerceIndicator::NonThreeDs,
+                        }),
+                ),
                 proc_flags: None,
             }
         });
@@ -3235,10 +3253,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card_verification_data: None,
             address_verification_data: None,
             terminal_data: pos.terminal_data,
-            ecommerce_data: WorldpayraftAuthorizeEcommerceData {
-                ecommerce_data: pos.ecommerce_data,
-                cryptogram: None,
-            },
+            ecommerce_data: pos.ecommerce_data.map(|ecommerce_data| {
+                WorldpayraftAuthorizeEcommerceData {
+                    ecommerce_data: Some(ecommerce_data),
+                    cryptogram: None,
+                }
+            }),
             proc_flags_indicators: pos.proc_flags,
             reference_trace_numbers,
             brand_specific_data: WorldpayraftBrandSpecificData::for_mit(
