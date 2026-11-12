@@ -1,3 +1,5 @@
+#![allow(clippy::indexing_slicing, clippy::panic_in_result_fn)]
+
 use std::{error::Error, marker::PhantomData};
 
 use common_utils::types::{MinorUnit, Money};
