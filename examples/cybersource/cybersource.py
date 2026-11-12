@@ -54,8 +54,8 @@ def _build_authenticate_request():
         address=payment_pb2.PaymentAddress(  # Address Information.
             billing_address=common_types_pb2.Address(),
         ),
-        metadata=payment_methods_pb2.SecretString(value="{\"device_channel\":\"BRW\"}"),  # Additional metadata for the connector.
-        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+        metadata=payment_methods_pb2.SecretString(value="{\"device_channel\":\"BRW\"}"),  # Connector-specific passthrough. Must NOT carry 3DS values: those have dedicated fields (17-24) and are never read from here.
+        return_url="https://example.com/3ds-return",  # URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         continue_redirection_url="https://example.com/3ds-continue",
         browser_info=payment_pb2.BrowserInformation(  # Contextual Information.
             color_depth=24,  # Display Information.

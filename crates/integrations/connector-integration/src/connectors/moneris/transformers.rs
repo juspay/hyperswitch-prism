@@ -1997,6 +1997,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     challenge_code_reason: None,
                     message_extension: None,
                     authentication_type: None,
+                    acs_signed_content: None,
+                    acs_reference_number: None,
+                    directory_server_id: None,
+                    scheme_id: None,
                 });
                 let response_data = PaymentsResponseData::PreAuthenticateResponse {
                     resource_id: Some(ResponseId::ConnectorTransactionId(
@@ -2270,6 +2274,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             challenge_code_reason: None,
             message_extension: None,
             authentication_type: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         });
 
         Ok(Self {
