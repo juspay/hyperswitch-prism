@@ -291,9 +291,10 @@ macros::create_all_prerequisites!(
                 self.common_get_content_type().to_string().into(),
             )])
         }
-        /// mTLS client identity from `NetceteraConfig`. A call routed through an external
-        /// vault's injector does not need it (the vault owns the outbound TLS); a direct call
-        /// cannot complete the handshake without it, so the pair is required there.
+        /// mTLS client identity from `NetceteraConfig`. The existing VGS injector integration
+        /// permits the configured outbound proxy to supply the upstream identity; direct calls
+        /// require the local pair. The holder flag identifies injector dispatch, not a general
+        /// guarantee that every vault arrangement provides upstream mTLS.
         pub fn mtls_identity<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,

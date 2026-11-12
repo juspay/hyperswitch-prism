@@ -21,7 +21,6 @@ use domain_types::{
     router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
 };
-use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -415,6 +414,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => {}
         }
 
+        if matches!(
+            request.device_channel,
+            Some(domain_types::connector_types::DeviceChannel::App)
+        ) && request.sdk_information.as_ref().is_some_and(|sdk| {
+            matches!(
+                sdk.sdk_type,
+                Some(domain_types::connector_types::SdkType::SplitSdk)
+            )
+        }) {
+            return Err(IntegrationError::NotSupported {
+                message: "Split-SDK authentication".to_string(),
+                connector: "netcetera",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use the default 3DS SDK type; Netcetera Split-SDK authentication is not implemented."
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "The Split-SDK request requires splitSdkType, which this integration does not yet construct."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }
+            .into());
+        }
+
         // 3DS state threaded from the PreAuthenticate step (if present).
         let prior_auth_data = request.authentication_data.as_ref();
         let message_version = prior_auth_data.and_then(|d| d.message_version.clone());
@@ -455,7 +481,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_security_code: Some(card.card_cvc),
         };
 
-        let purchase = request.currency.map(|currency| {
+        let currency = request.money.currency();
+        let purchase = Some({
             // EMVCo exponent: number of minor-unit digits. Falls back to 2 for
             // currencies UCS cannot classify.
             let purchase_exponent = currency.number_of_digits_after_decimal_point().unwrap_or(2);
@@ -591,6 +618,8 @@ fn build_merchant_side<T: PaymentMethodDataTypes>(
         .return_url
         .as_ref()
         .and_then(|u| url::Url::parse(u).ok());
+    // Supplying webhook_url explicitly requests a dynamic results callback. Omit it to
+    // use the server-configured URL; Netcetera must permit dynamic URLs for this account.
     let results_response_notification_url = request
         .webhook_url
         .as_ref()
@@ -678,14 +707,6 @@ pub struct AuthenticationResponse {
     pub trans_status_reason: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct NetceteraChallengeFeatureData {
-    pub acs_signed_content: Option<String>,
-    pub acs_reference_number: Option<String>,
-    pub acs_trans_id: Option<String>,
-    pub three_ds_server_trans_id: String,
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum ACSChallengeMandatedIndicator {
     /// Challenge is mandated
@@ -724,10 +745,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // and unlike `DeutschebankThreeDSChallengeFlow` it is representable in the
                 // gRPC `RedirectForm` proto (the Deutschebank variant is rejected by the
                 // authenticate response builder with "Invalid response type received").
-                // `RedirectForm` carries only what a browser literally submits (`endpoint` +
-                // `creq`) — acs_reference_number/acs_trans_id/acs_signed_content have no such
-                // role and go exclusively through `connector_feature_data` below, not
-                // duplicated into `form_fields` too.
+                // ACS identifiers and signed content are returned in typed authentication_data;
+                // they are not browser-submitted form fields or duplicated in response metadata.
                 let redirection_data = if is_challenge {
                     match (
                         response.authentication_response.acs_url.clone(),
@@ -751,27 +770,6 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 } else {
                     None
                 };
-
-                let connector_feature_data = is_challenge
-                    .then(|| {
-                        serde_json::to_value(NetceteraChallengeFeatureData {
-                            acs_signed_content: response
-                                .authentication_response
-                                .acs_signed_content
-                                .clone()
-                                .map(|content| content.expose()),
-                            acs_reference_number: response
-                                .authentication_response
-                                .acs_reference_number
-                                .clone(),
-                            acs_trans_id: response.authentication_response.acs_trans_id.clone(),
-                            three_ds_server_trans_id: response.three_ds_server_trans_id.clone(),
-                        })
-                    })
-                    .transpose()
-                    .change_context(ConnectorError::ResponseHandlingFailed {
-                        context: Default::default(),
-                    })?;
 
                 let authentication_data = AuthenticationData {
                     trans_status: Some(response.trans_status),
@@ -809,7 +807,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         // or frictionless alike — cavv/eci are simply absent until a challenge
                         // resolves via the RReq webhook, same as the direct integration.
                         authentication_data: Some(authentication_data),
-                        connector_feature_data,
+                        connector_feature_data: None,
                         connector_response_reference_id: Some(response.three_ds_server_trans_id),
                         status_code: item.http_code,
                         mandate_reference: None,

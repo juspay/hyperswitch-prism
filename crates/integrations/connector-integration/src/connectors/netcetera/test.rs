@@ -442,3 +442,130 @@ fn sdk_conversion_rejects_empty_encrypted_data_and_explicit_unspecified_type() {
     sdk.sdk_type = Some(0);
     assert!(domain_types::connector_types::SdkInformation::foreign_try_from(sdk).is_err());
 }
+
+#[test]
+fn purchase_uses_money_currency_even_if_legacy_currency_differs_or_is_absent() -> TestResult {
+    for currency in [None, Some(common_enums::Currency::JPY)] {
+        let mut data = auth_data(proto_auth())?;
+        data.request.currency = currency;
+        let request = wire_request(data)?;
+        assert_eq!(request["purchase"]["purchaseAmount"], 2999);
+        assert_eq!(request["purchase"]["purchaseCurrency"], "840");
+        assert_eq!(request["purchase"]["purchaseExponent"], 2);
+    }
+    Ok(())
+}
+
+#[test]
+fn absent_webhook_does_not_request_a_dynamic_results_url() -> TestResult {
+    let request = wire_request(auth_data(proto_auth())?)?;
+    assert!(request["merchant"]["resultsResponseNotificationUrl"].is_null());
+    Ok(())
+}
+
+#[test]
+fn app_split_sdk_is_rejected_without_restricting_unused_browser_sdk_data() -> TestResult {
+    let mut proto = proto_auth();
+    let mut sdk = sdk_information();
+    sdk.sdk_type = Some(payments::ThreeDsSdkType::Split.into());
+    proto.sdk_information = Some(sdk);
+    proto.device_channel = Some(payments::DeviceChannel::App.into());
+    let data = auth_data(proto.clone())?;
+    let result = NetceteraAuthenticateRequest::try_from(NetceteraRouterData {
+        connector: (*Netcetera::<DefaultPCIHolder>::new()).clone(),
+        router_data: data,
+    });
+    assert!(matches!(
+        result.as_ref().err().map(|error| error.current_context()),
+        Some(IntegrationError::NotSupported {
+            connector: "netcetera",
+            ..
+        })
+    ));
+
+    proto.device_channel = Some(payments::DeviceChannel::Browser.into());
+    let request = wire_request(auth_data(proto)?)?;
+    assert_eq!(request["deviceChannel"], "02");
+    assert!(request["sdkInformation"].is_null());
+    Ok(())
+}
+
+#[test]
+fn challenge_response_keeps_typed_acs_fields_without_duplicate_metadata() -> TestResult {
+    let response =
+        serde_json::from_value::<super::transformers::NetceteraAuthenticateResponse>(json!({
+            "threeDSServerTransID": "synthetic-server-transaction",
+            "transStatus": "C",
+            "base64EncodedChallengeRequest": "synthetic-challenge-request",
+            "authenticationResponse": {
+                "acsURL": "https://acs.example/challenge",
+                "acsReferenceNumber": "synthetic-acs-reference",
+                "acsTransID": "synthetic-acs-transaction",
+                "acsSignedContent": "synthetic-signed-content"
+            }
+        }))?;
+    let data = AuthRouterData::try_from(crate::types::ResponseRouterData {
+        response,
+        router_data: auth_data(proto_auth())?,
+        http_code: 200,
+    })
+    .map_err(|error| format!("{error:?}"))?;
+
+    let proto = domain_types::types::generate_payment_authenticate_response(data)
+        .map_err(|error| format!("{error:?}"))?;
+    assert!(proto.connector_feature_data.is_none());
+    let auth = proto
+        .authentication_data
+        .ok_or("missing typed authentication data")?;
+    assert_eq!(
+        auth.acs_reference_number.as_deref(),
+        Some("synthetic-acs-reference")
+    );
+    assert_eq!(
+        auth.acs_transaction_id.as_deref(),
+        Some("synthetic-acs-transaction")
+    );
+    assert_eq!(
+        auth.threeds_server_transaction_id.as_deref(),
+        Some("synthetic-server-transaction")
+    );
+    assert_eq!(
+        auth.acs_signed_content
+            .as_ref()
+            .map(|value| value.peek().as_str()),
+        Some("synthetic-signed-content")
+    );
+    let redirect = proto.redirection_data.ok_or("missing browser redirect")?;
+    match redirect.form_type {
+        Some(payments::redirect_form::FormType::Form(form)) => {
+            assert_eq!(form.endpoint, "https://acs.example/challenge");
+            assert_eq!(
+                form.form_fields.get("creq").map(String::as_str),
+                Some("synthetic-challenge-request")
+            );
+        }
+        _ => return Err("unexpected browser redirect shape".into()),
+    }
+    Ok(())
+}
+
+#[test]
+fn enum_errors_include_guidance_without_changing_omission_policy() -> TestResult {
+    let mut proto = proto_auth();
+    proto.device_channel = Some(0);
+    let result = PaymentsAuthenticateData::<DefaultPCIHolder>::foreign_try_from((proto, None));
+    match result.as_ref().err().map(|error| error.current_context()) {
+        Some(IntegrationError::InvalidDataFormat {
+            field_name,
+            context,
+        }) => {
+            assert_eq!(*field_name, "device_channel");
+            assert!(context
+                .suggested_action
+                .as_ref()
+                .is_some_and(|action| action.contains("BROWSER")));
+        }
+        _ => return Err("unexpected invalid-enum error".into()),
+    }
+    Ok(())
+}

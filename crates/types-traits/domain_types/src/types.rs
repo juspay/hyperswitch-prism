@@ -1153,7 +1153,7 @@ impl ForeignTryFrom<grpc_api_types::payments::DeviceChannel> for connector_types
             grpc_api_types::payments::DeviceChannel::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "device_channel",
-                    context: IntegrationErrorContext::default(),
+                    context: three_ds_enum_context("device_channel"),
                 }
                 .into())
             }
@@ -1181,7 +1181,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsRequestorChallengeIndicator
             G::ChallengeWhitelistPrompt => Ok(Self::ChallengeWhitelistPrompt),
             G::Unspecified => Err(IntegrationError::InvalidDataFormat {
                 field_name: "three_ds_requestor_challenge_indicator",
-                context: IntegrationErrorContext::default(),
+                context: three_ds_enum_context("three_ds_requestor_challenge_indicator"),
             }
             .into()),
         }
@@ -1206,7 +1206,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsRequestorAuthenticationIndi
             G::BillingAgreement => Ok(Self::BillingAgreement),
             G::Unspecified => Err(IntegrationError::InvalidDataFormat {
                 field_name: "three_ds_requestor_authentication_indicator",
-                context: IntegrationErrorContext::default(),
+                context: three_ds_enum_context("three_ds_requestor_authentication_indicator"),
             }
             .into()),
         }
@@ -1230,7 +1230,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsMessageCategory>
             grpc_api_types::payments::ThreeDsMessageCategory::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "message_category",
-                    context: IntegrationErrorContext::default(),
+                    context: three_ds_enum_context("message_category"),
                 }
                 .into())
             }
@@ -1252,7 +1252,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ThreeDsSdkType> for connector_type
             grpc_api_types::payments::ThreeDsSdkType::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "sdk_information.sdk_type",
-                    context: IntegrationErrorContext::default(),
+                    context: three_ds_enum_context("sdk_information.sdk_type"),
                 }
                 .into())
             }
@@ -20980,10 +20980,38 @@ impl<
 /// A field carried an enum discriminant this build does not know, i.e. the caller is newer
 /// than this server. Distinct from an absent field, which is never an error.
 fn unknown_enum_value(field_name: &'static str) -> error_stack::Report<IntegrationError> {
+    let mut context = three_ds_enum_context(field_name);
+    context.additional_context = Some(
+        "This server does not recognize the supplied enum value; check client/server contract compatibility."
+            .to_string(),
+    );
     error_stack::report!(IntegrationError::InvalidDataFormat {
         field_name,
-        context: IntegrationErrorContext::default(),
+        context,
     })
+}
+
+fn three_ds_enum_context(field_name: &'static str) -> IntegrationErrorContext {
+    let expected = match field_name {
+        "device_channel" => "APP, BROWSER, or THREE_RI",
+        "three_ds_requestor_challenge_indicator" => {
+            "a defined ThreeDsRequestorChallengeIndicator value other than UNSPECIFIED (1 through 9)"
+        }
+        "three_ds_requestor_authentication_indicator" => {
+            "a defined ThreeDsRequestorAuthenticationIndicator value other than UNSPECIFIED (1 through 7)"
+        }
+        "message_category" => "PAYMENT_AUTHENTICATION or NON_PAYMENT_AUTHENTICATION",
+        "sdk_information.sdk_type" => "DEFAULT, SPLIT, LIMITED, BROWSER, or SHELL",
+        "threeds_completion_indicator" => "SUCCESS, FAILURE, or NOT_AVAILABLE",
+        _ => "a defined value from the corresponding 3DS enum",
+    };
+    IntegrationErrorContext {
+        suggested_action: Some(format!(
+            "Set {field_name} to {expected}, subject to connector support, or omit the optional field."
+        )),
+        additional_context: Some("An explicitly invalid enum value was supplied.".to_string()),
+        doc_url: None,
+    }
 }
 
 impl<
