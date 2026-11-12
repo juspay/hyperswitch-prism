@@ -1179,6 +1179,7 @@ fn build_worldpayxml_recipient_party(
         funding_address: requests::WorldpayxmlFundingAddress {
             address1: address.get_line1()?.clone(),
             address2: address.get_optional_line2(),
+            address3: address.line3.clone(),
             postal_code: address.get_zip()?.clone(),
             city: address.get_city()?.clone().expose(),
             state: get_worldpayxml_funding_state(
@@ -1309,6 +1310,7 @@ pub(super) fn build_worldpayxml_sender_party(
                 requests::WorldpayxmlFundingAddress {
                     address1: resource_common_data.get_billing_line1()?,
                     address2: resource_common_data.get_optional_billing_line2(),
+                    address3: resource_common_data.get_optional_billing_line3(),
                     postal_code: resource_common_data.get_billing_zip()?,
                     city: resource_common_data.get_billing_city()?.expose(),
                     state: get_worldpayxml_funding_state(

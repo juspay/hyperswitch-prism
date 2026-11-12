@@ -10,14 +10,13 @@ use domain_types::{
         SubmitEvidence, Void,
     },
     connector_types::{
-        AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        CustomerInfo, MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RecipientAccount, RecipientBankAccount, RecipientDetails, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        SenderAddress, SenderDetails, SetupMandateRequestData,
-        SubmitEvidenceData,
+        AcceptDisputeData, CustomerInfo, DisputeDefendData, DisputeFlowData, DisputeResponseData,
+        MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RecipientAccount, RecipientBankAccount, RecipientDetails, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SenderAddress,
+        SenderDetails, SetupMandateRequestData, SubmitEvidenceData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
@@ -363,6 +362,12 @@ pub struct CheckoutProcessing {
     pub duty_amount: Option<MinorUnit>,
     pub shipping_amount: Option<MinorUnit>,
     pub shipping_tax_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CheckoutSenderType {
+    Individual,
 }
 
 #[derive(Debug, Serialize)]
