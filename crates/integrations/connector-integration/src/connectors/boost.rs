@@ -594,7 +594,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // `From<BoostPaymentStatus> for AttemptStatus` mapping rather than
 // duplicating status logic.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Boost<T>
+    interfaces::webhooks::IncomingWebhook for Boost<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"timestamp":"2025-09-09T01:22:50.650398229Z","uuid":"5e3cc113-0426-44e2-985b-f90bdddd06e8","amount":1,"currency":"MYR","created":"2025-09-09T01:22:06.739Z","description":"Payment","status":"succeeded","paymentMethod":"card","referenceId":"Llof2a6I0EdVmURL7YoL"}"#
