@@ -593,7 +593,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         });
 
         Ok(Self {
-            amount: router_data.request.amount.amount,
+            amount: router_data.request.money.amount(),
             currency: router_data.request.currency,
             settlement_currency: None,
             description: router_data.resource_common_data.description.clone(),
@@ -742,7 +742,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }),
             resource_common_data: PaymentFlowData {
                 status,
-                amount,
+                money: amount,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -827,7 +827,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         Ok(Self {
-            amount: router_data.request.refund_amount.amount,
+            amount: router_data.request.refund_money.amount(),
             currency: router_data.request.currency,
             merchant_order_data: Some(RevolutMerchantOrderData {
                 reference: Some(
@@ -919,7 +919,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         // Amount is optional - if not provided, Revolut captures full authorized amount
-        let amount = Some(item.router_data.request.amount_to_capture.amount);
+        let amount = Some(item.router_data.request.capture_money.amount());
 
         Ok(Self { amount })
     }
@@ -1032,6 +1032,8 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
         let status = map_webhook_event_to_attempt_status(webhook_body.event)?;
 
         Ok(Self {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 webhook_body.order_id.clone(),
@@ -1046,7 +1048,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -1094,7 +1096,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
 
         Ok(Self {
-            amount: router_data.request.amount.amount,
+            amount: router_data.request.money.amount(),
             currency: router_data.request.currency,
         })
     }

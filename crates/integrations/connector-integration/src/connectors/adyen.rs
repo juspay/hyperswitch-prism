@@ -1028,6 +1028,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transformers::get_adyen_payment_method_update_from_webhook(&notif);
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 notif.psp_reference.clone(),
@@ -1041,7 +1043,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             error_reason,
             network_txn_id,
             payment_method_update,
@@ -1073,6 +1075,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(notif.psp_reference.clone()),
             merchant_transaction_id: None,
             status: transformers::get_adyen_refund_webhook_event(notif.event_code, notif.success)?,
@@ -1107,10 +1110,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = utils::convert_amount_for_webhook(
             self.amount_converter_webhooks,
-            &common_utils::types::Money {
-                amount: notif.amount.value,
-                currency: notif.amount.currency,
-            },
+            &utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                notif.amount.value,
+                notif.amount.currency,
+            )?,
         )?;
 
         Ok(

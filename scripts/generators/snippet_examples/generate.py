@@ -213,6 +213,8 @@ def _generate_connector_config_rust(connector_name: str) -> str:
             field_lines.append(f'                {field_name}: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls')
         elif field_type == 'bool':
             field_lines.append(f'                {field_name}: Some(false),  // Feature flag')
+        elif field_type == 'CountryAlpha2':
+            field_lines.append(f'                {field_name}: Some(CountryAlpha2::Is.into()),  // Replace with the country assigned during onboarding')
     
     if not field_lines:
         return None
@@ -257,6 +259,8 @@ def _generate_connector_config_python(connector_name: str) -> str:
             field_lines.append(f'            {field_name}="YOUR_{field_name.upper()}",')
         elif field_type == "bool":
             field_lines.append(f'            {field_name}=False,')
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f'            {field_name}=payment_methods_pb2.CountryAlpha2.Value("IS"),  # Replace with the country assigned during onboarding')
 
     if field_lines:
         fields_str = "\n".join(field_lines)
@@ -307,6 +311,8 @@ def _generate_connector_config_typescript(
             field_lines.append(f"            {camel}: 'YOUR_{field_name.upper()}',")
         elif field_type == "bool":
             field_lines.append(f"            {camel}: false,")
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f"            {camel}: types.CountryAlpha2.IS, // Replace with the country assigned during onboarding")
 
     if field_lines:
         fields_str = "\n".join(field_lines)
@@ -356,6 +362,8 @@ def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ")
             field_lines.append(f"{i}            .{setter}(\"YOUR_{field_name.upper()}\")")
         elif field_type == "bool":
             field_lines.append(f"{i}            .{setter}(false)")
+        elif field_type == "CountryAlpha2":
+            field_lines.append(f"{i}            .{setter}(types.PaymentMethods.CountryAlpha2.IS) // Replace with the country assigned during onboarding")
 
     if field_lines:
         fields_str = "\n".join(field_lines)

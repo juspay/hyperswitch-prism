@@ -1,7 +1,134 @@
 {
   "PaymentService/Authorize": {
     "no3ds_auto_capture_google_pay_encrypted": {
-      "grpc_req": {}
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "DE" } }
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    },
+    "no3ds_auto_capture_apple_pay_decrypted": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "DE" } }
+      }
+    },
+    "no3ds_auto_capture_google_pay_decrypted": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "DE" } }
+      }
+    },
+    "no3ds_auto_capture_apple_pay_decrypted_cit": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "DE" } }
+      }
+    },
+    "no3ds_auto_capture_google_pay_decrypted_cit": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "DE" } }
+      }
+    },
+    "no3ds_manual_capture_incremental_auth": {
+      "grpc_req": {
+        "amount": { "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "amount": { "minor_amount": 0, "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } },
+        "return_url": "https://example.com/payment/return"
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "amount": { "minor_amount": 0, "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } },
+        "return_url": "https://example.com/payment/return"
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "amount": { "minor_amount": 0, "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "amount": { "minor_amount": 0, "currency": "EUR" },
+        "address": { "billing_address": { "country_alpha2_code": "IS" } }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "recurring_charge": {
+      "grpc_req": { "amount": { "currency": "EUR" } }
+    },
+    "RecurringPaymentService/Charge": {
+      "grpc_req": { "amount": { "currency": "EUR" } }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": { "amount": { "currency": "EUR" } }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": { "amount": { "currency": "EUR" } }
+    }
+  },
+  "PaymentService/Refund": {
+    "refund_full_amount": {
+      "grpc_req": { "refund_amount": { "currency": "EUR" } }
+    },
+    "refund_partial_amount": {
+      "grpc_req": { "refund_amount": { "currency": "EUR" } }
+    },
+    "refund_with_reason": {
+      "grpc_req": { "refund_amount": { "currency": "EUR" } }
+    }
+  },
+  "PaymentService/Void": {
+    "void_with_amount": {
+      "grpc_req": { "amount": { "currency": "EUR" } }
     }
   }
 }

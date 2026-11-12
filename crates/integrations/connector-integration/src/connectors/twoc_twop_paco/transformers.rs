@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, CountryAlpha2, Currency, PostCaptureVoidStatus, RefundStatus};
+use common_enums::{
+    AttemptStatus, CountryAlpha2, Currency, PaymentMethodType, PostCaptureVoidStatus, RefundStatus,
+};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::jose::JoseConfig,
     request::Method,
-    types::{FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
@@ -17,7 +19,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
+    router_data::{ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -217,7 +219,8 @@ pub struct PacoTransactionAmount {
 }
 
 impl PacoTransactionAmount {
-    fn new(minor_amount: MinorUnit, currency: Currency) -> Result<Self, errors::IntegrationError> {
+    fn new(money: &common_utils::types::Money) -> Result<Self, errors::IntegrationError> {
+        let currency = money.currency();
         let decimals = currency
             .number_of_digits_after_decimal_point()
             .map_err(|_| errors::IntegrationError::InvalidDataFormat {
@@ -232,14 +235,11 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let raw = minor_amount.get_amount_as_i64();
+        let raw = money.amount().get_amount_as_i64();
         let amount_text = format!("{raw:0>12}");
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
-            &common_utils::types::Money {
-                amount: minor_amount,
-                currency,
-            },
+            money,
         )
         .map_err(|err| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
@@ -309,6 +309,25 @@ pub struct PacoShippingAddress {
     pub ship_addr_line3: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ship_addr_post_code: Option<Secret<String>>,
+}
+
+/// PACO accepts a short state value only. Do not fall back to the deprecated
+/// state-name field: sending a full subdivision code or name can make the
+/// request invalid.
+fn select_paco_billing_state(state_code_iso: Option<Secret<String>>) -> Option<Secret<String>> {
+    state_code_iso.filter(|state| state.peek().chars().count() <= 3)
+}
+
+fn connector_response_from_approval_code(
+    approval_code: Option<String>,
+    payment_method_type: Option<PaymentMethodType>,
+) -> Option<ConnectorResponseData> {
+    approval_code.map(|code| {
+        ConnectorResponseData::with_auth_code(
+            code,
+            payment_method_type.unwrap_or(PaymentMethodType::Card),
+        )
+    })
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -656,7 +675,7 @@ pub struct PacoPassenger {
 impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
     type Error = errors::IntegrationError;
     fn try_from(money: &common_utils::types::Money) -> Result<Self, Self::Error> {
-        Self::new(money.amount, money.currency)
+        Self::new(money)
     }
 }
 
@@ -844,17 +863,17 @@ impl TryFrom<&connector_types::AirlineData> for PacoAirlineData {
         // the per-purchase amounts land at the right path (tickets[]) instead
         // of being silently dropped at the airlineData top level.
         let ticket_fare = airline
-            .total_fare
+            .total_fare_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
         let tax_amount = airline
-            .total_taxes
+            .total_taxes_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
         let agent_fee = airline
-            .total_fee
+            .total_fee_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
@@ -908,7 +927,7 @@ where
         .unwrap_or_else(|| order_no.clone());
     let request_message_id =
         paco_require_merchant_request_id(item.resource_common_data.get_merchant_request_id())?;
-    let amount = PacoTransactionAmount::new(item.request.amount.amount, item.request.currency)?;
+    let amount = PacoTransactionAmount::new(&item.request.money)?;
     let notification_urls = PacoNotificationUrls {
         confirmation_url: item.request.router_return_url.clone(),
         failed_url: item.request.router_return_url.clone(),
@@ -929,9 +948,10 @@ where
             bill_addr_line2: common.get_optional_billing_line2(),
             bill_addr_line3: common.get_optional_billing_line3(),
             bill_addr_post_code: common.get_optional_billing_zip(),
-            bill_addr_state: common
-                .get_optional_billing_state()
-                .filter(|state| state.peek().chars().count() <= 3),
+            bill_addr_state: select_paco_billing_state(
+                common.get_optional_billing_state_code_iso(),
+            )
+            .or_else(|| select_paco_billing_state(common.get_optional_billing_state())),
         });
 
     let paco_shipping_address = common
@@ -1120,8 +1140,7 @@ pub fn build_capture_request(
 ) -> Result<TwocTwopPacoCaptureRequest, error_stack::Report<errors::IntegrationError>> {
     let office_id = auth.office_id.clone();
     let invoice_no = item.request.get_connector_transaction_id()?;
-    let amount =
-        PacoTransactionAmount::new(item.request.amount_to_capture.amount, item.request.currency)?;
+    let amount = PacoTransactionAmount::new(&item.request.capture_money)?;
     let request_message_id =
         paco_require_merchant_request_id(item.resource_common_data.get_merchant_request_id())?;
     Ok(TwocTwopPacoCaptureRequest {
@@ -1223,8 +1242,7 @@ pub fn build_refund_request(
     auth: &TwocTwopPacoAuthType,
 ) -> Result<TwocTwopPacoRefundRequest, error_stack::Report<errors::IntegrationError>> {
     let office_id = auth.office_id.clone();
-    let amount =
-        PacoTransactionAmount::new(item.request.refund_amount.amount, item.request.currency)?;
+    let amount = PacoTransactionAmount::new(&item.request.refund_money)?;
     let original_order_no = item.request.get_connector_order_id().change_context(
         errors::IntegrationError::MissingRequiredField {
             field_name: "connector_order_id",
@@ -1569,6 +1587,8 @@ pub struct PacoPriorPaymentResponseDetails {
     pub response_code: Option<String>,
     #[serde(default)]
     pub response_description: Option<String>,
+    #[serde(default)]
+    pub approval_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1585,6 +1605,8 @@ pub struct PacoPaymentResultBlock {
     pub invoice_no2c2p: Option<String>,
     #[serde(default)]
     pub order_no: Option<String>,
+    #[serde(default)]
+    pub approval_code: Option<String>,
     #[serde(default)]
     pub controller_internal_id: Option<String>,
     #[serde(default)]
@@ -1689,6 +1711,10 @@ impl TwocTwopPacoNonUiResponse {
                 invoice_no2c2p: data.invoice_no2c2p.clone(),
                 order_no: data.order_no.clone(),
                 controller_internal_id: None,
+                approval_code: data
+                    .psp_response
+                    .as_ref()
+                    .and_then(|response| response.approval_code.clone()),
                 payment_status_info: data.payment_status_info.clone(),
                 prior_payment_response_details: data.psp_response.clone(),
                 payment_page: None,
@@ -1719,9 +1745,18 @@ where
         } = item;
         let result = response.merged_result();
         let api_response = response.api_response.clone();
+        let approval_code = result
+            .and_then(|block| block.approval_code.clone())
+            .or_else(|| {
+                response
+                    .data
+                    .as_ref()
+                    .and_then(|d| d.psp_response.as_ref())
+                    .and_then(|r| r.approval_code.clone())
+            });
 
         let (status, redirection_data, connector_txn_id, connector_response_reference_id, prior) =
-            match result {
+            match result.as_ref() {
                 Some(block) => {
                     let info = block
                         .payment_status_info
@@ -1832,6 +1867,10 @@ where
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 raw_connector_status,
+                connector_response: connector_response_from_approval_code(
+                    approval_code,
+                    router_data.resource_common_data.payment_method_type,
+                ),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2186,6 +2225,8 @@ pub struct PacoInquiryData {
     #[serde(default)]
     pub order_no: Option<String>,
     #[serde(default)]
+    pub approval_code: Option<String>,
+    #[serde(default)]
     pub credit_card_authenticated_details: Option<PacoCreditCardAuthenticatedDetails>,
 }
 
@@ -2273,6 +2314,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             .as_ref()
             .and_then(|d| d.invoice_no2c2p.clone());
         let order = response.data.as_ref().and_then(|d| d.order_no.clone());
+        let approval_code = response.data.as_ref().and_then(|d| d.approval_code.clone());
 
         if matches!(status, AttemptStatus::Failure) {
             let (code, message) = error_code_message(&response.api_response, &None);
@@ -2313,6 +2355,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
                 raw_connector_status,
+                connector_response: connector_response_from_approval_code(
+                    approval_code,
+                    router_data.resource_common_data.payment_method_type,
+                ),
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {

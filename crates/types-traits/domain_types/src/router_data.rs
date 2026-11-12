@@ -512,6 +512,7 @@ pub enum ConnectorSpecificConfig {
     Rapyd {
         access_key: Secret<String>,
         secret_key: Secret<String>,
+        country_of_incorporation: Option<common_enums::CountryAlpha2>,
         base_url: Option<String>,
     },
     Authipay {
@@ -632,9 +633,14 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
     Checkout {
+        /// Payment public key (`pk_...`), used by `POST /tokens` only.
         api_key: Secret<String>,
+        /// Secret key (`sk_...`), the Bearer credential on every request.
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
+        connector_client_id: Option<Secret<String>>,
+        /// Payout-only Checkout currency account (`ca_...`) used as `source.id`.
+        connector_currency_account_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Cybersource {
@@ -2324,6 +2330,8 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: checkout.api_key.ok_or_else(err)?,
                 api_secret: checkout.api_secret.ok_or_else(err)?,
                 processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
+                connector_client_id: checkout.connector_client_id,
+                connector_currency_account_id: checkout.connector_currency_account_id,
                 base_url: checkout.base_url,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
@@ -2512,6 +2520,32 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Rapyd(rapyd) => Ok(Self::Rapyd {
                 access_key: rapyd.access_key.ok_or_else(err)?,
                 secret_key: rapyd.secret_key.ok_or_else(err)?,
+                country_of_incorporation: rapyd
+                    .country_of_incorporation
+                    .map(|country| {
+                        let invalid_country = || errors::IntegrationError::InvalidConnectorConfig {
+                            config: "country_of_incorporation",
+                            context: errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "The Rapyd country is unspecified or is not a recognized ISO country."
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Set country_of_incorporation to the country assigned by Rapyd during merchant onboarding."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        };
+                        let country = grpc_api_types::payments::CountryAlpha2::try_from(country)
+                            .map_err(|_| invalid_country())?;
+                        if country == grpc_api_types::payments::CountryAlpha2::Unspecified {
+                            return Err(invalid_country().into());
+                        }
+                        common_enums::CountryAlpha2::foreign_try_from(country)
+                            .change_context(invalid_country())
+                    })
+                    .transpose()?,
                 base_url: rapyd.base_url,
             }),
             AuthType::AbsaSanlam(absa_sanlam) => Ok(Self::AbsaSanlam {
@@ -3411,6 +3445,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Rapyd {
                         access_key: api_key.clone(),
                         secret_key: key1.clone(),
+                        // Legacy credentials do not carry merchant onboarding metadata.
+                        // Fresh payment-method objects require typed Rapyd configuration.
+                        country_of_incorporation: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3604,6 +3641,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
+                        connector_client_id: None,
+                        connector_currency_account_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4590,6 +4629,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 }
             }
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
+                PayoutConnectorEnum::Checkout => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Checkout {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        processing_channel_id: key1.clone(),
+                        connector_client_id: None,
+                        connector_currency_account_id: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Nuvei => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -4957,13 +5011,13 @@ pub struct PazeDynamicData {
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
-    pub original_payment_authorized_amount: Option<Money>,
+    pub original_payment_authorized_money: Option<Money>,
     pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl RecurringMandatePaymentData {
     pub fn get_original_payment_amount(&self) -> Result<Money, Error> {
-        self.original_payment_authorized_amount
+        self.original_payment_authorized_money
             .clone()
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }
@@ -4982,6 +5036,7 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::GooglePay => {
                 AdditionalPaymentMethodConnectorResponse::GooglePay {
                     auth_code: Some(auth_code),
+                    payment_checks: None,
                     device_pan_bin: None,
                     card_bin: None,
                     card_subtype: None,
@@ -4995,6 +5050,7 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::ApplePay => {
                 AdditionalPaymentMethodConnectorResponse::ApplePay {
                     auth_code: Some(auth_code),
+                    payment_checks: None,
                     device_pan_bin: None,
                     card_bin: None,
                     card_subtype: None,
@@ -5092,6 +5148,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     GooglePay {
         auth_code: Option<String>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
         /// Bin of the underlying card, as returned by the connector
@@ -5111,6 +5169,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     ApplePay {
         auth_code: Option<String>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
         /// Bin of the underlying card, as returned by the connector

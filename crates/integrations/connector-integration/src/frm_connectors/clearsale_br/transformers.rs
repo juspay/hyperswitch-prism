@@ -566,6 +566,7 @@ pub struct ClearSaleOrderRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping: Option<ClearSalePerson>,
     pub payments: Vec<ClearSalePayment>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<ClearSaleItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub list: Option<ClearSaleList>,
@@ -691,6 +692,8 @@ pub struct ClearSaleConnection {
     pub arriving: Option<String>,
     #[serde(rename = "fareClass", skip_serializing_if = "Option::is_none")]
     pub fare_class: Option<String>,
+    #[serde(rename = "typeOfTrip", skip_serializing_if = "Option::is_none")]
+    pub type_of_trip: Option<String>,
 }
 
 /// Order `hotels[]` block (spec §5.1).
@@ -963,7 +966,7 @@ impl<'a> OrderInputs<'a> {
                 .as_ref()
                 .ok_or_else(|| missing_field_err("email"))?
                 .get_email()?,
-            money: req.amount.clone(),
+            money: req.money.clone(),
             ip: req
                 .browser_info
                 .as_ref()
@@ -999,7 +1002,7 @@ impl<'a> OrderInputs<'a> {
                 .as_ref()
                 .ok_or_else(|| missing_field_err("email"))?
                 .get_email()?,
-            money: req.amount.clone(),
+            money: req.money.clone(),
             ip: req
                 .browser_info
                 .as_ref()
@@ -1161,7 +1164,12 @@ pub(crate) fn build_clear_sale_address(
     };
     let county = required_value(n_county, address_details.and_then(|d| d.line2.as_ref()))?;
     let city = required_value(n_city, address_details.and_then(|d| d.city.as_ref()))?;
-    let state_raw = required_value(n_state, address_details.and_then(|d| d.state.as_ref()))?;
+    let state_raw = required_value(
+        n_state,
+        address_details
+            .and_then(|d| d.state.as_ref())
+            .and_then(domain_types::payment_address::StateDetails::code_or_name),
+    )?;
     let zipcode = required_value(n_zipcode, address_details.and_then(|d| d.zip.as_ref()))?;
     // Spec §5.1: `state` is the 2-char UF. `"Acre"` must go on the wire as `AC`.
     let state = clearsale_state_uf(label, state_raw.peek())?;
@@ -1292,6 +1300,10 @@ pub(crate) fn primary_document(document: Option<&Secret<String>>) -> Option<Secr
     document
         .filter(|doc| !doc.peek().trim().is_empty())
         .cloned()
+}
+
+fn is_present(value: Option<&Secret<String>>) -> bool {
+    value.is_some_and(|value| !value.peek().trim().is_empty())
 }
 
 /// Build one `billing`/`shipping` person block. Required fields fail at the
@@ -1640,24 +1652,22 @@ pub(crate) fn build_clear_sale_payment(
 }
 
 pub(crate) fn build_clear_sale_items(
+    payment: &common_utils::types::Money,
     order_details: Option<&Vec<OrderDetailsWithAmount>>,
-    currency: Currency,
     order_is_gift: Option<bool>,
 ) -> Result<Vec<ClearSaleItem>, Error> {
     order_details
-        .filter(|details| !details.is_empty())
-        .ok_or_else(|| missing_field_err("order_details"))?
+        .map(Vec::as_slice)
+        .unwrap_or_default()
         .iter()
+        .filter(|detail| !detail.product_name.trim().is_empty())
         .map(|detail| {
             Ok(ClearSaleItem {
                 name: detail.product_name.clone(),
                 code: detail.sku.clone().or(detail.product_id.clone()),
                 bar_code: detail.upc.clone(),
                 value: Some(super::ClearSaleBrAmountConvertor::convert(
-                    &common_utils::types::Money {
-                        amount: detail.amount,
-                        currency,
-                    },
+                    &detail.get_unit_money(payment),
                 )?),
                 // Line quantity, not money — the wire field is ClearSale's `amount`.
                 amount: Some(detail.quantity),
@@ -1694,6 +1704,9 @@ pub(crate) struct OrderRequestParts {
 }
 
 fn items_subtotal(items: &[ClearSaleItem]) -> Option<FloatMajorUnit> {
+    if items.is_empty() {
+        return None;
+    }
     let mut subtotal = 0.0;
     for item in items {
         let unit_value = item.value?.0;
@@ -1745,10 +1758,7 @@ pub(crate) fn build_order_request(
             status: feature_data.status,
             origin,
             channel_id,
-            reservation_date: feature_data
-                .reservation_date
-                .as_deref()
-                .map(to_clearsale_datetime),
+            reservation_date: travel_data.reservation_date.clone(),
             country: country.clone().or_else(|| Some("Brasil".to_owned())),
             nationality: feature_data.nationality.clone(),
             product,
@@ -1808,8 +1818,6 @@ pub struct ClearSaleFeatureData {
     pub observation: Option<String>,
     #[serde(default)]
     pub status: Option<u32>,
-    #[serde(default, rename = "reservationDate")]
-    pub reservation_date: Option<String>,
     /// Custom SLA for the analysis decision, in seconds.
     #[serde(default, rename = "customSla")]
     pub custom_sla: Option<u32>,
@@ -1834,6 +1842,7 @@ pub struct ClearSaleTravelData<'a> {
     pub passengers: Option<Vec<Traveller>>,
     pub travel_segments: Option<Vec<(&'a TravelData, &'a TravelSegment)>>,
     pub accommodations: Option<Vec<&'a HotelSegment>>,
+    pub reservation_date: Option<String>,
 }
 
 fn traveller_identity(p: &Traveller) -> (String, String, String) {
@@ -1878,10 +1887,16 @@ impl<'a> ClearSaleTravelData<'a> {
             .as_ref()
             .map(|booking| booking.hotel_segments.iter().collect())
             .unwrap_or_default();
+        let reservation_date = domain_data
+            .travel_data
+            .as_ref()
+            .and_then(|travel| travel.travel_date.clone())
+            .map(|travel_date| to_clearsale_datetime(&travel_date));
         Self {
             passengers: (!passengers.is_empty()).then_some(passengers),
             travel_segments: (!travel_segments.is_empty()).then_some(travel_segments),
             accommodations: (!segments.is_empty()).then_some(segments),
+            reservation_date,
         }
     }
 }
@@ -1975,7 +1990,7 @@ pub(crate) fn travel_segment_to_clear_sale_connection(
         company,
         identification_number,
         date: Some(date),
-        seat_class: segment.travel_class.map(|class| class.to_string()),
+        seat_class: segment.travel_class.clone(),
         origin: segment.origin.as_deref()?.trim().to_owned(),
         destination: segment.destination.as_deref()?.trim().to_owned(),
         boarding: segment
@@ -1989,6 +2004,7 @@ pub(crate) fn travel_segment_to_clear_sale_connection(
         // No separate fare-basis carrier on `TravelSegment` — `travel_class`
         // already feeds `seatClass`.
         fare_class: None,
+        type_of_trip: segment.trip_type.clone(),
     })
 }
 
@@ -2126,17 +2142,32 @@ pub(crate) fn order_from_common(
         feature_data,
     )?;
 
-    let shipping = match address.and_then(|addr| addr.get_shipping()) {
-        None => None,
-        Some(shipping_addr) => Some(build_person(
-            "shipping",
-            Some(shipping_addr),
-            customer_info,
-            shipping_document.as_ref(),
-            shipping_document_kind.as_ref(),
-            feature_data,
-        )?),
-    };
+    let shipping = address
+        .and_then(|addr| addr.get_shipping())
+        .filter(|shipping_addr| {
+            shipping_addr.address.as_ref().is_some_and(|details| {
+                is_present(details.line1.as_ref())
+                    && is_present(details.line2.as_ref())
+                    && is_present(details.city.as_ref())
+                    && details
+                        .state
+                        .as_ref()
+                        .and_then(domain_types::payment_address::StateDetails::code_or_name)
+                        .is_some_and(|state| !state.peek().trim().is_empty())
+                    && is_present(details.zip.as_ref())
+            })
+        })
+        .map(|shipping_addr| {
+            build_person(
+                "shipping",
+                Some(shipping_addr),
+                customer_info,
+                shipping_document.as_ref(),
+                shipping_document_kind.as_ref(),
+                feature_data,
+            )
+        })
+        .transpose()?;
 
     let now = to_clearsale_datetime(
         &common_utils::date_time::now()
@@ -2150,9 +2181,9 @@ pub(crate) fn order_from_common(
         &now,
         feature_data.installments,
         Some(billing.primary_document.clone()),
-        money.currency,
+        money.currency(),
     )?];
-    let items = build_clear_sale_items(order_details, money.currency, feature_data.is_gift)?;
+    let items = build_clear_sale_items(&money, order_details, feature_data.is_gift)?;
     let billing_country = billing_address
         .address
         .as_ref()

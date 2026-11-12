@@ -399,4 +399,20 @@ export class SurchargeClient extends _ConnectorClientBase {
     return this._executeFlow('surcharge_calculate', requestMsg, options, 'SurchargeServiceCalculateRequest', 'SurchargeServiceCalculateResponse') as Promise<types.SurchargeServiceCalculateResponse>;
   }
 
+  /** SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund. */
+  async surchargeRefundComplete(
+    requestMsg: types.ISurchargeServiceSurchargeRefundCompleteRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.SurchargeServiceSurchargeRefundCompleteResponse> {
+    return this._executeFlow('surcharge_refund_complete', requestMsg, options, 'SurchargeServiceSurchargeRefundCompleteRequest', 'SurchargeServiceSurchargeRefundCompleteResponse') as Promise<types.SurchargeServiceSurchargeRefundCompleteResponse>;
+  }
+
+  /** SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund. */
+  async surchargeRefundInit(
+    requestMsg: types.ISurchargeServiceSurchargeRefundInitRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.SurchargeServiceSurchargeRefundInitResponse> {
+    return this._executeFlow('surcharge_refund_init', requestMsg, options, 'SurchargeServiceSurchargeRefundInitRequest', 'SurchargeServiceSurchargeRefundInitResponse') as Promise<types.SurchargeServiceSurchargeRefundInitResponse>;
+  }
+
 }

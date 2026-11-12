@@ -113,7 +113,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   CardDetailsForNetworkTransactionId: ["cardNumber", "cardExpMonth", "cardExpYear", "nickName", "cardHolderName"],
   DecryptedWalletTokenDetailsForNetworkTransactionId: ["decryptedToken", "tokenExpMonth", "tokenExpYear", "cardHolderName", "deviceManufacturerIdentifier"],
   NetworkTokenData: ["tokenNumber", "tokenExpMonth", "tokenExpYear", "tokenCryptogram", "nickName"],
-  Address: ["firstName", "lastName", "line1", "line2", "line3", "city", "state", "zipCode", "originZip", "email", "phoneNumber"],
+  Address: ["firstName", "lastName", "line1", "line2", "line3", "city", "state", "zipCode", "originZip", "email", "phoneNumber", "stateCodeIso"],
   Customer: ["email", "phoneNumber", "dateOfBirth"],
   CustomerDocumentDetails: ["documentNumber"],
   StudentDetails: ["studentEmail"],
@@ -253,7 +253,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   BillwerkConfig: ["apiKey", "publicApiKey"],
   BluesnapConfig: ["username", "password"],
   CashfreeConfig: ["appId", "secretKey"],
-  CheckoutConfig: ["apiKey", "apiSecret", "processingChannelId"],
+  CheckoutConfig: ["apiKey", "apiSecret", "processingChannelId", "connectorClientId", "connectorCurrencyAccountId"],
   CryptopayConfig: ["apiKey", "apiSecret"],
   DatatransConfig: ["merchantId", "password"],
   FiservemeaConfig: ["apiKey", "apiSecret"],
@@ -409,8 +409,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PayoutServiceVoidRequest: ["connectorFeatureData", "accessToken"],
   PayoutServiceCreateLinkRequest: ["connectorFeatureData", "accessToken"],
   PayoutServiceCreateRecipientRequest: ["accessToken"],
-  VendorDetails: ["vendorUrl", "vendorName", "statementDescriptor"],
-  IndividualDetails: ["firstName", "lastName", "phone", "ssnLast_4", "idNumber", "dateOfBirth", "tosAcceptanceIp"],
+  VendorDetails: ["vendorUrl", "vendorName", "statementDescriptor", "companyTaxId", "merchantSenderReferenceId"],
+  IndividualDetails: ["firstName", "lastName", "phone", "ssnLast_4", "idNumber", "dateOfBirth", "tosAcceptanceIp", "merchantSenderReferenceId"],
   PayoutServiceCreateRecipientResponse: ["connectorMetadata"],
   PayoutServiceEnrollDisburseAccountRequest: ["accessToken"],
   PayoutMethodEligibilityRequest: ["connectorFeatureData", "accessToken"],
@@ -525,7 +525,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   OsBasedReturnUrl: { "returnUrlMap": "ReturnUrlMapEntry" },
   AuthenticatorClientAuthenticationContext: { "customer": "Customer", "osBasedReturnUrl": "OsBasedReturnUrl" },
   MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse: { "sessionData": "ClientAuthenticationTokenData", "error": "ErrorInfo" },
-  PaymentServiceCaptureRequest: { "amountToCapture": "Money", "multipleCaptureData": "MultipleCaptureRequestData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "orderTaxAmount": "Money", "splitPayments": "SplitPaymentsDetails", "splitSettlement": "SplitSettlement", "paymentMethod": "PaymentMethod", "integritySpecifications": "IntegritySpecifications", "currencyConversionData": "CurrencyConversionData" },
+  PaymentServiceCaptureRequest: { "amountToCapture": "Money", "multipleCaptureData": "MultipleCaptureRequestData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "orderTaxAmount": "Money", "splitPayments": "SplitPaymentsDetails", "splitSettlement": "SplitSettlement", "paymentMethod": "PaymentMethod", "integritySpecifications": "IntegritySpecifications", "currencyConversionData": "CurrencyConversionData", "domainData": "DomainData" },
   PaymentServiceCaptureResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference", "connectorResponse": "ConnectorResponseData", "splits": "ConnectorSplitResponseData", "splitSettlement": "SplitSettlementResponse", "mandateReferenceDetails": "MandateReferenceDetails", "rawConnectorStatus": "RawConnectorStatus" },
   PaymentServiceCreateOrderRequest: { "amount": "Money", "state": "ConnectorState", "orderDetails": "OrderDetailsWithAmount", "customer": "Customer" },
   PaymentServiceCreateOrderResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "sessionData": "ClientAuthenticationTokenData", "rawConnectorStatus": "RawConnectorStatus" },
@@ -627,7 +627,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   SourceBankData: { "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout", "payshap": "PayshapBankTransferPayout", "payshapProxy": "PayshapProxyBankTransferPayout", "trustly": "TrustlyBankTransferPayout", "ted": "TedBankTransferPayout" },
   PayoutServiceCreateRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
   PayoutServiceCreateResponse: { "error": "ErrorInfo" },
-  PayoutServiceTransferRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData", "billingDescriptor": "BillingDescriptor" },
+  PayoutServiceTransferRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData", "billingDescriptor": "BillingDescriptor", "vendorAccountDetails": "PayoutVendorAccountDetails" },
   PayoutServiceTransferResponse: { "error": "ErrorInfo" },
   PayoutServiceStageRequest: { "address": "PayoutAddress", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "payoutMethodData": "PayoutMethod" },
   PayoutServiceStageResponse: { "error": "ErrorInfo" },
@@ -639,6 +639,8 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PayoutServiceCreateLinkResponse: { "error": "ErrorInfo" },
   PayoutServiceCreateRecipientRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "vendorAccountDetails": "PayoutVendorAccountDetails" },
   PayoutVendorAccountDetails: { "vendorDetails": "VendorDetails", "individualDetails": "IndividualDetails" },
+  VendorDetails: { "address": "Address" },
+  IndividualDetails: { "address": "Address" },
   PayoutServiceCreateRecipientResponse: { "error": "ErrorInfo" },
   PayoutServiceEnrollDisburseAccountRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "vendorAccountDetails": "PayoutVendorAccountDetails" },
   PayoutServiceEnrollDisburseAccountResponse: { "error": "ErrorInfo" },
@@ -662,6 +664,9 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   FfiResult: { "httpRequest": "FfiConnectorHttpRequest", "httpResponse": "FfiConnectorHttpResponse", "integrationError": "IntegrationError", "connectorError": "ConnectorError" },
   SurchargeServiceCalculateRequest: { "amount": "Money" },
   SurchargeServiceCalculateResponse: { "surchargeAmount": "Money", "error": "ErrorInfo" },
+  SurchargeServiceSurchargeRefundInitRequest: { "amount": "Money" },
+  SurchargeServiceSurchargeRefundInitResponse: { "refundAmount": "Money", "originalTransactionFee": "Money", "previouslyRefundedTransactionFees": "Money", "error": "ErrorInfo" },
+  SurchargeServiceSurchargeRefundCompleteResponse: { "error": "ErrorInfo" },
   DisputeServiceSubmitEvidenceRequest: { "evidenceDocuments": "EvidenceDocument", "billingAddress": "Address", "shippingAddress": "Address" },
   DisputeServiceSubmitEvidenceResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   DisputeServiceDefendResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
@@ -1047,6 +1052,16 @@ export class GrpcSurchargeClient {
   async calculate(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "surcharge/calculate",
       req, types.SurchargeServiceCalculateRequest, types.SurchargeServiceCalculateResponse);
+  }
+  /** SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund. */
+  async surchargeRefundInit(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "surcharge/surcharge_refund_init",
+      req, types.SurchargeServiceSurchargeRefundInitRequest, types.SurchargeServiceSurchargeRefundInitResponse);
+  }
+  /** SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund. */
+  async surchargeRefundComplete(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "surcharge/surcharge_refund_complete",
+      req, types.SurchargeServiceSurchargeRefundCompleteRequest, types.SurchargeServiceSurchargeRefundCompleteResponse);
   }
 }
 

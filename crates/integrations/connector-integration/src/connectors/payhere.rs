@@ -236,6 +236,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: payload
                 .payment_id
                 .map(|id| ResponseId::ConnectorTransactionId(id.to_string())),
@@ -249,7 +251,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: None,
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -618,7 +620,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(RedirectDetailsResponse {
             resource_id: order_id.clone().map(ResponseId::ConnectorTransactionId),
             status: None,
-            response_amount: None,
+            response_money: None,
             connector_response_reference_id: order_id,
             error_code: None,
             error_message: None,
