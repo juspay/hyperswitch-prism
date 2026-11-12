@@ -200,10 +200,12 @@ impl HttpClient {
                     });
                 }
                 match reqwest::Proxy::all(url) {
-                    Ok(mut proxy) => {
-                        for bypass in &proxy_config.bypass_urls {
-                            proxy = proxy.no_proxy(reqwest::NoProxy::from_string(bypass));
-                        }
+                    Ok(proxy) => {
+                        // `Proxy::no_proxy` replaces the previous value, so pass every
+                        // bypass entry at once as a comma-separated list.
+                        let proxy = proxy.no_proxy(reqwest::NoProxy::from_string(
+                            &proxy_config.bypass_urls.join(","),
+                        ));
                         builder = builder.proxy(proxy);
                     }
                     Err(e) => {
@@ -371,7 +373,54 @@ pub fn generate_proxy_cache_key(proxy: &Option<ProxyConfig>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{HttpClient, HttpOptions, ProxyConfig};
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn every_bypass_url_skips_the_proxy() {
+        // Origin server that answers one request with 200 OK.
+        let origin = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin_port = origin.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut socket, _) = origin.accept().await.unwrap();
+            let mut buf = [0u8; 1024];
+            let _ = socket.read(&mut buf).await;
+            let _ = socket
+                .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\nconnection: close\r\n\r\nok")
+                .await;
+        });
+
+        // Proxy address with nothing listening, so any proxied request fails.
+        let unused = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let proxy_port = unused.local_addr().unwrap().port();
+        drop(unused);
+
+        let client = HttpClient::new(HttpOptions {
+            proxy: Some(ProxyConfig {
+                http_url: Some(format!("http://127.0.0.1:{proxy_port}")),
+                https_url: None,
+                bypass_urls: vec!["127.0.0.1".to_string(), "bypass.example.com".to_string()],
+            }),
+            ..Default::default()
+        })
+        .unwrap();
+
+        let response = client
+            .execute(
+                HttpRequest {
+                    url: format!("http://127.0.0.1:{origin_port}/"),
+                    method: Method::Get,
+                    headers: HashMap::new(),
+                    body: None,
+                },
+                None,
+            )
+            .await
+            .expect("request to a bypassed host must not go through the proxy");
+        assert_eq!(response.status_code, 200);
+        assert_eq!(response.body, b"ok");
+    }
 
     #[test]
     fn rejects_unsupported_proxy_scheme_before_sending_a_request() {
