@@ -2900,9 +2900,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     pos_environment: None,
                 },
                 Some(WorldpayraftAuthorizeEcommerceData {
-                    ecommerce_data: WorldpayraftEcommerceData {
+                    ecommerce_data: Some(WorldpayraftEcommerceData {
                         ecommerce_indicator: WorldpayraftEcommerceIndicator::NonThreeDs,
-                    },
+                    }),
                     cryptogram: None,
                 }),
             ),

@@ -11438,7 +11438,7 @@ impl ForeignTryFrom<RefundServiceVoidPostRefundRequest> for RefundVoidPostRefund
             connector_feature_data,
             refund_money: value
                 .refund_amount
-                .map(common_utils::types::Money::foreign_try_from)
+                .map(crate::money::from_proto_money)
                 .transpose()?,
             connector_order_id: value.connector_order_id,
             integrity_object: None,
