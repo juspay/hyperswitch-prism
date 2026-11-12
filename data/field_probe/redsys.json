@@ -3,56 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "authentication_data": {
-            "eci": "05",
-            "cavv": "AAAAAAAAAA==",
-            "threeds_server_transaction_id": "probe-3ds-txn-001",
-            "message_version": "2.1.0",
-            "ds_transaction_id": "probe-ds-txn-001"
-          },
-          "return_url": "https://example.com/3ds-return",
-          "continue_redirection_url": "https://example.com/3ds-continue",
-          "browser_info": {
-            "color_depth": 24,
-            "screen_height": 900,
-            "screen_width": 1440,
-            "java_enabled": false,
-            "java_script_enabled": true,
-            "language": "en-US",
-            "time_zone_offset_minutes": -480,
-            "accept_header": "application/json",
-            "user_agent": "Mozilla/5.0 (probe-bot)",
-            "accept_language": "en-US,en;q=0.9",
-            "ip_address": "1.2.3.4"
-          }
-        },
-        "sample": {
-          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
-        }
+        "status": "error",
+        "error": "Invalid data format: ds_merchant_order. Redsys Ds_Merchant_Order is mandatory (SIS0075); no merchant reference to send or derive it from"
       }
     },
     "authorize": {
@@ -78,23 +30,101 @@
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"eyJEU19NRVJDSEFOVF9BTU9VTlQiOiIxMDAwIiwiRFNfTUVSQ0hBTlRfQ1VSUkVOQ1kiOiI4NDAiLCJEU19NRVJDSEFOVF9NRVJDSEFOVENPREUiOiJwcm9iZV9tZXJjaGFudCIsIkRTX01FUkNIQU5UX09SREVSIjoiMTE3MDY4MDU3MDc2IiwiRFNfTUVSQ0hBTlRfVEVSTUlOQUwiOiJwcm9iZV9pZCIsIkRTX01FUkNIQU5UX1RSQU5TQUNUSU9OVFlQRSI6IjAiLCJEU19YUEFZREVDT0RFRERBVEEiOiJ7XCJ0b2tlblwiOlwiNDExMTExMTExMTExMTExMVwiLFwiY3J5cHRvZ3JhbVwiOlwiQUFBQUFBPT1cIixcImVjaUluZFwiOlwiMDVcIixcImV4cGlyYXRpb25EYXRlXCI6XCIzMDAzXCJ9IiwiRFNfWFBBWVRZUEUiOiJBcHBsZSIsIkRTX1hQQVlPUklHRU4iOiJJbkFwcCJ9\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -118,7 +148,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -130,7 +160,7 @@
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -145,16 +175,46 @@
         "error": "This feature is not implemented: Selected payment method through redsys"
       },
       "Card": {
-        "status": "error",
-        "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -170,7 +230,7 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -186,7 +246,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -206,7 +266,7 @@
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Giropay": {
         "status": "not_implemented",
@@ -218,19 +278,96 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -262,7 +399,7 @@
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -274,7 +411,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -290,11 +427,11 @@
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -306,7 +443,7 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -370,15 +507,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -394,7 +531,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Pix": {
         "status": "not_implemented",
@@ -418,15 +555,15 @@
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -450,7 +587,7 @@
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -458,11 +595,11 @@
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Trustly": {
         "status": "not_implemented",
@@ -470,7 +607,7 @@
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -486,11 +623,11 @@
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       },
       "Webpay": {
         "status": "not_implemented",
@@ -498,7 +635,7 @@
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys. Redsys supports only Apple Pay and Google Pay wallets (DS_XPAYTYPE Apple|Google)"
       }
     },
     "capture": {
@@ -607,13 +744,28 @@
             "soapaction": "consultaOperaciones",
             "via": "HyperSwitch"
           },
-          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:web=\"http://webservices.apl02.redsys.es\"><soapenv:Header/><soapenv:Body><web:consultaOperaciones><cadenaXML><![CDATA[<Messages><Version Ds_Version=\"0.0\"><Message><Monitor><Ds_MerchantCode>probe_merchant</Ds_MerchantCode><Ds_Terminal>probe_id</Ds_Terminal><Ds_Order>probe_merchant_txn_001</Ds_Order></Monitor></Message></Version><Signature>cHJvYmVfa2V5OnByb2JlX3NlY3JldA==</Signature><SignatureVersion>HMAC_SHA256_V1</SignatureVersion></Messages>]]></cadenaXML></web:consultaOperaciones></soapenv:Body></soapenv:Envelope>"
+          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:web=\"http://webservices.apl02.redsys.es\"><soapenv:Header/><soapenv:Body><web:consultaOperaciones><cadenaXML><![CDATA[<Messages><Version Ds_Version=\"0.0\"><Message><Monitor><Ds_MerchantCode>probe_merchant</Ds_MerchantCode><Ds_Terminal>probe_id</Ds_Terminal><Ds_Order>probe_connector_txn_001</Ds_Order></Monitor></Message></Version><Signature>cHJvYmVfa2V5OnByb2JlX3NlY3JldA==</Signature><SignatureVersion>HMAC_SHA256_V1</SignatureVersion></Messages>]]></cadenaXML></web:consultaOperaciones></soapenv:Body></soapenv:Envelope>"
         }
       }
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "Ds_SignatureVersion=HMAC_SHA256_V1&Ds_MerchantParameters=eyJEc19EYXRlIjoiMTIlMkYxMSUyRjIwMjYiLCJEc19Ib3VyIjoiMTAlM0EwMCIsIkRzX1NlY3VyZVBheW1lbnQiOiIxIiwiRHNfQW1vdW50IjoiMTAwMCIsIkRzX0N1cnJlbmN5IjoiOTc4IiwiRHNfT3JkZXIiOiJ3aDAwMDAwMDAwMDEiLCJEc19NZXJjaGFudENvZGUiOiI5OTkwMDg4ODEiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19NZXJjaGFudERhdGEiOiIiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfQ29uc3VtZXJMYW5ndWFnZSI6IjEiLCJEc19BdXRob3Jpc2F0aW9uQ29kZSI6IjM3MjY2MyJ9&Ds_Signature=JKyDQPLGG6nGQNqLVyU7Jz1vRDPfiAZMVlq2B9cWImg%3D"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "Ds_SignatureVersion=HMAC_SHA256_V1&Ds_MerchantParameters=eyJEc19EYXRlIjoiMTIlMkYxMSUyRjIwMjYiLCJEc19Ib3VyIjoiMTAlM0EwMCIsIkRzX1NlY3VyZVBheW1lbnQiOiIxIiwiRHNfQW1vdW50IjoiMTAwMCIsIkRzX0N1cnJlbmN5IjoiOTc4IiwiRHNfT3JkZXIiOiJ3aDAwMDAwMDAwMDEiLCJEc19NZXJjaGFudENvZGUiOiI5OTkwMDg4ODEiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19NZXJjaGFudERhdGEiOiIiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfQ29uc3VtZXJMYW5ndWFnZSI6IjEiLCJEc19BdXRob3Jpc2F0aW9uQ29kZSI6IjM3MjY2MyJ9&Ds_Signature=JKyDQPLGG6nGQNqLVyU7Jz1vRDPfiAZMVlq2B9cWImg%3D"
+        }
       }
     },
     "incremental_authorization": {
@@ -624,7 +776,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "Ds_SignatureVersion=HMAC_SHA256_V1&Ds_MerchantParameters=eyJEc19EYXRlIjoiMTIlMkYxMSUyRjIwMjYiLCJEc19Ib3VyIjoiMTAlM0EwMCIsIkRzX1NlY3VyZVBheW1lbnQiOiIxIiwiRHNfQW1vdW50IjoiMTAwMCIsIkRzX0N1cnJlbmN5IjoiOTc4IiwiRHNfT3JkZXIiOiJ3aDAwMDAwMDAwMDEiLCJEc19NZXJjaGFudENvZGUiOiI5OTkwMDg4ODEiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19NZXJjaGFudERhdGEiOiIiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfQ29uc3VtZXJMYW5ndWFnZSI6IjEiLCJEc19BdXRob3Jpc2F0aW9uQ29kZSI6IjM3MjY2MyJ9&Ds_Signature=JKyDQPLGG6nGQNqLVyU7Jz1vRDPfiAZMVlq2B9cWImg%3D"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "Ds_SignatureVersion=HMAC_SHA256_V1&Ds_MerchantParameters=eyJEc19EYXRlIjoiMTIlMkYxMSUyRjIwMjYiLCJEc19Ib3VyIjoiMTAlM0EwMCIsIkRzX1NlY3VyZVBheW1lbnQiOiIxIiwiRHNfQW1vdW50IjoiMTAwMCIsIkRzX0N1cnJlbmN5IjoiOTc4IiwiRHNfT3JkZXIiOiJ3aDAwMDAwMDAwMDEiLCJEc19NZXJjaGFudENvZGUiOiI5OTkwMDg4ODEiLCJEc19UZXJtaW5hbCI6IjEiLCJEc19SZXNwb25zZSI6IjAwMDAiLCJEc19NZXJjaGFudERhdGEiOiIiLCJEc19UcmFuc2FjdGlvblR5cGUiOiIwIiwiRHNfQ29uc3VtZXJMYW5ndWFnZSI6IjEiLCJEc19BdXRob3Jpc2F0aW9uQ29kZSI6IjM3MjY2MyJ9&Ds_Signature=JKyDQPLGG6nGQNqLVyU7Jz1vRDPfiAZMVlq2B9cWImg%3D"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -640,54 +806,26 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "enrolled_for_3ds": false,
-          "return_url": "https://example.com/3ds-return"
-        },
-        "sample": {
-          "url": "https://sis-t.redsys.es:25443/sis/rest/iniciaPeticionREST",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
-        }
+        "status": "error",
+        "error": "Invalid data format: ds_merchant_order. Redsys Ds_Merchant_Order is mandatory (SIS0075); no merchant reference to send or derive it from"
       }
     },
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Field 'ds_merchant_order' is too long for connector 'Redsys'"
+        "error": "Failed to encode connector request. Redsys DS_MERCHANT_PAN"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for redsys"
+        "status": "error",
+        "error": "Failed to encode connector request. Redsys DS_MERCHANT_PAN"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for redsys"
+        "status": "error",
+        "error": "Invalid data format: ds_merchant_order. Redsys Ds_Merchant_Order is mandatory (SIS0075); no merchant reference to send or derive it from"
       }
     },
     "recurring_revoke": {
@@ -753,8 +891,44 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for redsys"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"Ds_SignatureVersion\":\"HMAC_SHA256_V1\",\"Ds_MerchantParameters\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"Ds_Signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}"
+        }
       }
     },
     "token_authorize": {
@@ -766,7 +940,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for redsys"
+        "error": "This feature is not implemented: Selected payment method through redsys"
       }
     },
     "verify_redirect": {

@@ -849,10 +849,10 @@ examples_python: examples/reddot/reddot.py
 ## Redsys
 connector_id: redsys
 doc: docs/connectors/redsys.md
-scenarios: none
-payment_methods: none
-flows: authenticate, capture, get, pre_authenticate, refund, refund_get, void
-examples_python: none
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted
+flows: authorize, capture, get, handle_event, parse_event, refund, refund_get, setup_recurring, void
+examples_python: examples/redsys/redsys.py
 
 ## Revolut
 connector_id: revolut
