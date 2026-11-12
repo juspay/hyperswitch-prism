@@ -713,7 +713,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Incoming Webhook
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Shift4<T>
+    interfaces::webhooks::IncomingWebhook for Shift4<T>
 {
 }
 

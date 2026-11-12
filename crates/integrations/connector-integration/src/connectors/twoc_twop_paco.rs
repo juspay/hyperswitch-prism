@@ -815,6 +815,6 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for TwocTwopPaco<T>
+    interfaces::webhooks::IncomingWebhook for TwocTwopPaco<T>
 {
 }

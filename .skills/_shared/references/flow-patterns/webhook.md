@@ -8,7 +8,7 @@ invocation. It is a plain trait impl:
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for {ConnectorName}<T>
+    interfaces::webhooks::IncomingWebhook for {ConnectorName}<T>
 {
     // ... method overrides ...
 }
@@ -373,7 +373,7 @@ skipping the fixture is a hard error; not declaring the suite imposes no require
 
 ## Implementation Checklist
 
-- [ ] `impl connector_types::IncomingWebhook for {ConnectorName}<T>` exists (it is required by
+- [ ] `impl interfaces::webhooks::IncomingWebhook for {ConnectorName}<T>` exists (it is required by
       `ConnectorServiceTrait` — an empty block is the correct "no webhooks" stub)
 - [ ] `get_event_type` overridden and stateless (no secrets, no context)
 - [ ] `get_webhook_event_reference` overridden — the default `Ok(None)` is a silent failure

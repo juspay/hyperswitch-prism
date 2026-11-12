@@ -1,265 +1,15 @@
-use common_utils::{crypto, ext_traits::ValueExt, CustomResult};
-use domain_types::connector_types::ConnectorWebhookSecrets;
-use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use domain_types::{
+    connector_types::{
+        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
+        PayoutWebhookDetailsResponse, RefundWebhookDetailsResponse, RequestDetails,
+        WebhookDetailsResponse, WebhookIntegrityCheck, WebhookResourceReference,
+    },
+    errors::WebhookError,
+    router_data::ConnectorSpecificConfig,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::api::{ApplicationResponse, ConnectorCommon};
-
-#[derive(Debug)]
-pub struct IncomingWebhookRequestDetails<'a> {
-    /// method
-    pub method: http::Method,
-    /// uri
-    pub uri: http::Uri,
-    /// headers
-    pub headers: &'a actix_web::http::header::HeaderMap,
-    /// body
-    pub body: &'a [u8],
-    /// query_params
-    pub query_params: String,
-}
-
-#[derive(Debug)]
-pub enum IncomingWebhookFlowError {
-    /// Resource not found for the webhook
-    ResourceNotFound,
-    /// Internal error for the webhook
-    InternalError,
-}
-
-/// Trait defining incoming webhook
-#[async_trait::async_trait]
-pub trait IncomingWebhook: ConnectorCommon + Sync {
-    /// fn get_webhook_body_decoding_algorithm
-    fn get_webhook_body_decoding_algorithm(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::DecodeMessage + Send>, domain_types::errors::WebhookError>
-    {
-        Ok(Box::new(crypto::NoAlgorithm))
-    }
-
-    /// fn get_webhook_body_decoding_message
-    fn get_webhook_body_decoding_message(
-        &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Vec<u8>, domain_types::errors::WebhookError> {
-        Ok(request.body.to_vec())
-    }
-
-    /// fn decode_webhook_body
-    async fn decode_webhook_body(
-        &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        connector_name: &str,
-    ) -> CustomResult<Vec<u8>, domain_types::errors::WebhookError> {
-        let algorithm = self.get_webhook_body_decoding_algorithm(request)?;
-
-        let message = self
-            .get_webhook_body_decoding_message(request)
-            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
-        let secret = self
-            .get_webhook_source_verification_merchant_secret(
-                merchant_id,
-                connector_name,
-                connector_webhook_details,
-            )
-            .await
-            .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)?;
-
-        algorithm
-            .decode_message(&secret.secret, message.into())
-            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
-    }
-
-    /// fn get_webhook_source_verification_algorithm
-    fn get_webhook_source_verification_algorithm(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, domain_types::errors::WebhookError>
-    {
-        Ok(Box::new(crypto::NoAlgorithm))
-    }
-
-    /// fn get_webhook_source_verification_merchant_secret
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_name: &str,
-        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<ConnectorWebhookSecrets, domain_types::errors::WebhookError> {
-        let debug_suffix =
-            format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}");
-        let default_secret = "default_secret".to_string();
-        let merchant_secret = match connector_webhook_details {
-            Some(merchant_connector_webhook_details) => {
-                let connector_webhook_details = merchant_connector_webhook_details
-                    .parse_value::<MerchantConnectorWebhookDetails>(
-                        "MerchantConnectorWebhookDetails",
-                    )
-                    .change_context_lazy(|| {
-                        domain_types::errors::WebhookError::WebhookSourceVerificationFailed
-                    })
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Deserializing MerchantConnectorWebhookDetails failed {debug_suffix}"
-                        )
-                    })?;
-                ConnectorWebhookSecrets {
-                    secret: connector_webhook_details
-                        .merchant_secret
-                        .expose()
-                        .into_bytes(),
-                    additional_secret: connector_webhook_details.additional_secret,
-                }
-            }
-
-            None => ConnectorWebhookSecrets {
-                secret: default_secret.into_bytes(),
-                additional_secret: None,
-            },
-        };
-
-        //need to fetch merchant secret from config table with caching in future for enhanced performance
-
-        //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
-        //So it will fail during verification step and goes to psync flow.
-        Ok(merchant_secret)
-    }
-
-    /// fn get_webhook_source_verification_signature
-    fn get_webhook_source_verification_signature(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, domain_types::errors::WebhookError> {
-        Ok(Vec::new())
-    }
-
-    /// fn get_webhook_source_verification_message
-    fn get_webhook_source_verification_message(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, domain_types::errors::WebhookError> {
-        Ok(Vec::new())
-    }
-
-    /// fn verify_webhook_source
-    async fn verify_webhook_source(
-        &self,
-        request: &IncomingWebhookRequestDetails<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
-        connector_name: &str,
-    ) -> CustomResult<bool, domain_types::errors::WebhookError> {
-        let algorithm = self
-            .get_webhook_source_verification_algorithm(request)
-            .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)?;
-
-        let connector_webhook_secrets = self
-            .get_webhook_source_verification_merchant_secret(
-                merchant_id,
-                connector_name,
-                connector_webhook_details,
-            )
-            .await
-            .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)?;
-
-        let signature = self
-            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
-            .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)?;
-
-        let message = self
-            .get_webhook_source_verification_message(
-                request,
-                merchant_id,
-                &connector_webhook_secrets,
-            )
-            .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)?;
-
-        algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
-            .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)
-    }
-
-    /// fn get_webhook_event_type
-    fn get_webhook_event_type(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<IncomingWebhookEvent, domain_types::errors::WebhookError>;
-
-    /// fn get_webhook_resource_object
-    fn get_webhook_resource_object(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<
-        Box<dyn hyperswitch_masking::ErasedMaskSerialize>,
-        domain_types::errors::WebhookError,
-    >;
-
-    /// fn get_webhook_api_response
-    fn get_webhook_api_response(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-        _error_kind: Option<IncomingWebhookFlowError>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, domain_types::errors::WebhookError>
-    {
-        Ok(ApplicationResponse::StatusOk)
-    }
-
-    /// fn get_dispute_details
-    fn get_dispute_details(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<crate::disputes::DisputePayload, domain_types::errors::WebhookError> {
-        Err(domain_types::errors::WebhookError::WebhooksNotImplemented {
-            operation: "get_dispute_details",
-        }
-        .into())
-    }
-
-    /// fn get_external_authentication_details
-    fn get_external_authentication_details(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<
-        crate::authentication::ExternalAuthenticationPayload,
-        domain_types::errors::WebhookError,
-    > {
-        Err(domain_types::errors::WebhookError::WebhooksNotImplemented {
-            operation: "get_external_authentication_details",
-        }
-        .into())
-    }
-
-    /// fn get_mandate_details
-    fn get_mandate_details(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<
-        Option<domain_types::router_flow_types::ConnectorMandateDetails>,
-        domain_types::errors::WebhookError,
-    > {
-        Ok(None)
-    }
-
-    /// fn get_network_txn_id
-    fn get_network_txn_id(
-        &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<
-        Option<domain_types::router_flow_types::ConnectorNetworkTxnId>,
-        domain_types::errors::WebhookError,
-    > {
-        Ok(None)
-    }
-}
+use crate::api::EventAckResponse;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
@@ -303,9 +53,147 @@ pub enum IncomingWebhookEvent {
     FrmRejected,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct MerchantConnectorWebhookDetails {
-    pub merchant_secret: Secret<String>,
-    pub additional_secret: Option<Secret<String>>,
+#[derive(Debug, Clone, Copy)]
+pub enum IncomingWebhookFlowError {
+    ResourceNotFound,
+    InternalError,
+}
+
+pub trait IncomingWebhook {
+    fn verify_webhook_source(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        Ok(false)
+    }
+
+    fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck> {
+        vec![]
+    }
+
+    /// fn get_webhook_source_verification_signature
+    fn get_webhook_source_verification_signature(
+        &self,
+        _request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        Ok(Vec::new())
+    }
+
+    /// fn get_webhook_source_verification_message
+    fn get_webhook_source_verification_message(
+        &self,
+        _request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        Ok(Vec::new())
+    }
+
+    fn get_event_type(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "get_event_type",
+        }
+        .into())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        Ok(None)
+    }
+
+    fn process_payment_webhook(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "process_payment_webhook",
+        }
+        .into())
+    }
+
+    fn process_refund_webhook(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "process_refund_webhook",
+        }
+        .into())
+    }
+    fn process_dispute_webhook(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "process_dispute_webhook",
+        }
+        .into())
+    }
+
+    /// fn process_payout_webhook
+    ///
+    /// Maps a payout webhook to the same shape a `PayoutService.Get` would
+    /// return: the terminal status derived from the event type, the payout
+    /// identifiers, and the failure details when the payout failed.
+    fn process_payout_webhook(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "process_payout_webhook",
+        }
+        .into())
+    }
+
+    /// fn get_webhook_resource_object
+    fn get_webhook_resource_object(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "get_webhook_resource_object",
+        }
+        .into())
+    }
+
+    /// A minimal, structurally valid webhook body for this connector.
+    ///
+    /// Used by the field-probe to verify that webhook handling is implemented
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        b"{}"
+    }
+
+    /// fn get_webhook_api_response
+    ///
+    /// This is used by callers to decide what HTTP response
+    /// should be sent back to the connector for webhook acknowledgement.
+    fn get_webhook_api_response(
+        &self,
+        _request: RequestDetails,
+        _error_kind: Option<IncomingWebhookFlowError>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<EventAckResponse, error_stack::Report<WebhookError>> {
+        Ok(EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: None,
+        })
+    }
 }

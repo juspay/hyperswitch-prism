@@ -135,7 +135,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Flywire<T>
+    interfaces::webhooks::IncomingWebhook for Flywire<T>
 {
     fn get_webhook_source_verification_signature(
         &self,

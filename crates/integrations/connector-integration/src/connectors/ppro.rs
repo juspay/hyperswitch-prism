@@ -218,7 +218,7 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Ppro<T>
+    interfaces::webhooks::IncomingWebhook for Ppro<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"specversion":"1.0","type":"PAYMENT_CHARGE_SUCCESS","source":"probe_source","id":"probe_event_001","time":"2024-01-01T00:00:00Z","data":{"charge":{"id":"probe_txn_001","status":"SUCCEEDED","amount":1000,"currency":"EUR"}}}"#
