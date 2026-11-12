@@ -110,11 +110,12 @@ import PrismService from "../../medusa-custom-payments/src/providers/prism"
 import HyperswitchPrismService from "../../medusa-custom-payments/src/providers/service"
 import { mapPrismStatus } from "../../medusa-custom-payments/src/providers/utils"
 
-// Regression tests for the session-data hardening: storefront-supplied `data`
-// must not be able to set ids/connector state, the Authorize.Net raw-card flow
-// must not run in production or retain the PAN/CVC, webhook verification must
-// fail closed, and partial payment outcomes must not complete a cart.
-describe("security hardening (unit)", () => {
+// Session-data handling: re-initiation stores only expected fields (ids and
+// connector state come from the plugin), the Authorize.Net card flow is
+// sandbox-only and keeps only the last four digits after authorize,
+// `sourceVerified` must be exactly `true`, and partial payment outcomes do not
+// complete a cart.
+describe("session data handling (unit)", () => {
   let paymentClientMock: any
   let eventClientMock: any
 
@@ -142,11 +143,11 @@ describe("security hardening (unit)", () => {
       context: { idempotency_key: "payses_server" },
     } as any)
 
-  // Fields an attacker would try to smuggle in through re-initiation.
-  const injected = {
-    id: "tr_victim",
-    connectorTransactionId: "tr_victim",
-    merchantClientSessionId: "attacker_session",
+  // Plugin-owned fields a storefront payload should not be able to set.
+  const clientOverrides = {
+    id: "tr_other",
+    connectorTransactionId: "tr_other",
+    merchantClientSessionId: "client_session",
     connector: "stripe",
     minorAmount: 1,
     currency: "jpy",
@@ -169,7 +170,7 @@ describe("security hardening (unit)", () => {
     ]
 
     it.each(cases)("%s keeps only allow-listed fields", async (connector, fields, kept) => {
-      const result = await reinit(buildService(connector), { ...injected, ...fields })
+      const result = await reinit(buildService(connector), { ...clientOverrides, ...fields })
       const data = result.data as Record<string, unknown>
 
       expect(result.id).toBe("payses_server")
@@ -189,7 +190,7 @@ describe("security hardening (unit)", () => {
       const service = buildService("mollie", { profileToken: { value: "pfl_server" } })
       const result = await reinit(service, {
         paymentMethodType: "klarna",
-        profileId: "pfl_attacker",
+        profileId: "pfl_client",
         billing: { firstName: "A", email: "a@b.c", line1: "1 St", evil: { nested: true } },
       })
       const data = result.data as any
@@ -202,7 +203,7 @@ describe("security hardening (unit)", () => {
   describe("mollie authorize", () => {
     it("creates a new payment instead of syncing a client-supplied transaction id", async () => {
       const service = buildService("mollie", { profileToken: { value: "pfl" } })
-      const session = await reinit(service, { ...injected, cardToken: "tkn_1" })
+      const session = await reinit(service, { ...clientOverrides, cardToken: "tkn_1" })
       paymentClientMock.authorize.mockResolvedValue({ status: 6, connectorTransactionId: "tr_new" })
 
       const result = await service.authorizePayment({ data: session.data } as any)
@@ -284,7 +285,7 @@ describe("security hardening (unit)", () => {
     })
   })
 
-  describe("webhook verification fails closed", () => {
+  describe("webhook sourceVerified handling", () => {
     it.each([
       ["missing", {}],
       ["undefined", { sourceVerified: undefined }],

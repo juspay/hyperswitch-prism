@@ -78,11 +78,10 @@ const KLARNA_BILLING_FIELDS = [
 // Mollie Components re-initiation: store the client-tokenized cardToken (and the
 // storefront return URL for the 3DS redirect) on the session — no network call.
 //
-// The storefront's `data` is untrusted: only the allow-listed fields below are
-// persisted. In particular `id` / `connectorTransactionId` are never taken from
-// the client — authorizePayment status-syncs an existing payment when
-// `connectorTransactionId` is set, so a client-supplied value would let a
-// shopper complete a cart against a different (already paid) Mollie payment.
+// Only the allow-listed fields below are stored from the storefront's `data`.
+// `id` / `connectorTransactionId` are always set by the plugin: authorizePayment
+// status-syncs an existing payment when `connectorTransactionId` is set, so it
+// must only ever come from the connector's authorize response.
 export async function reInitiatePayment({
   data,
   merchantClientSessionId,

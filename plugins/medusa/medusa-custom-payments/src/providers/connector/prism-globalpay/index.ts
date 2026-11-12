@@ -33,8 +33,8 @@ export type GlobalpayReInitiateContext = {
 }
 
 // Re-initiation with card token — skip access-token fetch, just store the token.
-// The storefront's `data` is untrusted: only allow-listed fields are persisted,
-// never ids or connector state (see pickStrings).
+// Only the allow-listed fields from the storefront's `data` are stored; ids and
+// connector state are always set by the plugin (see pickStrings).
 export async function reInitiatePayment({
   data,
   merchantClientSessionId,

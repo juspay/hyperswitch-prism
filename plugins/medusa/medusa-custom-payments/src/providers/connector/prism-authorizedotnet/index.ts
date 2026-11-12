@@ -88,8 +88,8 @@ function redactCard(data: Record<string, any>): Record<string, any> {
 
 // Re-initiation: persist the card the buyer entered in the test client. No network
 // call — authorizePayment forwards the card to the connector at cart-complete time.
-// The storefront's `data` is untrusted: only allow-listed fields are persisted,
-// never ids or connector state (see pickStrings).
+// Only the allow-listed fields from the storefront's `data` are stored; ids and
+// connector state are always set by the plugin (see pickStrings).
 export async function reInitiatePayment({
   data,
   merchantClientSessionId,

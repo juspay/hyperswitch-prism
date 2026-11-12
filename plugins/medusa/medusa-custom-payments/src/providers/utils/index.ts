@@ -82,11 +82,10 @@ export function extractValue(raw: any): string | null {
 /**
  * Copies only the named string fields from storefront-supplied session data.
  *
- * Re-initiation `data` comes straight from the store API, so it must never be
- * spread into the persisted session: fields such as `id`,
- * `connectorTransactionId`, `merchantClientSessionId` or `connector` drive
- * server-side decisions (status sync, void, refund) and must only ever be set
- * by the plugin itself.
+ * Re-initiation `data` comes from the store API, so it is not spread into the
+ * stored session as-is: fields such as `id`, `connectorTransactionId`,
+ * `merchantClientSessionId` or `connector` drive status sync, void and refund,
+ * and are only ever set by the plugin itself.
  */
 export function pickStrings<K extends string>(
   source: unknown,

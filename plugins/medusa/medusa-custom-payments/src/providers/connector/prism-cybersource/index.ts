@@ -28,8 +28,8 @@ export type CybersourceReInitiateContext = {
 // Re-initiation with the Flex transient token — the Microform SDK has already
 // tokenised the card on the client, so we only persist the token in the session.
 // No network call: authorizePayment forwards it to UCS as the connectorToken.
-// The storefront's `data` is untrusted: only allow-listed fields are persisted,
-// never ids or connector state (see pickStrings).
+// Only the allow-listed fields from the storefront's `data` are stored; ids and
+// connector state are always set by the plugin (see pickStrings).
 export async function reInitiatePayment({
   data,
   merchantClientSessionId,
