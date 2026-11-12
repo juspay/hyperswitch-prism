@@ -1335,9 +1335,7 @@ pub(super) fn build_worldpayxml_sender_party(
                 last: individual
                     .last_name
                     .clone()
-                    .ok_or_else(utils::missing_field_err(
-                        "sender_details.last_name",
-                    ))?,
+                    .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
             },
             individual
                 .address

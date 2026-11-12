@@ -605,9 +605,7 @@ pub(super) fn build_checkout_sender(
             last_name: individual
                 .last_name
                 .clone()
-                .ok_or_else(utils::missing_field_err(
-                    "sender_details.last_name",
-                ))?,
+                .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
             // For backward compatibility, fall back to the customer's date of birth, which was
             // the only source of the sender's date of birth before sender details were added.
             date_of_birth: match individual.date_of_birth.clone() {
