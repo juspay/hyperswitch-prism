@@ -39,7 +39,7 @@ use transformers::{
     NetceteraPreAuthenticateResponse,
 };
 
-use super::macros;
+use crate::connectors::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
@@ -54,7 +54,7 @@ pub(crate) mod headers {
 // other flows get marker traits from `macro_connector_flow_status_impls!`.
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ConnectorServiceTrait<T> for Netcetera<T>
+    connector_types::AuthenticatorServiceTrait<T> for Netcetera<T>
 {
 }
 

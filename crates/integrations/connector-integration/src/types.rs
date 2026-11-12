@@ -59,7 +59,6 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Paytm => Box::new(connectors::Paytm::new()),
             ConnectorEnum::Cashtocode => Box::new(connectors::Cashtocode::new()),
             ConnectorEnum::Novalnet => Box::new(connectors::Novalnet::new()),
-            ConnectorEnum::Netcetera => Box::new(connectors::Netcetera::new()),
             ConnectorEnum::Nexinets => Box::new(connectors::Nexinets::new()),
             ConnectorEnum::Noon => Box::new(connectors::Noon::new()),
             ConnectorEnum::Volt => Box::new(connectors::Volt::new()),
@@ -340,12 +339,16 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
 }
 
 #[derive(Clone)]
-pub struct AuthenticatorConnectorData {
-    pub connector: BoxedAuthenticatorConnector,
+pub struct AuthenticatorConnectorData<
+    T: PaymentMethodDataTypes + 'static = domain_types::payment_method_data::DefaultPCIHolder,
+> {
+    pub connector: BoxedAuthenticatorConnector<T>,
     pub connector_name: AuthenticatorConnectorEnum,
 }
 
-impl AuthenticatorConnectorData {
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    AuthenticatorConnectorData<T>
+{
     pub fn get_connector_by_name(connector_name: &AuthenticatorConnectorEnum) -> Self {
         let connector = Self::convert_connector(*connector_name);
         Self {
@@ -356,16 +359,21 @@ impl AuthenticatorConnectorData {
 
     fn convert_connector(
         connector_name: AuthenticatorConnectorEnum,
-    ) -> BoxedAuthenticatorConnector {
+    ) -> BoxedAuthenticatorConnector<T> {
         match connector_name {
-            AuthenticatorConnectorEnum::Plaid => Box::new(authenticator_connectors::Plaid::<
-                domain_types::payment_method_data::DefaultPCIHolder,
-            >::new()),
+            AuthenticatorConnectorEnum::Plaid => {
+                Box::new(authenticator_connectors::Plaid::<T>::new())
+            }
+            AuthenticatorConnectorEnum::Netcetera => {
+                Box::new(authenticator_connectors::Netcetera::<T>::new())
+            }
         }
     }
 }
 
-impl ConnectorDataProvider for AuthenticatorConnectorData {
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    ConnectorDataProvider for AuthenticatorConnectorData<T>
+{
     type ConnectorEnumType = AuthenticatorConnectorEnum;
 
     fn from_connector_variant(

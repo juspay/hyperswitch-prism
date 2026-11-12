@@ -78,7 +78,6 @@ pub enum ConnectorEnum {
     Payu,
     Cashtocode,
     Novalnet,
-    Netcetera,
     Nexinets,
     Noon,
     Braintree,
@@ -223,7 +222,7 @@ pub enum FrmConnectorEnum {
     ClearsaleBr,
 }
 
-/// Enum representing connectors that support authenticator flows (account linking, identity verification)
+/// Enum representing connectors that support authenticator flows (3DS, account linking, identity verification)
 #[derive(
     Clone,
     Copy,
@@ -239,6 +238,7 @@ pub enum FrmConnectorEnum {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticatorConnectorEnum {
+    Netcetera,
     Plaid,
 }
 
@@ -385,6 +385,7 @@ impl ForeignTryFrom<AuthType> for AuthenticatorConnectorEnum {
     fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
         match config {
             AuthType::Plaid(_) => Ok(Self::Plaid),
+            AuthType::Netcetera(_) => Ok(Self::Netcetera),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -6864,7 +6865,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::ClearsaleBr(_) => Ok(Self::Frm(FrmConnectorEnum::ClearsaleBr)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
-            AuthType::Netcetera(_) => Ok(Self::Payment(ConnectorEnum::Netcetera)),
+            AuthType::Netcetera(_) => {
+                Ok(Self::Authenticator(AuthenticatorConnectorEnum::Netcetera))
+            }
         }
     }
 }

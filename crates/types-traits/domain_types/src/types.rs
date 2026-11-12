@@ -1008,6 +1008,7 @@ impl Connectors {
         };
         match connector {
             AuthenticatorConnectorEnum::Plaid => patched.plaid.apply(params_patch),
+            AuthenticatorConnectorEnum::Netcetera => patched.netcetera.apply(params_patch),
         }
         Ok(patched)
     }

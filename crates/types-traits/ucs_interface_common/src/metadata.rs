@@ -437,4 +437,22 @@ mod tests {
         let connector = connector_from_metadata(&metadata).expect("should resolve");
         assert_eq!(connector, connector_types::ConnectorEnum::Stripe);
     }
+
+    #[test]
+    fn netcetera_uses_the_authenticator_header() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(
+            consts::X_AUTHENTICATOR_CONNECTOR_NAME,
+            "netcetera".parse().unwrap(),
+        );
+        assert_eq!(
+            connector_variant_from_metadata(&metadata).expect("authenticator should resolve"),
+            connector_types::ConnectorVariant::Authenticator(
+                connector_types::AuthenticatorConnectorEnum::Netcetera
+            )
+        );
+        metadata.remove(consts::X_AUTHENTICATOR_CONNECTOR_NAME);
+        metadata.insert(consts::X_CONNECTOR_NAME, "netcetera".parse().unwrap());
+        assert!(connector_variant_from_metadata(&metadata).is_err());
+    }
 }

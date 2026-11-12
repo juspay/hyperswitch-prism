@@ -240,11 +240,11 @@ where
                 >::get_connector_by_name(c)
                 .connector
                 .should_do_access_token(payment_method),
-                ConnectorVariant::Authenticator(c) => {
-                    AuthenticatorConnectorData::get_connector_by_name(c)
-                        .connector
-                        .should_do_access_token(payment_method)
-                }
+                ConnectorVariant::Authenticator(c) => AuthenticatorConnectorData::<
+                    domain_types::payment_method_data::DefaultPCIHolder,
+                >::get_connector_by_name(c)
+                .connector
+                .should_do_access_token(payment_method),
                 _ => false,
             }
         };
@@ -314,13 +314,15 @@ where
                         is_wallet_decrypted_network_token,
                     ),
                     ConnectorVariant::Authenticator(c) => {
-                        AuthenticatorConnectorData::get_connector_by_name(c)
-                            .connector
-                            .should_do_payment_method_token(
-                                payment_method,
-                                payment_method_type,
-                                is_wallet_decrypted_network_token,
-                            )
+                        AuthenticatorConnectorData::<
+                            domain_types::payment_method_data::DefaultPCIHolder,
+                        >::get_connector_by_name(c)
+                        .connector
+                        .should_do_payment_method_token(
+                            payment_method,
+                            payment_method_type,
+                            is_wallet_decrypted_network_token,
+                        )
                     }
                     _ => false,
                 }

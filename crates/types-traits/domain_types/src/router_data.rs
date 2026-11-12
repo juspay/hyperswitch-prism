@@ -4570,9 +4570,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // is not used for Qwikcilver — configure via the proto
                 // QwikcilverConfig path instead.
                 ConnectorEnum::Qwikcilver => Err(err().into()),
-                // Netcetera uses typed NetceteraConfig for mTLS credentials and requestor
-                // identity. Legacy credential headers cannot represent this configuration.
-                ConnectorEnum::Netcetera => Err(err().into()),
                 // Flywire requires `recipient_id` (drives currency, payout target
                 // and required institutional fields), which the legacy BodyKey
                 // creds path cannot supply. Configure Flywire via the proto
@@ -4634,6 +4631,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
             },
             connector_types::ConnectorVariant::Authenticator(connector_enum) => {
                 match connector_enum {
+                    // Legacy credential headers cannot represent NetceteraConfig.
+                    connector_types::AuthenticatorConnectorEnum::Netcetera => Err(err().into()),
                     connector_types::AuthenticatorConnectorEnum::Plaid => match auth {
                         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Plaid {
                             client_id: api_key.clone(),

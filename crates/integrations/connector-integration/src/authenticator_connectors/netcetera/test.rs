@@ -328,7 +328,11 @@ fn optional_enum_omission_differs_from_invalid_explicit_values() -> TestResult {
 #[test]
 fn post_authenticate_vault_proxy_does_not_require_a_local_certificate() -> TestResult {
     let data = post_auth_data::<VaultTokenHolder>(config(None, None))?;
-    let connector = Netcetera::<VaultTokenHolder>::new();
+    let registry =
+        crate::types::AuthenticatorConnectorData::<VaultTokenHolder>::get_connector_by_name(
+            &domain_types::connector_types::AuthenticatorConnectorEnum::Netcetera,
+        );
+    let connector = *registry.connector;
     let certificate = ConnectorIntegrationV2::get_certificate(connector, &data)
         .map_err(|error| format!("{error:?}"))?;
     let private_key = ConnectorIntegrationV2::get_certificate_key(connector, &data)
@@ -340,7 +344,11 @@ fn post_authenticate_vault_proxy_does_not_require_a_local_certificate() -> TestR
 
 #[test]
 fn post_authenticate_direct_calls_require_both_credentials() -> TestResult {
-    let connector = Netcetera::<DefaultPCIHolder>::new();
+    let registry =
+        crate::types::AuthenticatorConnectorData::<DefaultPCIHolder>::get_connector_by_name(
+            &domain_types::connector_types::AuthenticatorConnectorEnum::Netcetera,
+        );
+    let connector = *registry.connector;
     for cfg in [
         config(None, None),
         config(Some("certificate"), None),
