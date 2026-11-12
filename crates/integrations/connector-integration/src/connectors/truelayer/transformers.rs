@@ -392,7 +392,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ..
             }) => {
                 let currency = item.router_data.request.currency;
-                let amount_in_minor = item.router_data.request.amount.amount;
+                let amount_in_minor = item.router_data.request.money.amount();
 
                 let hosted_page = HostedPage {
                     return_uri: item.router_data.request.router_return_url.clone().ok_or(
@@ -1553,7 +1553,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .collect::<String>();
 
         Ok(Self {
-            amount_in_minor: item.router_data.request.refund_amount.amount,
+            amount_in_minor: item.router_data.request.refund_money.amount(),
             reference,
         })
     }

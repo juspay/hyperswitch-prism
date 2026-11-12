@@ -506,7 +506,7 @@ fn get_event_type(
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for CryptoConnector<T>
+    interfaces::webhooks::IncomingWebhook for CryptoConnector<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -933,7 +933,7 @@ impl IncomingWebhook for CryptoConnector {
 // (`crates/types-traits/interfaces/src/connector_types.rs:612`, `:629`).
 // `get_event_type` takes ONE argument; `process_payment_webhook` takes FOUR.
 // The error type is `WebhookError`, never `IntegrationError`.
-impl<T> connector_types::IncomingWebhook for CryptoConnector<T> {
+impl<T> interfaces::webhooks::IncomingWebhook for CryptoConnector<T> {
     fn get_event_type(
         &self,
         request: RequestDetails,

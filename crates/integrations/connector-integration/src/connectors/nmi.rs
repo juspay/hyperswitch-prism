@@ -118,7 +118,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Nmi<T>
+    interfaces::webhooks::IncomingWebhook for Nmi<T>
 {
     /// HMAC-SHA256 over `"{nonce}.{raw_body}"` with the merchant webhook secret,
     /// where nonce + signature come from the `webhook-signature` header
@@ -266,7 +266,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

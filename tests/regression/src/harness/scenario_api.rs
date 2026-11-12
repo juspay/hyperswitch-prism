@@ -1184,6 +1184,9 @@ fn suite_request_has_top_level_field(suite: &str, field: &str) -> bool {
         }
         "PaymentService/Get" => check::<grpc_api_types::payments::PaymentServiceGetRequest>(field),
         "RefundService/Get" => check::<grpc_api_types::payments::RefundServiceGetRequest>(field),
+        "RefundService/VoidPostRefund" => check::<
+            grpc_api_types::payments::RefundServiceVoidPostRefundRequest,
+        >(field),
         "PaymentService/SetupRecurring" => {
             check::<grpc_api_types::payments::PaymentServiceSetupRecurringRequest>(field)
         }
@@ -2426,6 +2429,28 @@ pub fn execute_tonic_request_from_payload(
                 );
                 let mut client = grpc_api_types::payments::refund_service_client::RefundServiceClient::new(channel.clone());
                 let response = client.get(request).await.map_err(|error| {
+                    ScenarioError::GrpcurlExecution {
+                        message: format!(
+                            "tonic execution failed for '{suite}/{scenario}': {error}"
+                        ),
+                    }
+                })?;
+                serialize_tonic_response(&response.into_inner())
+            }
+            "RefundService/VoidPostRefund" => {
+                let payload: grpc_api_types::payments::RefundServiceVoidPostRefundRequest =
+                    parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
+                let mut request = tonic::Request::new(payload);
+                add_connector_metadata(
+                    &mut request,
+                    &config,
+                    &merchant_id,
+                    &tenant_id,
+                    &request_id,
+                    &connector_request_reference_id,
+                );
+                let mut client = grpc_api_types::payments::refund_service_client::RefundServiceClient::new(channel.clone());
+                let response = client.void_post_refund(request).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -4847,6 +4872,7 @@ fn grpc_method_for_suite(suite: &str, spec: Option<&SuiteSpec>) -> Result<String
         "PaymentService/Void" => "types.PaymentService/Void",
         "PaymentService/Get" => "types.PaymentService/Get",
         "RefundService/Get" => "types.RefundService/Get",
+        "RefundService/VoidPostRefund" => "types.RefundService/VoidPostRefund",
         "PaymentService/SetupRecurring" => "types.PaymentService/SetupRecurring",
         "RecurringPaymentService/Charge" => "types.RecurringPaymentService/Charge",
         "PaymentService/CreateOrder" => "types.PaymentService/CreateOrder",
@@ -4910,6 +4936,7 @@ pub fn all_known_suites() -> &'static [&'static str] {
         "RecurringPaymentService/Charge",
         "PaymentService/Refund",
         "RefundService/Get",
+        "RefundService/VoidPostRefund",
         "PaymentService/Reverse",
         "RecurringPaymentService/Revoke",
         "MerchantAuthenticationService/CreateServerAuthenticationToken",
@@ -5078,6 +5105,9 @@ mod tests {
             "RefundService/Get" => validate_tonic_payload_shape::<payments::RefundServiceGetRequest>(
                 connector, suite, scenario, grpc_req,
             ),
+            "RefundService/VoidPostRefund" => validate_tonic_payload_shape::<
+                payments::RefundServiceVoidPostRefundRequest,
+            >(connector, suite, scenario, grpc_req),
             "PaymentService/SetupRecurring" => validate_tonic_payload_shape::<
                 payments::PaymentServiceSetupRecurringRequest,
             >(connector, suite, scenario, grpc_req),

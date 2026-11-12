@@ -105,7 +105,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Dlocal<T>
+    interfaces::webhooks::IncomingWebhook for Dlocal<T>
 {
     /// The signature dLocal sends with the IPN: the hex value in the
     /// `Authorization: V2-HMAC-SHA256, Signature: <hex>` header, decoded to bytes.
@@ -280,7 +280,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -560,7 +560,7 @@ macros::macro_connector_implementation!(
                     context: Default::default(),
                 })?;
 
-            if req.request.amount.amount == MinorUnit::new(0) {
+            if req.request.money.amount() == MinorUnit::new(0) {
                 Ok(format!(
                     "{}enrollments/{connector_transaction_id}",
                     self.connector_base_url_payments(req),

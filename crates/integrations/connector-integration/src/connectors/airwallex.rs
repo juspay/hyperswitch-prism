@@ -120,7 +120,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Airwallex<T>
+    interfaces::webhooks::IncomingWebhook for Airwallex<T>
 {
 }
 

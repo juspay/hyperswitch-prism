@@ -7,6 +7,7 @@
     "PaymentService/Void",
     "PaymentService/Reverse",
     "PaymentService/Refund",
+    "RefundService/VoidPostRefund",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
   ],
@@ -52,6 +53,19 @@
             "amount": "req.amount_to_capture",
             "payment_method": "req.payment_method",
             "capture_method": "req.capture_method"
+          }
+        }
+      ]
+    },
+    "PaymentService/Refund": {
+      "replace": [
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_auto_capture_credit_card",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "connector_order_id": "res.connector_transaction_id",
+            "payment_method": "req.payment_method"
           }
         }
       ]

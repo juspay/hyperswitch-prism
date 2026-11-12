@@ -194,6 +194,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
                 order_tax_amount: Some(50), // Total tax amount for the order (in minor currency units).
                 ..Default::default()
             }),
+            ..Default::default()
         }),
         ..Default::default()
     }

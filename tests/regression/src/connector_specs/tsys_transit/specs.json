@@ -5,6 +5,7 @@
     "PaymentService/Capture",
     "PaymentService/Get",
     "PaymentService/Refund",
+    "RefundService/VoidPostRefund",
     "RefundService/Get",
     "PaymentService/Void",
     "CustomerService/Create",

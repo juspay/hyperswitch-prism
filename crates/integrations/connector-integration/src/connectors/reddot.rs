@@ -220,7 +220,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // integration. Treat webhooks as unverified triggers; callers must perform
 // payment sync before accepting their reported payment status.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Reddot<T>
+    interfaces::webhooks::IncomingWebhook for Reddot<T>
 {
     fn verify_webhook_source(
         &self,
@@ -310,7 +310,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -349,7 +349,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(RedirectDetailsResponse {
             resource_id: None,
             status: None,
-            response_amount: None,
+            response_money: None,
             connector_response_reference_id: None,
             error_code: None,
             error_message: None,

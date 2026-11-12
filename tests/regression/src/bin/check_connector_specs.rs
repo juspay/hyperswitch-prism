@@ -67,6 +67,7 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
         "PSync" => Some(&["PaymentService/Get"]),
         "Capture" => Some(&["PaymentService/Capture"]),
         "Void" => Some(&["PaymentService/Void"]),
+        "VoidPostRefund" => Some(&["RefundService/VoidPostRefund"]),
         "Refund" => Some(&["PaymentService/Refund"]),
         "RSync" => Some(&["RefundService/Get"]),
         // Recurring/mandate flows
@@ -126,7 +127,6 @@ const OUT_OF_SCOPE_FLOWS: &[&str] = &[
     // into flow_to_suites above.
     "VoidPC",              // 14 connectors
     "VerifyWebhookSource", // 2 connectors
-    "VoidPostRefund",
     "Recharge",
     "CreatePaymentMethod",
     "GetPaymentMethod",

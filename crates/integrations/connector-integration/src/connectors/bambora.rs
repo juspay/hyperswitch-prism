@@ -162,7 +162,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ===== AUTHENTICATION FLOW TRAIT IMPLEMENTATIONS =====
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Bambora<T>
+    interfaces::webhooks::IncomingWebhook for Bambora<T>
 {
 }
 

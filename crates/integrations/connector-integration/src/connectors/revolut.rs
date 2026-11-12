@@ -121,7 +121,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            response_amount: None,
+            response_money: None,
             raw_connector_response: None,
             connector_feature_data: None,
         })
@@ -138,7 +138,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Revolut<T>
+    interfaces::webhooks::IncomingWebhook for Revolut<T>
 {
     fn get_webhook_integrity_checks(&self) -> Vec<connector_types::WebhookIntegrityCheck> {
         vec![connector_types::WebhookIntegrityCheck::ConnectorTransactionId]

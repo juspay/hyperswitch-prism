@@ -13,7 +13,9 @@ import {
   buildError,
   mapPrismStatus,
   mapRefundStatus,
+  BILLING_FIELDS,
   normalizeAmount,
+  pickStrings,
   toCurrency,
   toMinorAmount,
 } from "../../utils"
@@ -55,19 +57,51 @@ export type AuthorizedotnetReInitiateContext = {
   minorAmount: number
 }
 
+// Authorize.Net here is a raw-card (PAN + CVC through the backend) flow meant
+// for sandbox testing only: Medusa persists payment-session `data` in its
+// database and returns it from the store API, so live card data must never pass
+// through it. Refuse to run against the production environment.
+export function assertNotProduction(options: HyperswitchPrismOptions): void {
+  if (options.environment === "PRODUCTION") {
+    throw new Error(
+      "The authorizedotnet connector is a raw-card test integration and cannot run with environment PRODUCTION"
+    )
+  }
+}
+
+const CARD_FIELDS = [
+  "cardNumber",
+  "cardExpMonth",
+  "cardExpYear",
+  "cardCvc",
+] as const
+
+// Removes the PAN and CVC from session data once they are no longer needed,
+// keeping only what a refund-by-reference requires (last four + expiry).
+function redactCard(data: Record<string, any>): Record<string, any> {
+  const { cardNumber, cardCvc, ...rest } = data
+  return {
+    ...rest,
+    ...(cardNumber ? { cardLast4: String(cardNumber).slice(-4) } : {}),
+  }
+}
+
 // Re-initiation: persist the card the buyer entered in the test client. No network
 // call — authorizePayment forwards the card to the connector at cart-complete time.
+// Only the allow-listed fields from the storefront's `data` are stored; ids and
+// connector state are always set by the plugin (see pickStrings).
 export async function reInitiatePayment({
   data,
   merchantClientSessionId,
   currencyCode,
   minorAmount,
 }: AuthorizedotnetReInitiateContext): Promise<InitiatePaymentOutput> {
-  const d = data as any
   return {
-    id: d?.id ?? merchantClientSessionId,
+    id: merchantClientSessionId,
     data: {
-      ...d,
+      ...pickStrings(data, [...CARD_FIELDS, ...BILLING_FIELDS] as const),
+      id: merchantClientSessionId,
+      merchantClientSessionId,
       connector: "authorizedotnet",
       minorAmount,
       currency: currencyCode,
@@ -85,6 +119,7 @@ export async function authorizePayment(
   input: AuthorizePaymentInput,
   { options, paymentClient }: AuthorizedotnetAuthorizeDeps
 ): Promise<AuthorizePaymentOutput> {
+  assertNotProduction(options)
   const data = input.data as any
   const cardNumber = data?.cardNumber as string | undefined
   if (!cardNumber) {
@@ -143,12 +178,12 @@ export async function authorizePayment(
     const rawStatus =
       (res as any).status ?? types.PaymentStatus.PAYMENT_STATUS_UNSPECIFIED
     return {
-      data: {
+      data: redactCard({
         ...data,
         ...(res as any),
         connectorTransactionId: (res as any).connectorTransactionId,
         prismStatus: rawStatus,
-      },
+      }),
       status: mapPrismStatus(rawStatus),
     }
   } catch (error) {
@@ -178,7 +213,11 @@ export async function refundPayment(
     | string
     | undefined
   const currency = (d?.currency as string) || "USD"
-  const cardNumber = d?.cardNumber as string | undefined
+  // authorizePayment redacts the PAN to `cardLast4`; `cardNumber` is only a
+  // fallback for sessions authorized before that change.
+  const cardLast4 =
+    (d?.cardLast4 as string | undefined) ??
+    (d?.cardNumber ? String(d.cardNumber).slice(-4) : undefined)
 
   if (!connectorTransactionId) {
     throw buildError(
@@ -186,7 +225,7 @@ export async function refundPayment(
       new Error("Missing Authorize.Net transaction id for refund")
     )
   }
-  if (!cardNumber) {
+  if (!cardLast4) {
     throw buildError(
       "An error occurred in refundPayment",
       new Error("Missing card details for Authorize.Net refund")
@@ -199,7 +238,7 @@ export async function refundPayment(
       ? `${String(d.cardExpYear)}-${String(d.cardExpMonth).padStart(2, "0")}`
       : "XXXX"
   const creditCard = {
-    cardNumber: String(cardNumber).slice(-4),
+    cardNumber: cardLast4,
     expirationDate,
   }
 

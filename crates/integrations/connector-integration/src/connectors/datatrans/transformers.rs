@@ -473,8 +473,8 @@ impl DatatransMcpPayload for DatatransMcpAmount {
         hyperswitch_customer_money: &Money,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         Ok(Self {
-            currency: hyperswitch_customer_money.currency,
-            amount: hyperswitch_customer_money.amount,
+            currency: hyperswitch_customer_money.currency(),
+            amount: hyperswitch_customer_money.amount(),
         })
     }
 }
@@ -491,12 +491,12 @@ impl<Mcp: DatatransMcpPayload> DatatransMoney<Mcp> {
             .filter(|quote| quote.currency_conversion_type == Some(CurrencyConversionType::Mcp))
         {
             None => Ok(Self {
-                amount: Some(hyperswitch_customer_money.amount),
-                currency: hyperswitch_customer_money.currency,
+                amount: Some(hyperswitch_customer_money.amount()),
+                currency: hyperswitch_customer_money.currency(),
                 mcp: None,
             }),
             Some(quote) => {
-                let settlement = quote.merchant_order_amount.as_ref().ok_or_else(|| {
+                let settlement = quote.merchant_order_money.as_ref().ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "currency_conversion_data.quote.merchant_order_amount",
                         context: datatrans_context(
@@ -505,8 +505,8 @@ impl<Mcp: DatatransMcpPayload> DatatransMoney<Mcp> {
                     })
                 })?;
                 Ok(Self {
-                    amount: Some(settlement.amount),
-                    currency: settlement.currency,
+                    amount: Some(settlement.amount()),
+                    currency: settlement.currency(),
                     mcp: Some(Mcp::from_quote(quote, hyperswitch_customer_money)?),
                 })
             }
@@ -563,8 +563,8 @@ impl DatatransMcpPayload for DatatransMcp {
             .transpose()?;
 
         Ok(Self {
-            currency: hyperswitch_customer_money.currency,
-            amount: hyperswitch_customer_money.amount,
+            currency: hyperswitch_customer_money.currency(),
+            amount: hyperswitch_customer_money.amount(),
             conversion_rate,
             transaction_date,
             retrieval_reference_number: quote.exchange_rate_id.clone(),
@@ -821,7 +821,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auto_settle = Some(router_data.request.is_auto_capture());
 
         let money = DatatransMoney::new(
-            &router_data.request.amount,
+            &router_data.request.money,
             router_data.request.currency_conversion_data.as_ref(),
         )?;
 
@@ -1545,7 +1545,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         let money = DatatransMoney::new(
-            &router_data.request.amount,
+            &router_data.request.money,
             router_data.request.currency_conversion_data.as_ref(),
         )?;
 
@@ -1999,7 +1999,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let money = DatatransMoney::new(
-            &router_data.request.amount_to_capture,
+            &router_data.request.capture_money,
             router_data.request.currency_conversion_data.as_ref(),
         )?;
 
@@ -2099,7 +2099,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let money = DatatransMoney::new(
-            &router_data.request.refund_amount,
+            &router_data.request.refund_money,
             router_data.request.currency_conversion_data.as_ref(),
         )?;
 
@@ -2444,7 +2444,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         Ok(Self {
-            amount: router_data.request.amount.amount,
+            amount: router_data.request.money.amount(),
             currency: router_data.request.currency,
             return_url: router_data
                 .resource_common_data

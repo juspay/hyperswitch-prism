@@ -268,7 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // payload carries no status and no documented signature; the integrator must
 // follow up with `GET /v1/orders/{code}/status`.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for ClearSaleBr<T>
+    interfaces::webhooks::IncomingWebhook for ClearSaleBr<T>
 {
     // No webhook signature is documented by ClearSale (spec §11 open question
     // 2). `verify_webhook_source` therefore keeps the trait default (`Ok(false)`)
@@ -341,7 +341,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: String::from_utf8(request.body).ok(),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
