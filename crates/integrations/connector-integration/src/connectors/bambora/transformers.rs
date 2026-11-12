@@ -329,9 +329,13 @@ impl<T: PaymentMethodDataTypes>
 
         // Bambora requires province/state for US and CA addresses in 2-letter format
         // Convert full state names (e.g., "California", "New York") to 2-letter codes (e.g., "CA", "NY")
-        let province = billing_address.state.clone().and_then(|state| {
-            crate::utils::get_state_code_for_country(&state, billing_address.country)
-        });
+        let province = billing_address
+            .state
+            .as_ref()
+            .and_then(|state| state.code_or_name())
+            .and_then(|state| {
+                crate::utils::get_state_code_for_country(state, billing_address.country)
+            });
 
         let billing = BamboraBillingAddress {
             name: billing_address
@@ -354,7 +358,7 @@ impl<T: PaymentMethodDataTypes>
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&item.request.amount)
+            .convert(&item.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -491,7 +495,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&item.request.amount_to_capture)
+            .convert(&item.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })
@@ -672,7 +676,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&item.request.refund_amount)
+            .convert(&item.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -778,7 +782,7 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
         // For void, we typically void the full amount
         let minor_amount =
             item.request
-                .amount
+                .money
                 .as_ref()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
@@ -786,8 +790,7 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
                 })?;
 
         // Get currency from request
-        let currency = item
-            .request
+        item.request
             .currency
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "currency",
@@ -797,10 +800,7 @@ impl TryFrom<&RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsRespo
         // Convert amount from minor units to major units using FloatMajorUnitForConnector
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&common_utils::types::Money {
-                amount: minor_amount.amount,
-                currency,
-            })
+            .convert(minor_amount)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })

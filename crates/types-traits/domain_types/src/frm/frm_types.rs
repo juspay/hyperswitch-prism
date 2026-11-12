@@ -82,7 +82,7 @@ pub struct MerchantDetails {
 /// Request data for pre-risk check
 #[derive(Debug, Clone)]
 pub struct PreRiskCheckRequest {
-    pub amount: Money,
+    pub money: Money,
     pub customer_info: Option<CustomerInfo>,
     pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub browser_info: Option<BrowserInformation>,
@@ -122,7 +122,7 @@ pub struct PreRiskCheckResponse {
 /// Request data for post-risk check
 #[derive(Debug, Clone)]
 pub struct PostRiskCheckRequest {
-    pub amount: Money,
+    pub money: Money,
     pub customer_info: Option<CustomerInfo>,
     pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub browser_info: Option<BrowserInformation>,
@@ -157,7 +157,7 @@ pub struct PostRiskCheckResponse {
 #[derive(Debug, Clone)]
 pub struct FrmPaymentOutcomeRequest {
     pub connector_transaction_id: Option<String>,
-    pub amount: Money,
+    pub money: Money,
     pub frm_transaction_id: Option<String>,
     pub payment_status: Option<AttemptStatus>,
     pub merchant_transaction_id: Option<String>,
@@ -171,7 +171,7 @@ pub struct FrmPaymentOutcomeRequest {
 #[derive(Debug, Clone)]
 pub struct FrmRefundProcessedRequest {
     pub connector_transaction_id: Option<String>,
-    pub amount: Money,
+    pub money: Money,
     pub frm_transaction_id: Option<String>,
     pub connector_refund_id: Option<String>,
     pub merchant_refund_id: Option<String>,
@@ -186,7 +186,7 @@ pub struct FrmRefundProcessedRequest {
 #[derive(Debug, Clone)]
 pub struct FrmChargebackReceivedRequest {
     pub connector_transaction_id: Option<String>,
-    pub amount: Money,
+    pub money: Money,
     pub frm_transaction_id: Option<String>,
     pub connector_dispute_id: Option<String>,
     pub merchant_dispute_id: Option<String>,

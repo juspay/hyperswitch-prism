@@ -118,7 +118,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            response_amount: None,
+            response_money: None,
             raw_connector_response: None,
             connector_feature_data: None,
         })
@@ -281,6 +281,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _payment_method: common_enums::PaymentMethod,
         redirect_state: RedirectState,
         _completed_step: Option<AuthenticationStep>,
+        _payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> AuthenticationStep {
         match redirect_state {
             RedirectState::InitialRequest => AuthenticationStep::Authenticate,

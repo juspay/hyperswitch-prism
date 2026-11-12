@@ -18,11 +18,14 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
     "create_client_authentication_token",
+    "create_order",
     "get",
     "proxy_authorize",
+    "proxy_setup_recurring",
     "recurring_charge",
     "refund",
     "refund_get",
+    "setup_recurring",
     "token_authorize",
     "void",
 ];
@@ -39,6 +42,7 @@ fn build_client() -> ConnectorClient {
                 secret_key: Some(hyperswitch_masking::Secret::new(
                     "YOUR_SECRET_KEY".to_string(),
                 )), // Authentication credential
+                country_of_incorporation: Some(CountryAlpha2::Is.into()), // Replace with the country assigned during onboarding
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
             })),
@@ -56,7 +60,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         amount: Some(Money {
             // The amount for the payment.
             minor_amount: 1000,
-            currency: Currency::Usd.into(),
+            currency: Currency::Eur.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
@@ -78,6 +82,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
+                country_alpha2_code: Some(CountryAlpha2::Is.into()),
                 ..Default::default()
             }),
             ..Default::default()
@@ -95,7 +100,7 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
         amount_to_capture: Some(Money {
             // Capture Details.
             minor_amount: 1000,
-            currency: Currency::Usd.into(),
+            currency: Currency::Eur.into(),
         }),
         ..Default::default()
     }
@@ -105,7 +110,19 @@ pub fn build_create_client_authentication_token_request(
 ) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
         merchant_client_session_id: "probe_sdk_session_001".to_string(), // Infrastructure.
-        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
+        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "EUR"}}}
+        ..Default::default()
+    }
+}
+
+pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
+    PaymentServiceCreateOrderRequest {
+        merchant_order_id: Some("probe_order_001".to_string()), // Identification.
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000,
+            currency: Currency::Eur.into(),
+        }),
         ..Default::default()
     }
 }
@@ -117,7 +134,7 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
         amount: Some(Money {
             // Amount Information.
             minor_amount: 1000,
-            currency: Currency::Usd.into(),
+            currency: Currency::Eur.into(),
         }),
         ..Default::default()
     }
@@ -128,7 +145,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
         merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
         amount: Some(Money {
             minor_amount: 1000,
-            currency: Currency::Usd.into(),
+            currency: Currency::Eur.into(),
         }),
         card_proxy: Some(ProxyCardDetails {
             // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
@@ -142,6 +159,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
         }),
         address: Some(PaymentAddress {
             billing_address: Some(Address {
+                country_alpha2_code: Some(CountryAlpha2::Is.into()),
                 ..Default::default()
             }),
             ..Default::default()
@@ -149,6 +167,47 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
         capture_method: Some(CaptureMethod::Automatic.into()),
         auth_type: AuthenticationType::NoThreeDs.into(),
         return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
+pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurringRequest {
+    PaymentServiceProxySetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_proxy_mandate_001".to_string(),
+        amount: Some(Money {
+            minor_amount: 0,
+            currency: Currency::Eur.into(),
+        }),
+        card_proxy: Some(ProxyCardDetails {
+            // Card proxy for vault-aliased payments.
+            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
+            card_exp_month: Some(Secret::new("03".to_string())),
+            card_exp_year: Some(Secret::new("2030".to_string())),
+            card_cvc: Some(Secret::new("123".to_string())),
+            card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
+            ..Default::default()
+        }),
+        customer: Some(Customer {
+            name: Some("John Doe".to_string()),
+            email: Some(Secret::new("test@example.com".to_string())),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                country_alpha2_code: Some(CountryAlpha2::Is.into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/return".to_string()),
+        customer_acceptance: Some(CustomerAcceptance {
+            acceptance_type: AcceptanceType::Offline.into(), // Type of acceptance (e.g., online, offline).
+            accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            ..Default::default()
+        }),
+        auth_type: AuthenticationType::NoThreeDs.into(),
+        setup_future_usage: Some(FutureUsage::OffSession.into()),
         ..Default::default()
     }
 }
@@ -163,7 +222,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
         amount: Some(Money {
             // Amount Information.
             minor_amount: 1000,
-            currency: Currency::Usd.into(),
+            currency: Currency::Eur.into(),
         }),
         payment_method: Some(PaymentMethod {
             // Optional payment Method Information (for network transaction flows).
@@ -190,7 +249,7 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
         payment_amount: 1000, // Amount Information.
         refund_amount: Some(Money {
             minor_amount: 1000,
-            currency: Currency::Usd.into(),
+            currency: Currency::Eur.into(),
         }),
         reason: Some("customer_request".to_string()), // Reason for the refund.
         ..Default::default()
@@ -206,12 +265,59 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
     }
 }
 
+pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
+    PaymentServiceSetupRecurringRequest {
+        merchant_recurring_payment_id: "probe_mandate_001".to_string(), // Identification.
+        amount: Some(Money {
+            // Mandate Details.
+            minor_amount: 0,
+            currency: Currency::Eur.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        customer: Some(Customer {
+            name: Some("John Doe".to_string()),
+            email: Some(Secret::new("test@example.com".to_string())),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                country_alpha2_code: Some(CountryAlpha2::Is.into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        auth_type: AuthenticationType::NoThreeDs.into(), // Type of authentication to be used.
+        enrolled_for_3ds: false, // Indicates if the customer is enrolled for 3D Secure.
+        return_url: Some("https://example.com/mandate-return".to_string()), // URL to redirect after setup.
+        setup_future_usage: Some(FutureUsage::OffSession.into()), // Indicates future usage intention.
+        request_incremental_authorization: false, // Indicates if incremental authorization is requested.
+        customer_acceptance: Some(CustomerAcceptance {
+            // Details of customer acceptance.
+            acceptance_type: AcceptanceType::Offline.into(), // Type of acceptance (e.g., online, offline).
+            accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
 pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
     PaymentServiceTokenAuthorizeRequest {
         merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
         amount: Some(Money {
             minor_amount: 1000,
-            currency: Currency::Usd.into(),
+            currency: Currency::Eur.into(),
         }),
         connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())), // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
         address: Some(PaymentAddress {
@@ -479,6 +585,18 @@ pub async fn process_create_client_authentication_token(
     Ok(format!("status: {:?}", response.status_code))
 }
 
+// Flow: PaymentService.CreateOrder
+#[allow(dead_code)]
+pub async fn process_create_order(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .create_order(build_create_order_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -507,6 +625,18 @@ pub async fn process_proxy_authorize(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentService.ProxySetupRecurring
+#[allow(dead_code)]
+pub async fn process_proxy_setup_recurring(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .proxy_setup_recurring(build_proxy_setup_recurring_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: RecurringPaymentService.Charge
 #[allow(dead_code)]
 pub async fn process_recurring_charge(
@@ -529,6 +659,27 @@ pub async fn process_refund_get(
         .refund_get(build_refund_get_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: PaymentService.SetupRecurring
+#[allow(dead_code)]
+pub async fn process_setup_recurring(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .setup_recurring(build_setup_recurring_request(), &HashMap::new(), None)
+        .await?;
+    if response.status() == PaymentStatus::Failure {
+        return Err(format!("Setup failed: {:?}", response.error).into());
+    }
+    Ok(format!(
+        "Mandate: {}",
+        response
+            .connector_recurring_payment_id
+            .as_deref()
+            .unwrap_or("")
+    ))
 }
 
 // Flow: PaymentService.TokenAuthorize
@@ -577,14 +728,17 @@ async fn main() {
         "process_create_client_authentication_token" => {
             process_create_client_authentication_token(&client, "txn_001").await
         }
+        "process_create_order" => process_create_order(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
+        "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
+        "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_get, process_proxy_authorize, process_recurring_charge, process_refund_get, process_token_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_get, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_void", flow);
             return;
         }
     };

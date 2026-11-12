@@ -101,9 +101,9 @@ fn payment_sync_data(
             address: Default::default(),
             auth_type: Default::default(),
             connector_feature_data: Default::default(),
-            amount_captured: Default::default(),
-            amount_capturable: Default::default(),
-            amount: Default::default(),
+            captured_money: Default::default(),
+            capturable_money: Default::default(),
+            money: Default::default(),
             access_token: Default::default(),
             session_token: Default::default(),
             reference_id: Default::default(),
@@ -124,7 +124,7 @@ fn payment_sync_data(
             connector_response: Default::default(),
             recurring_mandate_payment_data: Default::default(),
             order_details: Default::default(),
-            amount_authorized: Default::default(),
+            authorized_money: Default::default(),
             l2_l3_data: Default::default(),
             merchant_request_id: Default::default(),
             sender_payment_instrument_id: Default::default(),
@@ -170,8 +170,8 @@ fn refund_data() -> RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsRes
             webhook_url: Default::default(),
             connector_feature_data: Default::default(),
             refund_connector_metadata: Default::default(),
-            payment_amount: Default::default(),
-            refund_amount: Default::default(),
+            payment_money: common_utils::types::Money::zero(Currency::Unspecified),
+            refund_money: common_utils::types::Money::zero(Currency::Unspecified),
             refund_status: Default::default(),
             merchant_account_id: Default::default(),
             capture_method: Default::default(),
@@ -260,9 +260,9 @@ use super::transformers::{
     ReddotAuthType, ReddotAuthorizeRequest, ReddotAuthorizeResponse, ReddotPSyncRequest,
     ReddotRefundRequest, ReddotRefundSyncResponse,
 };
-use super::{Reddot, ReddotRouterData};
+use super::{Reddot, ReddotAmountConvertor, ReddotRouterData};
 use common_enums::{CaptureMethod, Currency, RefundStatus};
-use common_utils::types::{MinorUnit, Money};
+use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{Authorize, RSync},
     connector_types::{PaymentsAuthorizeData, RefundSyncData},
@@ -284,9 +284,9 @@ fn authorize_data() -> AuthorizeData {
         connector_config: config(),
         request: PaymentsAuthorizeData {
             payment_method_data: PaymentMethodData::Card(Card::default()),
-            amount: Default::default(),
+            money: common_utils::types::Money::zero(Currency::Unspecified),
             order_tax_amount: Default::default(),
-            surcharge_amount: Default::default(),
+            surcharge_money: Default::default(),
             email: Default::default(),
             customer_document_details: Default::default(),
             customer_date_of_birth: Default::default(),
@@ -346,15 +346,17 @@ fn authorize_data() -> AuthorizeData {
             customer: Default::default(),
             business_country: Default::default(),
             enable_avs_check: Default::default(),
+            enable_account_name_verification: Default::default(),
             is_stored_credential: Default::default(),
         },
         response: Err(ErrorResponse::default()),
     };
     data.resource_common_data.connector_request_reference_id = "attempt-1".to_string();
-    data.request.amount = Money {
-        amount: MinorUnit::new(110),
-        currency: Currency::SGD,
-    };
+    data.request.money = ReddotAmountConvertor::convert_back(
+        serde_json::from_value::<StringMajorUnit>(json!("1.10")).unwrap(),
+        Currency::SGD,
+    )
+    .unwrap();
     data.request.currency = Currency::JPY; // Deliberately differ from the authoritative Money.
     data.request.email = Some("payer@example.com".parse().unwrap());
     data.request.router_return_url = Some("https://example.com/return".to_string());
@@ -502,10 +504,11 @@ fn authorize_rejects_missing_name_and_manual_capture() {
 #[test]
 fn refund_request_uses_money_currency_and_original_order_id() {
     let mut data = refund_data();
-    data.request.refund_amount = Money {
-        amount: MinorUnit::new(110),
-        currency: Currency::SGD,
-    };
+    data.request.refund_money = ReddotAmountConvertor::convert_back(
+        serde_json::from_value::<StringMajorUnit>(json!("1.10")).unwrap(),
+        Currency::SGD,
+    )
+    .unwrap();
     data.request.currency = Currency::JPY;
     data.request.connector_transaction_id = "payment-1".to_string();
     data.request.connector_feature_data =
@@ -618,14 +621,16 @@ fn payment_sync_success_and_pending_preserve_money_and_reference() {
         assert_eq!(result.resource_common_data.status, expected);
         let integrity = result.request.integrity_object.unwrap();
         assert_eq!(integrity.currency, Currency::SGD);
-        assert_eq!(integrity.amount, MinorUnit::new(110));
+        let expected_money = ReddotAmountConvertor::convert_back(
+            serde_json::from_value::<StringMajorUnit>(json!("1.10")).unwrap(),
+            Currency::SGD,
+        )
+        .unwrap();
+        assert_eq!(integrity.amount, expected_money.amount());
         if expected == AttemptStatus::Charged {
             assert_eq!(
-                result.resource_common_data.amount_captured,
-                Some(Money {
-                    amount: MinorUnit::new(110),
-                    currency: Currency::SGD
-                })
+                result.resource_common_data.captured_money,
+                Some(expected_money)
             );
         }
     }

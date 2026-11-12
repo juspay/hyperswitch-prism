@@ -117,6 +117,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let status: common_enums::AttemptStatus = webhook_body.status.into();
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id.clone())),
             status,
@@ -128,7 +130,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             response_headers: None,
             mandate_reference: None,
-            amount_captured: None,
+            captured_money: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,

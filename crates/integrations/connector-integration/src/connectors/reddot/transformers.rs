@@ -448,11 +448,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let auth = ReddotAuthType::try_from(&router_data.connector_config)?;
-        let amount = ReddotAmountConvertor::convert(&router_data.request.amount)?;
+        let amount = ReddotAmountConvertor::convert(&router_data.request.money)?;
         let redirect_url = router_data.request.get_router_return_url()?;
         let notify_url = router_data.request.get_webhook_url()?;
         let payer_email = router_data.request.get_email()?;
-        let ccy = router_data.request.amount.currency.to_string();
+        let ccy = router_data.request.money.currency().to_string();
         // Retries of one payment attempt reuse the same order ID. Keep the
         // full caller reference separately in merchant_reference.
         let order_id = generate_reddot_order_id(
@@ -536,7 +536,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_type: RDP_PAYMENT_TYPE_SALE.to_string(),
                     order_id,
                     amount,
-                    ccy: router_data.request.amount.currency,
+                    ccy: router_data.request.money.currency(),
                     card_no: card_data.card_number.clone(),
                     exp_date,
                     cvv2: card_data.card_cvc.clone(),
@@ -882,7 +882,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
         // Echo RDP's authorized amount/currency through the money framework into
         // the PSync integrity object, but only when both are present (RDP omits
         // them on non-final states). Same shape as maya's PSync transform.
-        let integrity_object = match (
+        let response_money = match (
             response.authorized_amount.clone(),
             response.authorized_ccy.clone(),
         ) {
@@ -903,13 +903,16 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                                 .to_string(),
                         ),
                     ))?;
-                Some(PaymentSynIntegrityObject {
-                    amount: amount.amount,
-                    currency,
-                })
+                Some(amount)
             }
             _ => None,
         };
+        let integrity_object = response_money
+            .as_ref()
+            .map(|money| PaymentSynIntegrityObject {
+                amount: money.amount(),
+                currency: money.currency(),
+            });
 
         // An enquiry-level error without a transaction record cannot establish
         // a new payment state. Preserve the current status and surface the error.
@@ -948,13 +951,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
                 })?;
                 // Carry the amount/currency reported by RDP as the captured
                 // amount (authorized_amount / authorized_ccy).
-                let captured_amount =
-                    integrity_object
-                        .as_ref()
-                        .map(|integrity| common_utils::types::Money {
-                            amount: integrity.amount,
-                            currency: integrity.currency,
-                        });
+                let captured_amount = response_money;
                 (
                     AttemptStatus::Charged,
                     captured_amount,
@@ -1036,7 +1033,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
             },
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured,
+                captured_money: amount_captured,
                 raw_connector_status,
                 raw_connector_response,
                 ..router_data.resource_common_data
@@ -1180,7 +1177,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.refund_amount)
+            .convert(&router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1199,7 +1196,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let amount_str = amount.get_amount_as_string();
-        let ccy = router_data.request.refund_amount.currency.to_string();
+        let ccy = router_data.request.refund_money.currency().to_string();
         // RDP `order_number` must equal the exact order_id RDP recorded at
         // authorize. It is persisted in connector_metadata["reddot_order_id"]
         // and handed back here through connector_feature_data.
@@ -1232,7 +1229,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             order_number,
             transaction_id,
             amount,
-            currency: router_data.request.refund_amount.currency,
+            currency: router_data.request.refund_money.currency(),
             signature: Secret::new(signature),
         })
     }
@@ -1296,7 +1293,7 @@ impl TryFrom<ResponseRouterData<ReddotRefundResponse, Self>>
                         ),
                     ))?;
                 Some(RefundIntegrityObject {
-                    refund_amount: refund_amount.amount,
+                    refund_amount: refund_amount.amount(),
                     currency,
                 })
             }
@@ -1524,16 +1521,16 @@ impl TryFrom<ResponseRouterData<ReddotRefundSyncResponse, Self>>
             });
         }
 
-        if !item
+        if item
             .response
             .transaction_status
             .as_deref()
-            .is_some_and(|status| !status.is_empty())
-            && !item
+            .is_none_or(|status| status.is_empty())
+            && item
                 .response
                 .refund
                 .as_ref()
-                .is_some_and(|history| !history.is_empty())
+                .is_none_or(|history| history.is_empty())
         {
             return Err(ConnectorError::response_handling_failed_with_context(
                 item.http_code,

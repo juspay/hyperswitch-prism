@@ -392,7 +392,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ..
             }) => {
                 let currency = item.router_data.request.currency;
-                let amount_in_minor = item.router_data.request.amount.amount;
+                let amount_in_minor = item.router_data.request.money.amount();
 
                 let hosted_page = HostedPage {
                     return_uri: item.router_data.request.router_return_url.clone().ok_or(
@@ -1553,7 +1553,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .collect::<String>();
 
         Ok(Self {
-            amount_in_minor: item.router_data.request.refund_amount.amount,
+            amount_in_minor: item.router_data.request.refund_money.amount(),
             reference,
         })
     }
@@ -1755,7 +1755,7 @@ fn get_address(billing: &domain_types::payment_address::Address) -> Option<Addre
                 address_line1: line1.clone(),
                 address_line2: address.line2.clone(),
                 city: city.clone(),
-                state: state.clone(),
+                state: state.code_or_name()?.clone(),
                 zip: address.zip.clone(),
                 country_code: country,
             }),

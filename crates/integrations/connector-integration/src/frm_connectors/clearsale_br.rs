@@ -328,6 +328,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("ClearSaleWebhookPayload")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(ResponseId::EncodedData(payload.code.clone())),
             status: common_enums::AttemptStatus::Pending,
             connector_response_reference_id: None,
@@ -339,7 +341,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: String::from_utf8(request.body).ok(),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

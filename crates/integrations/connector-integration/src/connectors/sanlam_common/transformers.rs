@@ -288,7 +288,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }?;
 
         Ok(Self {
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.money.amount(),
             currency: item.router_data.request.currency,
             payment_method,
             user_reference: item
@@ -531,6 +531,8 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                 let status = AttemptStatus::try_from(&payment_event.payment.status)?;
                 if is_payment_failure(status) {
                     Ok(Self {
+                        raw_connector_status: None,
+                        amount: None,
                         connector_returned_payment_method_details: None,
                         status,
                         resource_id: Some(ResponseId::ConnectorTransactionId(
@@ -547,13 +549,15 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         network_txn_id: None,
                         raw_connector_response: None,
                         response_headers: None,
-                        amount_captured: None,
+                        captured_money: None,
                         payment_method_update: None,
                         status_code: 200,
                         sender_payment_instrument_id: None,
                     })
                 } else {
                     Ok(Self {
+                        raw_connector_status: None,
+                        amount: None,
                         connector_returned_payment_method_details: None,
                         status,
                         resource_id: Some(ResponseId::ConnectorTransactionId(
@@ -567,7 +571,7 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         connector_request_reference_id: Some(payment_event.payment.user_reference),
                         raw_connector_response: None,
                         response_headers: None,
-                        amount_captured: None,
+                        captured_money: None,
                         payment_method_update: None,
                         error_code: None,
                         error_message: None,

@@ -453,6 +453,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let status = AttemptStatus::from(&body.status);
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
             status,
             connector_response_reference_id: body.reference.clone(),
@@ -464,7 +466,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(raw_body),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -489,6 +491,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let refund_status = RefundStatus::from(&body.status);
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(body.id),
             merchant_transaction_id: body.reference.clone(),
             status: refund_status,

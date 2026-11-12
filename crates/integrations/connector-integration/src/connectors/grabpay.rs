@@ -586,7 +586,7 @@ macros::macro_connector_implementation!(
                 .request
                 .refund_money
                 .as_ref()
-                .map(|money| money.currency)
+                .map(|money| money.currency())
                 .map(Ok)
                 .unwrap_or_else(|| {
                     grabpay::currency_from_connector_feature_data(
@@ -671,7 +671,7 @@ macros::macro_connector_implementation!(
                 self.connector_base_url_payments(req),
                 path_prefix,
                 partner_tx_id,
-                req.request.currency,
+                req.request.money.currency(),
             ))
         }
     }
@@ -827,6 +827,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         _completed_step: Option<connector_types::AuthenticationStep>,
+        _payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use interfaces::connector_types::{AuthenticationStep, RedirectState};
         match redirect_state {
@@ -970,6 +976,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })?;
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(connector_transaction_id)),
             status,
@@ -982,7 +990,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -1010,6 +1018,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let reason = webhook_body.effective_reason();
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: webhook_body.tx_id,
             merchant_transaction_id: webhook_body
                 .payload
@@ -1095,7 +1104,7 @@ fn process_grabpay_redirect_response(
         error_code: None,
         error_message: None,
         error_reason: None,
-        response_amount: None,
+        response_money: None,
         raw_connector_response: None,
         connector_feature_data,
     })

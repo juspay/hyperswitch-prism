@@ -371,6 +371,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let connector_returned_payment_method_details =
             trustly::extract_returned_bank_details(&details.params.data);
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
@@ -387,7 +389,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: details.params.data.accountid.clone(),
@@ -416,6 +418,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
+                raw_connector_status: None,
                 connector_refund_id: Some(details.params.data.orderid.clone()),
                 merchant_transaction_id: None,
                 status,

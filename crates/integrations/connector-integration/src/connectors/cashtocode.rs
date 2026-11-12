@@ -118,6 +118,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
@@ -133,7 +135,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,
