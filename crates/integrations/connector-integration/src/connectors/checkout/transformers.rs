@@ -563,7 +563,7 @@ pub(super) fn build_checkout_sender(
     let get_customer_date_of_birth = || {
         customer
             .and_then(|customer| customer.date_of_birth.clone())
-            .ok_or_else(utils::missing_field_err("customer.date_of_birth"))
+            .ok_or_else(utils::missing_field_err("sender_details.date_of_birth"))
     };
 
     let Some(sender_details) = sender_details else {
@@ -606,7 +606,7 @@ pub(super) fn build_checkout_sender(
                 .last_name
                 .clone()
                 .ok_or_else(utils::missing_field_err(
-                    "sender_details.individual.last_name",
+                    "sender_details.last_name",
                 ))?,
             // For backward compatibility, fall back to the customer's date of birth, which was
             // the only source of the sender's date of birth before sender details were added.

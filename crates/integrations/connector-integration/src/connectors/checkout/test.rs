@@ -179,7 +179,7 @@ fn individual_date_of_birth_falls_back_to_customer() {
     assert_eq!(value.get("date_of_birth"), Some(&json!("1970-01-01")));
 
     let error = build(Some(&sender), None).expect_err("date of birth is required");
-    assert_eq!(missing_field(&error), "customer.date_of_birth");
+    assert_eq!(missing_field(&error), "sender_details.date_of_birth");
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn without_sender_details_the_request_is_unchanged() {
     );
 
     let error = build(None, None).expect_err("date of birth is required");
-    assert_eq!(missing_field(&error), "customer.date_of_birth");
+    assert_eq!(missing_field(&error), "sender_details.date_of_birth");
 }
 
 /// `sender_details` can reach an AFT without names (e.g. built from a nameless billing address);
@@ -310,7 +310,7 @@ fn aft_individual_sender_requires_both_names() {
                 last_name: None,
                 ..individual_details(date_of_birth)
             }),
-            "sender_details.individual.last_name",
+            "sender_details.last_name",
         ),
     ] {
         let error = build(Some(&sender), None).expect_err("names are required for AFT");
