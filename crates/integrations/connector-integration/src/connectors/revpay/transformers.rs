@@ -6,7 +6,10 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::ParsingError,
     pii::Email,
-    types::{MinorUnit, StringMajorUnitWithTwoDecimals},
+    types::{
+        AmountConvertor, Money, StringMajorUnitWithTwoDecimals,
+        StringMajorUnitWithTwoDecimalsForConnector,
+    },
 };
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -34,7 +37,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 
-use crate::connectors::revpay::{RevpayAmountConvertor, RevpayRouterData};
+use crate::connectors::revpay::RevpayRouterData;
 
 // =============================================================================
 // AUTHENTICATION
@@ -91,11 +94,14 @@ impl TryFrom<&ConnectorSpecificConfig> for RevpayAuthType {
 /// prepended to the raw concatenation of the message fields — no separators,
 /// no field names, no URL-encoding. Output is the lowercase hex digest
 /// (128 chars). Verified against the doc's known-answer vectors in tests below.
-fn generate_revpay_signature(merchant_key: &str, fields: &[&str]) -> String {
-    let preimage = std::iter::once(merchant_key)
-        .chain(fields.iter().copied())
-        .collect::<String>();
-    hex::encode(Sha512::digest(preimage.as_bytes()))
+fn generate_revpay_signature(
+    merchant_key: &str,
+    fields: &[&dyn common_utils::crypto::SignatureValue],
+) -> Secret<String> {
+    let mut digest = Sha512::new();
+    digest.update(merchant_key.as_bytes());
+    common_utils::crypto::update_signature(fields, |bytes| digest.update(bytes));
+    Secret::new(hex::encode(digest.finalize()))
 }
 
 // =============================================================================
@@ -103,13 +109,14 @@ fn generate_revpay_signature(merchant_key: &str, fields: &[&str]) -> String {
 // =============================================================================
 
 /// Parse a connector-echoed `Amount` through the same shared converter used for
-/// request encoding, returning framework minor units for the integrity object.
+/// request encoding, returning domain Money for the integrity object.
 pub fn parse_revpay_amount(
+    converter: &dyn AmountConvertor<Output = StringMajorUnitWithTwoDecimals>,
     amount: &str,
     currency: Currency,
-) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+) -> Result<Money, error_stack::Report<ParsingError>> {
     let amount = amount.parse::<StringMajorUnitWithTwoDecimals>()?;
-    RevpayAmountConvertor::convert_back(amount, currency).map(|money| money.amount)
+    converter.convert_back(amount, currency)
 }
 
 // =============================================================================
@@ -577,7 +584,7 @@ pub struct RevpayPaymentsRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "Key_Index")]
     pub key_index: u32,
     #[serde(rename = "Signature")]
-    pub signature: String,
+    pub signature: Secret<String>,
     /// Card-side fields are flattened in; omitted for wallets, FPX and DuitNow QR.
     #[serde(flatten)]
     pub payment_method_fields: Option<RevpayCardDetails<T>>,
@@ -598,6 +605,20 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        Self::from_router_data(item, &StringMajorUnitWithTwoDecimalsForConnector)
+    }
+}
+
+impl<T: PaymentMethodDataTypes> RevpayPaymentsRequest<T> {
+    fn from_router_data(
+        item: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+        converter: &dyn AmountConvertor<Output = StringMajorUnitWithTwoDecimals>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let auth = RevpayAuthType::try_from(&item.connector_config)?;
 
         // Key_Index is Int(3) on the wire; it is configured as a string.
@@ -613,7 +634,12 @@ impl<T: PaymentMethodDataTypes>
 
         let currency = item.request.currency;
         let currency_str = currency.to_string();
-        let amount = RevpayAmountConvertor::convert(&item.request.amount)?
+        let amount = converter
+            .convert(&item.request.amount)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "amount",
+                context: IntegrationErrorContext::default(),
+            })?
             .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.amount",
@@ -632,7 +658,7 @@ impl<T: PaymentMethodDataTypes>
             &[
                 auth.merchant_id.peek(),
                 &reference_number,
-                amount.get_amount_as_string(),
+                &amount,
                 &currency_str,
             ],
         );
@@ -829,7 +855,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(&wrapper.router_data)
+        Self::from_router_data(&wrapper.router_data, wrapper.connector.amount_converter)
     }
 }
 
@@ -886,7 +912,7 @@ pub struct RevpayPaymentsResponse {
     // duplicated for initial Payment responses here: a "09" redirect response
     // can omit Transaction_ID, which is part of that response preimage.
     #[serde(rename = "Signature", skip_serializing_if = "Option::is_none")]
-    pub signature: Option<String>,
+    pub signature: Option<Secret<String>>,
     #[serde(
         rename = "Bank_Reference_Number",
         skip_serializing_if = "Option::is_none"
@@ -977,6 +1003,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
         // connector genuinely omits it.
         let integrity_amount = match &response.amount {
             Some(amount) => parse_revpay_amount(
+                &StringMajorUnitWithTwoDecimalsForConnector,
                 &amount.as_two_decimal_string(),
                 router_data.request.currency,
             )
@@ -985,7 +1012,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
                 "revpay",
             ))
             .attach_printable("revpay: echoed Amount is not in revPAY's 2-decimal form")?,
-            None => router_data.request.amount.amount,
+            None => router_data.request.amount.clone(),
         };
         let integrity_currency = response
             .currency
@@ -1022,7 +1049,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
             response: Ok(payments_response_data),
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: integrity_amount,
+                    amount: integrity_amount.amount,
                     currency: integrity_currency,
                 }),
                 ..router_data.request.clone()
@@ -1064,7 +1091,7 @@ pub struct RevpayPSyncRequest {
     #[serde(rename = "Key_Index")]
     pub key_index: u32,
     #[serde(rename = "Signature")]
-    pub signature: String,
+    pub signature: Secret<String>,
 }
 
 impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>>
@@ -1075,6 +1102,15 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
     fn try_from(
         item: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        Self::from_router_data(item, &StringMajorUnitWithTwoDecimalsForConnector)
+    }
+}
+
+impl RevpayPSyncRequest {
+    fn from_router_data(
+        item: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        converter: &dyn AmountConvertor<Output = StringMajorUnitWithTwoDecimals>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let auth = RevpayAuthType::try_from(&item.connector_config)?;
 
         // Key_Index is Int(3) on the wire; it is configured as a string.
@@ -1112,7 +1148,12 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
         // reconstruction.
         let currency = item.request.currency;
         let currency_str = currency.to_string();
-        let amount = RevpayAmountConvertor::convert(&item.request.amount)?
+        let amount = converter
+            .convert(&item.request.amount)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "amount",
+                context: IntegrationErrorContext::default(),
+            })?
             .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.amount",
@@ -1127,7 +1168,7 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
             &[
                 auth.merchant_id.peek(),
                 &reference_number,
-                amount.get_amount_as_string(),
+                &amount,
                 &currency_str,
             ],
         );
@@ -1161,7 +1202,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(&wrapper.router_data)
+        Self::from_router_data(&wrapper.router_data, wrapper.connector.amount_converter)
     }
 }
 
@@ -1222,17 +1263,17 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
             .and_then(|echoed| Currency::from_str(echoed).ok())
             .unwrap_or(router_data.request.currency);
         let integrity_amount = match &response.amount {
-            Some(amount) => {
-                parse_revpay_amount(&amount.as_two_decimal_string(), integrity_currency)
-                    .change_context(crate::utils::response_handling_fail_for_connector(
-                        item.http_code,
-                        "revpay",
-                    ))
-                    .attach_printable(
-                        "revpay: inquiry echoed Amount is not in revPAY's 2-decimal form",
-                    )?
-            }
-            None => router_data.request.amount.amount,
+            Some(amount) => parse_revpay_amount(
+                &StringMajorUnitWithTwoDecimalsForConnector,
+                &amount.as_two_decimal_string(),
+                integrity_currency,
+            )
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "revpay",
+            ))
+            .attach_printable("revpay: inquiry echoed Amount is not in revPAY's 2-decimal form")?,
+            None => router_data.request.amount.clone(),
         };
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -1267,7 +1308,7 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
             response: Ok(payments_response_data),
             request: PaymentsSyncData {
                 integrity_object: Some(PaymentSynIntegrityObject {
-                    amount: integrity_amount,
+                    amount: integrity_amount.amount,
                     currency: integrity_currency,
                 }),
                 ..router_data.request.clone()
@@ -1336,7 +1377,7 @@ pub struct RevpayRefundRequest {
     #[serde(rename = "Key_Index")]
     pub key_index: u32,
     #[serde(rename = "Signature")]
-    pub signature: String,
+    pub signature: Secret<String>,
 }
 
 impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>
@@ -1347,6 +1388,15 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
     fn try_from(
         item: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
+        Self::from_router_data(item, &StringMajorUnitWithTwoDecimalsForConnector)
+    }
+}
+
+impl RevpayRefundRequest {
+    fn from_router_data(
+        item: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        converter: &dyn AmountConvertor<Output = StringMajorUnitWithTwoDecimals>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let auth = RevpayAuthType::try_from(&item.connector_config)?;
 
         // Key_Index is Int(3) on the wire; it is configured as a string.
@@ -1374,7 +1424,12 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
 
         // Refund_Amount in the exact 2-decimal form that is also signed;
         // partial refunds are supported by the API (§2.5).
-        let refund_amount = RevpayAmountConvertor::convert(&item.request.refund_amount)?
+        let refund_amount = converter
+            .convert(&item.request.refund_amount)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "amount",
+                context: IntegrationErrorContext::default(),
+            })?
             .validate_unsigned("Refund_Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.refund_amount",
@@ -1390,7 +1445,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
             &[
                 auth.merchant_id.peek(),
                 &reference_number,
-                refund_amount.get_amount_as_string(),
+                &refund_amount,
                 &original_reference_number,
             ],
         );
@@ -1421,7 +1476,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(&wrapper.router_data)
+        Self::from_router_data(&wrapper.router_data, wrapper.connector.amount_converter)
     }
 }
 
@@ -1456,7 +1511,7 @@ pub struct RevpayRefundResponse {
     // the signature in the wire model; this transformer only maps the refund
     // outcome and does not perform synchronous-response signature verification.
     #[serde(rename = "Signature", skip_serializing_if = "Option::is_none")]
-    pub signature: Option<String>,
+    pub signature: Option<Secret<String>>,
 }
 
 impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
@@ -1514,17 +1569,17 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
         // the request side (§2.5 refund table has no currency echo).
         let integrity_currency = router_data.request.currency;
         let integrity_amount = match &response.refund_amount {
-            Some(amount) => {
-                parse_revpay_amount(&amount.as_two_decimal_string(), integrity_currency)
-                    .change_context(crate::utils::response_handling_fail_for_connector(
-                        item.http_code,
-                        "revpay",
-                    ))
-                    .attach_printable(
-                        "revpay: echoed Refund_Amount is not in revPAY's 2-decimal form",
-                    )?
-            }
-            None => router_data.request.refund_amount.amount,
+            Some(amount) => parse_revpay_amount(
+                &StringMajorUnitWithTwoDecimalsForConnector,
+                &amount.as_two_decimal_string(),
+                integrity_currency,
+            )
+            .change_context(crate::utils::response_handling_fail_for_connector(
+                item.http_code,
+                "revpay",
+            ))
+            .attach_printable("revpay: echoed Refund_Amount is not in revPAY's 2-decimal form")?,
+            None => router_data.request.refund_amount.clone(),
         };
 
         Ok(Self {
@@ -1536,7 +1591,7 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
             }),
             request: RefundsData {
                 integrity_object: Some(RefundIntegrityObject {
-                    refund_amount: integrity_amount,
+                    refund_amount: integrity_amount.amount,
                     currency: integrity_currency,
                 }),
                 ..router_data.request.clone()
@@ -1587,7 +1642,7 @@ pub struct RevpayRSyncRequest {
     #[serde(rename = "Key_Index")]
     pub key_index: u32,
     #[serde(rename = "Signature")]
-    pub signature: String,
+    pub signature: Secret<String>,
 }
 
 impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>>
@@ -1598,6 +1653,15 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
     fn try_from(
         item: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
+        Self::from_router_data(item, &StringMajorUnitWithTwoDecimalsForConnector)
+    }
+}
+
+impl RevpayRSyncRequest {
+    fn from_router_data(
+        item: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        converter: &dyn AmountConvertor<Output = StringMajorUnitWithTwoDecimals>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let auth = RevpayAuthType::try_from(&item.connector_config)?;
 
         // Key_Index is Int(3) on the wire; it is configured as a string.
@@ -1653,7 +1717,12 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
         })?;
         let currency = refund_money.currency;
         let currency_str = currency.to_string();
-        let amount = RevpayAmountConvertor::convert(refund_money)?
+        let amount = converter
+            .convert(refund_money)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "amount",
+                context: IntegrationErrorContext::default(),
+            })?
             .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.refund_money.amount",
@@ -1668,7 +1737,7 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
             &[
                 auth.merchant_id.peek(),
                 &reference_number,
-                amount.get_amount_as_string(),
+                &amount,
                 &currency_str,
             ],
         );
@@ -1702,7 +1771,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(&wrapper.router_data)
+        Self::from_router_data(&wrapper.router_data, wrapper.connector.amount_converter)
     }
 }
 
@@ -1820,7 +1889,7 @@ pub struct RevpayWebhookBody {
     #[serde(rename = "Key_Index")]
     pub key_index: String,
     #[serde(rename = "Signature")]
-    pub signature: String,
+    pub signature: Secret<String>,
     #[serde(rename = "Request_Datetime", skip_serializing_if = "Option::is_none")]
     pub request_datetime: Option<String>,
     #[serde(rename = "Response_Datetime", skip_serializing_if = "Option::is_none")]
@@ -1853,13 +1922,13 @@ impl RevpayWebhookBody {
             &[
                 &self.revpay_merchant_id,
                 &self.transaction_id,
-                self.response_code.as_str(),
+                &self.response_code.as_str(),
                 &self.reference_number,
                 amount,
                 &currency,
             ],
         );
-        expected == self.signature.trim().to_lowercase()
+        expected.peek() == &self.signature.peek().trim().to_lowercase()
     }
 
     /// Event interpretation: "00" — the sale settled → success;

@@ -8,6 +8,8 @@
 #![allow(clippy::indexing_slicing)]
 
 use super::*;
+use crate::connectors::revpay::RevpayAmountConvertor;
+use common_utils::types::MinorUnit;
 use domain_types::payment_method_data::DefaultPCIHolder;
 
 // Known-answer vectors from the revPAY Merchant API doc (§3.28 / §3.29)
@@ -38,10 +40,10 @@ fn error_response_parses_string_code_variant() {
 fn payment_request_signature_matches_doc_vector() {
     let signature = generate_revpay_signature(
         "1OoL87PmJQ",
-        &["MER00000000001", "RF201774111", "52.40", "MYR"],
+        &[&"MER00000000001", &"RF201774111", &"52.40", &"MYR"],
     );
     assert_eq!(
-        signature,
+        signature.peek(),
         "0716dc1863519f53d47a11ec603d402782222083b2178f596d210fcb93287e81412dd529fa2adddd8e0cdfa2ddf0bb5e8421f55a105196d4ee58961b253b98a1"
     );
 }
@@ -52,16 +54,16 @@ fn payment_response_signature_matches_doc_vector() {
     let signature = generate_revpay_signature(
         "1OoL87PmJQ",
         &[
-            "MER00000000001",
-            "RT000000007222",
-            "00",
-            "RF201774111",
-            "52.40",
-            "MYR",
+            &"MER00000000001",
+            &"RT000000007222",
+            &"00",
+            &"RF201774111",
+            &"52.40",
+            &"MYR",
         ],
     );
     assert_eq!(
-        signature,
+        signature.peek(),
         "fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad"
     );
 }
@@ -75,10 +77,10 @@ fn refund_request_signature_matches_offline_vector() {
     //       b"1OoL87PmJQMER00000000001RF20177411210.00RF201774111").hexdigest())'
     let signature = generate_revpay_signature(
         "1OoL87PmJQ",
-        &["MER00000000001", "RF201774112", "10.00", "RF201774111"],
+        &[&"MER00000000001", &"RF201774112", &"10.00", &"RF201774111"],
     );
     assert_eq!(
-        signature,
+        signature.peek(),
         "981aa4c5b4109e97969e75916eb3c69476eea1180af60d87997916ae5f21f7aa13e384f4dcd7e3aebdd8ccd4571ba1c16e1dbf6f36c5a74b936a943d0fa820bf"
     );
 }
@@ -139,12 +141,15 @@ fn response_code_maps_to_refund_sync_status() {
 #[test]
 fn amount_formats_major_with_two_decimals() {
     // RM 52.40 — the bytes revPAY signs must carry the literal dot.
-    let amount = RevpayAmountConvertor::convert(&common_utils::types::Money {
+    let amount = RevpayAmountConvertor::convert(&Money {
         amount: MinorUnit::new(5240),
         currency: Currency::MYR,
     })
     .expect("amount conversion should succeed for MYR");
-    assert_eq!(amount.get_amount_as_string(), "52.40");
+    assert_eq!(
+        serde_json::to_value(&amount).expect("amount serialization"),
+        "52.40"
+    );
     assert_eq!(
         serde_json::to_string(&amount).expect("amount serializes"),
         "\"52.40\""
@@ -184,7 +189,7 @@ fn redirect_without_transaction_id_falls_back_to_reference_number() {
         error_description: Some("Request in progress.".to_string()),
         bank_redirect_url: Some("https://example.com/redirect".to_string()),
         key_index: Some(1),
-        signature: Some("signature".to_string()),
+        signature: Some(Secret::new("signature".to_string())),
         bank_reference_number: None,
     };
 
@@ -210,7 +215,7 @@ fn response_without_any_identifier_is_rejected() {
         error_description: Some("Request in progress.".to_string()),
         bank_redirect_url: Some("https://example.com/redirect".to_string()),
         key_index: Some(1),
-        signature: Some("signature".to_string()),
+        signature: Some(Secret::new("signature".to_string())),
         bank_reference_number: None,
     };
 
@@ -397,23 +402,29 @@ fn issuer_country_maps_to_alpha3() {
 
 #[test]
 fn amount_round_trips_through_wire_form() {
-    let amount = RevpayAmountConvertor::convert(&common_utils::types::Money {
+    let amount = RevpayAmountConvertor::convert(&Money {
         amount: MinorUnit::new(1000),
         currency: Currency::MYR,
     })
     .expect("amount conversion should succeed");
-    assert_eq!(amount.get_amount_as_string(), "10.00");
+    assert_eq!(
+        serde_json::to_value(&amount).expect("amount serialization"),
+        "10.00"
+    );
     let back = RevpayAmountConvertor::convert_back(amount, Currency::MYR)
         .expect("convert_back should succeed");
     assert_eq!(back.amount, MinorUnit::new(1000));
 
     // Zero-exponent currency: no minor units, still rendered with two decimals.
-    let jpy = RevpayAmountConvertor::convert(&common_utils::types::Money {
+    let jpy = RevpayAmountConvertor::convert(&Money {
         amount: MinorUnit::new(1000),
         currency: Currency::JPY,
     })
     .expect("JPY conversion should succeed");
-    assert_eq!(jpy.get_amount_as_string(), "1000.00");
+    assert_eq!(
+        serde_json::to_value(&jpy).expect("amount serialization"),
+        "1000.00"
+    );
     let back = RevpayAmountConvertor::convert_back(jpy, Currency::JPY)
         .expect("convert_back should succeed");
     assert_eq!(back.amount, MinorUnit::new(1000));
@@ -464,7 +475,7 @@ fn webhook_body_parses_form_encoded() {
     assert_eq!(body.response_code, RevpayResponseCode::Success);
     assert_eq!(body.error_description, Some(String::new()));
     assert_eq!(body.key_index, "1");
-    assert_eq!(body.signature, WEBHOOK_DOC_SIGNATURE);
+    assert_eq!(body.signature.peek(), WEBHOOK_DOC_SIGNATURE);
 }
 
 #[test]
@@ -512,7 +523,7 @@ fn webhook_event_and_status_mapping_follows_response_code() {
         error_description: (code != "00" && code != "09" && code != "99")
             .then(|| "Declined".to_string()),
         key_index: "1".to_string(),
-        signature: WEBHOOK_DOC_SIGNATURE.to_string(),
+        signature: Secret::new(WEBHOOK_DOC_SIGNATURE.to_string()),
         request_datetime: None,
         response_datetime: None,
     };

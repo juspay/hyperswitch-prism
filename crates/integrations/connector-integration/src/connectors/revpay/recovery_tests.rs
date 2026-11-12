@@ -106,8 +106,15 @@ fn fpx_http_issuer_maps_to_revpay_bank_code_without_card_fields() {
         body["Signature"],
         generate_revpay_signature(
             "test-key",
-            &["MER00000000001", "payment-unique-reference", "12.34", "MYR",]
+            &[
+                &"MER00000000001",
+                &"payment-unique-reference",
+                &"12.34",
+                &"MYR",
+            ]
         )
+        .peek()
+        .as_str()
     );
     for field in [
         "Funding_Pan",
@@ -225,18 +232,23 @@ fn refund_uses_original_payment_reference_and_a_separate_refund_reference() {
         request.original_reference_number,
         "payment-unique-reference"
     );
-    assert_eq!(request.refund_amount.get_amount_as_string(), "5.00");
     assert_eq!(
-        request.signature,
+        serde_json::to_value(&request.refund_amount).expect("amount serialization"),
+        "5.00"
+    );
+    assert_eq!(
+        request.signature.peek(),
         generate_revpay_signature(
             "test-key",
             &[
-                "MER00000000001",
-                "refund-unique-reference",
-                "5.00",
-                "payment-unique-reference",
+                &"MER00000000001",
+                &"refund-unique-reference",
+                &"5.00",
+                &"payment-unique-reference",
             ]
         )
+        .peek()
+        .as_str()
     );
     router.request.connector_order_id = None;
     assert!(
@@ -385,4 +397,40 @@ fn hosted_duitnow_and_alipay_plus_response_preserves_gateway_redirect() {
             other => panic!("expected hosted redirect, got {other:?}"),
         }
     }
+}
+
+#[test]
+fn authorize_uses_connector_converter() {
+    struct RejectAmount;
+    impl AmountConvertor for RejectAmount {
+        type Output = StringMajorUnitWithTwoDecimals;
+        fn convert(&self, _: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+            Err(ParsingError::DecimalToI64ConversionFailure.into())
+        }
+        fn convert_back(
+            &self,
+            amount: Self::Output,
+            currency: Currency,
+        ) -> Result<Money, error_stack::Report<ParsingError>> {
+            StringMajorUnitWithTwoDecimalsForConnector.convert_back(amount, currency)
+        }
+    }
+    let mut connector = crate::connectors::revpay::Revpay::<DefaultPCIHolder>::new().clone();
+    connector.amount_converter = &RejectAmount;
+    let router_data = authorize_router(json!({"online_banking_fpx": {"issuer": "Maybank"}}));
+    let result = RevpayPaymentsRequest::try_from(RevpayRouterData {
+        router_data,
+        connector,
+    });
+    assert!(result.is_err(), "the configured converter must be used");
+}
+
+#[test]
+fn request_signature_is_masked_in_debug_but_present_on_wire() {
+    let router = authorize_router(json!({"online_banking_fpx": {"issuer": "Maybank"}}));
+    let request = RevpayPaymentsRequest::try_from(&router).expect("request");
+    let signature = request.signature.peek().clone();
+    assert!(!format!("{request:?}").contains(&signature));
+    let body = serde_json::to_value(&request).expect("wire body");
+    assert_eq!(body["Signature"], signature);
 }

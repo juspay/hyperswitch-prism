@@ -8,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
+    types::StringMajorUnitWithTwoDecimals,
 };
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -84,7 +85,7 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [amount_converter: StringMajorUnitWithTwoDecimals],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
