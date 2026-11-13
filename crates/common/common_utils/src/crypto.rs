@@ -158,7 +158,7 @@ pub trait DecodeMessage {
 }
 
 /// Represents no cryptographic algorithm.
-/// Implements all crypto traits and acts like a Nop
+/// Passes messages through during encoding and decoding, but never verifies signatures.
 #[derive(Debug)]
 pub struct NoAlgorithm;
 
@@ -179,7 +179,7 @@ impl VerifySignature for NoAlgorithm {
         _signature: &[u8],
         _msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
-        Ok(true)
+        Ok(false)
     }
 }
 
@@ -833,6 +833,19 @@ mod crypto_tests {
     use super::{DecodeMessage, EncodeMessage, SignMessage, VerifySignature};
     use crate::{crypto::GenerateDigest, errors::CryptoError};
     use openssl::{ec::EcGroup, nid::Nid, pkey::PKey, rsa::Rsa};
+
+    #[test]
+    fn no_algorithm_never_verifies_signatures() {
+        let algorithm: Box<dyn VerifySignature> = Box::new(super::NoAlgorithm);
+        for (secret, signature, message) in [
+            (&b""[..], &b""[..], &b""[..]),
+            (&b"secret"[..], &b"signature"[..], &b"message"[..]),
+        ] {
+            assert!(!algorithm
+                .verify_signature(secret, signature, message)
+                .expect("unsupported verification should return false"));
+        }
+    }
 
     #[test]
     fn rsa_oaep_sha256_reports_plaintext_length_overflow() {
