@@ -81,23 +81,17 @@ message FrmServicePreRiskCheckRequest {
   // Merchant/business order identifier, distinct from the payment-attempt ID.
   optional string merchant_order_id = 17;
 
-  // EMI details supplied by the merchant application creating the
-  optional FrmEmiDetails emi_details = 18;
+  // Installment details supplied by the merchant application creating the FRM request.
+  optional InstallmentDetails installment_details = 18;
 
-  // Typed order description; connector metadata remains in connector_feature_data.
-  optional FrmOrderInfo order_info = 19;
+  // Merchant-provided description.
+  optional string order_description = 19;
 }
 
-// Order-level context supplied by the merchant application creating the FRM request.
-message FrmOrderInfo {
-  // Merchant-provided description of the order for connector risk analysis.
-  string description = 1;
-}
-
-// EMI details supplied by the merchant application creating the FRM request.
-message FrmEmiDetails {
-  // Number of EMI installments in the payment plan.
-  uint32 emi_tenure = 1;
+// Installment details supplied by the merchant application creating the FRM request.
+message InstallmentDetails {
+  // Total number of installments in the payment plan.
+  uint32 installment_count = 1;
 }
 
 // Response for FrmService.PreRiskCheck
@@ -189,11 +183,12 @@ message FrmServicePostRiskCheckRequest {
   // Reanalysis must address the same merchant/business order as creation.
   optional string merchant_order_id = 18;
 
-  // EMI details supplied by the application creating the FRM request;
-  optional FrmEmiDetails emi_details = 19;
+  // Installment details supplied by the application creating the FRM request;
+  // reanalysis must replay the same installment details.
+  optional InstallmentDetails installment_details = 19;
 
-  // The same order information must be replayed during reanalysis.
-  optional FrmOrderInfo order_info = 20;
+  // The same order description must be replayed during reanalysis.
+  optional string order_description = 20;
 }
 
 // Response for FrmService.PostRiskCheck

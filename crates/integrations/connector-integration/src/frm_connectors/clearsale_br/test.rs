@@ -19,7 +19,7 @@ mod tests {
             CustomerInfo, DomainData, HotelData, HotelSegment, TravelData, TravelSegment, Traveller,
         },
         errors::IntegrationError,
-        frm::frm_types::{OrderInfo, PostRiskCheckRequest, PreRiskCheckRequest},
+        frm::frm_types::{PostRiskCheckRequest, PreRiskCheckRequest},
         payment_address::{
             Address, AddressDetails, OrderDetailsWithAmount, PaymentAddress, PhoneDetails,
             StateDetails,
@@ -150,10 +150,8 @@ mod tests {
             connector_feature_data: Some(Secret::new(
                 r#"{"product":4,"installments":99,"orderInfoMetadata":{"observation":"Legacy connector observation"}}"#.to_owned(),
             )),
-            emi_details: Some(domain_types::frm::frm_types::EmiDetails { emi_tenure: 3 }),
-            order_info: Some(OrderInfo {
-                description: "Order description".to_owned(),
-            }),
+            installment_details: Some(domain_types::frm::frm_types::InstallmentDetails { installment_count: 3 }),
+            order_description: Some("Order description".to_owned()),
             order_details: Some(order_details()),
             address: Some(payment_address()),
             metadata: Some(Secret::new(r#"{"session_id":"sdk-session-42"}"#.to_owned())),
@@ -179,8 +177,8 @@ mod tests {
             browser_info: pre.browser_info,
             merchant_transaction_id: pre.merchant_transaction_id,
             merchant_order_id: pre.merchant_order_id,
-            emi_details: pre.emi_details,
-            order_info: pre.order_info,
+            installment_details: pre.installment_details,
+            order_description: pre.order_description,
             order_details: pre.order_details,
             metadata: pre.metadata,
             connector_feature_data: pre.connector_feature_data,
@@ -551,7 +549,7 @@ mod tests {
     // ── feature data + metadata getters ─────────────────────────────────
 
     /// `connector_feature_data.orderInfoMetadata` is decoded only by ClearSale;
-    /// the typed FRM `OrderInfo.description` is a separate input.
+    /// the typed FRM `order_description` is a separate input.
     #[test]
     fn clearsale_order_info_metadata_deserializes_its_own_schema() {
         let connector_feature_data =
@@ -601,8 +599,8 @@ mod tests {
     #[test]
     fn legacy_flat_feature_data_is_retained_instead_of_silently_dropped() {
         let mut req = pre_risk_check_request();
-        req.emi_details = None;
-        req.order_info = None;
+        req.installment_details = None;
+        req.order_description = None;
         req.connector_feature_data = Some(Secret::new(
             r#"{
                 "origin":"Legacy",
@@ -619,8 +617,8 @@ mod tests {
                 .unwrap()
                 .order;
         let mut post = post_risk_check_request();
-        post.emi_details = None;
-        post.order_info = None;
+        post.installment_details = None;
+        post.order_description = None;
         post.connector_feature_data = req.connector_feature_data.clone();
         let post_order =
             order_from_common(OrderInputs::from_post_risk_check(&post, None, None).unwrap())
@@ -1424,16 +1422,16 @@ mod tests {
     }
 
     #[test]
-    fn typed_order_info_and_connector_order_info_metadata_stay_separate() {
+    fn typed_order_description_and_connector_observation_stay_separate() {
         let mut req = pre_risk_check_request();
         for (description, expected) in [
             (Some("Order description".to_owned()), "Order description"),
             (None, "Legacy connector observation"),
             (Some("   ".to_owned()), "Legacy connector observation"),
         ] {
-            req.order_info = description.map(|description| OrderInfo { description });
+            req.order_description = description;
             let mut post = post_risk_check_request();
-            post.order_info = req.order_info.clone();
+            post.order_description = req.order_description.clone();
             let pre_inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
             let post_inputs = OrderInputs::from_post_risk_check(&post, None, None).unwrap();
             assert_eq!(
@@ -1509,7 +1507,7 @@ mod tests {
     fn absent_emi_and_legacy_installments_leave_installments_unset() {
         let mut req = pre_risk_check_request();
         req.connector_feature_data = None;
-        req.emi_details = None;
+        req.installment_details = None;
         let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
         let order = order_from_common(inputs).unwrap().order;
         assert_eq!(order.number_of_installments, None);

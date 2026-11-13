@@ -78,14 +78,8 @@ pub struct MerchantDetails {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct EmiDetails {
-    pub emi_tenure: u32,
-}
-
-/// Order context for FRM.
-#[derive(Debug, Clone)]
-pub struct OrderInfo {
-    pub description: String,
+pub struct InstallmentDetails {
+    pub installment_count: u32,
 }
 
 /// Request data for pre-risk check
@@ -97,8 +91,8 @@ pub struct PreRiskCheckRequest {
     pub browser_info: Option<BrowserInformation>,
     pub merchant_transaction_id: Option<String>,
     pub merchant_order_id: Option<String>,
-    pub emi_details: Option<EmiDetails>,
-    pub order_info: Option<OrderInfo>,
+    pub installment_details: Option<InstallmentDetails>,
+    pub order_description: Option<String>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub address: Option<PaymentAddress>,
     pub metadata: Option<Secret<String>>,
@@ -140,8 +134,8 @@ pub struct PostRiskCheckRequest {
     pub browser_info: Option<BrowserInformation>,
     pub merchant_transaction_id: Option<String>,
     pub merchant_order_id: Option<String>,
-    pub emi_details: Option<EmiDetails>,
-    pub order_info: Option<OrderInfo>,
+    pub installment_details: Option<InstallmentDetails>,
+    pub order_description: Option<String>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,

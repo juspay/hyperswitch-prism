@@ -318,14 +318,12 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             browser_info,
             merchant_transaction_id: value.merchant_transaction_id,
             merchant_order_id: value.merchant_order_id,
-            emi_details: value
-                .emi_details
-                .map(|details| super::frm_types::EmiDetails {
-                    emi_tenure: details.emi_tenure,
-                }),
-            order_info: value.order_info.map(|info| super::frm_types::OrderInfo {
-                description: info.description,
+            installment_details: value.installment_details.map(|details| {
+                super::frm_types::InstallmentDetails {
+                    installment_count: details.installment_count,
+                }
             }),
+            order_description: value.order_description,
             order_details,
             address,
             metadata: value.metadata,
@@ -499,14 +497,12 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             browser_info,
             merchant_transaction_id: value.merchant_transaction_id,
             merchant_order_id: value.merchant_order_id,
-            emi_details: value
-                .emi_details
-                .map(|details| super::frm_types::EmiDetails {
-                    emi_tenure: details.emi_tenure,
-                }),
-            order_info: value.order_info.map(|info| super::frm_types::OrderInfo {
-                description: info.description,
+            installment_details: value.installment_details.map(|details| {
+                super::frm_types::InstallmentDetails {
+                    installment_count: details.installment_count,
+                }
             }),
+            order_description: value.order_description,
             order_details,
             metadata: value.metadata,
             connector_feature_data: value.connector_feature_data,

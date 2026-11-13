@@ -10,8 +10,8 @@ use domain_types::{
     },
     errors,
     frm::frm_types::{
-        FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, OrderInfo,
-        PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
+        FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, PostRiskCheckRequest,
+        PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::OrderDetailsWithAmount,
@@ -962,11 +962,11 @@ impl<'a> OrderInputs<'a> {
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
             order_info_metadata: resolve_order_info_metadata(
                 connector_feature_data.order_info_metadata,
-                req.order_info.as_ref(),
+                req.order_description.as_deref(),
             ),
             installments: req
-                .emi_details
-                .map(|details| details.emi_tenure)
+                .installment_details
+                .map(|details| details.installment_count)
                 .filter(|tenure| *tenure > 0)
                 .or(connector_feature_data.installments),
             product: connector_feature_data.product,
@@ -1008,11 +1008,11 @@ impl<'a> OrderInputs<'a> {
             session_id: get_session_id_from_metadata(req.metadata.as_ref())?,
             order_info_metadata: resolve_order_info_metadata(
                 connector_feature_data.order_info_metadata,
-                req.order_info.as_ref(),
+                req.order_description.as_deref(),
             ),
             installments: req
-                .emi_details
-                .map(|details| details.emi_tenure)
+                .installment_details
+                .map(|details| details.installment_count)
                 .filter(|tenure| *tenure > 0)
                 .or(connector_feature_data.installments),
             product: connector_feature_data.product,
@@ -2173,10 +2173,10 @@ impl ClearSaleConnectorFeatureData {
 
 fn resolve_order_info_metadata(
     mut order_info_metadata: ClearSaleOrderInfoMetadata,
-    typed_order_info: Option<&OrderInfo>,
+    order_description: Option<&str>,
 ) -> ClearSaleOrderInfoMetadata {
-    if let Some(description) = typed_order_info
-        .map(|order_info| order_info.description.trim())
+    if let Some(description) = order_description
+        .map(str::trim)
         .filter(|description| !description.is_empty())
     {
         order_info_metadata.observation = Some(description.to_owned());
