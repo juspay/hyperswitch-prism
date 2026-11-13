@@ -12,10 +12,7 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutGet, PayoutStage, PayoutTransfer},
-    errors::{
-        ConnectorError, IntegrationError, IntegrationErrorContext,
-        ResponseTransformationErrorContext,
-    },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
         PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
@@ -499,17 +496,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         // Gigadat reports failures in the `err` field of the body, so surface it
         // verbatim as the code, message and reason, matching the hyperswitch
         // connector (`gigadat.rs::build_error_response`).
-        let response: gigadat::GigadatErrorResponse = res
+        let response: gigadat::GigadatErrorResponse = match res
             .response
             .parse_struct("GigadatErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: ResponseTransformationErrorContext {
-                    http_status_code: Some(res.status_code),
-                    additional_context: Some(
-                        "Gigadat - failed to deserialize error response".to_string(),
-                    ),
-                },
-            })?;
+        {
+            Ok(response) => response,
+            Err(error_msg) => {
+                if let Some(event) = event_builder {
+                    event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}))
+                };
+                tracing::error!(deserialization_error =? error_msg);
+                return crate::utils::handle_json_response_deserialization_failure(res, "gigadat");
+            }
+        };
 
         with_error_response_body!(event_builder, response);
 
