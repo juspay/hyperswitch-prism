@@ -184,7 +184,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_api_response(
         &self,
         _request: RequestDetails,
-        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _error_kind: Option<interfaces::webhooks::IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> CustomResult<interfaces::api::EventAckResponse, WebhookError> {
         Ok(interfaces::api::EventAckResponse {

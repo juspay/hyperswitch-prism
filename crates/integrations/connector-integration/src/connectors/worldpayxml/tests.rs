@@ -7,7 +7,7 @@ use domain_types::{
     payment_method_data::DefaultPCIHolder,
     router_data::AdditionalPaymentMethodConnectorResponse,
 };
-use interfaces::connector_types::IncomingWebhook;
+use interfaces::webhooks::IncomingWebhook;
 
 use super::{
     responses::WorldpayxmlAuthorizeResponse, transformers::get_worldpayxml_connector_response,
