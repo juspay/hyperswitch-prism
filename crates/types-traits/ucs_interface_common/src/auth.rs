@@ -70,7 +70,7 @@ fn connector_variant_from_config_and_metadata(
 /// Parses the deprecated `x-connector-auth` header.
 ///
 /// The old format used `{"auth_type":{"Stripe":{...}}}` while the new format uses
-/// `{"config":{"Stripe":{...}}}`. Only the top-level legacy key is renamed.
+/// `{"config":{"Stripe":{...}}}`. This rewrites the JSON key before parsing.
 fn parse_connector_config_from_deprecated_header(
     header_value: &metadata::MetadataValue<metadata::Ascii>,
 ) -> CustomResult<(connector_types::ConnectorVariant, ConnectorSpecificConfig), IntegrationError> {
@@ -86,58 +86,21 @@ fn parse_connector_config_from_deprecated_header(
             },
         })?;
 
-    let mut legacy_config: serde_json::Value =
-        serde_json::from_str(header_str).change_context(IntegrationError::InvalidDataFormat {
+    // Rewrite old field name to new: "auth_type" → "config"
+    let rewritten = header_str.replace("\"auth_type\"", "\"config\"");
+
+    let typed_config: grpc_api_types::payments::ConnectorSpecificConfig =
+        serde_json::from_str(&rewritten).change_context(IntegrationError::InvalidDataFormat {
             field_name: "x-connector-auth",
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "Failed to parse x-connector-auth JSON. Migrate to x-connector-config."
+                    "Failed to parse x-connector-auth JSON into ConnectorSpecificConfig. \
+                     Migrate to x-connector-config with {\"config\":{...}} format."
                         .to_string(),
                 ),
                 ..Default::default()
             },
         })?;
-
-    let config_object = legacy_config.as_object_mut().ok_or_else(|| {
-        Report::new(IntegrationError::InvalidDataFormat {
-            field_name: "x-connector-auth",
-            context: IntegrationErrorContext {
-                additional_context: Some("x-connector-auth must be a JSON object".to_string()),
-                ..Default::default()
-            },
-        })
-    })?;
-
-    if config_object.contains_key("auth_type") && config_object.contains_key("config") {
-        return Err(Report::new(IntegrationError::InvalidDataFormat {
-            field_name: "x-connector-auth",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "x-connector-auth cannot contain both auth_type and config".to_string(),
-                ),
-                ..Default::default()
-            },
-        }));
-    }
-
-    if let Some(auth_type) = config_object.remove("auth_type") {
-        config_object.insert("config".to_string(), auth_type);
-    }
-
-    let typed_config: grpc_api_types::payments::ConnectorSpecificConfig = serde_json::from_value(
-        legacy_config,
-    )
-    .change_context(IntegrationError::InvalidDataFormat {
-        field_name: "x-connector-auth",
-        context: IntegrationErrorContext {
-            additional_context: Some(
-                "Failed to parse x-connector-auth JSON into ConnectorSpecificConfig. \
-                     Migrate to x-connector-config with {\"config\":{...}} format."
-                    .to_string(),
-            ),
-            ..Default::default()
-        },
-    })?;
 
     let config = typed_config.config.as_ref().ok_or_else(|| {
         Report::new(IntegrationError::MissingRequiredField {
