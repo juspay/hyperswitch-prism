@@ -34,6 +34,7 @@ enum CardNetwork {
   EFTPOS_AUSTRALIA = 21;
   GE_CAPITAL = 22;
   UATP = 23;
+  MYDEBIT = 24;
 }
 
 // Paysafecard - Prepaid payment method
@@ -113,6 +114,8 @@ message PaymentMethod {
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
     NetellerRedirectWallet neteller_redirect = 188;      // Neteller
     PayhereRedirectWallet payhere_redirect = 189;        // PayHere redirect wallet
+    BoostRedirectWallet boost_redirect = 194;            // Axiata Boost
+    AliPayPlusRedirectWallet ali_pay_plus_redirect = 195; // Alipay+ hosted checkout
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
@@ -731,6 +734,12 @@ message MbWayRedirectWallet {
 message MomoRedirectWallet {
   // Fields will be added as needed for MoMo redirect integration
 }
+
+// Axiata Boost hosted wallet authorization.
+message BoostRedirectWallet {}
+
+// Alipay+ is distinct from Alipay Online (Web).
+message AliPayPlusRedirectWallet {}
 
 // Touch n Go Redirect - Malaysian e-wallet Touch 'n Go redirect payment
 message TouchNGoRedirectWallet {

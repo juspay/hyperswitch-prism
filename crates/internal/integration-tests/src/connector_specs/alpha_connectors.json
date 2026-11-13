@@ -117,6 +117,9 @@
     },
     "redsys": {},
     "revolut": {},
+    "revpay": {
+      "reason": "revPAY (Revenue Group Berhad) sandbox credentials are not configured in CI, so certification cannot run. Request signing and status/amount mapping are covered by offline unit tests against the revPAY Merchant API 3.1.10 documented known-answer vectors (see grace/rulesbook/codegen/references/revpay/technical_specification.md), but no live sandbox proof exists yet. Remove this entry once CI credentials are added."
+    },
     "revolv3": {},
     "saferpay": {
       "reason": "Saferpay sandbox credentials are not configured in CI; live sandbox verification is attached to PR #2183."

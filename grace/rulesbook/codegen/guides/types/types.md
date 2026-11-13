@@ -608,7 +608,7 @@ use common_utils::types::{
 use domain_types::utils::convert_amount;
 let amount: StringMajorUnit = convert_amount(
     &common_utils::types::StringMajorUnitForConnector,
-    router_data.request.minor_amount,
+    router_data.request.amount.amount,
     router_data.request.currency,
 )?;
 
@@ -931,8 +931,7 @@ and keeps retrying.
 ```rust
 // crates/types-traits/domain_types/src/connector_types.rs
 pub struct PaymentsCaptureData {
-    pub amount_to_capture: i64,              // NOT Option
-    pub minor_amount_to_capture: MinorUnit,
+    pub amount_to_capture: Money,            // NOT Option; minor units in `.amount`
     pub currency: Currency,
     pub connector_transaction_id: ResponseId,
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
@@ -941,7 +940,7 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
-    pub order_tax_amount: Option<MinorUnit>,
+    pub order_tax_amount: Option<Money>,
     pub merchant_order_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub split_settlement: Option<Box<SplitSettlement>>,

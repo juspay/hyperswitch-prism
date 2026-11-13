@@ -758,6 +758,7 @@ enum Connector {
   CLEARSALE_BR = 154;
   BETTERPAYMENT = 155;
   REDDOT = 156;
+  REVPAY = 157;
 }
 
 // Payment method types
@@ -914,6 +915,8 @@ enum PaymentMethodType {
   GRABPAY_WALLET = 141;
   PAYHERE_WALLET = 142;
   TAMARA_BNPL = 143;
+  BOOST_WALLET = 144; // BOOST is already the connector enum value.
+  ALI_PAY_PLUS = 145;
 }
 
 // Product type enumeration
@@ -6009,6 +6012,24 @@ message ReddotConfig {
   optional string base_url = 50;
 }
 
+// revPAY (Revenue Group Berhad). There is no HTTP auth header:
+// authentication is an in-body SHA-512 signature on every request.
+// Field names follow revPAY's own credential vocabulary (Merchant API 3.1.10).
+message RevpayConfig {
+  // revPAY Merchant ID (`Revpay_Merchant_ID`, e.g. `MER00000000001`) — sent in
+  // every request body and used as the second signature input.
+  SecretString merchant_id = 1;
+  // revPAY Merchant Key — signature secret (prepended to the SHA-512 preimage),
+  // never transmitted on the wire.
+  SecretString merchant_key = 2;
+  // revPAY `Key_Index` as a decimal string (e.g. "1") — identifies which
+  // merchant key the signature was computed with; sent on every message.
+  // Defaults to "1" when omitted: revPAY issues merchant key #1 first
+  // (spec Appendix D) and single-key accounts always use index 1.
+  optional SecretString key_index = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6369,6 +6390,8 @@ message ConnectorSpecificConfig {
     BetterpaymentConfig betterpayment = 166;
     // REDDOT = 156
     ReddotConfig reddot = 167;
+    // REVPAY = 157
+    RevpayConfig revpay = 168;
   }
 }
 

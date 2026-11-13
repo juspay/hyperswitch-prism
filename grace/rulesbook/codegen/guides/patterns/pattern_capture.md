@@ -37,8 +37,7 @@ never existed in this contract.
 
 ```rust
 pub struct PaymentsCaptureData {
-    pub amount_to_capture: i64,                       // NON-Option
-    pub minor_amount_to_capture: MinorUnit,
+    pub amount_to_capture: Money,                     // NON-Option; minor units in `.amount`
     pub currency: Currency,
     pub connector_transaction_id: ResponseId,         // NON-Option; use get_connector_transaction_id()
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
@@ -60,7 +59,7 @@ Consequences:
 |---|---|---|
 | `request.payment_amount` | field does not exist → **E0609** | there is no authorized amount in the request; see below |
 | `request.amount_to_capture.is_none()` | not an `Option` → **E0599** | `amount_to_capture` is always present |
-| `request.amount_to_capture == Some(x)` | type mismatch → **E0308** | `request.amount_to_capture == x` (i64) or compare `minor_amount_to_capture` |
+| `request.amount_to_capture == Some(x)` | type mismatch → **E0308** | `request.amount_to_capture == x` (Money) or compare minor units via `amount_to_capture.amount` |
 | `request.connector_transaction_id.as_ref().unwrap()` | it is a `ResponseId` enum | `request.get_connector_transaction_id()?` |
 
 **Partial-capture detection is connector-specific.** The capture request tells you
@@ -1118,13 +1117,13 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>>
         // Consequence: Without this check, we get error code "AMOUNT_EXCEEDS_AUTH"
         //
         // NOTE: `PaymentsCaptureData` has NO `payment_amount` field, and
-        // `amount_to_capture: i64` is NOT an Option. The authorized amount is not
+        // `amount_to_capture: Money` is NOT an Option. The authorized amount is not
         // part of the capture request at all — it has to come from what the
         // connector returned on Authorize (carried forward in
         // `connector_feature_data` / `metadata`). Only add the guard below when
         // you actually have that value; most connectors let the PSP reject the
         // over-capture instead.
-        let capture_amount = router_data.request.minor_amount_to_capture;
+        let capture_amount = router_data.request.amount_to_capture.amount;
 
         if let Some(authorized_amount) = get_authorized_amount_from_metadata(router_data)? {
             if capture_amount > authorized_amount {
@@ -1427,14 +1426,14 @@ impl TryFrom<ResponseRouterData<ConnectorCaptureResponse, ...>> for RouterDataV2
 /// Determine if this is a full capture based on amounts.
 ///
 /// `PaymentsCaptureData` (domain_types/src/connector_types.rs) carries ONLY what
-/// to capture — `amount_to_capture: i64` (non-Option) and
-/// `minor_amount_to_capture: MinorUnit`. There is **no** `payment_amount` field,
+/// to capture — `amount_to_capture: Money` (non-Option; minor units in
+/// `.amount`). There is **no** `payment_amount` field,
 /// so the authorized amount MUST be supplied by the caller: read it from what the
 /// connector returned on Authorize (threaded through `connector_feature_data` /
 /// `metadata`), or use `multiple_capture_data` when the connector tracks
 /// captures itself.
 fn is_full_capture(request: &PaymentsCaptureData, authorized_amount: MinorUnit) -> bool {
-    request.minor_amount_to_capture == authorized_amount
+    request.amount_to_capture.amount == authorized_amount
 }
 
 /// Extract transaction ID from various link formats
@@ -1753,7 +1752,7 @@ impl TryFrom<CaptureRouterData> for ConditionalCaptureRequest {
 // case to fall back on; compare against the authorized amount you carried
 // forward from Authorize.
 fn is_full_capture_amount(request: &PaymentsCaptureData, authorized_amount: MinorUnit) -> bool {
-    request.minor_amount_to_capture == authorized_amount
+    request.amount_to_capture.amount == authorized_amount
 }
 ```
 
@@ -2644,7 +2643,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, ...>>> for {Connect
         // `amount_to_capture: i64` is NOT an Option, and there is no
         // `payment_amount` field on `PaymentsCaptureData` — the value you were
         // asked to capture is always present.
-        let capture_amount = router_data.request.minor_amount_to_capture;
+        let capture_amount = router_data.request.amount_to_capture.amount;
 
         Ok(Self {
             amount: item.amount, // Already converted

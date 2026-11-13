@@ -827,6 +827,24 @@ impl RsaOaepSha256 {
     }
 }
 
+/// Supplies exact wire bytes to a signature without exposing a raw-value getter.
+pub trait SignatureValue {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8]));
+}
+
+impl<T: AsRef<str>> SignatureValue for T {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(self.as_ref().as_bytes());
+    }
+}
+
+/// Feeds ordered fields into a caller-selected signature algorithm, without separators.
+pub fn update_signature(fields: &[&dyn SignatureValue], mut update: impl FnMut(&[u8])) {
+    for field in fields {
+        field.update_signature(&mut update);
+    }
+}
+
 #[cfg(test)]
 mod crypto_tests {
     #![allow(clippy::expect_used)]

@@ -44,7 +44,8 @@ pub use superposition_config::{
 pub use types::{
     AmountConvertor, ConnectorMinorUnit, ConnectorMinorUnitForConnector, FloatMajorUnit,
     FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector, Money, StringMajorUnit,
-    StringMajorUnitForConnector, StringMinorUnit, StringTwoDecimalUnit,
+    StringMajorUnitForConnector, StringMajorUnitWithTwoDecimals,
+    StringMajorUnitWithTwoDecimalsForConnector, StringMinorUnit, StringTwoDecimalUnit,
     StringTwoDecimalUnitForConnector,
 };
 pub mod connector_request_kafka;

@@ -1294,7 +1294,9 @@ fn wallet_source<T: PaymentMethodDataTypes>(
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AliPayPlusRedirect {}
         | WalletData::BluecodeRedirect {}
+        | WalletData::BoostRedirect {}
         | WalletData::AmazonPayRedirect(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)

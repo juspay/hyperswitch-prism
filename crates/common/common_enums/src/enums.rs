@@ -1521,6 +1521,7 @@ pub enum PaymentMethodType {
     Alfamart,
     AliPay,
     AliPayHk,
+    AliPayPlus,
     Alma,
     Tamara,
     AmazonPay,
@@ -1642,6 +1643,7 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     Skrill,
     Neteller,
+    Boost,
     Paysera,
     Paymaya,
     Payhere,
@@ -2142,6 +2144,8 @@ pub enum CardNetwork {
     PrivateLabel,
     #[serde(alias = "DINACARD")]
     Dinacard,
+    #[serde(alias = "MYDEBIT")]
+    MyDebit,
     #[serde(alias = "AIRPLUS")]
     AirPlus,
     #[serde(alias = "AURORE")]

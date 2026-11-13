@@ -41,12 +41,22 @@ where
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         match Json::<T>::from_request(req, state).await {
             Ok(Json(value)) => Ok(Self(value)),
-            Err(rejection) => Err(HttpError {
-                status: StatusCode::BAD_REQUEST,
-                message: rejection.to_string(),
-                details: None,
+            Err(rejection) => {
+                // Do NOT log `rejection` itself: axum's JsonRejection Display
+                // embeds the offending raw JSON value (serde error text), which
+                // can contain card or credential data. Log only the status
+                // category; the caller still receives the full message below.
+                tracing::error!(
+                    status = %rejection.status(),
+                    "request body failed to deserialize — returning 400"
+                );
+                Err(HttpError {
+                    status: StatusCode::BAD_REQUEST,
+                    message: rejection.to_string(),
+                    details: None,
+                }
+                .into_response())
             }
-            .into_response()),
         }
     }
 }
