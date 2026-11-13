@@ -451,10 +451,10 @@ scripts/generators/code/services.desc
 .netlify
 
 # UCS Connector Test Runtime Artifacts
-crates/internal/integration-tests/report.json
-crates/internal/integration-tests/test_report/
-crates/internal/integration-tests/local-debug-report.json
-crates/internal/integration-tests/local_debug_report/
+tests/regression/report.json
+tests/regression/test_report/
+tests/regression/local-debug-report.json
+tests/regression/local_debug_report/
 *.test.log
 /tmp/*test*.log
 .grpc-server.pid

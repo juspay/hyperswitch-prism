@@ -74,7 +74,7 @@ into a single "Refund needs Capture" edge is the most common error in this table
 | DefendDispute | (none, unproven) | No dispute `suite_spec.json` exists. |
 
 **Unproven rows.** `suite_spec.json` files live under
-`crates/internal/integration-tests/src/global_suites/`. Only flows with one there have a
+`tests/regression/src/global_suites/`. Only flows with one there have a
 *proven* dependency edge. The dispute flows have none, so their "(none)" is an inference
 from request-type shape and rpc placement, not a fact. Do not harden it.
 

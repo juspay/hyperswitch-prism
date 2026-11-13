@@ -126,6 +126,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
                 tax_status: Some(TaxStatus::Exempt.into()), // Tax status of the order.
                 ..Default::default()
             }),
+            ..Default::default()
         }),
         ..Default::default()
     }

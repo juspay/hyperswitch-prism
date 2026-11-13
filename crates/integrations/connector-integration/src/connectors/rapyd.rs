@@ -4,17 +4,23 @@ pub mod transformers;
 mod test;
 
 use base64::Engine;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
+use common_utils::{
+    crypto::VerifySignature, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    StringMajorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, RSync, Refund,
         RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
+        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventContext, EventType,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -45,7 +51,7 @@ use transformers::{
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::{IntegrationError, IntegrationErrorContext};
+use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -117,9 +123,245 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Rapyd<T>
+    interfaces::webhooks::IncomingWebhook for Rapyd<T>
 {
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        let event: transformers::RapydIncomingWebhook = request
+            .body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(WebhookError::WebhookEventTypeNotFound)?;
+        event.try_into()
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let event: transformers::RapydIncomingWebhook = request
+            .body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
+        use transformers::RapydWebhookEventType;
+        Ok(match event.webhook_type {
+            RapydWebhookEventType::PaymentSucceeded
+            | RapydWebhookEventType::PaymentCompleted
+            | RapydWebhookEventType::PaymentCaptured
+            | RapydWebhookEventType::PaymentCanceled
+            | RapydWebhookEventType::PaymentExpired
+            | RapydWebhookEventType::PaymentFailed => {
+                let data = event.payment_data()?;
+                Some(WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(data.id),
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                }))
+            }
+            RapydWebhookEventType::RefundCompleted
+            | RapydWebhookEventType::PaymentRefundRejected
+            | RapydWebhookEventType::PaymentRefundFailed => {
+                let data = event.refund_data()?;
+                Some(WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(data.id),
+                    connector_transaction_id: Some(data.payment),
+                    merchant_refund_id: None,
+                    merchant_transaction_id: None,
+                }))
+            }
+            RapydWebhookEventType::PaymentDisputeCreated
+            | RapydWebhookEventType::PaymentDisputeUpdated => {
+                let data = event.dispute_data()?;
+                Some(WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    connector_dispute_id: Some(data.token),
+                    connector_transaction_id: Some(data.original_transaction_id),
+                }))
+            }
+            RapydWebhookEventType::Unknown => None,
+        })
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let event: transformers::RapydIncomingWebhook = request
+            .body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        event.payment_data()?.into_response(&request.body)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let event: transformers::RapydIncomingWebhook = request
+            .body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        use transformers::{RapydWebhookEventType, RefundStatus};
+        let status = match event.webhook_type {
+            RapydWebhookEventType::RefundCompleted => RefundStatus::Completed,
+            RapydWebhookEventType::PaymentRefundRejected => RefundStatus::Rejected,
+            RapydWebhookEventType::PaymentRefundFailed => RefundStatus::Error,
+            _ => return Err(WebhookError::WebhookEventTypeNotFound.into()),
+        };
+        let data = event.refund_data()?;
+        let error_message = if matches!(status, RefundStatus::Error | RefundStatus::Rejected) {
+            data.failure_reason
+        } else {
+            None
+        };
+        Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
+            connector_refund_id: Some(data.id),
+            merchant_transaction_id: None,
+            status: status.into(),
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
+        let event: transformers::RapydIncomingWebhook = request
+            .body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let data = event.dispute_data()?;
+        // Rapyd sends dispute amounts in major units, including decimal amounts.
+        let money = domain_types::utils::convert_back_amount_to_money_for_webhook(
+            &common_utils::types::FloatMajorUnitForConnector,
+            data.amount,
+            data.currency,
+        )?;
+        let amount = domain_types::utils::convert_amount_for_webhook(
+            &common_utils::types::StringMinorUnitForConnector,
+            &money,
+        )?;
+        Ok(DisputeWebhookDetailsResponse {
+            amount,
+            currency: data.currency,
+            dispute_id: data.token,
+            status: data.status.try_into()?,
+            stage: common_enums::DisputeStage::Dispute,
+            connector_response_reference_id: None,
+            dispute_message: data.dispute_reason_description,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            status_code: 200,
+            response_headers: None,
+            connector_reason_code: None,
+            additional_details: None,
+        })
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, Report<WebhookError>> {
+        let signature = request
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("signature"))
+            .map(|(_, value)| value)
+            .ok_or(WebhookError::WebhookSignatureNotFound)?;
+        let encoded_hex = BASE64_ENGINE_URL_SAFE
+            .decode(signature)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+        hex::decode(encoded_hex).change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, Report<WebhookError>> {
+        let auth: RapydAuthType = serde_json::from_slice(&connector_webhook_secret.secret)
+            .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
+        build_webhook_verification_message(request, &auth)
+    }
+
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        let secrets =
+            connector_webhook_secret.ok_or(WebhookError::WebhookVerificationSecretNotFound)?;
+        let auth: RapydAuthType = serde_json::from_slice(&secrets.secret)
+            .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
+        let message = build_webhook_verification_message(&request, &auth)?;
+        let signature = self.get_webhook_source_verification_signature(&request, &secrets)?;
+        common_utils::crypto::HmacSha256
+            .verify_signature(auth.secret_key.peek().as_bytes(), &signature, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
 }
+
+fn build_webhook_verification_message(
+    request: &RequestDetails,
+    auth: &RapydAuthType,
+) -> Result<Vec<u8>, Report<WebhookError>> {
+    if auth.access_key.peek().is_empty() || auth.secret_key.peek().is_empty() {
+        return Err(WebhookError::WebhookVerificationSecretInvalid.into());
+    }
+    let header = |key: &'static str| {
+        request
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(key))
+            .map(|(_, value)| value.as_str())
+            .ok_or(WebhookError::WebhookMissingRequiredField { field: key })
+    };
+    let uri = request
+        .uri
+        .as_deref()
+        .filter(|uri| !uri.is_empty())
+        .ok_or(WebhookError::WebhookMissingRequiredField { field: "uri" })?;
+    let mut url = if uri.starts_with("https://") || uri.starts_with("http://") {
+        uri.to_string()
+    } else if uri.starts_with('/') {
+        // HS forwards a relative URI and uses HTTPS for the public callback.
+        format!("https://{}{uri}", header("host")?)
+    } else {
+        return Err(WebhookError::WebhookSourceVerificationFailed.into());
+    };
+    if !uri.contains('?') {
+        if let Some(query) = request
+            .query_params
+            .as_deref()
+            .filter(|query| !query.is_empty())
+        {
+            url.push('?');
+            url.push_str(query);
+        }
+    }
+    let mut message = format!(
+        "{url}{}{}{}{}",
+        header("salt")?,
+        header("timestamp")?,
+        auth.access_key.peek(),
+        auth.secret_key.peek(),
+    )
+    .into_bytes();
+    message.extend_from_slice(&request.body);
+    Ok(message)
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Rapyd<T>
 {

@@ -158,7 +158,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::connector_types::IncomingWebhook for Payhere<T>
+    interfaces::webhooks::IncomingWebhook for Payhere<T>
 {
     fn verify_webhook_source(
         &self,

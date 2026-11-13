@@ -74,7 +74,7 @@ or `BodyDecoding`. Do not write those impls for a payout-only connector.
 
 **No `config/superposition.toml` entry and no `connector_specs/<connector>/specs.json` entry are
 required.** Three independent reasons, all in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`:
+`tests/regression/src/bin/check_connector_specs.rs`:
 
 1. `main()` enumerates connectors by reading
    `crates/integrations/connector-integration/src/connectors/` only — a connector under
@@ -729,7 +729,7 @@ in `payout_connectors/santander/transformers.rs`).
     `patch_payout_connector_urls` arm (`crates/types-traits/domain_types/src/types.rs`).
 13. **No `config/superposition.toml` entry and no `connector_specs/<connector>/specs.json` entry.**
     `PayoutService` is in `IGNORE_SERVICES` in both
-    `crates/internal/integration-tests/src/bin/check_connector_specs.rs` and `check_coverage.rs`;
+    `tests/regression/src/bin/check_connector_specs.rs` and `check_coverage.rs`;
     `flow_to_suites()` maps every payout flow to `None`. Payout connectors sit outside the
     merge-blocking connector-certification gate.
 
@@ -780,7 +780,7 @@ in `payout_connectors/santander/transformers.rs`).
 ### Unit-test shape
 
 There is no `connector_specs` suite for payouts — `PayoutService` is in `IGNORE_SERVICES` in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`, so `PayoutTransfer` is outside
+`tests/regression/src/bin/check_connector_specs.rs`, so `PayoutTransfer` is outside
 the merge-blocking certification gate. The in-repo gRPC-level coverage is
 `crates/grpc-server/grpc-server/tests/payout_flows_test.rs`. Recommended unit-test surface for a new
 implementation:

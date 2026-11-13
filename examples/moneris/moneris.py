@@ -167,11 +167,14 @@ def _build_pre_authenticate_request():
                 card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
             ),
         ),
-        customer=common_types_pb2.Customer(  # Customer Information.
-            email=payment_methods_pb2.SecretString(value="test@example.com"),
-        ),
         address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=common_types_pb2.Address(),
+            billing_address=common_types_pb2.Address(
+                line1=payment_methods_pb2.SecretString(value="123 Main St"),
+                city=payment_methods_pb2.SecretString(value="Seattle"),
+                zip_code=payment_methods_pb2.SecretString(value="98101"),
+                country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
+                state_code_iso=payment_methods_pb2.SecretString(value="WA"),
+            ),
         ),
         enrolled_for_3ds=False,  # Authentication Details.
         return_url="https://example.com/3ds-return",  # URLs for Redirection.

@@ -185,7 +185,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Cybersource<T>
+    interfaces::webhooks::IncomingWebhook for Cybersource<T>
 {
     /// The Base64-decoded `sig` parameter of the `v-c-signature` header.
     fn get_webhook_source_verification_signature(

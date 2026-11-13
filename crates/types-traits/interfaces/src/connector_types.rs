@@ -9,26 +9,23 @@ use domain_types::{
     connector_flow,
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorEnum, ConnectorSpecifications, ConnectorWebhookSecrets,
-        CreatePaymentMethodData, CreatePaymentMethodResponseData, DisputeDefendData,
-        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse, EventType,
+        ConnectorCustomerResponse, ConnectorEnum, ConnectorSpecifications, CreatePaymentMethodData,
+        CreatePaymentMethodResponseData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         GetPaymentMethodData, GetPaymentMethodResponseData, MandateRevokeRequestData,
         MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
         PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        PayoutWebhookDetailsResponse, RechargeRequestData, RechargeResponseData,
-        RedirectDetailsResponse, RefreshPaymentMethodData, RefreshPaymentMethodFlowData,
-        RefreshPaymentMethodResponseData, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
-        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ServerAuthenticationTokenRequestData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
+        RechargeResponseData, RedirectDetailsResponse, RefreshPaymentMethodData,
+        RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData, RefundFlowData,
+        RefundSyncData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
-        VerifyWebhookSourceFlowData, WebhookDetailsResponse, WebhookResourceReference,
+        VerifyWebhookSourceFlowData,
     },
-    errors::WebhookError,
     frm::frm_types::{
         FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
         FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, FrmRefundProcessedRequest,
@@ -45,7 +42,6 @@ use domain_types::{
         PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
         PayoutVoidRequest, PayoutVoidResponse,
     },
-    router_data::ConnectorSpecificConfig,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::VerifyWebhookSourceResponseData,
     surcharge::surcharge_types::{
@@ -64,13 +60,8 @@ use crate::{
     connector_integration_v2::ConnectorIntegrationV2,
     decode::BodyDecoding,
     verification::{ConnectorSourceVerificationSecrets, SourceVerification},
+    webhooks::IncomingWebhook,
 };
-
-#[derive(Debug, Clone, Copy)]
-pub enum IncomingWebhookFlowError {
-    ResourceNotFound,
-    InternalError,
-}
 
 /// Represents the next authentication step for composite authorize flow.
 /// Connectors implement `next_authentication_step` to guide the flow controller.
@@ -636,145 +627,6 @@ pub trait PayoutCreateV2<
     PayoutCreateResponse,
 >
 {
-}
-
-pub trait IncomingWebhook {
-    fn verify_webhook_source(
-        &self,
-        _request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<bool, error_stack::Report<WebhookError>> {
-        Ok(false)
-    }
-
-    fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck> {
-        vec![]
-    }
-
-    /// fn get_webhook_source_verification_signature
-    fn get_webhook_source_verification_signature(
-        &self,
-        _request: &RequestDetails,
-        _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
-        Ok(Vec::new())
-    }
-
-    /// fn get_webhook_source_verification_message
-    fn get_webhook_source_verification_message(
-        &self,
-        _request: &RequestDetails,
-        _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
-        Ok(Vec::new())
-    }
-
-    fn get_event_type(
-        &self,
-        _request: RequestDetails,
-    ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        Err(WebhookError::WebhooksNotImplemented {
-            operation: "get_event_type",
-        }
-        .into())
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        _request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        Ok(None)
-    }
-
-    fn process_payment_webhook(
-        &self,
-        _request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-        _event_context: Option<domain_types::connector_types::EventContext>,
-    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        Err(WebhookError::WebhooksNotImplemented {
-            operation: "process_payment_webhook",
-        }
-        .into())
-    }
-
-    fn process_refund_webhook(
-        &self,
-        _request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        Err(WebhookError::WebhooksNotImplemented {
-            operation: "process_refund_webhook",
-        }
-        .into())
-    }
-    fn process_dispute_webhook(
-        &self,
-        _request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        Err(WebhookError::WebhooksNotImplemented {
-            operation: "process_dispute_webhook",
-        }
-        .into())
-    }
-
-    /// fn process_payout_webhook
-    ///
-    /// Maps a payout webhook to the same shape a `PayoutService.Get` would
-    /// return: the terminal status derived from the event type, the payout
-    /// identifiers, and the failure details when the payout failed.
-    fn process_payout_webhook(
-        &self,
-        _request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        Err(WebhookError::WebhooksNotImplemented {
-            operation: "process_payout_webhook",
-        }
-        .into())
-    }
-
-    /// fn get_webhook_resource_object
-    fn get_webhook_resource_object(
-        &self,
-        _request: RequestDetails,
-    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
-    {
-        Err(WebhookError::WebhooksNotImplemented {
-            operation: "get_webhook_resource_object",
-        }
-        .into())
-    }
-
-    /// A minimal, structurally valid webhook body for this connector.
-    ///
-    /// Used by the field-probe to verify that webhook handling is implemented
-    fn sample_webhook_body(&self) -> &'static [u8] {
-        b"{}"
-    }
-
-    /// fn get_webhook_api_response
-    ///
-    /// This is used by callers to decide what HTTP response
-    /// should be sent back to the connector for webhook acknowledgement.
-    fn get_webhook_api_response(
-        &self,
-        _request: RequestDetails,
-        _error_kind: Option<IncomingWebhookFlowError>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<crate::api::EventAckResponse, error_stack::Report<WebhookError>> {
-        Ok(crate::api::EventAckResponse {
-            status_code: 200,
-            headers: vec![],
-            body: None,
-        })
-    }
 }
 
 pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {

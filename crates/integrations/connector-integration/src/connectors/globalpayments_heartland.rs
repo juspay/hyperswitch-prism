@@ -342,7 +342,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 /// Portico is polling-based: no signed webhook exists, so reconciliation is via
 /// PSync/RSync (`ReportTxnDetail`) and the default no-op webhook impl stands.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for GlobalpaymentsHeartland<T>
+    interfaces::webhooks::IncomingWebhook for GlobalpaymentsHeartland<T>
 {
 }
 
