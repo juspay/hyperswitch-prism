@@ -3883,6 +3883,29 @@ fn webhook_headers_lowercase(
 impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationRequest {
     type Error = Report<IntegrationError>;
     fn try_from(req: &VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
+        // PayPal requires the configured webhook ID, not a shared signing key.
+        // Validate it before constructing or sending a verification request.
+        let secrets =
+            req.merchant_secret
+                .as_ref()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "webhook_secrets.secret",
+                    context: Default::default(),
+                })?;
+        let webhook_id = std::str::from_utf8(&secrets.secret).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "webhook_secrets.secret",
+                context: Default::default(),
+            },
+        )?;
+        if webhook_id.trim().is_empty() {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "webhook_secrets.secret",
+                context: Default::default(),
+            }
+            .into());
+        }
+
         // Parse the webhook body into serde_json::Value
         // With preserve_order feature enabled, this preserves field order (uses IndexMap, not BTreeMap)
         let webhook_event = serde_json::from_slice(&req.webhook_body)
@@ -3930,12 +3953,7 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
                     context: Default::default(),
                 })?
                 .clone(),
-            webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
-                .change_context(IntegrationError::NotImplemented(
-                    "webhook verification secret not found".to_string(),
-                    Default::default(),
-                ))
-                .attach_printable("Could not convert secret to UTF-8")?,
+            webhook_id: webhook_id.to_string(),
             webhook_event,
         })
     }
@@ -4266,5 +4284,78 @@ impl TryFrom<ResponseRouterData<PaypalClientAuthTokenResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod webhook_verification_tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+    use domain_types::connector_types::ConnectorWebhookSecrets;
+
+    fn verification_request(secret: Option<Vec<u8>>) -> VerifyWebhookSourceRequestData {
+        VerifyWebhookSourceRequestData {
+            webhook_headers: [
+                (webhook_headers::PAYPAL_TRANSMISSION_ID, "transmission-id"),
+                (
+                    webhook_headers::PAYPAL_TRANSMISSION_TIME,
+                    "2026-11-13T00:00:00Z",
+                ),
+                (
+                    webhook_headers::PAYPAL_CERT_URL,
+                    "https://api.paypal.com/cert",
+                ),
+                (webhook_headers::PAYPAL_TRANSMISSION_SIG, "signature"),
+                (webhook_headers::PAYPAL_AUTH_ALGO, "SHA256withRSA"),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect(),
+            webhook_body: b"{}".to_vec(),
+            merchant_secret: secret.map(|secret| ConnectorWebhookSecrets {
+                secret,
+                additional_secret: None,
+            }),
+            webhook_uri: None,
+        }
+    }
+
+    #[test]
+    fn webhook_verification_requires_paypal_webhook_id() {
+        for secret in [None, Some(Vec::new()), Some(b" \t".to_vec())] {
+            let error = PaypalSourceVerificationRequest::try_from(&verification_request(secret))
+                .expect_err("missing webhook ID must prevent request construction");
+            assert!(matches!(
+                error.current_context(),
+                IntegrationError::MissingRequiredField {
+                    field_name: "webhook_secrets.secret",
+                    ..
+                }
+            ));
+        }
+    }
+
+    #[test]
+    fn webhook_verification_rejects_non_utf8_webhook_id() {
+        let error =
+            PaypalSourceVerificationRequest::try_from(&verification_request(Some(vec![0xff])))
+                .expect_err("invalid webhook ID must prevent request construction");
+        assert!(matches!(
+            error.current_context(),
+            IntegrationError::InvalidDataFormat {
+                field_name: "webhook_secrets.secret",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn webhook_verification_preserves_configured_paypal_webhook_id() {
+        let request = PaypalSourceVerificationRequest::try_from(&verification_request(Some(
+            b"configured-webhook-id".to_vec(),
+        )))
+        .expect("configured webhook ID should allow request construction");
+        assert_eq!(request.webhook_id, "configured-webhook-id");
     }
 }
