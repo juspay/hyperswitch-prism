@@ -2,8 +2,11 @@ use std::{error::Error, marker::PhantomData};
 
 use common_utils::metadata::MaskedMetadata;
 use domain_types::{
-    connector_flow::Authorize,
-    connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData},
+    connector_flow::{Authorize, RepeatPayment, SetupMandate},
+    connector_types::{
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
+    },
     errors::IntegrationError,
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodToken},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -624,6 +627,217 @@ fn external_authentication() -> grpc::AuthenticationData {
 }
 
 #[test]
+fn browser_information_is_forwarded_as_client_details() -> TestResult {
+    let mut data = authorize_data(card_request()?)?;
+    data.request.browser_info = Some(domain_types::router_request_types::BrowserInformation {
+        accept_header: Some("text/html".to_string()),
+        ip_address: Some("192.0.2.1".parse()?),
+        java_enabled: Some(false),
+        java_script_enabled: Some(true),
+        language: Some("en-US".to_string()),
+        color_depth: Some(24),
+        screen_height: Some(723),
+        screen_width: Some(1536),
+        time_zone: Some(-330),
+        user_agent: Some("test browser".to_string()),
+        ..Default::default()
+    });
+    let wire = serde_json::to_value(convert(data)?)?;
+    if wire.get("client_details")
+        != Some(&json!({
+            "accept_header": "text/html",
+            "ip_address": "192.0.2.1",
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "screen_color_depth": 24,
+            "screen_height": 723,
+            "screen_width": 1536,
+            "time_zone_offset": -330
+        }))
+    {
+        return Err("browser information was not translated to Rapyd client details".into());
+    }
+    Ok(())
+}
+
+#[test]
+fn billing_and_email_are_forwarded_to_the_payment() -> TestResult {
+    let mut request = card_request()?;
+    request.address = Some(grpc::PaymentAddress {
+        billing_address: Some(grpc::Address {
+            first_name: Some(Secret::new("Test".to_string())),
+            last_name: Some(Secret::new("User".to_string())),
+            line1: Some(Secret::new("1 Main Street".to_string())),
+            line2: Some(Secret::new("Suite 2".to_string())),
+            line3: Some(Secret::new("Floor 3".to_string())),
+            city: Some(Secret::new("San Francisco".to_string())),
+            state: Some(Secret::new("California".to_string())),
+            zip_code: Some(Secret::new("94122".to_string())),
+            country_alpha2_code: Some(grpc::CountryAlpha2::Us.into()),
+            phone_number: Some(Secret::new("4155550123".to_string())),
+            phone_country_code: Some("+1".to_string()),
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+    let mut data = authorize_data(request)?;
+    data.request.email = Some("guest@example.com".parse()?);
+    let wire = serde_json::to_value(convert(data)?)?;
+    if wire.get("address")
+        != Some(&json!({
+            "name": "Test User",
+            "line_1": "1 Main Street",
+            "line_2": "Suite 2",
+            "line_3": "Floor 3",
+            "city": "San Francisco",
+            "state": "California",
+            "country": "US",
+            "zip": "94122",
+            "phone_number": "+14155550123"
+        }))
+        || wire.get("receipt_email") != Some(&json!("guest@example.com"))
+    {
+        return Err("billing or receipt email was not forwarded to the payment".into());
+    }
+    Ok(())
+}
+
+#[test]
+fn missing_optional_payment_details_are_omitted() -> TestResult {
+    for partial in [false, true] {
+        let mut request = card_request()?;
+        request.address = Some(grpc::PaymentAddress {
+            billing_address: partial.then_some(grpc::Address {
+                country_alpha2_code: Some(grpc::CountryAlpha2::Us.into()),
+                phone_number: Some(Secret::new("4155550123".to_string())),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+        let mut data = authorize_data(request)?;
+        if let PaymentMethodData::Card(card) = &mut data.request.payment_method_data {
+            card.card_holder_name = Some(Secret::new("Test User".to_string()));
+        }
+        data.request.browser_info =
+            partial.then_some(domain_types::router_request_types::BrowserInformation {
+                java_enabled: Some(false),
+                screen_height: Some(0),
+                time_zone: Some(0),
+                ..Default::default()
+            });
+        let wire = serde_json::to_value(convert(data)?)?;
+        let expected_browser = partial.then_some(json!({
+            "java_enabled": false, "screen_height": 0, "time_zone_offset": 0
+        }));
+        let expected_address = partial.then_some(json!({
+            "country": "US", "phone_number": "4155550123"
+        }));
+        if wire.get("client_details") != expected_browser.as_ref()
+            || wire.get("address") != expected_address.as_ref()
+            || wire.get("receipt_email").is_some()
+        {
+            return Err(
+                "optional payment details were required, defaulted, or serialized as null".into(),
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn recurring_requests_forward_optional_payment_details() -> TestResult {
+    let fixture = card_request()?;
+    let data = authorize_data(fixture.clone())?;
+    let browser = Some(grpc::BrowserInformation {
+        java_enabled: Some(false),
+        time_zone_offset_minutes: Some(-60),
+        ..Default::default()
+    });
+    let email = Secret::new("guest@example.com".to_string());
+    let setup_request = SetupMandateRequestData::foreign_try_from((
+        grpc::PaymentServiceSetupRecurringRequest {
+            amount: Some(grpc::Money {
+                minor_amount: 0,
+                currency: grpc::Currency::Eur.into(),
+            }),
+            payment_method: fixture.payment_method.clone(),
+            return_url: fixture.return_url.clone(),
+            browser_info: browser.clone(),
+            setup_future_usage: Some(grpc::FutureUsage::OffSession.into()),
+            customer_acceptance: Some(grpc::CustomerAcceptance {
+                acceptance_type: grpc::AcceptanceType::Offline.into(),
+                ..Default::default()
+            }),
+            customer: Some(grpc::Customer {
+                name: Some("Test User".to_string()),
+                email: Some(email.clone()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        data.request.payment_method_data.clone(),
+    ))?;
+    let setup = RapydPaymentsRequest::try_from(RapydRouterData {
+        connector: (*Rapyd::<DefaultPCIHolder>::new()).clone(),
+        router_data: RouterDataV2 {
+            flow: PhantomData::<SetupMandate>,
+            resource_common_data: data.resource_common_data.clone(),
+            connector_config: data.connector_config.clone(),
+            request: setup_request,
+            response: Err(ErrorResponse::default()),
+        },
+    })?;
+    let repeat_request = RepeatPaymentData::foreign_try_from((
+        grpc::RecurringPaymentServiceChargeRequest {
+            amount: fixture.amount,
+            return_url: fixture.return_url,
+            browser_info: browser,
+            email: Some(email),
+            connector_recurring_payment_id: Some(grpc::MandateReference {
+                mandate_id_type: Some(grpc::mandate_reference::MandateIdType::ConnectorMandateId(
+                    grpc::ConnectorMandateReferenceId {
+                        connector_mandate_id: Some("card_test".to_string()),
+                        ..Default::default()
+                    },
+                )),
+            }),
+            ..Default::default()
+        },
+        Some(data.request.payment_method_data),
+    ))?;
+    let repeat = RapydPaymentsRequest::try_from(RapydRouterData {
+        connector: (*Rapyd::<DefaultPCIHolder>::new()).clone(),
+        router_data: RouterDataV2 {
+            flow: PhantomData::<RepeatPayment>,
+            resource_common_data: data.resource_common_data,
+            connector_config: data.connector_config,
+            request: repeat_request,
+            response: Err(ErrorResponse::default()),
+        },
+    })?;
+    let setup = serde_json::to_value(setup)?;
+    let repeat = serde_json::to_value(repeat)?;
+    for wire in [&setup, &repeat] {
+        if wire.get("client_details")
+            != Some(&json!({ "java_enabled": false, "time_zone_offset": -60 }))
+            || wire.get("address") != Some(&json!({ "name": "Test User", "country": "US" }))
+            || wire.get("receipt_email") != Some(&json!("guest@example.com"))
+        {
+            return Err("recurring payment details were not forwarded".into());
+        }
+    }
+    if setup.get("amount") != Some(&json!("0"))
+        || setup.get("capture") != Some(&json!(false))
+        || repeat.get("payment_method") != Some(&json!("card_test"))
+        || repeat.get("initiation_type") != Some(&json!("recurring"))
+    {
+        return Err("recurring payment behavior changed".into());
+    }
+    Ok(())
+}
+
+#[test]
 fn hosted_authentication_follows_the_requested_authentication_type() -> TestResult {
     for (auth_type, required) in [
         (grpc::AuthenticationType::ThreeDs, true),
@@ -631,7 +845,9 @@ fn hosted_authentication_follows_the_requested_authentication_type() -> TestResu
     ] {
         let mut request = card_request()?;
         request.auth_type = auth_type.into();
-        let wire = serde_json::to_value(convert(authorize_data(request)?)?)?;
+        let mut data = authorize_data(request)?;
+        data.request.browser_info = Some(Default::default());
+        let wire = serde_json::to_value(convert(data)?)?;
         if wire.get("payment_method_options") != Some(&json!({ "3d_required": required })) {
             return Err(format!("unexpected hosted authentication options: {wire}").into());
         }
@@ -646,7 +862,10 @@ fn hosted_authentication_follows_the_requested_authentication_type() -> TestResu
 fn external_authentication_replaces_hosted_authentication_options() -> TestResult {
     let mut request = card_request()?;
     request.authentication_data = Some(external_authentication());
-    let wire = serde_json::to_value(convert(authorize_data(request)?)?)?;
+    let mut data = authorize_data(request)?;
+    data.request.browser_info = Some(Default::default());
+    data.request.email = Some("guest@example.com".parse()?);
+    let wire = serde_json::to_value(convert(data)?)?;
     if wire.get("payment_method_options")
         != Some(&json!({
             "3d_version": "2.2.0",
@@ -656,6 +875,12 @@ fn external_authentication_replaces_hosted_authentication_options() -> TestResul
         }))
     {
         return Err(format!("unexpected external authentication options: {wire}").into());
+    }
+    if wire.get("client_details") != Some(&json!({}))
+        || wire.get("receipt_email") != Some(&json!("guest@example.com"))
+        || wire.get("address") != Some(&json!({ "name": "Test User", "country": "US" }))
+    {
+        return Err("external authentication dropped supplied payment details".into());
     }
     Ok(())
 }
