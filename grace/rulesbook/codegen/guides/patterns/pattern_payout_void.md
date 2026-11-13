@@ -59,7 +59,7 @@ or `BodyDecoding`. Do not write those impls for a payout-only connector.
 
 **No `config/superposition.toml` entry and no `connector_specs/<connector>/specs.json` entry are
 required.** Three independent reasons, all in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`:
+`tests/regression/src/bin/check_connector_specs.rs`:
 
 1. `main()` enumerates connectors by reading
    `crates/integrations/connector-integration/src/connectors/` only — a connector under
@@ -364,7 +364,7 @@ REST-shaped cancel endpoint.
   `PayoutVoidResponse` `TryFrom` blocks. The flow is registered-but-inert.
 
 Treat every stub as a **coverage gap, not a decision that the flow should never be covered** — the
-same framing `crates/internal/integration-tests/src/bin/check_connector_specs.rs` applies to
+same framing `tests/regression/src/bin/check_connector_specs.rs` applies to
 uncovered flows.
 
 ## Code Examples
@@ -597,7 +597,7 @@ Follow this ordered sequence when wiring a new connector's `PayoutVoid`:
    settled".
 8. Add an integration test alongside
    `crates/grpc-server/grpc-server/tests/payout_flows_test.rs`. Note that **no `connector_specs`
-   entry is required or possible**: `crates/internal/integration-tests/src/bin/check_connector_specs.rs` enumerates connectors from
+   entry is required or possible**: `tests/regression/src/bin/check_connector_specs.rs` enumerates connectors from
    `connectors/` only, never `payout_connectors/`, and `PayoutService` is in its `IGNORE_SERVICES`
    (and `check_coverage.rs`'s), so payouts sit outside the merge-blocking certification gate. No
    `config/superposition.toml` entry is required either.
@@ -693,7 +693,7 @@ Each connector that implements PayoutVoid should cover:
 return `connector_flow_not_implemented`. The in-repo gRPC-level harness is
 `crates/grpc-server/grpc-server/tests/payout_flows_test.rs`. There is no `connector_specs` suite for
 payouts — `PayoutService` is in `IGNORE_SERVICES` in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`, so `PayoutVoid` sits outside
+`tests/regression/src/bin/check_connector_specs.rs`, so `PayoutVoid` sits outside
 the merge-blocking certification gate.
 
 ## Cross-References

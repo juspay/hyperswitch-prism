@@ -34,12 +34,10 @@ fn main() {
         .unwrap()
         .parent()
         .unwrap()
-        .parent()
-        .unwrap()
         .to_path_buf();
 
     let proto_file = root.join("crates/types-traits/grpc-api-types/proto/services.proto");
-    let suites_dir = root.join("crates/internal/integration-tests/src/global_suites");
+    let suites_dir = root.join("tests/regression/src/global_suites");
 
     println!("{}", "=".repeat(80));
     println!("gRPC PROTO SERVICE COVERAGE ANALYSIS");

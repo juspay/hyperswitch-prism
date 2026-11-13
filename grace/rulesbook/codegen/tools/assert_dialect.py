@@ -2,7 +2,7 @@
 """Check plan §8 assertions against the dialect the harness actually implements.
 
 Why this exists. Two independent GRACE runs on the same connector wrote §8 assertions in a
-dialect `crates/internal/integration-tests/src/harness` does not implement -- rule names
+dialect `tests/regression/src/harness` does not implement -- rule names
 `not_one_of` / `not_contains_text`, and path operators `#json` / `#b64json` / `a|b`. The
 first run deleted the scenario file and never tracked it; the second raised three
 PLAN_CONFLICT reports and burned three plan revisions discovering the same thing one
@@ -29,11 +29,11 @@ a JSON report with `summary` / `inconclusive[]` / `needs_human[]`, and `--replay
 """
 import argparse, difflib, json, os, re, sys, tempfile
 
-HARNESS = "crates/internal/integration-tests/src/harness"
+HARNESS = "tests/regression/src/harness"
 TYPES = HARNESS + "/scenario_types.rs"
 ASSERT = HARNESS + "/scenario_assert.rs"
 # load_scenario() resolves ids here; env var mirrors scenario_root() in scenario_loader.rs
-SUITES = "crates/internal/integration-tests/src/global_suites"
+SUITES = "tests/regression/src/global_suites"
 
 
 def supported_rules(src):

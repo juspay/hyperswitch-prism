@@ -606,11 +606,7 @@ fn browser_automation_engine_dir() -> Result<PathBuf, ScenarioError> {
     let candidate = if let Ok(path) = std::env::var("UCS_BROWSER_AUTOMATION_DIR") {
         PathBuf::from(path)
     } else {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("..")
-            .join("browser-automation-engine")
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("browser-automation")
     };
 
     let resolved = candidate
@@ -698,7 +694,7 @@ fn execute_google_pay_token_generation(
         let reason = format!(
             "credentials for connector '{connector}' do not include metadata.google_pay; \
              add a `metadata.google_pay` block under `{connector}` in '{}'. \
-             Refer to `browser-automation-engine/src/gpay-token-gen.ts` for the expected shape \
+             Refer to `tests/regression/browser-automation/src/gpay-token-gen.ts` for the expected shape \
              and use any existing connector entry in `creds.json` that already has \
              `metadata.google_pay` as a template",
             creds_path.display()
@@ -728,7 +724,7 @@ fn execute_google_pay_token_generation(
         output_file_str.clone(),
     ];
 
-    // 4. Determine the working directory (browser-automation-engine).
+    // 4. Determine the browser automation working directory.
     let work_dir = browser_automation_engine_dir()?;
 
     // 5. Spawn the npm process.
@@ -860,7 +856,7 @@ fn execute_cli_pre_request(
         .map(|(k, v)| (k.clone(), resolve(v)))
         .collect();
 
-    // 4. Determine the working directory (browser-automation-engine).
+    // 4. Determine the browser automation working directory.
     let work_dir = browser_automation_engine_dir()?;
 
     // 5. Spawn the CLI process.

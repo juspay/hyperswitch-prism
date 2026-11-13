@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# scripts/run-tests
+# tests/regression/scripts/run-tests
 #
 # First-class CLI for running UCS connector integration tests.
-# Installed on your PATH as `test-prism` by scripts/setup-connector-tests.sh.
+# Installed on your PATH as `test-prism` by tests/regression/scripts/setup-connector-tests.sh.
 #
 # USAGE
 #   test-prism [FLAGS]
@@ -25,7 +25,7 @@
 #
 # FIRST-RUN BEHAVIOUR
 #   On the very first invocation (no setup sentinel found) the script
-#   automatically runs scripts/setup-connector-tests.sh before testing.
+#   automatically runs tests/regression/scripts/setup-connector-tests.sh before testing.
 #   Subsequent runs skip setup entirely. Use --setup to force a re-run.
 #
 # EXAMPLES
@@ -41,7 +41,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 
 # ── Colours ────────────────────────────────────────────────────────────────────
 if [[ -t 1 ]]; then
