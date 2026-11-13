@@ -5064,6 +5064,18 @@ impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::Airlin
                 .boarding_fee
                 .map(crate::money::from_proto_money)
                 .transpose()?,
+            flight_journeys: airline_data
+                .flight_journeys
+                .into_iter()
+                .map(|journey| connector_types::AirlineJourneyDetails {
+                    journey_no: journey.journey_no,
+                    departure: journey
+                        .departure
+                        .map(connector_types::AirlineLocation::from),
+                    arrival: journey.arrival.map(connector_types::AirlineLocation::from),
+                    utc_departure: journey.utc_departure,
+                })
+                .collect(),
             flight_segments: airline_data
                 .flight_segments
                 .into_iter()

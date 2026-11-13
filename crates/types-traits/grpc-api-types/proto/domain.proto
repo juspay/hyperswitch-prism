@@ -158,6 +158,16 @@ message AirlineData {
 
   repeated AirlineSegment flight_segments = 40; // Flight legs, in itinerary order
   repeated AirlinePassenger passengers = 41;    // Passengers on the ticket
+  repeated AirlineJourneyDetails flight_journeys = 42; // Journeys in itinerary order
+}
+
+// One itinerary journey, which may contain one or more flight segments.
+// departure/arrival reuse AirlineLocation; journey_no links its flight_segments.
+message AirlineJourneyDetails {
+  optional uint32 journey_no = 1;     // 1-based journey order, matching AirlineSegment.journey_no
+  AirlineLocation departure = 2;      // Journey departure endpoint and local scheduled time
+  AirlineLocation arrival = 3;        // Journey arrival endpoint and local scheduled time
+  optional string utc_departure = 4;  // Scheduled departure timestamp in UTC (RFC 3339)
 }
 
 // One flight leg. departure/arrival reuse the shared AirlineLocation, mirroring
@@ -198,7 +208,10 @@ message AirlineLocation {
   optional string city_name = 3;                // City name
   optional string country_code = 4;             // ISO 3166-1 alpha-2 country code (connectors convert to numeric/alpha-3 as needed)
   optional string country_name = 5;             // Country name
-  optional string date_time = 6;                // Local scheduled time (RFC 3339)
+  // Local scheduled date/time at the airport. RFC 3339 with an explicit offset
+  // is preferred; Nuvei also accepts YYYY-MM-DDTHH:MM:SS[.fraction] without
+  // an offset and preserves the local wall-clock time without timezone conversion.
+  optional string date_time = 6;
 }
 
 message AirlinePassenger {

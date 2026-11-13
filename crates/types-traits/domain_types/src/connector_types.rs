@@ -5255,7 +5255,17 @@ pub struct AirlineData {
     pub total_fee_money: Option<common_utils::types::Money>,
     pub boarding_fee_money: Option<common_utils::types::Money>,
     pub flight_segments: Vec<AirlineSegment>,
+    pub flight_journeys: Vec<AirlineJourneyDetails>,
     pub passengers: Vec<AirlinePassenger>,
+}
+
+/// Journey endpoints supplied by Txns from MTI.
+#[derive(Debug, Clone, Default)]
+pub struct AirlineJourneyDetails {
+    pub journey_no: Option<u32>,
+    pub departure: Option<AirlineLocation>,
+    pub arrival: Option<AirlineLocation>,
+    pub utc_departure: Option<String>,
 }
 
 /// One flight leg. `departure`/`arrival` reuse the shared [`AirlineLocation`].

@@ -6,7 +6,7 @@ use domain_types::{
         PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        AirlineLocation, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, ContinueRedirectionResponse, EventType,
         MandateReference, MandateReferenceId,
         NuveiClientAuthenticationResponse as NuveiClientAuthenticationResponseDomain,
@@ -1576,7 +1576,7 @@ struct NuveiFlightLegDetails {
 }
 
 // Airline data is supplied explicitly through domain_data on each request.
-fn get_nuvei_airline_addendums(
+pub(super) fn get_nuvei_airline_addendums(
     domain: Option<&domain_types::connector_types::DomainData>,
 ) -> Result<Option<Secret<NuveiAddendums>>, Report<IntegrationError>> {
     let Some(data) = domain.and_then(|domain| domain.airline_data.as_ref()) else {
@@ -1599,44 +1599,41 @@ fn get_nuvei_airline_addendums(
             }
         })
         .collect();
-    let legs = data
-        .flight_segments
-        .iter()
-        .enumerate()
-        .map(|(index, segment)| {
-            let departure = segment.departure.as_ref();
-            let arrival = segment.arrival.as_ref();
-            NuveiFlightLegDetails {
-                airline_code: segment
-                    .marketing_carrier_code
-                    .as_ref()
-                    .or(data.airline_code.as_ref())
-                    .cloned(),
-                flight_number: segment.flight_number.as_deref().map(|number| {
-                    let carrier = segment
-                        .marketing_carrier_code
-                        .as_ref()
-                        .or(data.airline_code.as_ref());
-                    match carrier {
-                        Some(carrier) if !number.starts_with(carrier.as_str()) => {
-                            format!("{carrier} {number}")
-                        }
-                        _ => number.to_owned(),
-                    }
-                }),
-                departure_date: departure
-                    .and_then(|location| location.date_time.as_deref())
-                    .map(nuvei_airline_date),
-                arrival_date: arrival
-                    .and_then(|location| location.date_time.as_deref())
-                    .map(nuvei_airline_date),
-                departure_country: departure.and_then(|location| location.country_code.clone()),
-                departure_city: departure.and_then(|location| location.city_name.clone()),
-                departure_airport: departure.and_then(|location| location.airport_code.clone()),
-                destination_country: arrival.and_then(|location| location.country_code.clone()),
-                destination_city: arrival.and_then(|location| location.city_name.clone()),
-                destination_airport: arrival.and_then(|location| location.airport_code.clone()),
-                stop_over_code: segment.stopover_code.clone().unwrap_or_else(|| {
+    let make_leg = |departure: Option<&AirlineLocation>,
+                    arrival: Option<&AirlineLocation>,
+                    carrier: Option<&str>,
+                    flight_number: Option<&str>,
+                    stop_over_code: String| {
+        NuveiFlightLegDetails {
+            airline_code: carrier.map(str::to_owned),
+            flight_number: flight_number.map(|number| match carrier {
+                Some(carrier) if !number.starts_with(carrier) => {
+                    format!("{carrier} {number}")
+                }
+                _ => number.to_owned(),
+            }),
+            departure_date: departure
+                .and_then(|location| location.date_time.as_deref())
+                .map(nuvei_airline_date),
+            arrival_date: arrival
+                .and_then(|location| location.date_time.as_deref())
+                .map(nuvei_airline_date),
+            departure_country: departure.and_then(|location| location.country_code.clone()),
+            departure_city: departure.and_then(|location| location.city_name.clone()),
+            departure_airport: departure.and_then(|location| location.airport_code.clone()),
+            destination_country: arrival.and_then(|location| location.country_code.clone()),
+            destination_city: arrival.and_then(|location| location.city_name.clone()),
+            destination_airport: arrival.and_then(|location| location.airport_code.clone()),
+            stop_over_code,
+        }
+    };
+    let legs = if data.flight_journeys.is_empty() {
+        // Preserve the segment-based mapping for callers without journey details.
+        data.flight_segments
+            .iter()
+            .enumerate()
+            .map(|(index, segment)| {
+                let stop_over_code = segment.stopover_code.clone().unwrap_or_else(|| {
                     if segment.journey_no.is_some_and(|journey_no| {
                         data.flight_segments
                             .iter()
@@ -1647,10 +1644,45 @@ fn get_nuvei_airline_addendums(
                     } else {
                         "O".to_owned()
                     }
-                }),
-            }
-        })
-        .collect();
+                });
+                make_leg(
+                    segment.departure.as_ref(),
+                    segment.arrival.as_ref(),
+                    segment
+                        .marketing_carrier_code
+                        .as_ref()
+                        .or(data.airline_code.as_ref())
+                        .map(String::as_str),
+                    segment.flight_number.as_deref(),
+                    stop_over_code,
+                )
+            })
+            .collect()
+    } else {
+        data.flight_journeys
+            .iter()
+            .map(|journey| {
+                let mut segments = data.flight_segments.iter().filter(|segment| {
+                    journey.journey_no.is_some() && segment.journey_no == journey.journey_no
+                });
+                let first_segment = segments.next();
+                let has_connection = segments.next().is_some();
+                make_leg(
+                    journey.departure.as_ref(),
+                    journey.arrival.as_ref(),
+                    first_segment.and_then(|segment| {
+                        segment
+                            .marketing_carrier_code
+                            .as_ref()
+                            .or(segment.operating_carrier_code.as_ref())
+                            .map(String::as_str)
+                    }),
+                    first_segment.and_then(|segment| segment.flight_number.as_deref()),
+                    if has_connection { "X" } else { "O" }.to_owned(),
+                )
+            })
+            .collect()
+    };
     Ok(Some(Secret::new(NuveiAddendums {
         airlines: NuveiAirlines {
             reservation_details: NuveiReservationDetails {
@@ -1673,21 +1705,26 @@ fn get_nuvei_airline_addendums(
                     .clone()
                     .unwrap_or_else(|| "TKT".to_owned()),
                 issue_date: data.ticket_issue_date.as_deref().map(nuvei_airline_date),
-                flight_date_utc: data.flight_date.as_deref().map(|value| {
-                    time::OffsetDateTime::parse(
-                        value,
-                        &time::format_description::well_known::Rfc3339,
-                    )
-                    .ok()
-                    .map(|date| date.to_offset(time::UtcOffset::UTC))
-                    .and_then(|date| {
-                        date.format(time::macros::format_description!(
-                            "[year]-[month]-[day] [hour]:[minute]:[second]"
-                        ))
+                flight_date_utc: data
+                    .flight_journeys
+                    .first()
+                    .and_then(|journey| journey.utc_departure.as_deref())
+                    .or(data.flight_date.as_deref())
+                    .map(|value| {
+                        time::OffsetDateTime::parse(
+                            value,
+                            &time::format_description::well_known::Rfc3339,
+                        )
                         .ok()
-                    })
-                    .unwrap_or_else(|| nuvei_airline_date(value))
-                }),
+                        .map(|date| date.to_offset(time::UtcOffset::UTC))
+                        .and_then(|date| {
+                            date.format(time::macros::format_description!(
+                                "[year]-[month]-[day] [hour]:[minute]:[second]"
+                            ))
+                            .ok()
+                        })
+                        .unwrap_or_else(|| nuvei_airline_date(value))
+                    }),
                 issuing_carrier_code: data
                     .issuing_carrier_code
                     .as_ref()
@@ -1709,6 +1746,29 @@ fn nuvei_airline_date(value: &str) -> String {
                 "[year]-[month]-[day] [hour]:[minute]:[second]"
             ))
             .ok()
+        })
+        .or_else(|| {
+            // MTI local departure/arrival timestamps may omit the timezone.
+            // Format their wall-clock time without assuming or converting a timezone.
+            time::PrimitiveDateTime::parse(
+                value,
+                time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]"),
+            )
+            .or_else(|_| {
+                time::PrimitiveDateTime::parse(
+                    value,
+                    time::macros::format_description!(
+                        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]"
+                    ),
+                )
+            })
+            .ok()
+            .and_then(|date| {
+                date.format(time::macros::format_description!(
+                    "[year]-[month]-[day] [hour]:[minute]:[second]"
+                ))
+                .ok()
+            })
         })
         .unwrap_or_else(|| value.to_string())
 }
@@ -1751,21 +1811,19 @@ fn merge_nuvei_capture_ticket(
     {
         reservation_details.ticket_number = Some(ticket);
     }
-    // Preserve the supplied issue date; use capture time only when it is absent.
-    if reservation_details.issue_date.is_none() {
-        reservation_details.issue_date = Some(
-            common_utils::date_time::now()
-                .format(time::macros::format_description!(
-                    "[year]-[month]-[day] [hour]:[minute]:[second]"
-                ))
-                .change_context(IntegrationError::RequestEncodingFailed {
-                    context: nuvei_error_context(
-                        "Check the server clock and retry the capture; issueDate is generated from the capture time",
-                        "Nuvei could not format the capture timestamp as YYYY-MM-DD HH:mm:ss for addendums.airlines.reservationDetails.issueDate",
-                    ),
-                })?,
-        );
-    }
+    // Capture requests use the current timestamp for issueDate.
+    reservation_details.issue_date = Some(
+        common_utils::date_time::now()
+            .format(time::macros::format_description!(
+                "[year]-[month]-[day] [hour]:[minute]:[second]"
+            ))
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: nuvei_error_context(
+                    "Check the server clock and retry the capture; issueDate is generated from the capture time",
+                    "Nuvei could not format the capture timestamp as YYYY-MM-DD HH:mm:ss for addendums.airlines.reservationDetails.issueDate",
+                ),
+            })?,
+    );
     Ok(Some(Secret::new(addendums)))
 }
 
