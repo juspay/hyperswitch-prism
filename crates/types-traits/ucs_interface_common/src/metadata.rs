@@ -262,17 +262,17 @@ pub fn connector_from_metadata(
     })
 }
 
-/// **SECURITY-ACCEPTED(metadata-identity-defaults)**
+/// Extracts the merchant ID from request metadata, falling back to a default when absent.
 ///
-/// - **Behaviour:** `merchant_id` / `tenant_id` / `org_id` / `request_id` extractors never
-///   fail; missing headers fall back to `"DefaultMerchantId"` / `"public"` / `""` /
-///   a generated UUID.
-/// - **Intentional:** Prism is a stateless connector-translation service. These values are
-///   used for logging, tracing and pass-through to connector requests, never for
-///   authorization.
-/// - **Safe:** Prism is not a trust boundary; callers are authenticated upstream and
-///   credentials come per-request, not from ID lookup. Nothing is stored or isolated
-///   by these IDs.
+/// # Design notes
+///
+/// - **Behaviour:** the `merchant_id` / `tenant_id` / `org_id` / `request_id` extractors do
+///   not fail on a missing header; they fall back to `"DefaultMerchantId"` / `"public"` /
+///   `""` / a generated UUID.
+/// - **Intentional:** these values are used for logging, tracing and pass-through to
+///   connector requests, not for authorization.
+/// - **Invariant:** callers are authenticated upstream and credentials come with each
+///   request, so a default ID does not give access to another merchant's data.
 pub fn merchant_id_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<String, IntegrationError> {

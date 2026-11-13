@@ -110,17 +110,14 @@ pub fn validate_environment(environment: &str) -> Result<Env, String> {
 /// instead of `connectors_with_connector_config_overrides` directly so that both override
 /// sources are always applied consistently.
 ///
-/// **SECURITY-ACCEPTED(caller-url-overrides)**
+/// # Design notes
 ///
-/// - **Behaviour:** URL fields in `connector_config` (`base_url`, `dispute_base_url`,
-///   `endpoint_prefix`, …) override the operator's TOML / superposition URLs, so outbound
-///   connector calls go to the host the caller names.
-/// - **Intentional:** required feature. Callers need per-merchant and per-region endpoints
-///   (e.g. merchant-specific live URL prefixes) and test or mock hosts, and Prism is stateless
-///   with no merchant store to look these up from.
-/// - **Safe:** the caller already supplies the connector credentials and payment data in
-///   the same request, so redirecting the call exposes nothing the caller does not already
-///   hold. Prism is an internal service reached only by trusted callers, not end users.
+/// - **Behaviour:** caller-supplied URL fields in `connector_config` (`base_url`,
+///   `dispute_base_url`, `endpoint_prefix`, …) take precedence over the configured URLs.
+/// - **Intentional:** needed for per-merchant and per-region endpoints and for test or
+///   mock hosts.
+/// - **Invariant:** the caller already provides the connector credentials and payment data
+///   in the same request, so the override exposes nothing the caller does not already hold.
 pub async fn apply_url_overrides(
     config: &configs::Config,
     connector: &connector_types::ConnectorVariant,

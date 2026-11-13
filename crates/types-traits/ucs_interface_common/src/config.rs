@@ -42,8 +42,7 @@ pub fn merge_config_with_override(
     }
 }
 
-// SECURITY-ACCEPTED(caller-url-overrides): caller-supplied URL overrides are a required
-// feature; see `apply_url_overrides` for the rationale.
+// Caller-supplied URL overrides are intentional; see the design notes on `apply_url_overrides`.
 pub fn connectors_with_connector_config_overrides(
     connector_config: &ConnectorSpecificConfig,
     base_config: &configs::Config,

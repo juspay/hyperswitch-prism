@@ -857,8 +857,8 @@ pub fn handle_event_transformer(
     > = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
 
     // Local synchronous source verification only (no external HTTP call in FFI).
-    // SECURITY-ACCEPTED(webhook-advisory-verification): a verification error is reported as
-    // `source_verified = false`, not a hard failure; the caller must check the flag before acting.
+    // A verification error is reported as `source_verified = false` rather than failing the
+    // request; the caller decides how to handle unverified events.
     let source_verified = connector_data
         .connector
         .verify_webhook_source(

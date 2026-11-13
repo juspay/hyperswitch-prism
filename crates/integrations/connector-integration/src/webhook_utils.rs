@@ -21,15 +21,14 @@ use crate::types::ConnectorData;
 /// This function then: determines the event type, dispatches to the appropriate
 /// content helper, and assembles the final `EventServiceHandleResponse`.
 ///
-/// **SECURITY-ACCEPTED(webhook-advisory-verification)**
+/// # Design notes
 ///
 /// - **Behaviour:** the payload is parsed and `event_content` is returned even when
-///   `source_verified` is `false`; the flag is passed through to the response unchanged.
-/// - **Intentional:** Prism is stateless and does not act on webhook events. It reports the
-///   verification result and lets the caller decide, because some connectors do not sign
-///   webhooks and callers may confirm the event another way (e.g. a PSync to the connector).
-/// - **Safe:** Prism takes no action on the event. Callers MUST check `source_verified`
-///   and must not act on unverified content without confirming it independently.
+///   `source_verified` is `false`.
+/// - **Intentional:** some connectors do not sign webhooks, and callers may confirm the event
+///   another way (e.g. a PSync to the connector), so the decision is left to the caller.
+/// - **Invariant:** Prism never acts on webhook events itself; callers must check
+///   `source_verified` before acting on the event content.
 pub fn process_webhook_event<
     T: PaymentMethodDataTypes
         + Default
