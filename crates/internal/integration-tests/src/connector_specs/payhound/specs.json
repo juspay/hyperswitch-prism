@@ -1,0 +1,7 @@
+{
+  "connector": "payhound",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get"
+  ]
+}
