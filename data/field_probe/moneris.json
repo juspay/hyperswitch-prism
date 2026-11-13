@@ -89,10 +89,13 @@
           "url": "https://api.sb.moneris.io/payments",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_txn_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"APPLE_PAY_DECRYPTED\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"dataType\":\"THREE_D_SECURE\",\"cryptogram\":\"AAAAAA==\",\"cardBrand\":\"VISA\",\"walletEcommerceIndicator\":\"05\",\"walletIndicator\":\"IN_APPLICATION\"},\"automaticCapture\":true,\"incrementalAuthorization\":false,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
@@ -185,10 +188,13 @@
           "url": "https://api.sb.moneris.io/payments",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_txn_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"incrementalAuthorization\":false,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
@@ -315,10 +321,13 @@
           "url": "https://api.sb.moneris.io/payments",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_txn_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_APPLICATION\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true,\"incrementalAuthorization\":false,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
@@ -619,10 +628,13 @@
           "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/complete",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_capture_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": "{\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"idempotencyKey\":\"capture_probe_capture_001\"}"
@@ -725,10 +737,13 @@
           "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001",
           "method": "Get",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_merchant_txn_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": null
@@ -767,10 +782,13 @@
           "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/increment",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_auth_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": "{\"idempotencyKey\":\"increment_probe_auth_001\",\"amount\":{\"amount\":100,\"currency\":\"USD\"}}"
@@ -825,13 +843,16 @@
           "url": "https://api.sb.moneris.io/three-d-secure/authentication-value-lookups",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"postauth_\",\"threeDSecureChallengeResponseData\":\"probe_txn_123\"}"
+          "body": "{\"idempotencyKey\":\"post_auth_\",\"threeDSecureChallengeResponseData\":\"probe_txn_123\"}"
         }
       }
     },
@@ -852,11 +873,14 @@
               "card_holder_name": "John Doe"
             }
           },
-          "customer": {
-            "email": "test@example.com"
-          },
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US",
+              "state_code_iso": "WA"
+            }
           },
           "enrolled_for_3ds": false,
           "return_url": "https://example.com/3ds-return",
@@ -872,13 +896,16 @@
           "url": "https://api.sb.moneris.io/three-d-secure/authentications",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"3ds_\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"cardholderName\":\"John Doe\",\"cardholderEmail\":\"test@example.com\",\"billingAddress\":{},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"}},\"threeDSecureMessageCategory\":\"PAYMENT\",\"threeDSecureDeviceChannel\":\"THREE_D_SECURE_REQUESTOR_INITIATED\",\"threeDSecureRequestType\":\"RECURRING\",\"threeDSecureNotificationUrl\":\"https://example.com/3ds-return\",\"threeDSecureCompletionIndicator\":\"UNAVAILABLE\",\"threeDSecureChallengeRequested\":\"NO_PREFERENCE\"}"
+          "body": "{\"idempotencyKey\":\"pre_auth_\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"cardholderName\":\"John Doe\",\"billingAddress\":{\"streetNumber\":\"123\",\"streetName\":\"Main St\",\"city\":\"Seattle\",\"province\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"}},\"threeDSecureMessageCategory\":\"PAYMENT\",\"threeDSecureDeviceChannel\":\"THREE_D_SECURE_REQUESTOR_INITIATED\",\"threeDSecureRequestType\":\"RECURRING\",\"threeDSecureCompletionIndicator\":\"UNAVAILABLE\",\"threeDSecureChallengeRequested\":\"NO_PREFERENCE\",\"browserIpAddress\":null}"
         }
       }
     },
@@ -917,10 +944,13 @@
           "url": "https://api.sb.moneris.io/payments",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_proxy_txn_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": "{\"idempotencyKey\":\"auth_probe_proxy_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"incrementalAuthorization\":false,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
@@ -974,10 +1004,13 @@
           "url": "https://api.sb.moneris.io/refunds",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_refund_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": "{\"refundAmount\":{\"amount\":1000,\"currency\":\"USD\"},\"idempotencyKey\":\"refund_probe_refund_001\",\"reason\":\"customer_request\",\"paymentId\":\"probe_connector_txn_001\"}"
@@ -1003,10 +1036,13 @@
           "url": "https://api.sb.moneris.io/refunds/probe_refund_id_001",
           "method": "Get",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_refund_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": null
@@ -1060,10 +1096,13 @@
           "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/cancel",
           "method": "Post",
           "headers": {
+            "accept": "application/json",
             "api-version": "2026-08-14",
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
             "via": "HyperSwitch",
+            "x-correlation-id": "probe_void_001",
             "x-merchant-id": "probe_merchant"
           },
           "body": "{\"idempotencyKey\":\"void_probe_void_001\",\"reason\":null}"

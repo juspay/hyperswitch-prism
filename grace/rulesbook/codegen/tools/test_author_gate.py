@@ -2,7 +2,7 @@
 """Test-authoring gate for GRACE-authored connector test data.
 
 A GRACE run now writes the connector's test cases into committed JSON under
-`crates/internal/integration-tests/src/connector_specs/<connector>/` and the repo's own
+`tests/regression/src/connector_specs/<connector>/` and the repo's own
 harness runs them. That closes the seam where a run could declare a suite and ship no
 assertion for it -- but it opens a new one: a run can now weaken or waive its own tests.
 These checks police the diff the run authored.
@@ -32,8 +32,8 @@ OVERRIDE = "override.json"
 PRIVATE = "connector_specific_scenarios.json"
 WEBHOOK = "webhook_payload.json"
 
-SPECS_DIR = "crates/internal/integration-tests/src/connector_specs"
-SUITES_DIR = "crates/internal/integration-tests/src/global_suites"
+SPECS_DIR = "tests/regression/src/connector_specs"
+SUITES_DIR = "tests/regression/src/global_suites"
 
 # A waiver must say which kind of thing is missing, and point at evidence.
 WAIVER_RE = re.compile(

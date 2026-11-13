@@ -6555,7 +6555,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(L2L3Data::foreign_try_from)
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
@@ -6679,7 +6679,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(L2L3Data::foreign_try_from)
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
@@ -6786,7 +6786,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(L2L3Data::foreign_try_from)
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
@@ -6900,7 +6900,7 @@ impl
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(L2L3Data::foreign_try_from)
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
@@ -11427,6 +11427,10 @@ impl ForeignTryFrom<RefundServiceVoidPostRefundRequest> for RefundVoidPostRefund
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             connector_refund_id: value.connector_refund_id,
+            payment_method_data: value
+                .payment_method
+                .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
+                .transpose()?,
             cancellation_reason: value.cancellation_reason,
             refund_connector_metadata: value
                 .refund_metadata
@@ -11434,7 +11438,10 @@ impl ForeignTryFrom<RefundServiceVoidPostRefundRequest> for RefundVoidPostRefund
                 .transpose()?,
             refund_status: common_enums::RefundStatus::Success,
             connector_feature_data,
-            refund_money: None,
+            refund_money: value
+                .refund_amount
+                .map(crate::money::from_proto_money)
+                .transpose()?,
             connector_order_id: value.connector_order_id,
             integrity_object: None,
         })
@@ -11965,6 +11972,19 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let grpc_status = grpc_api_types::payments::DisputeStatus::foreign_from(value.status);
         let grpc_stage = grpc_api_types::payments::DisputeStage::foreign_from(value.stage);
+        let money = crate::utils::convert_back_amount_to_money(
+            &common_utils::types::StringMinorUnitForConnector,
+            value.amount,
+            value.currency,
+        )
+        .change_context(IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        })?;
+        let dispute_amount = connector_money_to_grpc(&money).change_context(
+            IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            },
+        )?;
         let response_headers = value
             .response_headers
             .map(|headers| {
@@ -11986,7 +12006,7 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             dispute_stage: grpc_stage.into(),
             connector_status_code: None,
             error: None,
-            dispute_amount: None,
+            dispute_amount: Some(dispute_amount),
             dispute_date: None,
             service_date: None,
             shipping_date: None,
@@ -13688,7 +13708,7 @@ impl
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(L2L3Data::foreign_try_from)
             .transpose()?;
 
         let test_mode = match environment {
@@ -14179,20 +14199,10 @@ impl
     }
 }
 
-impl
-    ForeignTryFrom<(
-        &grpc_api_types::payments::L2l3Data,
-        &PaymentAddress,
-        Option<&grpc_api_types::payments::Customer>,
-    )> for L2L3Data
-{
+impl ForeignTryFrom<&grpc_api_types::payments::L2l3Data> for L2L3Data {
     type Error = IntegrationError;
     fn foreign_try_from(
-        (l2l3_data, payment_address, customer): (
-            &grpc_api_types::payments::L2l3Data,
-            &PaymentAddress,
-            Option<&grpc_api_types::payments::Customer>,
-        ),
+        l2l3_data: &grpc_api_types::payments::L2l3Data,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let order_info = l2l3_data
             .order_info
@@ -14206,21 +14216,30 @@ impl
             .map(TaxInfo::foreign_try_from)
             .transpose()?;
 
-        let customer_info = customer.map(CustomerInfo::foreign_try_from).transpose()?;
+        let customer_info = l2l3_data
+            .customer_info
+            .as_ref()
+            .map(CustomerInfo::foreign_try_from)
+            .transpose()?;
 
-        let shipping_address = payment_address.get_shipping();
-        let billing_address = payment_address.get_payment_billing();
+        let billing_details = l2l3_data
+            .billing_details
+            .clone()
+            .map(AddressDetails::foreign_try_from)
+            .transpose()?;
+
+        let shipping_details = l2l3_data
+            .shipping_details
+            .clone()
+            .map(AddressDetails::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             order_info,
             tax_info,
             customer_info,
-            billing_details: billing_address
-                .and_then(|address| address.address.as_ref())
-                .cloned(),
-            shipping_details: shipping_address
-                .and_then(|address| address.address.as_ref())
-                .cloned(),
+            billing_details,
+            shipping_details,
         })
     }
 }
@@ -21007,7 +21026,7 @@ impl
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(L2L3Data::foreign_try_from)
             .transpose()?;
         let customer_id = Option::<CustomerId>::foreign_try_from(value.customer.clone())?;
 

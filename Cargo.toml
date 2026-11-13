@@ -27,7 +27,7 @@ members = [
   "crates/ffi/ffi",
   "sdk/codegen/uniffi-bindgen",
   "tools/field-probe",
-  "crates/internal/integration-tests",
+  "tests/regression",
   "tests/support/connector-creds"
 ]
 resolver = "2"

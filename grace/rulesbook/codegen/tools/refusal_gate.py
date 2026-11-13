@@ -30,7 +30,7 @@ import os
 import sys
 
 PROBE_DIR = "data/field_probe"
-SPECS_DIR = "crates/internal/integration-tests/src/connector_specs"
+SPECS_DIR = "tests/regression/src/connector_specs"
 
 # Flow marker -> the key field_probe files use.
 #
@@ -57,7 +57,7 @@ MARKER_TO_PROBE = {
     "IncrementalAuthorization": "incremental_authorization",
 }
 
-# Mirrors flow_to_suites() in crates/internal/integration-tests/src/bin/check_connector_specs.rs.
+# Mirrors flow_to_suites() in tests/regression/src/bin/check_connector_specs.rs.
 # A marker absent here has no harness suite -- IncomingWebhook and the dispute/payout flows --
 # and is provable only end to end.
 MARKER_TO_SUITES = {

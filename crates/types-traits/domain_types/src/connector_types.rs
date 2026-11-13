@@ -3016,6 +3016,7 @@ pub struct RefundSyncData {
 #[derive(Debug, Clone)]
 pub struct RefundVoidPostRefundData {
     pub connector_refund_id: String,
+    pub payment_method_data: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub cancellation_reason: Option<String>,
     pub refund_connector_metadata: Option<SecretSerdeValue>,
     pub refund_status: common_enums::RefundStatus,

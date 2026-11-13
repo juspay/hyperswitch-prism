@@ -1338,6 +1338,15 @@ message L2L3Data {
 
   // Tax information
   optional TaxInfo tax_info = 2;
+
+  // Customer details
+  optional Customer customer_info = 3;
+
+  // Shipping address
+  optional Address shipping_details = 4;
+
+  // Billing address
+  optional Address billing_details = 5;
 }
 
 // Redirection response data
@@ -3523,6 +3532,13 @@ message RefundServiceVoidPostRefundRequest {
 
   // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 12;
+
+  // Refund context required by connectors that need the original payment data
+  // to reverse a refund (for example, Worldpay RAFT).
+  optional PaymentMethod payment_method = 13;
+
+  // Amount of the original refund to reverse.
+  optional Money refund_amount = 14;
 }
 
 // Request message for creating a dispute

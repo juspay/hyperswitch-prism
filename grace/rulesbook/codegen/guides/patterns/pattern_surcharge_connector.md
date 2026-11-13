@@ -388,7 +388,7 @@ impl SurchargeRefundSucceededV2 for InterPayments {}
 ## Testing & Certification Notes
 
 - **Unit tests** in `surcharge_connectors/foo/transformers.rs`: `SurchargeCalculateRequest` → connector request shape (BIN, postal code masking, amount unit); connector response → `SurchargeCalculateResponse` including `surcharge_rate_percent`; `FooAuthType::try_from` on a *wrong* `ConnectorSpecificConfig` variant returning `FailedToObtainAuthType`.
-- **No certification gate.** `.github/scripts/verify-new-connectors.sh` keys off a new directory under `crates/internal/integration-tests/src/connector_specs/`, and `check_connector_specs.rs` scans only `crates/integrations/connector-integration/src/connectors` — a surcharge connector creates no spec directory. Treat this as a coverage gap: record a manual sandbox transcript in the PR for all three flows.
+- **No certification gate.** `.github/scripts/verify-new-connectors.sh` keys off a new directory under `tests/regression/src/connector_specs/`, and `check_connector_specs.rs` scans only `crates/integrations/connector-integration/src/connectors` — a surcharge connector creates no spec directory. Treat this as a coverage gap: record a manual sandbox transcript in the PR for all three flows.
 - **Manual scenarios**: calculate with a known BIN; calculate with `previous_connector_surcharge_id` set (re-quote); notify payment-succeeded with the id returned by calculate; notify refund-succeeded; notify with an unknown id (expect the connector's error mapped through `build_error_response`).
 
 ## Cross-References
