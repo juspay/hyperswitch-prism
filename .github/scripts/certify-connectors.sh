@@ -11,7 +11,7 @@
 # never touched, and one connector's bad day would stop every merge.
 #
 # Inputs (environment):
-#   CHANGED_CONNECTORS        comma-separated connector names touched by this PR
+#   CHANGED_CONNECTORS        comma-separated connector names changed by this PR
 #   NEW_CONNECTORS            comma-separated names added by this PR (gated elsewhere)
 #   SPEC_MODIFIED_CONNECTORS  comma-separated names whose specs.json/override.json
 #                             this PR edited — no arbitration escape hatch: a
@@ -240,7 +240,7 @@ prepare_base() {
 # Decided from git facts only; what each one runs comes from its specs.json.
 declare -a CONNECTORS=()
 
-append_touched_connectors() {
+include_changed_connectors() {
   local name specs
   IFS=',' read -ra TOUCHED <<< "${CHANGED_CONNECTORS:-}"
   for name in ${TOUCHED[@]+"${TOUCHED[@]}"}; do
@@ -283,14 +283,14 @@ if [[ "${SHARED_CHANGED:-}" == "true" ]]; then
   # Shared changes broaden certification to the production-live set. They do
   # not erase connector ownership: a connector edited by this same PR must
   # still run even when it is not in live_connectors.json.
-  echo "Also certifying connectors touched by this PR"
-  append_touched_connectors
+  echo "Also certifying connectors changed by this PR"
+  include_changed_connectors
 else
-  echo "Certifying connectors touched by this PR"
-  append_touched_connectors
+  echo "Certifying connectors changed by this PR"
+  include_changed_connectors
 fi
 
-# A touched connector may already be in the live set. Run it once.
+# A changed connector may already be in the live set. Run it once.
 declare -A SEEN_CONNECTORS=()
 declare -a UNIQUE_CONNECTORS=()
 for name in ${CONNECTORS[@]+"${CONNECTORS[@]}"}; do
