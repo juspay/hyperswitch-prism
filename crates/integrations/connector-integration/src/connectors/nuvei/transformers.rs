@@ -6,6 +6,7 @@ use domain_types::{
         PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
+        AirlineLocation,
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, ContinueRedirectionResponse, EventType,
         MandateReference, MandateReferenceId,
@@ -1576,7 +1577,7 @@ struct NuveiFlightLegDetails {
 }
 
 // Airline data is supplied explicitly through domain_data on each request.
-fn get_nuvei_airline_addendums(
+pub(super) fn get_nuvei_airline_addendums(
     domain: Option<&domain_types::connector_types::DomainData>,
 ) -> Result<Option<Secret<NuveiAddendums>>, Report<IntegrationError>> {
     let Some(data) = domain.and_then(|domain| domain.airline_data.as_ref()) else {
@@ -1599,15 +1600,15 @@ fn get_nuvei_airline_addendums(
             }
         })
         .collect();
-    let make_leg = |departure: Option<&domain_types::connector_types::AirlineLocation>,
-                    arrival: Option<&domain_types::connector_types::AirlineLocation>,
-                    carrier: Option<&String>,
+    let make_leg = |departure: Option<&AirlineLocation>,
+                    arrival: Option<&AirlineLocation>,
+                    carrier: Option<&str>,
                     flight_number: Option<&str>,
                     stop_over_code: String| {
         NuveiFlightLegDetails {
-            airline_code: carrier.cloned(),
+            airline_code: carrier.map(str::to_owned),
             flight_number: flight_number.map(|number| match carrier {
-                Some(carrier) if !number.starts_with(carrier.as_str()) => {
+                Some(carrier) if !number.starts_with(carrier) => {
                     format!("{carrier} {number}")
                 }
                 _ => number.to_owned(),
@@ -1651,7 +1652,8 @@ fn get_nuvei_airline_addendums(
                     segment
                         .marketing_carrier_code
                         .as_ref()
-                        .or(data.airline_code.as_ref()),
+                        .or(data.airline_code.as_ref())
+                        .map(String::as_str),
                     segment.flight_number.as_deref(),
                     stop_over_code,
                 )
@@ -1674,6 +1676,7 @@ fn get_nuvei_airline_addendums(
                             .marketing_carrier_code
                             .as_ref()
                             .or(segment.operating_carrier_code.as_ref())
+                            .map(String::as_str)
                     }),
                     first_segment.and_then(|segment| segment.flight_number.as_deref()),
                     if has_connection { "X" } else { "O" }.to_owned(),

@@ -42,6 +42,9 @@ use serde::Serialize;
 use std::fmt::Debug;
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use transformers::{
     NuveiAuthenticateRequest, NuveiAuthenticateResponse, NuveiCaptureRequest, NuveiCaptureResponse,
     NuveiClientAuthRequest, NuveiClientAuthResponse, NuveiErrorResponse, NuveiInitPaymentRequest,
