@@ -293,13 +293,10 @@ pub struct NmiBillingDescriptor {
 impl From<&domain_types::connector_types::BillingDescriptor> for NmiBillingDescriptor {
     fn from(billing_descriptor: &domain_types::connector_types::BillingDescriptor) -> Self {
         Self {
-            // NMI has a single descriptor text field, so the full statement descriptor
-            // takes priority and the descriptor name is used when it is absent.
             descriptor: billing_descriptor
                 .statement_descriptor
                 .clone()
-                .map(Secret::new)
-                .or_else(|| billing_descriptor.name.clone()),
+                .map(Secret::new),
             descriptor_phone: billing_descriptor.phone.clone(),
             descriptor_city: billing_descriptor.city.clone(),
         }
