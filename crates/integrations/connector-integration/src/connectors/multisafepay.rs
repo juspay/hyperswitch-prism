@@ -21,7 +21,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable};
+use hyperswitch_masking::{Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -39,6 +39,7 @@ use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
+    pub(crate) const API_KEY: &str = "api_key";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
 }
 
@@ -155,13 +156,17 @@ macros::create_all_prerequisites!(
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
-            _req: &RouterDataV2<F, FCD, Req, Res>,
+            req: &RouterDataV2<F, FCD, Req, Res>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let header = vec![(
-                headers::CONTENT_TYPE.to_string(),
-                self.common_get_content_type().to_string().into(),
-            )];
-            Ok(header)
+            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)?;
+
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                ),
+                (headers::API_KEY.to_string(), auth.api_key.into_masked()),
+            ])
         }
 
         pub fn connector_base_url_payments<'a, F, Req, Res>(
@@ -213,9 +218,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
-            Ok(format!("{}/orders?api_key={}", self.connector_base_url_payments(req), auth.api_key.expose()))
+            Ok(format!("{}/orders", self.connector_base_url_payments(req)))
         }
     }
 );
@@ -249,10 +252,7 @@ macros::macro_connector_implementation!(
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
 
-            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
-
-            Ok(format!("{}/orders/{}?api_key={}", self.connector_base_url_payments(req), connector_transaction_id, auth.api_key.expose()))
+            Ok(format!("{}/orders/{}", self.connector_base_url_payments(req), connector_transaction_id))
         }
     }
 );
@@ -293,11 +293,9 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_transaction_id = req.request.connector_transaction_id.clone();
-            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
             Ok(format!(
-                "{}/orders/{}/refunds?api_key={}",
-                self.connector_base_url_refunds(req), connector_transaction_id, auth.api_key.expose()
+                "{}/orders/{}/refunds",
+                self.connector_base_url_refunds(req), connector_transaction_id
             ))
         }
     }
@@ -335,10 +333,7 @@ macros::macro_connector_implementation!(
                 Err(IntegrationError::MissingConnectorRefundID { context: Default::default() })?;
             }
 
-            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
-
-            Ok(format!("{}/orders/{}?api_key={}", self.connector_base_url_refunds(req), connector_refund_id, auth.api_key.expose()))
+            Ok(format!("{}/orders/{}", self.connector_base_url_refunds(req), connector_refund_id))
         }
     }
 );
@@ -368,9 +363,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
-            Ok(format!("{}/auth/api_token?api_key={}", self.connector_base_url_merchant_auth(req), auth.api_key.expose()))
+            Ok(format!("{}/auth/api_token", self.connector_base_url_merchant_auth(req)))
         }
     }
 );

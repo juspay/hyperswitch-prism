@@ -1,7 +1,7 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{pii::Email, types::MinorUnit};
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
     connector_flow::{Authorize, ClientAuthenticationToken, PSync, RSync},
     connector_types::{
@@ -568,7 +568,16 @@ impl TryFrom<&ConnectorSpecificConfig> for MultisafepayAuthType {
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
-                    context: Default::default()
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Configure MultiSafepay with its api_key credential".to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Expected MultiSafepay connector authentication configuration"
+                                .to_string(),
+                        ),
+                    }
                 }
             )),
         }
