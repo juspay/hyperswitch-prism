@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 grpc-server = { path = "../../crates/grpc-server/grpc-server" }
 grpc-api-types = { path = "../../crates/types-traits/grpc-api-types" }
-connector-creds = { path = "../../crates/internal/connector-creds" }
+connector-creds = { path = "../support/connector-creds" }
 ucs_env = { path = "../../crates/common/ucs_env" }
 connector_service_ffi = { package = "ffi", path = "../../crates/ffi/ffi" }
 

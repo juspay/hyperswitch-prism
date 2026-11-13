@@ -2,9 +2,10 @@
 name = "connector-creds"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [dependencies]
-grpc-api-types = { path = "../../types-traits/grpc-api-types" }
+grpc-api-types = { path = "../../../crates/types-traits/grpc-api-types" }
 
 serde_json = "1.0"
 thiserror = "1.0"

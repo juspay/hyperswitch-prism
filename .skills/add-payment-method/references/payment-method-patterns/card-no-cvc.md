@@ -145,6 +145,6 @@ PaymentMethodData::CardWithNoCvc(card) => {
   credential / MIT / account-updater style). Otherwise the grouped rejection is correct and
   is what 34 of 36 connectors do.
 - The field-probe's canonical sample payload for this variant lives at
-  `crates/internal/field-probe/src/sample_data.rs` (`PmVariant::CardWithNoCvc`).
+  `tools/field-probe/src/sample_data.rs` (`PmVariant::CardWithNoCvc`).
 - For macro usage, see `macro-reference.md`. For the rest of the card request shape, see
   `card.md`.
