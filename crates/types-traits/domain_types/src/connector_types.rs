@@ -1930,6 +1930,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -4090,6 +4092,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -4215,6 +4219,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -6840,6 +6846,65 @@ pub struct RecipientDetails {
     pub phone_number: Option<Secret<String>>,
     pub tax_id: Option<Secret<String>>,
     pub address: Option<AddressDetails>,
+}
+
+/// Address of the party providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SenderAddress {
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
+    pub line3: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub country: Option<common_enums::CountryAlpha2>,
+}
+
+/// An individual (natural person) providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndividualSenderDetails {
+    /// Required by connectors only when the payment is an AFT; validated there, not at parse time.
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub date_of_birth: Option<Secret<time::Date>>,
+    pub address: Option<SenderAddress>,
+    pub email: Option<Email>,
+    pub phone_number: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+}
+
+/// A company (legal entity) providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CorporateSenderDetails {
+    /// Required by connectors only when the payment is an AFT; validated there, not at parse time.
+    pub company_name: Option<Secret<String>>,
+    pub address: Option<SenderAddress>,
+    pub email: Option<Email>,
+    pub phone_number: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+}
+
+/// Details about the sender of funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SenderDetails {
+    Individual(IndividualSenderDetails),
+    Corporate(CorporateSenderDetails),
+}
+
+impl SenderDetails {
+    pub fn get_address(&self) -> Option<&SenderAddress> {
+        match self {
+            Self::Individual(individual) => individual.address.as_ref(),
+            Self::Corporate(corporate) => corporate.address.as_ref(),
+        }
+    }
+
+    pub fn get_email(&self) -> Option<&Email> {
+        match self {
+            Self::Individual(individual) => individual.email.as_ref(),
+            Self::Corporate(corporate) => corporate.email.as_ref(),
+        }
+    }
 }
 
 /// Connector-specific additional details passed through the payment request.

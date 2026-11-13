@@ -10,13 +10,13 @@ use domain_types::{
         SubmitEvidence, Void,
     },
     connector_types::{
-        AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
+        AcceptDisputeData, CustomerInfo, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RecipientAccount, RecipientBankAccount, RecipientDetails, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
-        SubmitEvidenceData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SenderAddress,
+        SenderDetails, SetupMandateRequestData, SubmitEvidenceData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
@@ -382,15 +382,19 @@ pub enum CheckoutSenderType {
     Individual,
 }
 
-#[skip_serializing_none]
 #[derive(Debug, Serialize)]
-pub struct CheckoutSender {
-    #[serde(rename = "type")]
-    pub sender_type: CheckoutSenderType,
-    pub first_name: Secret<String>,
-    pub last_name: Secret<String>,
-    pub address: CheckoutAddress,
-    pub date_of_birth: Secret<time::Date>,
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CheckoutSender {
+    Individual {
+        first_name: Secret<String>,
+        last_name: Secret<String>,
+        date_of_birth: Secret<time::Date>,
+        address: CheckoutAddress,
+    },
+    Corporate {
+        company_name: Secret<String>,
+        address: CheckoutAddress,
+    },
 }
 
 #[skip_serializing_none]
@@ -513,30 +517,112 @@ fn build_checkout_recipient(
     })
 }
 
-fn build_checkout_sender(
-    resource_common_data: &PaymentFlowData,
-    date_of_birth: Secret<time::Date>,
-) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
-    let country = resource_common_data.get_billing_country()?;
-    Ok(CheckoutSender {
-        sender_type: CheckoutSenderType::Individual,
-        first_name: resource_common_data.get_billing_first_name()?,
-        last_name: resource_common_data.get_billing_last_name()?,
-        date_of_birth,
-        address: CheckoutAddress {
-            address_line1: Some(resource_common_data.get_billing_line1()?),
-            address_line2: resource_common_data.get_optional_billing_line2(),
-            city: Some(resource_common_data.get_billing_city()?),
-            state: CheckoutAftStateParams {
-                state: resource_common_data.get_optional_billing_state(),
-                country,
-                field_name: "payment_method_data.billing.address.state",
-            }
-            .try_into()?,
-            zip: Some(resource_common_data.get_billing_zip()?),
-            country: Some(country),
-        },
+pub(super) fn build_checkout_sender_address(
+    address: &SenderAddress,
+) -> Result<CheckoutAddress, error_stack::Report<IntegrationError>> {
+    let country = address
+        .country
+        .ok_or_else(utils::missing_field_err("sender_details.address.country"))?;
+    Ok(CheckoutAddress {
+        address_line1: Some(
+            address
+                .line1
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.line1"))?,
+        ),
+        address_line2: address.line2.clone(),
+        city: Some(
+            address
+                .city
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.city"))?,
+        ),
+        state: CheckoutAftStateParams {
+            state: address.state.clone(),
+            country,
+            field_name: "sender_details.address.state",
+        }
+        .try_into()?,
+        zip: Some(
+            address
+                .zip
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.zip"))?,
+        ),
+        country: Some(country),
     })
+}
+
+/// Builds the AFT sender from `sender_details`. Without `sender_details`, the sender is the
+/// individual named on the billing address, exactly as before sender details existed.
+pub(super) fn build_checkout_sender(
+    resource_common_data: &PaymentFlowData,
+    sender_details: Option<&SenderDetails>,
+    customer: Option<&CustomerInfo>,
+) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
+    let get_customer_date_of_birth = || {
+        customer
+            .and_then(|customer| customer.date_of_birth.clone())
+            .ok_or_else(utils::missing_field_err("sender_details.date_of_birth"))
+    };
+
+    let Some(sender_details) = sender_details else {
+        let date_of_birth = get_customer_date_of_birth()?;
+        let country = resource_common_data.get_billing_country()?;
+        return Ok(CheckoutSender::Individual {
+            first_name: resource_common_data.get_billing_first_name()?,
+            last_name: resource_common_data.get_billing_last_name()?,
+            date_of_birth,
+            address: CheckoutAddress {
+                address_line1: Some(resource_common_data.get_billing_line1()?),
+                address_line2: resource_common_data.get_optional_billing_line2(),
+                city: Some(resource_common_data.get_billing_city()?),
+                state: CheckoutAftStateParams {
+                    state: resource_common_data.get_optional_billing_state(),
+                    country,
+                    field_name: "payment_method_data.billing.address.state",
+                }
+                .try_into()?,
+                zip: Some(resource_common_data.get_billing_zip()?),
+                country: Some(country),
+            },
+        });
+    };
+
+    let address = sender_details
+        .get_address()
+        .ok_or_else(utils::missing_field_err("sender_details.address"))
+        .and_then(build_checkout_sender_address)?;
+
+    match sender_details {
+        SenderDetails::Individual(individual) => Ok(CheckoutSender::Individual {
+            first_name: individual
+                .first_name
+                .clone()
+                .ok_or_else(utils::missing_field_err(
+                    "sender_details.individual.first_name",
+                ))?,
+            last_name: individual
+                .last_name
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
+            // For backward compatibility, fall back to the customer's date of birth, which was
+            // the only source of the sender's date of birth before sender details were added.
+            date_of_birth: match individual.date_of_birth.clone() {
+                Some(date_of_birth) => date_of_birth,
+                None => get_customer_date_of_birth()?,
+            },
+            address,
+        }),
+        SenderDetails::Corporate(corporate) => {
+            Ok(CheckoutSender::Corporate {
+                company_name: corporate.company_name.clone().ok_or_else(
+                    utils::missing_field_err("sender_details.corporate.company_name"),
+                )?,
+                address,
+            })
+        }
+    }
 }
 
 #[skip_serializing_none]
@@ -650,7 +736,7 @@ fn build_shipping(common: &PaymentFlowData) -> Option<CheckoutShipping> {
 /// Customer name and tax number come from Level 2/3 data. Email and phone are
 /// independent of Level 2/3 processing.
 fn build_customer(
-    customer: Option<&domain_types::connector_types::CustomerInfo>,
+    customer: Option<&CustomerInfo>,
     l2l3_data: Option<&domain_types::connector_types::L2L3Data>,
     email: Option<common_utils::pii::Email>,
 ) -> Option<CheckoutCustomer> {
@@ -1941,21 +2027,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "additional_connector_details.checkout.purpose_of_payment",
                 ))?;
 
-            let sender_date_of_birth = item
-                .router_data
-                .request
-                .customer
-                .as_ref()
-                .and_then(|customer| customer.date_of_birth.clone())
-                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
-
             (
                 Some(build_checkout_recipient(
                     item.router_data.request.recipient_details.as_ref(),
                 )?),
                 Some(build_checkout_sender(
                     &item.router_data.resource_common_data,
-                    sender_date_of_birth,
+                    item.router_data.request.sender_details.as_ref(),
+                    item.router_data.request.customer.as_ref(),
                 )?),
                 Some(CheckoutInstruction { purpose }),
             )
@@ -2387,21 +2466,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "additional_connector_details.checkout.purpose_of_payment",
                 ))?;
 
-            let sender_date_of_birth = item
-                .router_data
-                .request
-                .customer
-                .as_ref()
-                .and_then(|customer| customer.date_of_birth.clone())
-                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
-
             (
                 Some(build_checkout_recipient(
                     item.router_data.request.recipient_details.as_ref(),
                 )?),
                 Some(build_checkout_sender(
                     &item.router_data.resource_common_data,
-                    sender_date_of_birth,
+                    item.router_data.request.sender_details.as_ref(),
+                    item.router_data.request.customer.as_ref(),
                 )?),
                 Some(CheckoutInstruction { purpose }),
             )
@@ -2758,21 +2830,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "additional_connector_details.checkout.purpose_of_payment",
                 ))?;
 
-            let sender_date_of_birth = item
-                .router_data
-                .request
-                .customer
-                .as_ref()
-                .and_then(|customer| customer.date_of_birth.clone())
-                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
-
             (
                 Some(build_checkout_recipient(
                     item.router_data.request.recipient_details.as_ref(),
                 )?),
                 Some(build_checkout_sender(
                     &item.router_data.resource_common_data,
-                    sender_date_of_birth,
+                    item.router_data.request.sender_details.as_ref(),
+                    item.router_data.request.customer.as_ref(),
                 )?),
                 Some(CheckoutInstruction { purpose }),
             )
