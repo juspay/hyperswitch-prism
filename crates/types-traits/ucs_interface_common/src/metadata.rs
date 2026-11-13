@@ -261,6 +261,18 @@ pub fn connector_from_metadata(
         })
     })
 }
+
+/// **SECURITY-ACCEPTED(metadata-identity-defaults)**
+///
+/// - **Behaviour:** `merchant_id` / `tenant_id` / `org_id` / `request_id` extractors never
+///   fail; missing headers fall back to `"DefaultMerchantId"` / `"public"` / `""` /
+///   a generated UUID.
+/// - **Intentional:** UCS is a stateless connector-translation service. These values are
+///   used for logging, tracing and pass-through to connector requests, never for
+///   authorization.
+/// - **Safe:** UCS is not a trust boundary; callers are authenticated upstream and
+///   credentials come per-request, not from ID lookup. Nothing is stored or isolated
+///   by these IDs.
 pub fn merchant_id_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<String, IntegrationError> {

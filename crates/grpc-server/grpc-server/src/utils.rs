@@ -109,6 +109,18 @@ pub fn validate_environment(environment: &str) -> Result<Env, String> {
 /// This is the **single entry point** for connector URL resolution. All flows must call this
 /// instead of `connectors_with_connector_config_overrides` directly so that both override
 /// sources are always applied consistently.
+///
+/// **SECURITY-ACCEPTED(caller-url-overrides)**
+///
+/// - **Behaviour:** URL fields in `connector_config` (`base_url`, `dispute_base_url`,
+///   `endpoint_prefix`, …) override the operator's TOML / superposition URLs, so outbound
+///   connector calls go to the host the caller names.
+/// - **Intentional:** required feature. Callers need per-merchant and per-region endpoints
+///   (e.g. merchant-specific live URL prefixes) and test or mock hosts, and UCS is stateless
+///   with no merchant store to look these up from.
+/// - **Safe:** the caller already supplies the connector credentials and payment data in
+///   the same request, so redirecting the call exposes nothing the caller does not already
+///   hold. UCS is an internal service reached only by trusted callers, not end users.
 pub async fn apply_url_overrides(
     config: &configs::Config,
     connector: &connector_types::ConnectorVariant,
