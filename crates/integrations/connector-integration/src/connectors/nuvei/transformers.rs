@@ -1753,9 +1753,7 @@ fn nuvei_airline_date(value: &str) -> String {
             // Format their wall-clock time without assuming or converting a timezone.
             time::PrimitiveDateTime::parse(
                 value,
-                time::macros::format_description!(
-                    "[year]-[month]-[day]T[hour]:[minute]:[second]"
-                ),
+                time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]"),
             )
             .or_else(|_| {
                 time::PrimitiveDateTime::parse(
