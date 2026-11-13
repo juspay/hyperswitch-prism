@@ -1433,6 +1433,17 @@ fn validity_date_from(month: &Secret<String>, year4: &Secret<String>) -> String 
     format!("{}/{}", month.peek(), year4.peek())
 }
 
+/// Generated order timestamps are absolute instants expressed in Brasília local
+/// time. ClearSale rejects a `Z`/offset suffix on order creation, so only the
+/// wall time is serialized; always convert the instant before formatting it.
+pub(super) fn generated_datetime_at(now: time::OffsetDateTime) -> String {
+    now.to_offset(time::macros::offset!(-3))
+        .format(&time::macros::format_description!(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:7]"
+        ))
+        .expect("the static ClearSale datetime format is valid")
+}
+
 pub(crate) fn to_clearsale_datetime(raw: &str) -> String {
     let raw = raw.trim();
     // Date-only → midnight (matches the `birthDate` example in the field docs).
@@ -1739,6 +1750,7 @@ fn items_subtotal(items: &[ClearSaleItem]) -> Option<FloatMajorUnit> {
 
 pub(crate) fn build_order_request(
     parts: OrderRequestParts,
+    generated_datetime: String,
     order_info_metadata: &ClearSaleOrderInfoMetadata,
     installments: Option<u32>,
     travel_data: &ClearSaleTravelData<'_>,
@@ -1763,12 +1775,7 @@ pub(crate) fn build_order_request(
         order: ClearSaleOrderRequest {
             code,
             session_id,
-            date: to_clearsale_datetime(
-                &common_utils::date_time::now()
-                    .assume_utc()
-                    .format(&time::format_description::well_known::Rfc3339)
-                    .unwrap_or_default(),
-            ),
+            date: generated_datetime,
             email,
             b2b_b2c,
             item_value: items_subtotal(&items),
@@ -2172,6 +2179,13 @@ fn resolve_order_info_metadata(
 pub(crate) fn order_from_common(
     inputs: OrderInputs<'_>,
 ) -> Result<ClearSaleOrderCreateRequest, Error> {
+    order_from_common_at(inputs, common_utils::date_time::now().assume_utc())
+}
+
+pub(super) fn order_from_common_at(
+    inputs: OrderInputs<'_>,
+    now: time::OffsetDateTime,
+) -> Result<ClearSaleOrderCreateRequest, Error> {
     let OrderInputs {
         code,
         session_id,
@@ -2243,12 +2257,7 @@ pub(crate) fn order_from_common(
         })
         .transpose()?;
 
-    let now = to_clearsale_datetime(
-        &common_utils::date_time::now()
-            .assume_utc()
-            .format(&time::format_description::well_known::Rfc3339)
-            .unwrap_or_default(),
-    );
+    let now = generated_datetime_at(now);
     let payments = vec![build_clear_sale_payment(
         payment_method,
         total_value,
@@ -2287,6 +2296,7 @@ pub(crate) fn order_from_common(
                 .unwrap_or(DEFAULT_CLEARSALE_PRODUCT_TOTAL_GARANTIDO),
             country: billing_country,
         },
+        now,
         &order_info_metadata,
         installments,
         &travel_data,

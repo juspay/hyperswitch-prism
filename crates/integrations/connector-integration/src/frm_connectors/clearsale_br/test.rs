@@ -886,6 +886,22 @@ mod tests {
         );
     }
 
+    #[test]
+    fn generated_datetimes_use_one_brasilia_instant_for_order_and_payment() {
+        let utc = time::macros::datetime!(2026-11-13 02:47:16.588292612 UTC);
+        assert_eq!(generated_datetime_at(utc), "2026-11-12T23:47:16.5882926");
+
+        let req = pre_risk_check_request();
+        let order = order_from_common_at(
+            OrderInputs::from_pre_risk_check(&req, None, None).unwrap(),
+            utc,
+        )
+        .unwrap()
+        .order;
+        assert_eq!(order.date, "2026-11-12T23:47:16.5882926");
+        assert_eq!(order.payments[0].date.as_deref(), Some(order.date.as_str()));
+    }
+
     /// ClearSale `Datetime` is .NET DateTime — no timezone, ≤7 frac digits.
     #[test]
     fn to_clearsale_datetime_strips_timezone_and_caps_precision() {
@@ -1434,6 +1450,52 @@ mod tests {
                 Some(expected)
             );
         }
+    }
+
+    #[test]
+    fn grpc_card_details_preserve_elo_and_hipercard_networks() {
+        use domain_types::payment_method_data::Card;
+
+        for (network, expected) in [
+            (grpc_api_types::payments::CardNetwork::Elo, CardNetwork::Elo),
+            (
+                grpc_api_types::payments::CardNetwork::Hipercard,
+                CardNetwork::Hipercard,
+            ),
+        ] {
+            let card =
+                Card::<DefaultPCIHolder>::foreign_try_from(grpc_api_types::payments::CardDetails {
+                    card_number: Some("4111111111111111".to_owned()),
+                    card_exp_month: Some(Secret::new("12".to_owned())),
+                    card_exp_year: Some(Secret::new("2030".to_owned())),
+                    card_cvc: Some(Secret::new("123".to_owned())),
+                    card_network: network.into(),
+                    ..Default::default()
+                })
+                .expect("supported card network");
+            assert_eq!(card.card_network, Some(expected));
+        }
+
+        assert!(
+            CardNetwork::foreign_try_from(grpc_api_types::payments::CardNetwork::Unspecified)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn clearsale_card_type_supports_brazilian_networks() {
+        for (network, expected) in [
+            (CardNetwork::DinersClub, Some(1)),
+            (CardNetwork::Mastercard, Some(2)),
+            (CardNetwork::Visa, Some(3)),
+            (CardNetwork::AmericanExpress, Some(5)),
+            (CardNetwork::Hipercard, Some(6)),
+            (CardNetwork::Elo, Some(10)),
+            (CardNetwork::JCB, None),
+        ] {
+            assert_eq!(clearsale_card_type(Some(&network)), expected);
+        }
+        assert_eq!(clearsale_card_type(None), None);
     }
 
     #[test]
