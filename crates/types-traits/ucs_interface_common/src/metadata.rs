@@ -120,6 +120,71 @@ pub fn extract_lineage_fields_from_metadata(
         .to_owned()
 }
 
+/// ParseEvent's explicit selector is independent of the payment/payout resource family.
+pub fn webhook_connector_from_name(
+    name: &str,
+) -> CustomResult<connector_types::ConnectorVariant, IntegrationError> {
+    connector_types::WebhookProvider::new(name)
+        .map(connector_types::ConnectorVariant::Webhook)
+        .ok_or_else(|| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: consts::X_WEBHOOK_CONNECTOR_NAME,
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid webhook provider: {name}")),
+                    ..Default::default()
+                },
+            })
+        })
+}
+
+/// Resolve the explicit selector for incoming webhook parse/handle operations.
+pub fn parse_event_connector_and_config_from_metadata(
+    metadata: &metadata::MetadataMap,
+) -> CustomResult<(connector_types::ConnectorVariant, ConnectorSpecificConfig), IntegrationError> {
+    let explicit_connector = metadata
+        .get(consts::X_WEBHOOK_CONNECTOR_NAME)
+        .map(|value| {
+            let name = value.to_str().map_err(|_| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: consts::X_WEBHOOK_CONNECTOR_NAME,
+                    context: IntegrationErrorContext::default(),
+                })
+            })?;
+            webhook_connector_from_name(name)
+        })
+        .transpose()?;
+
+    if metadata.get(consts::X_CONNECTOR_CONFIG).is_some()
+        || metadata.get("x-connector-auth").is_some()
+    {
+        let (connector, config) = connector_and_config_from_metadata(metadata)?;
+        if let Some(explicit) = explicit_connector {
+            if explicit.get_connector_name() != connector.get_connector_name() {
+                return Err(Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: consts::X_WEBHOOK_CONNECTOR_NAME,
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Webhook connector must match the typed connector configuration"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }));
+            }
+            return Ok((connector, config));
+        }
+        Ok((connector, config))
+    } else {
+        Ok((
+            match explicit_connector {
+                Some(connector) => connector,
+                None => connector_variant_from_metadata(metadata)?,
+            },
+            ConnectorSpecificConfig::NoKey,
+        ))
+    }
+}
+
 pub fn connector_variant_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<connector_types::ConnectorVariant, IntegrationError> {
@@ -388,6 +453,53 @@ pub fn parse_optional_metadata<'a>(
 mod tests {
     use super::*;
     use tonic::metadata::MetadataMap;
+
+    #[test]
+    fn explicit_webhook_identity_is_resource_neutral() {
+        for name in ["paypal", "gotyme_sanlam", "future_provider"] {
+            let mut metadata = MetadataMap::new();
+            metadata.insert(consts::X_WEBHOOK_CONNECTOR_NAME, name.parse().unwrap());
+            let (connector, config) =
+                parse_event_connector_and_config_from_metadata(&metadata).unwrap();
+            assert!(matches!(
+                connector,
+                connector_types::ConnectorVariant::Webhook(_)
+            ));
+            assert_eq!(connector.get_connector_name(), name);
+            assert!(matches!(config, ConnectorSpecificConfig::NoKey));
+        }
+    }
+
+    #[test]
+    fn webhook_resolver_preserves_existing_payment_and_payout_headers() {
+        for (header, payout) in [
+            (consts::X_CONNECTOR_NAME, false),
+            (consts::X_PAYOUT_CONNECTOR_NAME, true),
+        ] {
+            let mut metadata = MetadataMap::new();
+            metadata.insert(header, "paypal".parse().unwrap());
+            let (connector, _) = parse_event_connector_and_config_from_metadata(&metadata).unwrap();
+            assert_eq!(connector.as_payout().is_some(), payout);
+            assert_eq!(connector.as_payment().is_some(), !payout);
+        }
+    }
+
+    #[test]
+    fn explicit_provider_must_match_typed_configuration() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(
+            consts::X_CONNECTOR_CONFIG,
+            r#"{"config":{"Stripe":{"api_key":"test_key"}}}"#.parse().unwrap(),
+        );
+        metadata.insert(consts::X_WEBHOOK_CONNECTOR_NAME, "paypal".parse().unwrap());
+        assert!(parse_event_connector_and_config_from_metadata(&metadata).is_err());
+        metadata.insert(consts::X_WEBHOOK_CONNECTOR_NAME, "stripe".parse().unwrap());
+        let (connector, _) = parse_event_connector_and_config_from_metadata(&metadata).unwrap();
+        assert_eq!(
+            connector.as_payment(),
+            Some(connector_types::ConnectorEnum::Stripe)
+        );
+    }
 
     #[test]
     fn merchant_id_defaults_when_missing() {

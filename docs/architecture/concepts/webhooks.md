@@ -37,10 +37,54 @@ sequenceDiagram
 
 ## Adding a connector webhook
 
-1. Implement [`IncomingWebhook`](../../../crates/types-traits/interfaces/src/connector_types.rs): `get_event_type` maps the event; `get_webhook_event_reference` fills every applicable ID below. Keep parent payment IDs distinct from the event's own ID.
-2. Implement the matching `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook`, or `process_payout_webhook` method. Map status and IDs into the normalized `HandleEvent` content. Override `get_webhook_api_response` for a connector-specific ACK and provide `sample_webhook_body` for probes.
-3. For local signature checks, implement `IncomingWebhook::verify_webhook_source`. If verification calls the connector API, implement `VerifyWebhookSourceV2` **and** `ConnectorIntegrationV2<VerifyWebhookSource, ...>`, map the API result to `VerifyWebhookStatus`, and enable `webhook_source_verification_call.connectors_with_webhook_source_verification_call`. [PayPal](../../../crates/integrations/connector-integration/src/connectors/paypal.rs) is an example.
-4. Test `ParseEvent` and `HandleEvent` with real-shaped success, failure, and invalid-signature payloads; assert the IDs, status, verification result, and ACK.
+The provider webhook framework is available; no production provider is registered
+or migrated in this PR. Existing requests retain their legacy `IncomingWebhook`
+handling. See the [framework guide](../../../crates/integrations/connector-integration/src/webhook_connectors/README.md)
+for registration and migration steps.
+
+Implement [`Webhook`](../../../crates/types-traits/interfaces/src/webhook.rs) on a
+standalone provider type in `src/webhook_connectors/<provider>.rs`, with webhook
+payloads and event/reference mappings in
+`src/webhook_connectors/<provider>/transformers.rs`. These paths are relative to
+`crates/integrations/connector-integration/`. This implementation owns provider-level
+parsing, classification, local verification, ACKs and integrity declarations.
+Declare its module and register the provider in `src/webhook_connectors.rs`.
+Common webhook operations must be usable without constructing a payment connector.
+Each provider also supplies a required `sample_webhook_request`; the field probe
+validates it through `parse_event`, including standalone and payout-only providers.
+Parsing errors are reported as errors.
+
+External gRPC verification uses the provider's own verification integration, which
+may borrow the provider, supplied by `Webhook::get_external_verification_integration`. Keep payment, refund
+and dispute resource normalization on `IncomingWebhook` in
+`src/connectors/<connector>.rs` and its transformers. Implement payout normalization
+on `PayoutServiceTrait` in `src/payout_connectors/<payout_connector>.rs` and its
+transformers, and register it in `src/payout_connectors.rs` under the matching
+`PayoutConnectorEnum` variant. Its Rust type can differ (for example `PaypalPayouts`);
+the handler resolver matches the enum by provider name after classification. The
+framework guide above lists the individual methods and their implementation locations.
+
+The resolver selects a legacy or provider branch. Legacy HandleEvent remains
+unchanged. Provider HandleEvent classifies the event, resolves only the required
+payment or payout resource handler, verifies the source, normalizes content, and
+returns its ACK. Payout events never require a payment connector or fall back to
+payment processing when their handler is absent. Native FFI keeps local verification
+only and its existing empty integrity declarations.
+
+`x-webhook-connector` is permanent provider identity, represented without choosing
+a payment/payout enum when typed configuration is absent. Concrete registry lookup
+and migration registration validation live in `connector-integration::webhook_dispatch`;
+the shared interface layer only parses metadata. The rollout config and its
+legacy/provider switch are temporary: remove them, compatibility aliases and legacy
+handler branches once every supported connector migrates and compatibility checks
+pass. Both registries are currently empty. Explicit or configured selection of an
+unregistered implementation fails; rollout entries are validated at configuration
+load. Selected handler errors never retry another path.
+
+The rollout list defaults to empty in development/production TOML. gRPC supports
+`CS__WEBHOOK_PARSE__MIGRATED_CONNECTORS`; FFI uses the TOML embedded when its SDK is
+built, retaining its original environment-independent loading behavior. A failed
+local source check preserves the existing unverified-content/ACK response semantics.
 
 | Reference | Return every available ID in these fields |
 | --- | --- |

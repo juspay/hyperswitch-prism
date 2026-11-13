@@ -12,6 +12,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     #[allow(clippy::expect_used)]
     let mut config = configs::Config::new().expect("Failed while parsing config");
+    connector_integration::webhook_dispatch::validate_webhook_migration_config(
+        config.webhook_parse.migrated_connectors.as_ref(),
+    )
+    .map_err(|error| format!("Invalid webhook migration configuration: {error:?}"))?;
 
     // Stamp the compiled build version onto runtime metadata so every event carries it (A/B groups
     // on `version`). Sourced from the binary via `git_describe!()` — the authoritative running

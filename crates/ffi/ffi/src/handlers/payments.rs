@@ -360,16 +360,7 @@ pub fn parse_event_handler(
     environment: Option<Environment>,
 ) -> Result<grpc_api_types::payments::EventServiceParseResponse, IntegrationError> {
     let config = get_config(environment)?;
-    let connector = request
-        .extracted_metadata
-        .connector
-        .as_payment()
-        .ok_or_else(|| IntegrationError {
-            error_message: "Invalid connector type for this flow".to_string(),
-            error_code: "INVALID_CONNECTOR_TYPE".to_string(),
-            suggested_action: None,
-            doc_url: None,
-        })?;
+    let connector = request.extracted_metadata.connector;
     crate::services::payments::parse_event_transformer(
         request.payload,
         &config,
@@ -389,16 +380,7 @@ pub fn handle_event_handler(
     environment: Option<Environment>,
 ) -> Result<grpc_api_types::payments::EventServiceHandleResponse, IntegrationError> {
     let config = get_config(environment)?;
-    let connector = request
-        .extracted_metadata
-        .connector
-        .as_payment()
-        .ok_or_else(|| IntegrationError {
-            error_message: "Invalid connector type for this flow".to_string(),
-            error_code: "INVALID_CONNECTOR_TYPE".to_string(),
-            suggested_action: None,
-            doc_url: None,
-        })?;
+    let connector = request.extracted_metadata.connector;
     crate::services::payments::handle_event_transformer(
         request.payload,
         &config,
