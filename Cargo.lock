@@ -8542,6 +8542,7 @@ dependencies = [
  "bytes",
  "chrono",
  "config_patch_derive",
+ "constant_time_eq",
  "deja",
  "error-stack 0.4.1",
  "futures",

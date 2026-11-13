@@ -319,7 +319,10 @@ impl VerifySignature for Blake3 {
     ) -> CustomResult<bool, errors::CryptoError> {
         let key = blake3::derive_key(&self.0, secret);
         let output = blake3::keyed_hash(&key, msg);
-        Ok(output.as_bytes() == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            output.as_bytes(),
+            signature,
+        ))
     }
 }
 
@@ -492,7 +495,10 @@ impl VerifySignature for Sha512 {
                 .change_context(errors::CryptoError::SignatureVerificationFailed)?,
         );
         let hashed_digest_into_bytes = hashed_digest.into_bytes();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            &hashed_digest_into_bytes,
+            signature,
+        ))
     }
 }
 /// MD5 hash function
@@ -516,7 +522,10 @@ impl VerifySignature for Md5 {
         let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        Ok(hashed_digest == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            &hashed_digest,
+            signature,
+        ))
     }
 }
 
@@ -538,7 +547,10 @@ impl VerifySignature for Sha256 {
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
         let hashed_digest_into_bytes = hashed_digest.as_slice();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            hashed_digest_into_bytes,
+            signature,
+        ))
     }
 }
 
