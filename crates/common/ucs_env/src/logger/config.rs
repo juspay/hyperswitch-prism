@@ -13,8 +13,7 @@ use serde::{Deserialize, Serialize};
 /// Each map key is a target path (dotted paths like `"api_details.url"` create nested JSON).
 /// Each value is a [`LogFieldEntry`] — either a literal or a source field reference.
 ///
-/// Patchable via `x-config-override` header with **merge** semantics:
-/// override entries are added to / replace matching base entries; unmentioned entries stay.
+/// Operator-controlled: the containing `Config::log` is excluded from request overrides.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct LogFields {
     /// Runtime toggle: when `false`, compiled log fields are not applied
@@ -64,7 +63,7 @@ pub struct Log {
     /// Unified log fields for golden log lines.
     /// Each entry is either a literal value or a source field reference.
     /// Dotted target paths create nested JSON objects.
-    /// Patchable per-request via `x-config-override` with merge semantics.
+    /// Configured by the operator; excluded from request overrides with `Config::log`.
     #[serde(default)]
     #[patch(patch_type = LogFieldsPatch)]
     pub fields: LogFields,
