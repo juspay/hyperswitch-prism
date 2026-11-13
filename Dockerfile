@@ -94,15 +94,13 @@ RUN --mount=type=cache,target=/sccache \
 # target/<profile>, and the runtime stage must not have to know that. Also the
 # compiled FileDescriptorSet the build emits: the deja replay driver
 # (deja-kernel, KERNEL_DESCRIPTOR_SET) decodes recorded gRPC bodies with it.
-# The descriptor is found by name rather than by path: cargo documents the
-# build-dir layout as internal (1.100 moved `build/<pkg>-<hash>/out` to
-# `build/<pkg>/<hash>/out`). Newest mtime wins, so the real build's OUT_DIR
-# beats any chef-stub leftover.
+# Found by name, not by path: cargo 1.100 moved `build/<pkg>-<hash>/out` to
+# `build/<pkg>/<hash>/out`. Newest mtime picks the real build's OUT_DIR over
+# any chef-stub leftover.
 RUN PROFILE_DIR="$([ "${CARGO_BUILD_PROFILE}" = "dev" ] && echo debug || echo "${CARGO_BUILD_PROFILE}")" \
     && mkdir -p /app/dist \
     && cp "/app/target/${PROFILE_DIR}/grpc-server" /app/dist/grpc-server \
-    && DESCRIPTOR="$(find /app/target -type f -name connector_service_descriptor.bin -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)" \
-    && cp "${DESCRIPTOR}" /app/dist/connector_service_descriptor.bin
+    && cp "$(find /app/target -type f -name connector_service_descriptor.bin -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)" /app/dist/
 
 # Output sccache statistics
 RUN sccache --show-stats
