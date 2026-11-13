@@ -191,10 +191,10 @@ cargo run --bin check_coverage
 ### Test Runner
 ```bash
 # Test all core suites for a connector
-./crates/internal/integration-tests/test_suite.sh stripe
+./tests/regression/test_suite.sh stripe
 
 # Test specific suite
-./crates/internal/integration-tests/test_suite.sh stripe authorize
+./tests/regression/test_suite.sh stripe authorize
 ```
 
 ### Manual Test

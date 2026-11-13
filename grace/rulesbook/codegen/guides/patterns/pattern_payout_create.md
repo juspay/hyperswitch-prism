@@ -66,7 +66,7 @@ or `BodyDecoding`. Do not write those impls for a payout-only connector.
 
 **No `config/superposition.toml` entry and no `connector_specs/<connector>/specs.json` entry are
 required.** Three independent reasons, all in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`:
+`tests/regression/src/bin/check_connector_specs.rs`:
 
 1. `main()` enumerates connectors by reading
    `crates/integrations/connector-integration/src/connectors/` only — a connector under
@@ -665,7 +665,7 @@ mapping `Aprovado`/`Confirmado`/`Efetivado`/`Sucesso` → `Success`,
 ### Unit-test shape
 
 There is no `connector_specs` suite for payouts — `PayoutService` is in `IGNORE_SERVICES` in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`, so the merge-blocking
+`tests/regression/src/bin/check_connector_specs.rs`, so the merge-blocking
 certification gate does not exercise this flow. The in-repo gRPC-level coverage is
 `crates/grpc-server/grpc-server/tests/payout_flows_test.rs`. For a new `PayoutCreate`
 implementation, the minimum unit-test surface is:
