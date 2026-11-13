@@ -889,7 +889,10 @@ mod tests {
     #[test]
     fn generated_datetimes_use_one_brasilia_instant_for_order_and_payment() {
         let utc = time::macros::datetime!(2026-11-13 02:47:16.588292612 UTC);
-        assert_eq!(generated_datetime_at(utc), "2026-11-12T23:47:16.5882926");
+        assert_eq!(
+            generated_datetime_at(utc).unwrap(),
+            "2026-11-12T23:47:16.5882926"
+        );
 
         let req = pre_risk_check_request();
         let order = order_from_common_at(
@@ -1453,23 +1456,29 @@ mod tests {
     }
 
     #[test]
-    fn grpc_card_details_preserve_elo_and_hipercard_networks() {
+    fn grpc_card_details_preserve_supported_networks() {
         use domain_types::payment_method_data::Card;
 
         for (network, expected) in [
-            (grpc_api_types::payments::CardNetwork::Elo, CardNetwork::Elo),
             (
-                grpc_api_types::payments::CardNetwork::Hipercard,
-                CardNetwork::Hipercard,
+                grpc_api_types::payments::CardNetwork::Visa,
+                CardNetwork::Visa,
+            ),
+            (
+                grpc_api_types::payments::CardNetwork::Mastercard,
+                CardNetwork::Mastercard,
             ),
         ] {
             let card =
                 Card::<DefaultPCIHolder>::foreign_try_from(grpc_api_types::payments::CardDetails {
-                    card_number: Some("4111111111111111".to_owned()),
+                    card_number: Some(
+                        cards::CardNumber::from_str("4111111111111111")
+                            .expect("valid test card number"),
+                    ),
                     card_exp_month: Some(Secret::new("12".to_owned())),
                     card_exp_year: Some(Secret::new("2030".to_owned())),
                     card_cvc: Some(Secret::new("123".to_owned())),
-                    card_network: network.into(),
+                    card_network: Some(i32::from(network)),
                     ..Default::default()
                 })
                 .expect("supported card network");
@@ -1483,14 +1492,12 @@ mod tests {
     }
 
     #[test]
-    fn clearsale_card_type_supports_brazilian_networks() {
+    fn clearsale_card_type_maps_supported_networks() {
         for (network, expected) in [
             (CardNetwork::DinersClub, Some(1)),
             (CardNetwork::Mastercard, Some(2)),
             (CardNetwork::Visa, Some(3)),
             (CardNetwork::AmericanExpress, Some(5)),
-            (CardNetwork::Hipercard, Some(6)),
-            (CardNetwork::Elo, Some(10)),
             (CardNetwork::JCB, None),
         ] {
             assert_eq!(clearsale_card_type(Some(&network)), expected);

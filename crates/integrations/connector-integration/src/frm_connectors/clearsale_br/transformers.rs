@@ -1436,12 +1436,21 @@ fn validity_date_from(month: &Secret<String>, year4: &Secret<String>) -> String 
 /// Generated order timestamps are absolute instants expressed in Brasília local
 /// time. ClearSale rejects a `Z`/offset suffix on order creation, so only the
 /// wall time is serialized; always convert the instant before formatting it.
-pub(super) fn generated_datetime_at(now: time::OffsetDateTime) -> String {
+pub(super) fn generated_datetime_at(now: time::OffsetDateTime) -> Result<String, Error> {
     now.to_offset(time::macros::offset!(-3))
         .format(&time::macros::format_description!(
             "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:7]"
         ))
-        .expect("the static ClearSale datetime format is valid")
+        .map_err(|error| {
+            error_stack::report!(errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Could not generate the ClearSale Brasília order timestamp: {error}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })
 }
 
 pub(crate) fn to_clearsale_datetime(raw: &str) -> String {
@@ -2257,11 +2266,11 @@ pub(super) fn order_from_common_at(
         })
         .transpose()?;
 
-    let now = generated_datetime_at(now);
+    let generated_datetime = generated_datetime_at(now)?;
     let payments = vec![build_clear_sale_payment(
         payment_method,
         total_value,
-        &now,
+        &generated_datetime,
         installments,
         Some(billing.primary_document.clone()),
         money.currency(),
@@ -2296,7 +2305,7 @@ pub(super) fn order_from_common_at(
                 .unwrap_or(DEFAULT_CLEARSALE_PRODUCT_TOTAL_GARANTIDO),
             country: billing_country,
         },
-        now,
+        generated_datetime,
         &order_info_metadata,
         installments,
         &travel_data,
