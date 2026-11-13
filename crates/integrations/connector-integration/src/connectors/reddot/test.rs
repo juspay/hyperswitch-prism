@@ -620,13 +620,13 @@ fn payment_sync_success_and_pending_preserve_money_and_reference() {
         .unwrap();
         assert_eq!(result.resource_common_data.status, expected);
         let integrity = result.request.integrity_object.unwrap();
-        assert_eq!(integrity.currency, Currency::SGD);
+        assert_eq!(integrity.money.currency(), Currency::SGD);
         let expected_money = ReddotAmountConvertor::convert_back(
             serde_json::from_value::<StringMajorUnit>(json!("1.10")).unwrap(),
             Currency::SGD,
         )
         .unwrap();
-        assert_eq!(integrity.amount, expected_money.amount());
+        assert_eq!(integrity.money, expected_money);
         if expected == AttemptStatus::Charged {
             assert_eq!(
                 result.resource_common_data.captured_money,

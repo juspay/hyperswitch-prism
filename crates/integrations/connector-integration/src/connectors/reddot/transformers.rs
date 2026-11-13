@@ -910,8 +910,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
         let integrity_object = response_money
             .as_ref()
             .map(|money| PaymentSynIntegrityObject {
-                amount: money.amount(),
-                currency: money.currency(),
+                money: money.clone(),
             });
 
         // An enquiry-level error without a transaction record cannot establish
@@ -1293,8 +1292,7 @@ impl TryFrom<ResponseRouterData<ReddotRefundResponse, Self>>
                         ),
                     ))?;
                 Some(RefundIntegrityObject {
-                    refund_amount: refund_amount.amount(),
-                    currency,
+                    refund_money: refund_amount,
                 })
             }
             _ => None,

@@ -25,7 +25,7 @@ use common_utils::{
     id_type::CustomerId,
     pii::{Email, IpAddress, SecretSerdeValue},
     request::Method,
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
@@ -605,7 +605,7 @@ pub struct EcommpayCustomer {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct EcommpayPaymentInfo {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -765,7 +765,7 @@ pub struct EcommpayAppleDecryptedToken {
     /// minor units of `currency_code` and deliberately does not go through the connector's
     /// `amount_converter` (which encodes Ecommpay's own request convention, not Apple's).
     #[serde(rename = "transactionAmount")]
-    pub transaction_amount: MinorUnit,
+    pub transaction_amount: ConnectorMinorUnit,
     #[serde(rename = "paymentDataType")]
     pub payment_data_type: &'static str,
     #[serde(rename = "deviceManufacturerIdentifier")]
@@ -820,12 +820,12 @@ pub struct EcommpayMerchant {
 #[derive(Debug, Clone, Serialize)]
 pub struct EcommpayReceiptPosition {
     /// Line total (unit amount × quantity), minor units.
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub quantity: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tax_amount: Option<MinorUnit>,
+    pub tax_amount: Option<ConnectorMinorUnit>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -833,7 +833,7 @@ pub struct EcommpayReceiptData {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub positions: Vec<EcommpayReceiptPosition>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_tax_amount: Option<MinorUnit>,
+    pub total_tax_amount: Option<ConnectorMinorUnit>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -956,7 +956,9 @@ fn check_common_guards<T: PaymentMethodDataTypes>(
     }
     // payment.amount is 1..10^13 minor units; zero and negative are refused on
     // the payment leg only.
-    let minor_amount = request.money.amount().get_amount_as_i64();
+    let minor_amount = common_utils::types::ConnectorMinorUnitForConnector
+        .convert(&request.money)
+        .get_amount_as_i64();
     if !is_three_ds_completion(request) && minor_amount <= 0 {
         return Err(invalid_format(
             "amount",
@@ -1241,9 +1243,11 @@ fn payment_source<T: PaymentMethodDataTypes>(
 ) -> Result<EcommpayPaymentSource<T>, error_stack::Report<IntegrationError>> {
     match &request.payment_method_data {
         PaymentMethodData::Card(card) => Ok(EcommpayPaymentSource::Card(build_card(card)?)),
-        PaymentMethodData::Wallet(wallet) => {
-            wallet_source(wallet, request.money.currency(), request.money.amount())
-        }
+        PaymentMethodData::Wallet(wallet) => wallet_source(
+            wallet,
+            request.money.currency(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
+        ),
         PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -1272,7 +1276,7 @@ fn payment_source<T: PaymentMethodDataTypes>(
 fn wallet_source<T: PaymentMethodDataTypes>(
     wallet: &WalletData,
     currency: Currency,
-    minor_amount: MinorUnit,
+    minor_amount: ConnectorMinorUnit,
 ) -> Result<EcommpayPaymentSource<T>, error_stack::Report<IntegrationError>> {
     match wallet {
         WalletData::ApplePay(apple_pay) => match &apple_pay.payment_data {
@@ -1515,7 +1519,7 @@ fn last_day_of_month(year: u16, month: u8) -> u8 {
 fn apple_pay_decrypted_etoken(
     decrypted: &ApplePayDecryptedData,
     currency: Currency,
-    minor_amount: MinorUnit,
+    minor_amount: ConnectorMinorUnit,
 ) -> Result<EcommpayEtoken, error_stack::Report<IntegrationError>> {
     if decrypted
         .application_primary_account_number
@@ -1787,10 +1791,9 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
     let positions = lines
         .iter()
         .map(|line| {
-            let line_total = line
-                .amount
-                .get_amount_as_i64()
-                .checked_mul(i64::from(line.quantity))
+            let line_total = common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&line.get_unit_money(&request.money))
+                .checked_mul(line.quantity)
                 .ok_or_else(|| {
                     invalid_format(
                         "order_details",
@@ -1809,18 +1812,25 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
                 ));
             }
             Ok(EcommpayReceiptPosition {
-                amount: MinorUnit::new(line_total),
+                amount: line_total,
                 quantity: line.quantity,
                 description,
-                tax_amount: line.total_tax_amount,
+                tax_amount: line
+                    .get_total_tax_money(&request.money)
+                    .as_ref()
+                    .map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                    }),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
     // A zero tax is the gRPC default for "no tax" and is not sent.
     let total_tax_amount = l2_l3
         .and_then(|data| data.tax_info.as_ref())
-        .and_then(|tax| tax.order_tax_amount)
-        .or(request.order_tax_amount)
+        .and_then(|tax| tax.get_order_tax_money(&request.money))
+        .or_else(|| request.get_order_tax_money())
+        .as_ref()
+        .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
         .filter(|amount| amount.get_amount_as_i64() > 0);
     if positions.is_empty() && total_tax_amount.is_none() {
         return Ok(None);
@@ -2194,7 +2204,11 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         if let Some(requested) = request
             .money
             .as_ref()
-            .map(|money| money.amount().get_amount_as_i64())
+            .map(|money| {
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(money)
+                    .get_amount_as_i64()
+            })
             .filter(|minor_amount| *minor_amount != 0)
         {
             return Err(error_stack::report!(IntegrationError::NotSupported {
@@ -2240,7 +2254,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
             },
             customer,
             payment: EcommpayPaymentInfo {
-                amount: MinorUnit::zero(),
+                amount: ConnectorMinorUnit::zero(),
                 currency: request.currency,
                 description: description(common),
             },
@@ -2607,7 +2621,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let operation = repeat_payment_operation(request)?;
 
         // PaymentInfoRecurring amount >= 1 minor unit.
-        let minor_amount = request.money.amount().get_amount_as_i64();
+        let minor_amount = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&request.money)
+            .get_amount_as_i64();
         if minor_amount <= 0 {
             return Err(invalid_format(
                 "amount",
@@ -2776,7 +2792,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<EcommpayRepeatPayment
 /// `payment` object of a capture: the amount to debit from the hold and its currency.
 #[derive(Debug, Clone, Serialize)]
 pub struct EcommpayCapturePayment {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
 }
 
@@ -2842,8 +2858,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let payment_id = capture_payment_id(&request.connector_transaction_id)?;
         // The Gate accepts 1..=10^13 minor units; a zero or negative capture is
         // refused here instead of being sent.
-        let amount_to_capture = request.capture_money.amount();
-        if amount_to_capture <= MinorUnit::zero() {
+        let amount_to_capture =
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.capture_money);
+        if amount_to_capture <= ConnectorMinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "amount_to_capture",
                 context: context(
@@ -3059,7 +3076,7 @@ pub type EcommpayRefundResponse = EcommpayAcceptanceResponse;
 #[derive(Debug, Clone, Serialize)]
 pub struct EcommpayRefundPayment {
     pub description: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_refund_id: Option<String>,
@@ -3112,8 +3129,9 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 })
             })?;
         // A zero or negative refund is refused here instead of being sent.
-        let refund_amount = request.refund_money.amount();
-        if refund_amount <= MinorUnit::zero() {
+        let refund_amount =
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.refund_money);
+        if refund_amount <= ConnectorMinorUnit::zero() {
             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "refund_amount",
                 context: context(
@@ -3446,7 +3464,7 @@ pub enum EcommpayPaymentType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EcommpaySum {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
 }
 
@@ -4742,7 +4760,7 @@ pub fn payment_webhook_details(
         .filter(|_| settles_capture)
         .map(|sum| {
             domain_types::utils::convert_back_amount_to_money_for_webhook(
-                &common_utils::types::MinorUnitForConnector,
+                &common_utils::types::ConnectorMinorUnitForConnector,
                 sum.amount,
                 sum.currency,
             )

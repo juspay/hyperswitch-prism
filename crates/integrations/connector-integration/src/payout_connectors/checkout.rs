@@ -4,7 +4,7 @@ pub mod transformers;
 use crate::connectors::checkout::{resolve_checkout_base_url, OPTIONAL_CLIENT_ID};
 use crate::{connectors::macros, types::ResponseRouterData};
 use common_enums::PayoutStatus;
-use common_utils::{errors::CustomResult, events, types::MinorUnit};
+use common_utils::{errors::CustomResult, events, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError},
@@ -85,7 +85,7 @@ macros::create_all_prerequisites!(
         (flow: PayoutGet, response_body: CheckoutPayoutGetResponse,
          router_data: RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,)
     ],
-    amount_converters: [amount_converter: MinorUnit],
+    amount_converters: [amount_converter: ConnectorMinorUnit],
     member_functions: {}
 );
 

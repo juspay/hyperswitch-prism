@@ -425,7 +425,9 @@ pub fn build_refund_request(
     };
 
     // Convert minor units (paise) to rupees with 2 decimal places using integer arithmetic
-    let amount_minor = refunds_data.refund_money.amount().get_amount_as_i64();
+    let amount_minor = common_utils::types::ConnectorMinorUnitForConnector
+        .convert(&refunds_data.refund_money)
+        .get_amount_as_i64();
     let refund_amount = minor_to_major_amount(amount_minor);
 
     let refund_request = Refund360Request {
@@ -475,7 +477,13 @@ pub fn build_rsync_request(
     let amount_str = refund_sync_data
         .refund_money
         .as_ref()
-        .map(|m| minor_to_major_amount(m.amount().get_amount_as_i64()))
+        .map(|m| {
+            minor_to_major_amount(
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(m)
+                    .get_amount_as_i64(),
+            )
+        })
         .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "refund_money",
             context: IntegrationErrorContext {

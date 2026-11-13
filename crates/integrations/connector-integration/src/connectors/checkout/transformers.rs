@@ -2,7 +2,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::{CustomResult, ParsingError},
     request::Method,
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -369,11 +369,11 @@ pub struct CheckoutProcessing {
     pub aft: Option<bool>,
     pub order_id: Option<String>,
     pub scheme_transaction_link_id: Option<String>,
-    pub tax_amount: Option<MinorUnit>,
-    pub discount_amount: Option<MinorUnit>,
-    pub duty_amount: Option<MinorUnit>,
-    pub shipping_amount: Option<MinorUnit>,
-    pub shipping_tax_amount: Option<MinorUnit>,
+    pub tax_amount: Option<ConnectorMinorUnit>,
+    pub discount_amount: Option<ConnectorMinorUnit>,
+    pub duty_amount: Option<ConnectorMinorUnit>,
+    pub shipping_amount: Option<ConnectorMinorUnit>,
+    pub shipping_tax_amount: Option<ConnectorMinorUnit>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -681,15 +681,15 @@ fn build_customer(
 #[derive(Debug, Default, Serialize)]
 pub struct CheckoutLineItem {
     pub commodity_code: Option<String>,
-    pub discount_amount: Option<MinorUnit>,
+    pub discount_amount: Option<ConnectorMinorUnit>,
     pub name: Option<String>,
     pub quantity: Option<u16>,
     pub reference: Option<String>,
     pub tax_exempt: Option<bool>,
-    pub tax_amount: Option<MinorUnit>,
-    pub total_amount: Option<MinorUnit>,
+    pub tax_amount: Option<ConnectorMinorUnit>,
+    pub total_amount: Option<ConnectorMinorUnit>,
     pub unit_of_measure: Option<String>,
-    pub unit_price: Option<MinorUnit>,
+    pub unit_price: Option<ConnectorMinorUnit>,
 }
 
 #[skip_serializing_none]
@@ -769,7 +769,7 @@ pub struct PaymentsRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     pub source: PaymentSource<T>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     pub processing_channel_id: Secret<String>,
     #[serde(rename = "3ds")]
@@ -1862,6 +1862,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
+        let payment = item.router_data.request.money.clone();
         let l2l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
         let customer = build_customer(
             item.router_data.request.customer.as_ref(),
@@ -1874,11 +1875,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
                     order_id: l2l3_data.get_merchant_order_reference_id(),
                     scheme_transaction_link_id: None,
-                    tax_amount: l2l3_data.get_order_tax_amount(),
-                    discount_amount: l2l3_data.get_discount_amount(),
-                    duty_amount: l2l3_data.get_duty_amount(),
-                    shipping_amount: l2l3_data.get_shipping_cost(),
-                    shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
+                    tax_amount: l2l3_data.get_order_tax_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    discount_amount: l2l3_data.get_discount_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    duty_amount: l2l3_data.get_duty_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    shipping_amount: l2l3_data.get_shipping_cost(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    shipping_tax_amount: l2l3_data.get_shipping_amount_tax(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
                     aft: None,
                 }),
                 l2l3_data.get_order_details().map(|details| {
@@ -1886,15 +1897,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .iter()
                         .map(|item| CheckoutLineItem {
                             commodity_code: item.commodity_code.clone(),
-                            discount_amount: item.unit_discount_amount,
+                            discount_amount: item.get_unit_discount_money(&payment).as_ref().map(
+                                |money| {
+                                    common_utils::types::ConnectorMinorUnitForConnector
+                                        .convert(money)
+                                },
+                            ),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount,
-                            total_amount: item.total_amount,
+                            tax_amount: item.get_total_tax_money(&payment).as_ref().map(|money| {
+                                common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                            }),
+                            total_amount: item.get_total_money(&payment).as_ref().map(|money| {
+                                common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                            }),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount),
+                            unit_price: Some(
+                                common_utils::types::ConnectorMinorUnitForConnector
+                                    .convert(&item.get_unit_money(&payment)),
+                            ),
                         })
                         .collect::<Vec<_>>()
                 }),
@@ -2002,7 +2025,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: item.router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.money),
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -2312,6 +2336,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
+        let payment = item.router_data.request.money.clone();
         let l2l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
         let customer = build_customer(
             item.router_data.request.customer.as_ref(),
@@ -2324,11 +2349,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
                     order_id: l2l3_data.get_merchant_order_reference_id(),
                     scheme_transaction_link_id: None,
-                    tax_amount: l2l3_data.get_order_tax_amount(),
-                    discount_amount: l2l3_data.get_discount_amount(),
-                    duty_amount: l2l3_data.get_duty_amount(),
-                    shipping_amount: l2l3_data.get_shipping_cost(),
-                    shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
+                    tax_amount: l2l3_data.get_order_tax_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    discount_amount: l2l3_data.get_discount_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    duty_amount: l2l3_data.get_duty_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    shipping_amount: l2l3_data.get_shipping_cost(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    shipping_tax_amount: l2l3_data.get_shipping_amount_tax(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
                     aft: None,
                 }),
                 l2l3_data.get_order_details().map(|details| {
@@ -2336,15 +2371,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .iter()
                         .map(|item| CheckoutLineItem {
                             commodity_code: item.commodity_code.clone(),
-                            discount_amount: item.unit_discount_amount,
+                            discount_amount: item.get_unit_discount_money(&payment).as_ref().map(
+                                |money| {
+                                    common_utils::types::ConnectorMinorUnitForConnector
+                                        .convert(money)
+                                },
+                            ),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount,
-                            total_amount: item.total_amount,
+                            tax_amount: item.get_total_tax_money(&payment).as_ref().map(|money| {
+                                common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                            }),
+                            total_amount: item.get_total_money(&payment).as_ref().map(|money| {
+                                common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                            }),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount),
+                            unit_price: Some(
+                                common_utils::types::ConnectorMinorUnitForConnector
+                                    .convert(&item.get_unit_money(&payment)),
+                            ),
                         })
                         .collect::<Vec<_>>()
                 }),
@@ -2448,7 +2495,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: item.router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.money),
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -2695,6 +2743,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
+        let payment =
+            item.router_data.request.money.clone().unwrap_or_else(|| {
+                common_utils::types::Money::zero(item.router_data.request.currency)
+            });
         let l2l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
         let customer = build_customer(
             item.router_data.request.customer.as_ref(),
@@ -2707,11 +2759,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
                     order_id: l2l3_data.get_merchant_order_reference_id(),
                     scheme_transaction_link_id: None,
-                    tax_amount: l2l3_data.get_order_tax_amount(),
-                    discount_amount: l2l3_data.get_discount_amount(),
-                    duty_amount: l2l3_data.get_duty_amount(),
-                    shipping_amount: l2l3_data.get_shipping_cost(),
-                    shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
+                    tax_amount: l2l3_data.get_order_tax_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    discount_amount: l2l3_data.get_discount_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    duty_amount: l2l3_data.get_duty_amount(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    shipping_amount: l2l3_data.get_shipping_cost(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
+                    shipping_tax_amount: l2l3_data.get_shipping_amount_tax(&payment).map(|money| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&money)
+                    }),
                     aft: None,
                 }),
                 l2l3_data.get_order_details().map(|details| {
@@ -2719,15 +2781,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .iter()
                         .map(|item| CheckoutLineItem {
                             commodity_code: item.commodity_code.clone(),
-                            discount_amount: item.unit_discount_amount,
+                            discount_amount: item.get_unit_discount_money(&payment).as_ref().map(
+                                |money| {
+                                    common_utils::types::ConnectorMinorUnitForConnector
+                                        .convert(money)
+                                },
+                            ),
                             name: Some(item.product_name.clone()),
                             quantity: Some(item.quantity),
                             reference: item.product_id.clone(),
                             tax_exempt: None,
-                            tax_amount: item.total_tax_amount,
-                            total_amount: item.total_amount,
+                            tax_amount: item.get_total_tax_money(&payment).as_ref().map(|money| {
+                                common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                            }),
+                            total_amount: item.get_total_money(&payment).as_ref().map(|money| {
+                                common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                            }),
                             unit_of_measure: item.unit_of_measure.clone(),
-                            unit_price: Some(item.amount),
+                            unit_price: Some(
+                                common_utils::types::ConnectorMinorUnitForConnector
+                                    .convert(&item.get_unit_money(&payment)),
+                            ),
                         })
                         .collect::<Vec<_>>()
                 }),
@@ -2819,7 +2893,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: MinorUnit::new(0),
+            amount: ConnectorMinorUnit::zero(),
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -3114,7 +3188,7 @@ impl From<CheckoutCardCategory> for common_enums::CardSegmentType {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentsResponse {
     id: String,
-    amount: Option<MinorUnit>,
+    amount: Option<ConnectorMinorUnit>,
     currency: Option<String>,
     scheme_id: Option<String>,
     processing: Option<PaymentProcessingDetails>,
@@ -3657,7 +3731,10 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponseEnum, Self>>
             }
             // GET /payments/{id}/actions (MultipleCaptureSync): one entry per action.
             PaymentsResponseEnum::ActionResponse(action_list) => {
-                construct_captures_response_hashmap(action_list)?
+                construct_captures_response_hashmap(
+                    action_list,
+                    item.router_data.request.money.currency(),
+                )?
             }
         };
         Ok(Self {
@@ -4304,7 +4381,7 @@ pub enum CaptureType {
 
 #[derive(Debug, Serialize)]
 pub struct PaymentCaptureRequest {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub capture_type: Option<CaptureType>,
     pub processing_channel_id: Secret<String>,
     pub reference: Option<String>,
@@ -4340,7 +4417,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
         Ok(Self {
-            amount: Some(item.router_data.request.capture_money.amount().to_owned()),
+            amount: Some(
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.capture_money)
+                    .to_owned(),
+            ),
             capture_type: Some(capture_type),
             processing_channel_id,
             reference, // hyperswitch's reference for this capture
@@ -4420,7 +4501,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundRequest {
-    amount: Option<MinorUnit>,
+    amount: Option<ConnectorMinorUnit>,
     reference: String,
 }
 
@@ -4438,7 +4519,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     ) -> Result<Self, Self::Error> {
         let reference = item.router_data.request.refund_id.clone();
         Ok(Self {
-            amount: Some(item.router_data.request.refund_money.amount().to_owned()),
+            amount: Some(
+                common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.refund_money)
+                    .to_owned(),
+            ),
             reference,
         })
     }
@@ -4500,7 +4585,7 @@ pub enum ActionType {
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(rename = "type")]
     pub action_type: ActionType,
     pub approved: Option<bool>,
@@ -4528,7 +4613,9 @@ impl MultipleCaptureSyncResponse for ActionResponse {
         self.action_type == ActionType::Capture
     }
 
-    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+    fn get_amount_captured(
+        &self,
+    ) -> Result<Option<ConnectorMinorUnit>, error_stack::Report<ParsingError>> {
         Ok(Some(self.amount))
     }
 }
@@ -4549,7 +4636,9 @@ impl MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     fn is_capture_response(&self) -> bool {
         self.status == CheckoutPaymentStatus::Captured
     }
-    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+    fn get_amount_captured(
+        &self,
+    ) -> Result<Option<ConnectorMinorUnit>, error_stack::Report<ParsingError>> {
         Ok(self.amount)
     }
 }
@@ -4812,7 +4901,7 @@ pub struct CheckoutWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub reference: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub balances: Option<Balances>,
     pub response_code: Option<String>,
     pub response_summary: Option<String>,
@@ -4856,7 +4945,7 @@ pub enum CheckoutDisputeTransactionType {
 pub struct CheckoutDisputeWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub reason_code: Option<String>,
     /// Dispute category (e.g. `fraudulent`), surfaced as the dispute message.

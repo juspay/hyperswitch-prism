@@ -18,7 +18,7 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     request::Method,
-    types::{MinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, StringMinorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -169,7 +169,7 @@ mod paydotcom_currency {
 /// identical payload in this scope, only the URL differs (see `paydotcom.rs`).
 #[derive(Debug, Serialize)]
 pub struct PaydotcomCreateResourceRequest<T: PaymentMethodDataTypes> {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     /// Serialised as lower-case ISO-4217; see `paydotcom_currency`.
     #[serde(serialize_with = "paydotcom_currency::serialize")]
     pub currency: common_enums::Currency,
@@ -712,7 +712,7 @@ pub fn authorize_leg<T: PaymentMethodDataTypes>(
 #[allow(clippy::too_many_arguments)]
 fn build_create_resource_request<T: PaymentMethodDataTypes>(
     card: &Card<T>,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
     common: &PaymentFlowData,
     request_email: Option<common_utils::pii::Email>,
@@ -1034,7 +1034,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .amount_converter
                     .convert(&item.request.money)
                     .change_context(amount_conversion_error(
-                        "Failed to convert authorize amount to MinorUnit for the Pay.com \
+                        "Failed to convert authorize amount to ConnectorMinorUnit for the Pay.com \
                          POST /v1/charges|/v1/holds request",
                     ))?;
 
@@ -1214,7 +1214,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         is_manual_capture(item.request.capture_method)?;
 
         // Zero-amount card-on-file setup is the normal shape for this flow; default to
-        // MinorUnit::zero() rather than erroring before any wire call.
+        // ConnectorMinorUnit::zero() rather than erroring before any wire call.
         let money = item
             .request
             .money
@@ -1226,7 +1226,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(&money)
             .change_context(amount_conversion_error(
-                "Failed to convert setup-mandate amount to MinorUnit for the Pay.com \
+                "Failed to convert setup-mandate amount to ConnectorMinorUnit for the Pay.com \
                  POST /v1/charges|/v1/holds request",
             ))?;
 
@@ -1520,7 +1520,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(&item.request.money)
             .change_context(amount_conversion_error(
-                "Failed to convert pre-authenticate amount to MinorUnit for the Pay.com \
+                "Failed to convert pre-authenticate amount to ConnectorMinorUnit for the Pay.com \
                  POST /v1/charges|/v1/holds request",
             ))?;
 
@@ -1832,8 +1832,8 @@ impl From<PaydotcomRefundStatus> for RefundStatus {
 pub struct PaydotcomChargeResponse {
     pub id: String,
     pub status: PaydotcomChargeStatus,
-    pub amount: Option<MinorUnit>,
-    pub amount_refunded: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
+    pub amount_refunded: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -1860,8 +1860,8 @@ pub struct PaydotcomChargeResponse {
 pub struct PaydotcomHoldResponse {
     pub id: String,
     pub status: PaydotcomHoldStatus,
-    pub amount: Option<MinorUnit>,
-    pub amount_capturable: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
+    pub amount_capturable: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -1970,7 +1970,7 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    pub fn amount(&self) -> Option<MinorUnit> {
+    pub fn amount(&self) -> Option<ConnectorMinorUnit> {
         match self {
             Self::Charge(charge) => charge.amount,
             Self::Hold(hold) => hold.amount,
@@ -2291,7 +2291,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .money
             .as_ref()
-            .map(|money| money.amount());
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money));
 
         let status = match item.response.attempt_status() {
             // A capture smaller than the amount originally held leaves the payment
@@ -2368,7 +2368,7 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
 pub struct PaydotcomRefundResponse {
     pub id: String,
     pub status: PaydotcomRefundStatus,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -2608,7 +2608,7 @@ pub struct PaydotcomRepeatPaymentRequest {
     pub off_session: bool,
     #[serde(serialize_with = "paydotcom_currency::serialize")]
     pub currency: common_enums::Currency,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_reference_id: Option<String>,
     /// Variant B: explicit payment method id (e.g. `pm_card_…`). Masked in logs —
@@ -2673,7 +2673,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(&item.request.money)
             .change_context(amount_conversion_error(
-                "Failed to convert repeat-payment amount to MinorUnit for the Pay.com \
+                "Failed to convert repeat-payment amount to ConnectorMinorUnit for the Pay.com \
                  POST /v1/charges (off_session) request",
             ))?;
 

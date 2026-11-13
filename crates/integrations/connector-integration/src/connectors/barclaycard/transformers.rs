@@ -433,15 +433,14 @@ where
         .and_then(|data| {
             data.original_payment_authorized_money
                 .as_ref()
-                .map(|oa| (oa.amount(), oa.currency()))
+                .map(|oa| (oa.clone(), oa.currency()))
         });
 
     match original_pair {
-        Some((original_amount, original_currency)) => {
+        Some((original_amount, _original_currency)) => {
             Ok(Some(domain_types::utils::get_amount_as_string(
                 &common_enums::CurrencyUnit::Base,
-                original_amount,
-                original_currency,
+                &original_amount,
             )?))
         }
         None => Ok(None),

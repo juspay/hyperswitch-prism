@@ -3,7 +3,7 @@ use crate::types::ResponseRouterData;
 use common_enums::PayoutStatus;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
@@ -63,7 +63,7 @@ pub fn credentials(
 pub struct CheckoutPayoutRequest {
     source: CheckoutPayoutSource,
     destination: CheckoutPayoutMethod,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
     reference: String,
     processing_channel_id: Secret<String>,
@@ -575,7 +575,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }),
             destination,
             amount: domain_types::utils::convert_amount(
-                &common_utils::types::MinorUnitForConnector,
+                &common_utils::types::ConnectorMinorUnitForConnector,
                 &data.request.money,
             )?,
             currency: data.request.destination_currency,

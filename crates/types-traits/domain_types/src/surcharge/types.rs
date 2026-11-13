@@ -17,7 +17,7 @@ use crate::{
         extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignTryFrom,
     },
 };
-use common_utils::{metadata::MaskedMetadata, types::MinorUnit};
+use common_utils::{metadata::MaskedMetadata, types::Money};
 use error_stack::ResultExt;
 
 fn missing_refund_field(
@@ -175,12 +175,11 @@ fn surcharge_refund_error(
 }
 
 fn refund_money(
-    amount: MinorUnit,
-    currency: common_enums::Currency,
+    money: Money,
 ) -> Result<grpc_api_types::surcharge::Money, error_stack::Report<ConnectorError>> {
     Ok(grpc_api_types::surcharge::Money {
-        minor_amount: amount.get_amount_as_i64(),
-        currency: grpc_api_types::payments::Currency::foreign_try_from(currency)?.into(),
+        minor_amount: money.amount().get_amount_as_i64(),
+        currency: grpc_api_types::payments::Currency::foreign_try_from(money.currency())?.into(),
     })
 }
 
@@ -197,26 +196,23 @@ pub fn generate_surcharge_refund_init_response(
 > {
     let reference = data.request.merchant_surcharge_refund_id.clone();
     match data.response {
-        Ok(response) => {
-            let currency = response.currency.unwrap_or(data.request.money.currency());
-            Ok(
-                grpc_api_types::surcharge::SurchargeServiceSurchargeRefundInitResponse {
-                    merchant_surcharge_refund_id: reference,
-                    connector_surcharge_refund_id: Some(response.connector_surcharge_refund_id),
-                    refund_amount: Some(refund_money(response.refund_amount, currency)?),
-                    original_transaction_fee: response
-                        .original_transaction_fee
-                        .map(|amount| refund_money(amount, currency))
-                        .transpose()?,
-                    previously_refunded_transaction_fees: response
-                        .previously_refunded_transaction_fees
-                        .map(|amount| refund_money(amount, currency))
-                        .transpose()?,
-                    status_code: 200,
-                    error: None,
-                },
-            )
-        }
+        Ok(response) => Ok(
+            grpc_api_types::surcharge::SurchargeServiceSurchargeRefundInitResponse {
+                merchant_surcharge_refund_id: reference,
+                connector_surcharge_refund_id: Some(response.connector_surcharge_refund_id),
+                refund_amount: Some(refund_money(response.refund_money)?),
+                original_transaction_fee: response
+                    .original_transaction_fee_money
+                    .map(refund_money)
+                    .transpose()?,
+                previously_refunded_transaction_fees: response
+                    .previously_refunded_transaction_fees_money
+                    .map(refund_money)
+                    .transpose()?,
+                status_code: 200,
+                error: None,
+            },
+        ),
         Err(error) => Ok(
             grpc_api_types::surcharge::SurchargeServiceSurchargeRefundInitResponse {
                 merchant_surcharge_refund_id: reference,
@@ -478,9 +474,11 @@ pub fn generate_surcharge_calculate_response(
     match surcharge_response {
         Ok(response) => {
             let surcharge_amount = grpc_api_types::surcharge::Money {
-                minor_amount: response.surcharge_amount.get_amount_as_i64(),
-                currency: grpc_api_types::payments::Currency::foreign_try_from(response.currency)?
-                    .into(),
+                minor_amount: response.surcharge_money.amount().get_amount_as_i64(),
+                currency: grpc_api_types::payments::Currency::foreign_try_from(
+                    response.surcharge_money.currency(),
+                )?
+                .into(),
             };
 
             Ok(

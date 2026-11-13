@@ -317,8 +317,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<AuthoriseIntegrityObject>
 
     fn get_request_integrity_object(&self) -> AuthoriseIntegrityObject {
         AuthoriseIntegrityObject {
-            amount: self.money.amount(),
-            currency: self.money.currency(),
+            money: self.money.clone(),
         }
     }
 
@@ -354,7 +353,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<SetupMandateIntegrityObject>
 
     fn get_request_integrity_object(&self) -> SetupMandateIntegrityObject {
         SetupMandateIntegrityObject {
-            amount: self.money.as_ref().map(|amount| amount.amount()),
+            money: self.money.clone(),
             currency: self.currency,
         }
     }
@@ -367,8 +366,7 @@ impl GetIntegrityObject<PaymentSynIntegrityObject> for PaymentsSyncData {
 
     fn get_request_integrity_object(&self) -> PaymentSynIntegrityObject {
         PaymentSynIntegrityObject {
-            amount: self.money.amount(),
-            currency: self.money.currency(),
+            money: self.money.clone(),
         }
     }
 
@@ -412,8 +410,7 @@ impl GetIntegrityObject<RefundIntegrityObject> for RefundsData {
 
     fn get_request_integrity_object(&self) -> RefundIntegrityObject {
         RefundIntegrityObject {
-            refund_amount: self.refund_money.amount(),
-            currency: self.refund_money.currency(),
+            refund_money: self.refund_money.clone(),
         }
     }
 }
@@ -425,8 +422,7 @@ impl GetIntegrityObject<CaptureIntegrityObject> for PaymentsCaptureData {
 
     fn get_request_integrity_object(&self) -> CaptureIntegrityObject {
         CaptureIntegrityObject {
-            amount_to_capture: self.capture_money.amount(),
-            currency: self.capture_money.currency(),
+            capture_money: self.capture_money.clone(),
         }
     }
 
@@ -512,8 +508,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<RepeatPaymentIntegrityObject>
 
     fn get_request_integrity_object(&self) -> RepeatPaymentIntegrityObject {
         RepeatPaymentIntegrityObject {
-            amount: self.money.amount(),
-            currency: self.money.currency(),
+            money: self.money.clone(),
             mandate_reference: match &self.mandate_reference {
                 domain_types::connector_types::MandateReferenceId::ConnectorMandateId(
                     mandate_ref,
@@ -752,16 +747,16 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
 
         tolerance.check_amount(
             "amount",
-            req_integrity_object.amount,
-            res_integrity_object.amount,
+            req_integrity_object.money.amount(),
+            res_integrity_object.money.amount(),
             &mut mismatched_fields,
         );
 
-        if req_integrity_object.currency != res_integrity_object.currency {
+        if req_integrity_object.money.currency() != res_integrity_object.money.currency() {
             mismatched_fields.push(format_mismatch(
                 "currency",
-                &req_integrity_object.currency.to_string(),
-                &res_integrity_object.currency.to_string(),
+                &req_integrity_object.money.currency().to_string(),
+                &res_integrity_object.money.currency().to_string(),
             ));
         }
 
@@ -811,7 +806,16 @@ impl FlowIntegrity for SetupMandateIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         // Handle optional amount field
-        match (req_integrity_object.amount, res_integrity_object.amount) {
+        match (
+            req_integrity_object
+                .money
+                .as_ref()
+                .map(|money| money.amount()),
+            res_integrity_object
+                .money
+                .as_ref()
+                .map(|money| money.amount()),
+        ) {
             (Some(req_amount), Some(res_amount)) => {
                 tolerance.check_amount("amount", req_amount, res_amount, &mut mismatched_fields);
             }
@@ -846,16 +850,16 @@ impl FlowIntegrity for PaymentSynIntegrityObject {
 
         tolerance.check_amount(
             "amount",
-            req_integrity_object.amount,
-            res_integrity_object.amount,
+            req_integrity_object.money.amount(),
+            res_integrity_object.money.amount(),
             &mut mismatched_fields,
         );
 
-        if req_integrity_object.currency != res_integrity_object.currency {
+        if req_integrity_object.money.currency() != res_integrity_object.money.currency() {
             mismatched_fields.push(format_mismatch(
                 "currency",
-                &req_integrity_object.currency.to_string(),
-                &res_integrity_object.currency.to_string(),
+                &req_integrity_object.money.currency().to_string(),
+                &res_integrity_object.money.currency().to_string(),
             ));
         }
 
@@ -926,16 +930,18 @@ impl FlowIntegrity for RefundIntegrityObject {
 
         tolerance.check_amount(
             "refund_amount",
-            req_integrity_object.refund_amount,
-            res_integrity_object.refund_amount,
+            req_integrity_object.refund_money.amount(),
+            res_integrity_object.refund_money.amount(),
             &mut mismatched_fields,
         );
 
-        if req_integrity_object.currency != res_integrity_object.currency {
+        if req_integrity_object.refund_money.currency()
+            != res_integrity_object.refund_money.currency()
+        {
             mismatched_fields.push(format_mismatch(
                 "currency",
-                &req_integrity_object.currency.to_string(),
-                &res_integrity_object.currency.to_string(),
+                &req_integrity_object.refund_money.currency().to_string(),
+                &res_integrity_object.refund_money.currency().to_string(),
             ));
         }
 
@@ -956,16 +962,18 @@ impl FlowIntegrity for CaptureIntegrityObject {
 
         tolerance.check_amount(
             "amount_to_capture",
-            req_integrity_object.amount_to_capture,
-            res_integrity_object.amount_to_capture,
+            req_integrity_object.capture_money.amount(),
+            res_integrity_object.capture_money.amount(),
             &mut mismatched_fields,
         );
 
-        if req_integrity_object.currency != res_integrity_object.currency {
+        if req_integrity_object.capture_money.currency()
+            != res_integrity_object.capture_money.currency()
+        {
             mismatched_fields.push(format_mismatch(
                 "currency",
-                &req_integrity_object.currency.to_string(),
-                &res_integrity_object.currency.to_string(),
+                &req_integrity_object.capture_money.currency().to_string(),
+                &res_integrity_object.capture_money.currency().to_string(),
             ));
         }
 
@@ -1096,16 +1104,16 @@ impl FlowIntegrity for RepeatPaymentIntegrityObject {
 
         tolerance.check_amount(
             "amount",
-            req_integrity_object.amount,
-            res_integrity_object.amount,
+            req_integrity_object.money.amount(),
+            res_integrity_object.money.amount(),
             &mut mismatched_fields,
         );
 
-        if req_integrity_object.currency != res_integrity_object.currency {
+        if req_integrity_object.money.currency() != res_integrity_object.money.currency() {
             mismatched_fields.push(format_mismatch(
                 "currency",
-                &req_integrity_object.currency.to_string(),
-                &res_integrity_object.currency.to_string(),
+                &req_integrity_object.money.currency().to_string(),
+                &res_integrity_object.money.currency().to_string(),
             ));
         }
 

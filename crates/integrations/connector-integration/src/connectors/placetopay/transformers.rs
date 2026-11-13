@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Void, VoidPC},
     connector_types::{
@@ -112,7 +112,7 @@ pub struct PlacetopayPayment {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAmount {
     currency: common_enums::Currency,
-    total: MinorUnit,
+    total: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -169,7 +169,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             description: item.router_data.resource_common_data.get_description()?,
             amount: PlacetopayAmount {
                 currency: item.router_data.request.currency,
-                total: item.router_data.request.money.amount(),
+                total: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.money),
             },
         };
 
@@ -576,8 +577,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.refund_money.amount()
-            == item.router_data.request.payment_money.amount()
+        if common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.refund_money)
+            == common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.payment_money)
         {
             let auth = PlacetopayAuth::try_from(&item.router_data.connector_config)?;
 

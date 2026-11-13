@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt, ValueExt},
     request::Method,
-    types::{MinorUnit, SemanticVersion},
+    types::{AmountConvertor, ConnectorMinorUnit, SemanticVersion},
     SecretSerdeValue,
 };
 use domain_types::{
@@ -96,7 +96,7 @@ pub enum Currency {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
     pub currency: common_enums::Currency,
-    pub value: MinorUnit,
+    pub value: ConnectorMinorUnit,
 }
 
 type Error = error_stack::Report<IntegrationError>;
@@ -1099,11 +1099,11 @@ pub struct ShopperName {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LineItem {
-    amount_excluding_tax: Option<MinorUnit>,
-    amount_including_tax: Option<MinorUnit>,
+    amount_excluding_tax: Option<ConnectorMinorUnit>,
+    amount_including_tax: Option<ConnectorMinorUnit>,
     description: Option<String>,
     id: Option<String>,
-    tax_amount: Option<MinorUnit>,
+    tax_amount: Option<ConnectorMinorUnit>,
     quantity: Option<u16>,
 }
 
@@ -1647,13 +1647,13 @@ pub struct AdyenVoidRequest {
 
 #[derive(Debug, Serialize)]
 pub struct AdyenRouterData1<T> {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(MinorUnit, T)> for AdyenRouterData1<T> {
+impl<T> TryFrom<(ConnectorMinorUnit, T)> for AdyenRouterData1<T> {
     type Error = IntegrationError;
-    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (ConnectorMinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -1671,7 +1671,9 @@ fn get_amount_data<
 ) -> Amount {
     Amount {
         currency: item.router_data.request.currency,
-        value: item.router_data.request.money.amount().to_owned(),
+        value: common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.money)
+            .to_owned(),
     }
 }
 
@@ -2639,7 +2641,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+                get_adyen_split_request(adyen_split_payment)
             }
             _ => (adyen_metadata.store.clone(), None),
         };
@@ -2816,7 +2818,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // payment with 905_1/905_2 ("could not find an acquirer account ...").
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+                get_adyen_split_request(adyen_split_payment)
             }
             _ => (adyen_metadata.store.clone(), None),
         };
@@ -3418,7 +3420,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+                get_adyen_split_request(adyen_split_payment)
             }
             _ => (adyen_metadata.store.clone(), None),
         };
@@ -3814,7 +3816,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+                get_adyen_split_request(adyen_split_payment)
             }
             _ => (adyen_metadata.store.clone(), None),
         };
@@ -3951,7 +3953,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_recurring_processing_model(&item.router_data)?;
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+                get_adyen_split_request(adyen_split_payment)
             }
             _ => (adyen_metadata.store.clone(), None),
         };
@@ -4380,7 +4382,7 @@ pub struct AdyenPaymentsResponseData {
     pub status: AttemptStatus,
     pub error: Option<ErrorResponse>,
     pub payments_response_data: PaymentsResponseData,
-    pub txn_amount: Option<MinorUnit>,
+    pub txn_amount: Option<ConnectorMinorUnit>,
     pub connector_response: Option<ConnectorResponseData>,
 }
 
@@ -5199,7 +5201,7 @@ pub fn get_adyen_response(
         .and_then(|additional_data| additional_data.transaction_link_id.clone());
 
     let splits = match &response.splits {
-        Some(split_items) => Some(construct_charge_response(response.store, split_items)),
+        Some(split_items) => Some(construct_charge_response(response.store, split_items)?),
         None => None,
     };
 
@@ -5302,7 +5304,7 @@ pub fn get_present_to_shopper_response(
         Some(split_items) => Some(construct_charge_response(
             response.store.clone(),
             split_items,
-        )),
+        )?),
         None => None,
     };
 
@@ -5471,7 +5473,7 @@ pub fn get_qr_code_response(
         Some(split_items) => Some(construct_charge_response(
             response.store.clone(),
             split_items,
-        )),
+        )?),
         None => None,
     };
 
@@ -5600,10 +5602,18 @@ pub fn get_webhook_response(
     let connector_response = build_connector_response(&response);
 
     if is_multiple_capture_psync_flow {
-        let capture_sync_response_list =
-            utils::construct_captures_response_hashmap(vec![response.clone()]).change_context(
-                utils::response_handling_fail_for_connector(status_code, "adyen"),
-            )?;
+        let capture_sync_response_list = utils::construct_captures_response_hashmap(
+            vec![response.clone()],
+            response
+                .amount
+                .as_ref()
+                .map(|amount| amount.currency)
+                .unwrap_or_default(),
+        )
+        .change_context(utils::response_handling_fail_for_connector(
+            status_code,
+            "adyen",
+        ))?;
         Ok(AdyenPaymentsResponseData {
             status,
             error,
@@ -5704,7 +5714,8 @@ impl utils::MultipleCaptureSyncResponse for AdyenWebhookResponse {
 
     fn get_amount_captured(
         &self,
-    ) -> Result<Option<MinorUnit>, error_stack::Report<common_utils::errors::ParsingError>> {
+    ) -> Result<Option<ConnectorMinorUnit>, error_stack::Report<common_utils::errors::ParsingError>>
+    {
         Ok(self.amount.clone().map(|amount| amount.value))
     }
 }
@@ -5787,7 +5798,7 @@ pub fn get_redirection_response(
     let connector_metadata = get_wait_screen_metadata(&response)?;
 
     let splits = match &response.splits {
-        Some(split_items) => Some(construct_charge_response(response.store, split_items)),
+        Some(split_items) => Some(construct_charge_response(response.store, split_items)?),
         None => None,
     };
 
@@ -6022,7 +6033,7 @@ pub struct AdyenNotificationRequestItemWH {
 
 #[derive(Debug, Deserialize)]
 pub struct AdyenAmountWH {
-    pub value: MinorUnit,
+    pub value: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 
@@ -6728,7 +6739,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (store, splits) = match item.router_data.request.split_refunds.as_ref() {
             Some(connector_types::SplitRefundsDetails::AdyenSplitRefund(adyen_split_data)) => {
-                get_adyen_split_request(adyen_split_data, item.router_data.request.currency)
+                get_adyen_split_request(adyen_split_data)
             }
             _ => (
                 item.router_data
@@ -6750,7 +6761,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.refund_money.amount(),
+                value: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.refund_money),
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
             reference: item.router_data.request.refund_id.clone(),
@@ -6835,7 +6847,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             reference,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.capture_money.amount().to_owned(),
+                value: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.capture_money)
+                    .to_owned(),
             },
         })
     }
@@ -6878,7 +6892,7 @@ impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
             Some(split_items) => Some(construct_charge_response(
                 response.store.clone(),
                 split_items,
-            )),
+            )?),
             None => None,
         };
 
@@ -7427,8 +7441,8 @@ fn get_amount_data_for_setup_mandate<
             .request
             .money
             .as_ref()
-            .map(|money| money.amount())
-            .unwrap_or_else(MinorUnit::zero),
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+            .unwrap_or_else(ConnectorMinorUnit::zero),
     }
 }
 
@@ -7601,7 +7615,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let mandate_ref_id = item.router_data.request.mandate_reference.clone();
         let amount = Amount {
             currency: item.router_data.request.currency,
-            value: item.router_data.request.money.amount(),
+            value: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.money),
         };
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::ContinuedAuthentication;
@@ -7738,7 +7753,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
             Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+                get_adyen_split_request(adyen_split_payment)
             }
             _ => (adyen_metadata.store.clone(), None),
         };
@@ -8564,8 +8579,14 @@ fn get_line_items<
             .iter()
             .enumerate()
             .map(|(i, data)| LineItem {
-                amount_including_tax: Some(data.amount),
-                amount_excluding_tax: Some(data.amount),
+                amount_including_tax: Some(
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&data.get_unit_money(&item.router_data.request.money)),
+                ),
+                amount_excluding_tax: Some(
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&data.get_unit_money(&item.router_data.request.money)),
+                ),
                 description: Some(data.product_name.clone()),
                 id: Some(format!("Items #{i}")),
                 tax_amount: None,
@@ -8574,8 +8595,14 @@ fn get_line_items<
             .collect(),
         None => {
             let line_item = LineItem {
-                amount_including_tax: Some(item.router_data.request.money.amount()),
-                amount_excluding_tax: Some(item.router_data.request.money.amount()),
+                amount_including_tax: Some(
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money),
+                ),
+                amount_excluding_tax: Some(
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money),
+                ),
                 description: item.router_data.resource_common_data.description.clone(),
                 id: Some(String::from("Items #1")),
                 tax_amount: None,
@@ -8704,13 +8731,15 @@ impl AdditionalData {
 
 fn get_adyen_split_request(
     split_request: &connector_types::AdyenSplitData,
-    currency: common_enums::enums::Currency,
 ) -> (Option<String>, Option<Vec<AdyenSplitData>>) {
     let splits = split_request
         .split_items
         .iter()
         .map(|split_item| {
-            let amount = split_item.amount.map(|value| Amount { currency, value });
+            let amount = split_item.money.as_ref().map(|money| Amount {
+                currency: money.currency(),
+                value: common_utils::types::ConnectorMinorUnitForConnector.convert(money),
+            });
             AdyenSplitData {
                 amount,
                 reference: split_item.reference.clone(),
@@ -8776,7 +8805,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.money.amount(),
+            value: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
         };
 
         let reference = router_data
@@ -8906,7 +8936,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let amount = Amount {
             currency: router_data.request.currency,
-            value: router_data.request.money.amount(),
+            value: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
         };
 
         let reference = router_data
@@ -9051,7 +9082,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             merchant_account: auth_type.merchant_account,
             amount: Amount {
                 currency: item.router_data.request.currency,
-                value: item.router_data.request.money.amount().to_owned(),
+                value: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.money)
+                    .to_owned(),
             },
             reference: Some(reference),
         })
@@ -9115,22 +9148,36 @@ impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
 fn construct_charge_response(
     store: Option<String>,
     split_item: &[AdyenSplitData],
-) -> ConnectorSplitResponseData {
+) -> CustomResult<ConnectorSplitResponseData, ConnectorError> {
     let splits: Vec<AdyenSplitItem> = split_item
         .iter()
-        .map(|split_item| AdyenSplitItem {
-            amount: split_item.amount.as_ref().map(|amount| amount.value),
-            reference: split_item.reference.clone(),
-            split_type: split_item.split_type.clone(),
-            account: split_item.account.clone(),
-            description: split_item.description.clone(),
+        .map(|split_item| {
+            Ok(AdyenSplitItem {
+                money: split_item
+                    .amount
+                    .as_ref()
+                    .map(|amount| {
+                        common_utils::types::ConnectorMinorUnitForConnector
+                            .convert_back(amount.value, amount.currency)
+                            .change_context(
+                                ConnectorError::response_handling_failed_http_status_unknown(),
+                            )
+                    })
+                    .transpose()?,
+                reference: split_item.reference.clone(),
+                split_type: split_item.split_type.clone(),
+                account: split_item.account.clone(),
+                description: split_item.description.clone(),
+            })
         })
-        .collect();
+        .collect::<CustomResult<_, ConnectorError>>()?;
 
-    ConnectorSplitResponseData::AdyenSplitPayment(connector_types::AdyenSplitData {
-        store,
-        split_items: splits,
-    })
+    Ok(ConnectorSplitResponseData::AdyenSplitPayment(
+        connector_types::AdyenSplitData {
+            store,
+            split_items: splits,
+        },
+    ))
 }
 
 fn get_capture_delay_hours(

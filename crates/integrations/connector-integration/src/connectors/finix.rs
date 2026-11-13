@@ -10,7 +10,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -365,7 +365,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-macros::create_amount_converter_wrapper!(connector_name: Finix, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Finix, amount_type: ConnectorMinorUnit);
 
 macros::create_all_prerequisites!(
     connector_name: Finix,
@@ -431,7 +431,7 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: MinorUnit
+        amount_converter: ConnectorMinorUnit
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(

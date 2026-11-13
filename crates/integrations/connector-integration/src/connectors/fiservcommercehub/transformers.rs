@@ -2316,8 +2316,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         if additional_amount.currency() != request.currency
             || request.money.currency() != request.currency
-            || additional_amount.amount() <= common_utils::types::MinorUnit::zero()
-            || additional_amount.amount() > request.money.amount()
+            || common_utils::types::ConnectorMinorUnitForConnector.convert(additional_amount)
+                <= common_utils::types::ConnectorMinorUnit::zero()
+            || common_utils::types::ConnectorMinorUnitForConnector.convert(additional_amount)
+                > common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)
         {
             return Err(errors::IntegrationError::InvalidDataFormat {
                 field_name: "additional_amount",
@@ -2641,8 +2643,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
         let integrity_object = amount_captured
             .as_ref()
             .map(|amount| CaptureIntegrityObject {
-                amount_to_capture: amount.amount(),
-                currency: amount.currency(),
+                capture_money: amount.clone(),
             });
         let response = build_transaction_payment_response(
             status,
@@ -2952,8 +2953,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .money
             .as_ref()
-            .map(|money| money.amount())
-            .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+            .is_some_and(|amount| amount > common_utils::types::ConnectorMinorUnit::zero())
         {
             return Err(error_stack::report!(
                 errors::IntegrationError::NotSupported {

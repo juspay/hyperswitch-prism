@@ -1493,7 +1493,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     .change_context(ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
                     })?;
-                let amount_data = item.router_data.request.money.amount();
+                let amount_data = common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.money);
                 let currency_data = item.router_data.request.currency.ok_or(
                     ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
@@ -1696,8 +1697,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .money
             .as_ref()
-            .map(|money| money.amount())
-            .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+            .is_some_and(|amount| amount > common_utils::types::ConnectorMinorUnit::zero())
         {
             return Err(IntegrationError::NotSupported {
                 message: "Setup Mandate with non zero amount".to_string(),

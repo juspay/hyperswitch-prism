@@ -13,9 +13,9 @@ use crate::errors::ParsingError;
 
 pub use crate::money::{
     AmountConvertor, ConnectorMinorUnit, ConnectorMinorUnitForConnector, FloatMajorUnit,
-    FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector, Money, StringMajorUnit,
-    StringMajorUnitForConnector, StringMajorUnitForCore, StringMinorUnit,
-    StringMinorUnitForConnector, StringTwoDecimalUnit, StringTwoDecimalUnitForConnector,
+    FloatMajorUnitForConnector, MinorUnit, Money, StringMajorUnit, StringMajorUnitForConnector,
+    StringMajorUnitForCore, StringMinorUnit, StringMinorUnitForConnector, StringTwoDecimalUnit,
+    StringTwoDecimalUnitForConnector,
 };
 
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.

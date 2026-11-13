@@ -140,7 +140,7 @@ fn checkout_payment_base_url(configured_base_url: &str) -> String {
 
 // Type alias for non-generic trait implementations
 
-macros::create_amount_converter_wrapper!(connector_name: Checkout, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Checkout, amount_type: ConnectorMinorUnit);
 
 macros::macro_connector_payout_implementation!(
     connector: Checkout,
@@ -495,7 +495,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = convert_amount_for_webhook(
             &StringMinorUnitForConnector,
             &domain_types::utils::convert_back_amount_to_money_for_webhook(
-                &common_utils::types::MinorUnitForConnector,
+                &common_utils::types::ConnectorMinorUnitForConnector,
                 dispute_amount,
                 currency,
             )?,

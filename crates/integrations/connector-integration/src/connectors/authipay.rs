@@ -3,7 +3,9 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::ConnectorMinorUnit,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
@@ -183,7 +185,7 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: MinorUnit
+        amount_converter: ConnectorMinorUnit
     ],
     member_functions: {
         /// Build headers with HMAC-SHA256 signature

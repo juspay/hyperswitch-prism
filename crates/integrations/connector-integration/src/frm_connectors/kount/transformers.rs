@@ -1257,7 +1257,9 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
         // independent of the connector's main amount converter. Omit a 0 value so
         // we never emit a bogus "0" to Kount.
         let minor_unit_amount = |money: &common_utils::types::Money| {
-            let amount = money.amount().get_amount_as_i64();
+            let amount = common_utils::types::ConnectorMinorUnitForConnector
+                .convert(money)
+                .get_amount_as_i64();
             (amount != 0).then(|| amount.to_string())
         };
         // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
