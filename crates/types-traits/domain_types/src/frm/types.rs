@@ -317,6 +317,13 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             payment_method,
             browser_info,
             merchant_transaction_id: value.merchant_transaction_id,
+            merchant_order_id: value.merchant_order_id,
+            installment_details: value.installment_details.map(|details| {
+                super::frm_types::InstallmentDetails {
+                    installment_count: details.installment_count,
+                }
+            }),
+            order_description: value.order_description,
             order_details,
             address,
             metadata: value.metadata,
@@ -489,6 +496,13 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             payment_method,
             browser_info,
             merchant_transaction_id: value.merchant_transaction_id,
+            merchant_order_id: value.merchant_order_id,
+            installment_details: value.installment_details.map(|details| {
+                super::frm_types::InstallmentDetails {
+                    installment_count: details.installment_count,
+                }
+            }),
+            order_description: value.order_description,
             order_details,
             metadata: value.metadata,
             connector_feature_data: value.connector_feature_data,

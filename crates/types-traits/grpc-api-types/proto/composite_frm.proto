@@ -88,6 +88,15 @@ message CompositeFrmPreRiskCheckRequest {
   // Domain-specific order context (travel, hotel, airline…) as a typed
   // object. 
   optional DomainData domain_data = 18;
+
+  // Merchant/business order identifier, distinct from the payment-attempt ID.
+  optional string merchant_order_id = 19;
+
+  // Installment details supplied by the application creating the FRM request,
+  optional InstallmentDetails installment_details = 20;
+
+  // Merchant-provided description.
+  optional string order_description = 21;
 }
 
 // Composite request for PostRiskCheck that includes all fields from
@@ -150,6 +159,15 @@ message CompositeFrmPostRiskCheckRequest {
   // Domain-specific order context (travel, hotel, airline…) as a typed object
   // (same as CompositeFrmPreRiskCheckRequest).
   optional DomainData domain_data = 19;
+
+  // Reanalysis must address the same merchant/business order as creation.
+  optional string merchant_order_id = 20;
+
+  // Installment details supplied by the application creating the FRM request;
+  optional InstallmentDetails installment_details = 21;
+
+  // The same order description must be replayed during reanalysis.
+  optional string order_description = 22;
 }
 
 // ============================================================================

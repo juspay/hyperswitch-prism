@@ -145,11 +145,16 @@ mod tests {
                 ip_address: Some("200.155.10.20".parse().expect("valid ip")),
                 ..BrowserInformation::default()
             }),
-            merchant_transaction_id: Some("order-abc-001".to_owned()),
+            merchant_transaction_id: Some("txn-abc-001".to_owned()),
+            merchant_order_id: Some("merchant-order-abc-001".to_owned()),
+            connector_feature_data: Some(Secret::new(
+                r#"{"product":4,"installments":99,"orderInfoMetadata":{"observation":"Legacy connector observation"}}"#.to_owned(),
+            )),
+            installment_details: Some(domain_types::frm::frm_types::InstallmentDetails { installment_count: 3 }),
+            order_description: Some("Order description".to_owned()),
             order_details: Some(order_details()),
             address: Some(payment_address()),
             metadata: Some(Secret::new(r#"{"session_id":"sdk-session-42"}"#.to_owned())),
-            connector_feature_data: Some(Secret::new(r#"{"installments":1}"#.to_owned())),
             test_mode: Some(true),
             mandate_details: None,
             merchant_details: None,
@@ -171,6 +176,9 @@ mod tests {
             payment_method: pre.payment_method,
             browser_info: pre.browser_info,
             merchant_transaction_id: pre.merchant_transaction_id,
+            merchant_order_id: pre.merchant_order_id,
+            installment_details: pre.installment_details,
+            order_description: pre.order_description,
             order_details: pre.order_details,
             metadata: pre.metadata,
             connector_feature_data: pre.connector_feature_data,
@@ -540,40 +548,47 @@ mod tests {
 
     // ── feature data + metadata getters ─────────────────────────────────
 
-    /// `connector_feature_data` carries only ClearSale extras; `session_id`
-    /// comes exclusively from request `metadata` via its getter. The order code
-    /// is `merchant_transaction_id` — never a metadata key. `custom_fields` is
-    /// not scraped.
+    /// `connector_feature_data.orderInfoMetadata` is decoded only by ClearSale;
+    /// the typed FRM `order_description` is a separate input.
     #[test]
-    fn metadata_getters_extract_session_id() {
-        let feature_data = ClearSaleFeatureData::parse(Some(&Secret::new(
-            r#"{"origin": "fd-origin", "installments": 3}"#.to_owned(),
-        )))
-        .expect("valid feature data");
-        assert_eq!(feature_data.origin.as_deref(), Some("fd-origin"));
-        assert_eq!(feature_data.installments, Some(3));
+    fn clearsale_order_info_metadata_deserializes_its_own_schema() {
+        let connector_feature_data =
+            ClearSaleConnectorFeatureData::parse(Some(&Secret::new(
+                r#"{"product":4,"orderInfoMetadata":{"origin":"WebCheckout","isGift":true,"billingPhoneType":2,"socialNetwork":{"optInCompreConfie":1}}}"#.to_owned(),
+            )))
+            .expect("valid feature data");
+        assert_eq!(connector_feature_data.product, Some(4));
 
-        let metadata = Secret::new(
+        let order_info_metadata = connector_feature_data.order_info_metadata;
+        assert_eq!(order_info_metadata.origin.as_deref(), Some("WebCheckout"));
+        assert_eq!(order_info_metadata.is_gift, Some(true));
+        assert_eq!(order_info_metadata.billing_phone_type, Some(2));
+        assert!(order_info_metadata.social_network.is_some());
+
+        let overridden = ClearSaleConnectorFeatureData::parse(Some(&Secret::new(
             r#"{
-                "session_id": "sdk-session-42",
-                "custom_fields": {
-                    "origin": "WebCheckout",
-                    "isGift": "true",
-                    "socialNetwork": { "optInCompreConfie": 1 }
-                }
+                "origin":"Flat",
+                "isGift":false,
+                "channelId":"flat-channel",
+                "orderInfoMetadata":{"origin":"Nested","channelId":"nested-channel"}
             }"#
             .to_owned(),
+        )))
+        .expect("legacy and nested feature data");
+        let order_info_metadata = overridden.order_info_metadata;
+        assert_eq!(order_info_metadata.origin.as_deref(), Some("Nested"));
+        assert_eq!(order_info_metadata.is_gift, Some(false));
+        assert_eq!(
+            order_info_metadata.channel_id.as_deref(),
+            Some("nested-channel")
+        );
+        let metadata = Secret::new(
+            r#"{"session_id":"sdk-session-42","custom_fields":{"origin":"ignored"}}"#.to_owned(),
         );
         assert_eq!(
             get_session_id_from_metadata(Some(&metadata)).expect("session id"),
             "sdk-session-42"
         );
-        // custom_fields must NOT leak into the feature-data extras.
-        assert_eq!(feature_data.origin.as_deref(), Some("fd-origin"));
-        assert_eq!(feature_data.is_gift, None);
-        assert_eq!(feature_data.social_network, None);
-
-        // camelCase metadata aliases also supply the session id.
         let camel = Secret::new(r#"{"sessionId": "sdk-session-42"}"#.to_owned());
         assert_eq!(
             get_session_id_from_metadata(Some(&camel)).expect("session id"),
@@ -581,10 +596,73 @@ mod tests {
         );
     }
 
+    #[test]
+    fn legacy_flat_feature_data_is_retained_instead_of_silently_dropped() {
+        let mut req = pre_risk_check_request();
+        req.installment_details = None;
+        req.order_description = None;
+        req.connector_feature_data = Some(Secret::new(
+            r#"{
+                "origin":"Legacy",
+                "isGift":true,
+                "billingPhoneType":2,
+                "installments":3,
+                "observation":"Flat observation",
+                "orderInfoMetadata":{"origin":"Nested"}
+            }"#
+            .to_owned(),
+        ));
+        let pre_order =
+            order_from_common(OrderInputs::from_pre_risk_check(&req, None, None).unwrap())
+                .unwrap()
+                .order;
+        let mut post = post_risk_check_request();
+        post.installment_details = None;
+        post.order_description = None;
+        post.connector_feature_data = req.connector_feature_data.clone();
+        let post_order =
+            order_from_common(OrderInputs::from_post_risk_check(&post, None, None).unwrap())
+                .unwrap()
+                .order;
+
+        for order in [pre_order, post_order] {
+            assert_eq!(order.origin.as_deref(), Some("Nested"));
+            assert_eq!(order.observation.as_deref(), Some("Flat observation"));
+            assert_eq!(order.is_gift, Some(true));
+            assert_eq!(order.number_of_installments, Some(3));
+            assert_eq!(order.payments[0].installments, Some(3));
+            assert_eq!(order.billing.phones[0].phone_type, 2);
+        }
+    }
+
+    #[test]
+    fn order_info_parse_rejects_malformed_json() {
+        for raw in [
+            Some("{not-json"),
+            Some(r#"{"orderInfoMetadata":"wrong-shape"}"#),
+        ] {
+            let err = ClearSaleConnectorFeatureData::parse(
+                raw.map(|value| Secret::new(value.to_owned())).as_ref(),
+            )
+            .expect_err("malformed feature data or invalid order info must fail");
+            assert!(matches!(
+                err.current_context(),
+                IntegrationError::InvalidDataFormat { field_name, .. }
+                    if *field_name == "connector_feature_data"
+            ));
+        }
+        assert_eq!(
+            ClearSaleConnectorFeatureData::parse(None)
+                .unwrap()
+                .order_info_metadata,
+            ClearSaleOrderInfoMetadata::default()
+        );
+    }
+
     /// Malformed `connector_feature_data` is an error, never a silent default.
     #[test]
     fn feature_data_parse_rejects_malformed_json() {
-        let err = ClearSaleFeatureData::parse(Some(&Secret::new("{not-json".to_owned())))
+        let err = ClearSaleConnectorFeatureData::parse(Some(&Secret::new("{not-json".to_owned())))
             .expect_err("malformed feature data must fail");
         assert!(
             matches!(
@@ -595,7 +673,7 @@ mod tests {
             "got {:?}",
             err.current_context()
         );
-        assert!(ClearSaleFeatureData::parse(None).is_ok());
+        assert!(ClearSaleConnectorFeatureData::parse(None).is_ok());
     }
 
     /// Malformed request `metadata` is an error — never silently defaulted.
@@ -806,6 +884,25 @@ mod tests {
         );
     }
 
+    #[test]
+    fn generated_datetimes_use_one_brasilia_instant_for_order_and_payment() {
+        let utc = time::macros::datetime!(2026-11-13 02:47:16.588292612 UTC);
+        assert_eq!(
+            generated_datetime_at(utc).unwrap(),
+            "2026-11-12T23:47:16.5882926"
+        );
+
+        let req = pre_risk_check_request();
+        let order = order_from_common_at(
+            OrderInputs::from_pre_risk_check(&req, None, None).unwrap(),
+            utc,
+        )
+        .unwrap()
+        .order;
+        assert_eq!(order.date, "2026-11-12T23:47:16.5882926");
+        assert_eq!(order.payments[0].date.as_deref(), Some(order.date.as_str()));
+    }
+
     /// ClearSale `Datetime` is .NET DateTime — no timezone, ≤7 frac digits.
     #[test]
     fn to_clearsale_datetime_strips_timezone_and_caps_precision() {
@@ -921,7 +1018,7 @@ mod tests {
     /// person_type maps from DocumentKind: CPF→1, CNPJ→2, Psn/Other rejected.
     #[test]
     fn person_type_maps_document_kind() {
-        let feature = ClearSaleFeatureData::default();
+        let feature = ClearSaleOrderInfoMetadata::default();
         let doc = Some(Secret::new("12345678909".to_owned()));
 
         let cpf = build_person(
@@ -1070,15 +1167,18 @@ mod tests {
 
     /// End-to-end PreRiskCheck → ClearSale order body: items amount is the
     /// decimal quantity, phone DDD is real, person_type is CPF, payment type
-    /// is credit card, and the order code is the merchant transaction id.
+    /// is credit card, and the order code is the business order ID.
     #[test]
     fn order_from_common_builds_pre_risk_check_body() {
         let req = pre_risk_check_request();
-        let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-        let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+        let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
         let order = order_from_common(inputs).unwrap().order;
 
-        assert_eq!(order.code, "order-abc-001");
+        assert_eq!(order.code, "merchant-order-abc-001");
+        assert_ne!(order.code, "txn-abc-001");
+        assert_eq!(order.product, 4);
+        assert_eq!(order.number_of_installments, Some(3));
+        assert_eq!(order.payments[0].installments, Some(3));
         assert_eq!(order.session_id, "sdk-session-42");
         assert_eq!(order.ip.as_deref(), Some("200.155.10.20"));
         assert_eq!(
@@ -1117,8 +1217,7 @@ mod tests {
     fn no_shipping_is_omitted_not_mirrored() {
         let req = pre_risk_check_request();
         assert!(req.address.as_ref().unwrap().get_shipping().is_none());
-        let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-        let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+        let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
         let order = order_from_common(inputs).unwrap().order;
         assert!(order.shipping.is_none());
     }
@@ -1134,8 +1233,7 @@ mod tests {
                 None,
                 Some(false),
             ));
-            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
             let order = order_from_common(inputs).unwrap().order;
             assert!(order.shipping.is_none());
             assert!(order.items.is_empty());
@@ -1178,8 +1276,7 @@ mod tests {
                 None,
                 Some(false),
             ));
-            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
             let order = order_from_common(inputs).unwrap().order;
             assert!(order.shipping.is_none());
             assert!(!serde_json::to_value(order)
@@ -1201,8 +1298,7 @@ mod tests {
 
             let mut req = pre_risk_check_request();
             req.order_details = Some(details);
-            let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-            let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+            let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
             let order = order_from_common(inputs).unwrap().order;
             assert!(order.item_value.is_none());
             assert!(!serde_json::to_value(order)
@@ -1215,25 +1311,19 @@ mod tests {
 
     /// PostRiskCheck must emit the same order body as PreRiskCheck (only the
     /// HTTP method differs). `ip` comes from browser_info; domain_data rides
-    /// through; the order code is `merchant_transaction_id` — never the PSP
-    /// connector_transaction_id.
+    /// through; the order code is `merchant_order_id` — never the payment-attempt
+    /// or PSP connector transaction ID.
     #[test]
     fn post_risk_check_matches_pre_risk_check_body() {
         let pre = pre_risk_check_request();
         let post = post_risk_check_request();
 
-        let build = |feature: &ClearSaleFeatureData| {
-            let pre_inputs = OrderInputs::from_pre_risk_check(&pre, feature, None, None).unwrap();
-            let post_inputs =
-                OrderInputs::from_post_risk_check(&post, feature, None, None).unwrap();
-            (
-                order_from_common(pre_inputs).unwrap().order,
-                order_from_common(post_inputs).unwrap().order,
-            )
-        };
-
-        let feature = ClearSaleFeatureData::parse(pre.connector_feature_data.as_ref()).unwrap();
-        let (pre_order, post_order) = build(&feature);
+        let pre_inputs = OrderInputs::from_pre_risk_check(&pre, None, None).unwrap();
+        let post_inputs = OrderInputs::from_post_risk_check(&post, None, None).unwrap();
+        let (pre_order, post_order) = (
+            order_from_common(pre_inputs).unwrap().order,
+            order_from_common(post_inputs).unwrap().order,
+        );
 
         // Same purchase body (dates are clock reads — ignore them).
         assert_eq!(pre_order.code, post_order.code);
@@ -1274,8 +1364,7 @@ mod tests {
         )
         .expect("valid USD pre-risk-check fixture")
         .money;
-        let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-        let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+        let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
         let err = order_from_common(inputs).expect_err("USD must fail");
         assert!(
             matches!(
@@ -1293,13 +1382,12 @@ mod tests {
     #[test]
     fn order_from_common_reports_missing_required_fields() {
         // Metadata getters extract and validate in one place. The order code
-        // is `merchant_transaction_id` (never a metadata key), so a missing
-        // metadata fails on `sessionID` only.
+        // is `merchant_order_id` (never a metadata key), so missing metadata
+        // fails on `sessionID` only.
         let mut req = pre_risk_check_request();
         req.metadata = None;
         req.connector_feature_data = None;
-        let feature = ClearSaleFeatureData::default();
-        let err = OrderInputs::from_pre_risk_check(&req, &feature, None, None)
+        let err = OrderInputs::from_pre_risk_check(&req, None, None)
             .map(|_| ())
             .expect_err("missing session id");
         assert_eq!(missing_fields(&err), vec!["sessionID".to_owned()]);
@@ -1307,8 +1395,7 @@ mod tests {
         // Email is required while building `OrderInputs`.
         let mut req = pre_risk_check_request();
         req.customer_info = None;
-        let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-        let err = OrderInputs::from_pre_risk_check(&req, &feature, None, None)
+        let err = OrderInputs::from_pre_risk_check(&req, None, None)
             .map(|_| ())
             .expect_err("missing email");
         assert_eq!(missing_fields(&err), vec!["email".to_owned()]);
@@ -1316,13 +1403,115 @@ mod tests {
         // CPF/CNPJ document is required while building the billing person.
         let mut req = pre_risk_check_request();
         req.billing_document_data = None;
-        let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-        let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+        let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
         let err = order_from_common(inputs).expect_err("missing billing.primaryDocument");
         assert_eq!(
             missing_fields(&err),
             vec!["billing.primaryDocument".to_owned()]
         );
+    }
+
+    #[test]
+    fn order_code_requires_the_business_order_id() {
+        let mut req = pre_risk_check_request();
+        req.merchant_order_id = None;
+        let err = OrderInputs::from_pre_risk_check(&req, None, None)
+            .map(|_| ())
+            .expect_err("missing business order ID");
+        assert_eq!(missing_fields(&err), vec!["merchant_order_id".to_owned()]);
+    }
+
+    #[test]
+    fn typed_order_description_and_connector_observation_stay_separate() {
+        let mut req = pre_risk_check_request();
+        for (description, expected) in [
+            (Some("Order description".to_owned()), "Order description"),
+            (None, "Legacy connector observation"),
+            (Some("   ".to_owned()), "Legacy connector observation"),
+        ] {
+            req.order_description = description;
+            let mut post = post_risk_check_request();
+            post.order_description = req.order_description.clone();
+            let pre_inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
+            let post_inputs = OrderInputs::from_post_risk_check(&post, None, None).unwrap();
+            assert_eq!(
+                order_from_common(pre_inputs)
+                    .unwrap()
+                    .order
+                    .observation
+                    .as_deref(),
+                Some(expected)
+            );
+            assert_eq!(
+                order_from_common(post_inputs)
+                    .unwrap()
+                    .order
+                    .observation
+                    .as_deref(),
+                Some(expected)
+            );
+        }
+    }
+
+    #[test]
+    fn grpc_card_details_preserve_supported_networks() {
+        use domain_types::payment_method_data::Card;
+
+        for (network, expected) in [
+            (
+                grpc_api_types::payments::CardNetwork::Visa,
+                CardNetwork::Visa,
+            ),
+            (
+                grpc_api_types::payments::CardNetwork::Mastercard,
+                CardNetwork::Mastercard,
+            ),
+        ] {
+            let card =
+                Card::<DefaultPCIHolder>::foreign_try_from(grpc_api_types::payments::CardDetails {
+                    card_number: Some(
+                        cards::CardNumber::from_str("4111111111111111")
+                            .expect("valid test card number"),
+                    ),
+                    card_exp_month: Some(Secret::new("12".to_owned())),
+                    card_exp_year: Some(Secret::new("2030".to_owned())),
+                    card_cvc: Some(Secret::new("123".to_owned())),
+                    card_network: Some(i32::from(network)),
+                    ..Default::default()
+                })
+                .expect("supported card network");
+            assert_eq!(card.card_network, Some(expected));
+        }
+
+        assert!(
+            CardNetwork::foreign_try_from(grpc_api_types::payments::CardNetwork::Unspecified)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn clearsale_card_type_maps_supported_networks() {
+        for (network, expected) in [
+            (CardNetwork::DinersClub, Some(1)),
+            (CardNetwork::Mastercard, Some(2)),
+            (CardNetwork::Visa, Some(3)),
+            (CardNetwork::AmericanExpress, Some(5)),
+            (CardNetwork::JCB, None),
+        ] {
+            assert_eq!(clearsale_card_type(Some(&network)), expected);
+        }
+        assert_eq!(clearsale_card_type(None), None);
+    }
+
+    #[test]
+    fn absent_emi_and_legacy_installments_leave_installments_unset() {
+        let mut req = pre_risk_check_request();
+        req.connector_feature_data = None;
+        req.installment_details = None;
+        let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
+        let order = order_from_common(inputs).unwrap().order;
+        assert_eq!(order.number_of_installments, None);
+        assert_eq!(order.payments[0].installments, None);
     }
 
     /// `items[].amount` is the line quantity as an **Integer** (not a float
@@ -1631,8 +1820,7 @@ mod tests {
             document_type: DocumentKind::Cnpj,
             document_number: Secret::new("11222333000181".to_owned()),
         });
-        let feature = ClearSaleFeatureData::parse(req.connector_feature_data.as_ref()).unwrap();
-        let inputs = OrderInputs::from_pre_risk_check(&req, &feature, None, None).unwrap();
+        let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
         let order = order_from_common(inputs).unwrap().order;
         assert_eq!(order.billing.person_type, CLEARSALE_PERSON_TYPE_PJ);
         assert_eq!(order.billing.primary_document.peek(), "11222333000181");
