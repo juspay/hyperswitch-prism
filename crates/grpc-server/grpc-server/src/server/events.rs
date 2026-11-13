@@ -1058,8 +1058,8 @@ async fn verify_webhook_source_external(
     };
 
     let merchant_secret = match webhook_secrets {
-        Some(secret) if !secret.secret.is_empty() => secret,
-        Some(_) | None => return Ok(false),
+        Some(secret) => secret,
+        None => return Ok(false),
     };
 
     let verify_webhook_request = VerifyWebhookSourceRequestData {
