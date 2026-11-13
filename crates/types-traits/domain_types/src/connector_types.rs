@@ -3363,6 +3363,7 @@ pub struct ConnectorWebhookSecrets {
 #[derive(Debug, Clone, Default)]
 pub struct EventContext {
     pub capture_method: Option<common_enums::CaptureMethod>,
+    pub previous_status: Option<common_enums::AttemptStatus>,
 }
 
 #[derive(Debug, Clone)]
@@ -3795,27 +3796,43 @@ impl ForeignTryFrom<grpc_api_types::payments::EventContext> for EventContext {
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         use grpc_api_types::payments::event_context::EventContext as EventContextOneof;
 
-        let capture_method = match value.event_context {
-            Some(EventContextOneof::Payment(payment_ctx)) => payment_ctx
-                .capture_method
-                .map(|cm| {
-                    grpc_api_types::payments::CaptureMethod::try_from(cm)
-                        .change_context(WebhookError::WebhookBodyDecodingFailed)
-                        .and_then(|cm| {
-                            common_enums::CaptureMethod::foreign_try_from(cm)
-                                .change_context(WebhookError::WebhookBodyDecodingFailed)
-                        })
-                })
-                .transpose()?,
+        let (capture_method, previous_status) = match value.event_context {
+            Some(EventContextOneof::Payment(payment_ctx)) => (
+                payment_ctx
+                    .capture_method
+                    .map(|cm| {
+                        grpc_api_types::payments::CaptureMethod::try_from(cm)
+                            .change_context(WebhookError::WebhookBodyDecodingFailed)
+                            .and_then(|cm| {
+                                common_enums::CaptureMethod::foreign_try_from(cm)
+                                    .change_context(WebhookError::WebhookBodyDecodingFailed)
+                            })
+                    })
+                    .transpose()?,
+                payment_ctx
+                    .previous_status
+                    .map(|status| {
+                        grpc_api_types::payments::PaymentStatus::try_from(status)
+                            .change_context(WebhookError::WebhookBodyDecodingFailed)
+                            .and_then(|status| {
+                                common_enums::AttemptStatus::foreign_try_from(status)
+                                    .change_context(WebhookError::WebhookBodyDecodingFailed)
+                            })
+                    })
+                    .transpose()?,
+            ),
             // Other resource contexts carry no fields that map to domain EventContext today.
             Some(EventContextOneof::Refund(_))
             | Some(EventContextOneof::Dispute(_))
             | Some(EventContextOneof::Mandate(_))
             | Some(EventContextOneof::Payout(_))
-            | None => None,
+            | None => (None, None),
         };
 
-        Ok(Self { capture_method })
+        Ok(Self {
+            capture_method,
+            previous_status,
+        })
     }
 }
 
