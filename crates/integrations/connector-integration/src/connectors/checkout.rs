@@ -716,31 +716,66 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_payments<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> String {
-            checkout_payment_base_url(
-                &req.resource_common_data.connectors.checkout.base_url,
-            )
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = &req.resource_common_data.connectors.checkout.base_url;
+            build_base_url(&checkout_payment_base_url(base_url), &req.connector_config)
         }
 
         pub fn connector_base_url_refunds<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> String {
-            checkout_payment_base_url(
-                &req.resource_common_data.connectors.checkout.base_url,
-            )
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = &req.resource_common_data.connectors.checkout.base_url;
+            build_base_url(&checkout_payment_base_url(base_url), &req.connector_config)
         }
 
         pub fn connector_base_url_disputes<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, DisputeFlowData, Req, Res>,
-        ) -> String {
-            checkout_payment_base_url(
-                &req.resource_common_data.connectors.checkout.base_url,
-            )
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = &req.resource_common_data.connectors.checkout.base_url;
+            build_base_url(&checkout_payment_base_url(base_url), &req.connector_config)
         }
     }
 );
+
+/// Checkout.com expects each merchant to call their own API host,
+/// `{prefix}.api.checkout.com` or `{prefix}.api.sandbox.checkout.com`.
+/// Without an `endpoint_prefix` in the connector config, the base URL is used as is.
+fn build_base_url(
+    base_url: &str,
+    connector_config: &ConnectorSpecificConfig,
+) -> CustomResult<String, IntegrationError> {
+    let prefix = match connector_config {
+        ConnectorSpecificConfig::Checkout {
+            endpoint_prefix, ..
+        } => endpoint_prefix.as_deref(),
+        _ => None,
+    }
+    .map(str::trim)
+    .filter(|prefix| !prefix.is_empty());
+    let Some(prefix) = prefix else {
+        return Ok(base_url.to_string());
+    };
+    let invalid_prefix = || IntegrationError::InvalidConnectorConfig {
+        config: "endpoint_prefix",
+        context: Default::default(),
+    };
+    let invalid_base_url = || IntegrationError::InvalidConnectorConfig {
+        config: "base_url",
+        context: Default::default(),
+    };
+    if !prefix.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err(invalid_prefix().into());
+    }
+    let mut url = url::Url::parse(base_url).change_context(invalid_base_url())?;
+    let host = url
+        .host_str()
+        .map(|host| format!("{prefix}.{host}"))
+        .ok_or_else(invalid_base_url)?;
+    url.set_host(Some(&host)).change_context(invalid_prefix())?;
+    Ok(url.to_string())
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Checkout<T>
@@ -931,7 +966,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)))
+            Ok(format!("{}payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -972,7 +1007,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)))
+            Ok(format!("{}payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -1013,7 +1048,7 @@ macros::macro_connector_implementation!(
 };
             Ok(format!(
                 "{}{}{}{}",
-                self.connector_base_url_payments(req),
+                self.connector_base_url_payments(req)?,
                 "payments/",
                 req.request
                     .connector_transaction_id
@@ -1084,7 +1119,7 @@ macros::macro_connector_implementation!(
                     },
                 }.into())
 };
-            Ok(format!("{}payments/{}/captures", self.connector_base_url_payments(req), connector_tx_id))
+            Ok(format!("{}payments/{}/captures", self.connector_base_url_payments(req)?, connector_tx_id))
         }
         fn get_error_response_v2(
             &self,
@@ -1127,7 +1162,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_tx_id = &req.request.connector_transaction_id;
-            Ok(format!("{}payments/{}/refunds", self.connector_base_url_refunds(req), connector_tx_id))
+            Ok(format!("{}payments/{}/refunds", self.connector_base_url_refunds(req)?, connector_tx_id))
         }
     }
 );
@@ -1157,7 +1192,7 @@ macros::macro_connector_implementation!(
             let connector_tx_id = &req.request.connector_transaction_id;
             Ok(format!(
                 "{}payments/{}/actions",
-                self.connector_base_url_refunds(req),
+                self.connector_base_url_refunds(req)?,
                 connector_tx_id
             ))
         }
@@ -1194,7 +1229,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_tx_id = req.request.connector_transaction_id.clone();
-            Ok(format!("{}payments/{}/voids", self.connector_base_url_payments(req), connector_tx_id))
+            Ok(format!("{}payments/{}/voids", self.connector_base_url_payments(req)?, connector_tx_id))
         }
         fn get_error_response_v2(
             &self,
@@ -1236,7 +1271,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)))
+            Ok(format!("{}payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -1275,7 +1310,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}tokens", self.connector_base_url_payments(req)))
+            Ok(format!("{}tokens", self.connector_base_url_payments(req)?))
         }
     }
 );
@@ -1308,7 +1343,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}disputes/{}/accept",
-                self.connector_base_url_disputes(req),
+                self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
         }
@@ -1344,7 +1379,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}disputes/{}/evidence",
-                self.connector_base_url_disputes(req),
+                self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
         }
@@ -1382,7 +1417,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}disputes/{}/evidence",
-                self.connector_base_url_disputes(req),
+                self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
         }
@@ -1540,3 +1575,48 @@ macros::macro_connector_flow_status_impls!(
         VoidPC,
     ],
 );
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod base_url_tests {
+    use domain_types::router_data::ConnectorSpecificConfig;
+    use hyperswitch_masking::Secret;
+
+    use super::build_base_url;
+
+    const SANDBOX: &str = "https://api.sandbox.checkout.com/";
+
+    fn config(endpoint_prefix: Option<&str>) -> ConnectorSpecificConfig {
+        ConnectorSpecificConfig::Checkout {
+            api_key: Secret::new("pk".to_string()),
+            api_secret: Secret::new("sk".to_string()),
+            processing_channel_id: Secret::new("pc".to_string()),
+            connector_client_id: None,
+            connector_currency_account_id: None,
+            base_url: None,
+            endpoint_prefix: endpoint_prefix.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn keeps_shared_base_url_without_prefix() {
+        assert_eq!(build_base_url(SANDBOX, &config(None)).unwrap(), SANDBOX);
+        assert_eq!(
+            build_base_url(SANDBOX, &config(Some(" "))).unwrap(),
+            SANDBOX
+        );
+    }
+
+    #[test]
+    fn adds_merchant_prefix_to_host() {
+        assert_eq!(
+            build_base_url(SANDBOX, &config(Some("abcd1234"))).unwrap(),
+            "https://abcd1234.api.sandbox.checkout.com/"
+        );
+    }
+
+    #[test]
+    fn rejects_prefix_that_is_not_alphanumeric() {
+        assert!(build_base_url(SANDBOX, &config(Some("evil.com/x"))).is_err());
+    }
+}

@@ -481,6 +481,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             connector_client_id: None,
             connector_currency_account_id: None,
             base_url: None,
+            endpoint_prefix: None,
         },
         ConnectorEnum::Cybersource => ConnectorSpecificConfig::Cybersource {
             api_key: k(),
