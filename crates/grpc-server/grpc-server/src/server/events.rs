@@ -1059,7 +1059,7 @@ async fn verify_webhook_source_external(
 
     let merchant_secret =
         webhook_secrets.unwrap_or_else(|| domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: Vec::new(),
+            secret: "default_secret".to_string().into_bytes(),
             additional_secret: None,
         });
 
