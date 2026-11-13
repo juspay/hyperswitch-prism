@@ -3,7 +3,7 @@
 //! **Phase 1 — connector list parity**
 //! Verifies that every `.rs` file in `crates/integrations/connector-integration/src/connectors/`
 //! (excluding `macros.rs`) has a matching directory in
-//! `crates/internal/integration-tests/src/connector_specs/`, and vice-versa.
+//! `tests/regression/src/connector_specs/`, and vice-versa.
 //! Exits non-zero if the two sets diverge.
 //!
 //! **Phase 2 — flow → suite coverage**
@@ -267,11 +267,9 @@ fn known_proto_suites() -> Vec<String> {
 
 fn main() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // CARGO_MANIFEST_DIR = .../crates/internal/integration-tests
-    // workspace root is three levels up.
+    // CARGO_MANIFEST_DIR = .../tests/regression
+    // workspace root is two levels up.
     let root = manifest_dir
-        .parent()
-        .unwrap()
         .parent()
         .unwrap()
         .parent()
@@ -279,8 +277,8 @@ fn main() {
         .to_path_buf();
 
     let connectors_src = root.join("crates/integrations/connector-integration/src/connectors");
-    let specs_root = root.join("crates/internal/integration-tests/src/connector_specs");
-    let suites_root = root.join("crates/internal/integration-tests/src/global_suites");
+    let specs_root = root.join("tests/regression/src/connector_specs");
+    let suites_root = root.join("tests/regression/src/global_suites");
 
     let all_proto_suites = known_proto_suites();
 
@@ -733,7 +731,7 @@ fn main() {
             println!("  {connector:<30}  declares {WEBHOOK_SUITE} but has no webhook_payload.json");
         }
         println!(
-            "  Fix: add crates/internal/integration-tests/src/connector_specs/<name>/webhook_payload.json, \
+            "  Fix: add tests/regression/src/connector_specs/<name>/webhook_payload.json, \
              or remove {WEBHOOK_SUITE} from supported_suites if webhook handling isn't actually implemented."
         );
         println!();

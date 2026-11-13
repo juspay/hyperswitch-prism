@@ -12,7 +12,7 @@ Scenario-driven integration testing for payment connectors. Each connector is ex
 make setup-connector-tests
 ```
 
-Installs browser automation deps, builds the isolated browser worker image, and installs `grpcurl`, Netlify CLI (Google Pay), and the `test-prism` runner CLI. Docker or Podman is required for browser-backed scenarios. Browser jobs use stdin/stdout in disposable containers, with no execution HTTP endpoint or screenshots. See [worker setup and isolation](../../../browser-automation-engine/README.md).
+Installs browser automation deps, builds the isolated browser worker image, and installs `grpcurl`, Netlify CLI (Google Pay), and the `test-prism` runner CLI. Docker or Podman is required for browser-backed scenarios. Browser jobs use stdin/stdout in disposable containers, with no execution HTTP endpoint or screenshots. See [worker setup and isolation](browser-automation/README.md).
 
 ### 2. Run
 
@@ -48,8 +48,8 @@ test-prism --connector stripe --suite PaymentService/Authorize \
 
 After a run the harness writes:
 
-- `crates/internal/integration-tests/report.json` — accumulating safe summary containing scenario results, error categories, and dependencies.
-- `crates/internal/integration-tests/local-debug-report.json` — local-only typed-and-masked `GrpcRequest` and `ConnectorCall` audit events, written only with `--local-debug-report`.
+- `tests/regression/report.json` — accumulating safe summary containing scenario results, error categories, and dependencies.
+- `tests/regression/local-debug-report.json` — local-only typed-and-masked `GrpcRequest` and `ConnectorCall` audit events, written only with `--local-debug-report`.
 - `test_report/` and `local_debug_report/` — generated markdown views of those respective files.
 
 Raw grpcurl commands and responses are never persisted. If the managed UCS audit log is unavailable, the local debug report records that fact and does not fall back to raw data. Both report paths are gitignored.
@@ -78,7 +78,7 @@ The directory names on disk use underscores (`global_suites/PaymentService_Autho
 ## File layout
 
 ```
-crates/internal/integration-tests/
+tests/regression/
 ├── src/
 │   ├── global_suites/                  # Shared scenarios across all connectors
 │   │   ├── PaymentService_Authorize/
@@ -133,7 +133,7 @@ The harness expects credentials in **flat proto-native form** — keys map direc
 
 A template lives at `.github/test/template_creds.json`.
 
-The harness reads from the path resolved as: explicit `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` env var → `creds.json` at the workspace root. `.env.connector-tests` (sourced by `scripts/run-tests`) can also set `UCS_CREDS_PATH` — if your edits don't seem to land, **check that file first** to see which `creds.json` the harness actually loads.
+The harness reads from the path resolved as: explicit `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` env var → `creds.json` at the workspace root. `.env.connector-tests` (sourced by `tests/regression/scripts/run-tests`) can also set `UCS_CREDS_PATH` — if your edits don't seem to land, **check that file first** to see which `creds.json` the harness actually loads.
 
 ### `connector_specs/<connector>/connector_specific_scenarios.json`
 
@@ -293,7 +293,7 @@ test-prism --connector stripe --suite PaymentService/Authorize \
 # Inspect only the latest run entry for that scenario
 python3 -c "
 import json
-r = json.load(open('crates/internal/integration-tests/local-debug-report.json'))
+r = json.load(open('tests/regression/local-debug-report.json'))
 last = [x for x in r['runs'] if x['connector']=='stripe'][-1]
 print(json.dumps(last, indent=2))
 "
@@ -397,7 +397,7 @@ cargo run --bin check_coverage
 
 ## Common pitfalls
 
-- **Edits to `creds.json` not landing.** `.env.connector-tests` (sourced by `scripts/run-tests`) may set `UCS_CREDS_PATH` to a different file. Read `.env.connector-tests` first.
+- **Edits to `creds.json` not landing.** `.env.connector-tests` (sourced by `tests/regression/scripts/run-tests`) may set `UCS_CREDS_PATH` to a different file. Read `.env.connector-tests` first.
 - **`CredentialError::LegacyFormat`.** Your creds use the nested `connector_account_details` wrapper. Use the flat shape — keys map directly to the connector's proto config message.
 - **`Missing required field` after override.** The override patches `grpc_req` *before* the harness prunes `"auto_generate"` sentinels and resolves auto-gen. Don't override required fields with `"auto_generate"` if you want a real value; either inline the real value or rely on the auto-gen path for that field.
 - **Short reference IDs (e.g. 12-char order IDs).** Set `request_id_source_field` + `request_id_prefix` + `request_id_length` in `specs.json`. The harness generates a unique short id per request and writes it into the body's source field (only when the field exists in that suite's `scenario.json`, so downstream protos that don't have the field aren't polluted).

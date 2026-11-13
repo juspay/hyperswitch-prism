@@ -10,7 +10,7 @@ times, and only one of them has an escape hatch. Do not conflate them.
 
 | Mechanism | Where | Scope | Escape hatch |
 |---|---|---|---|
-| `check_connector_specs` | `crates/internal/integration-tests/src/bin/check_connector_specs.rs`, run in the **Compilation Check** job | **Every** connector in the repo, every run | none |
+| `check_connector_specs` | `tests/regression/src/bin/check_connector_specs.rs`, run in the **Compilation Check** job | **Every** connector in the repo, every run | none |
 | `verify-new-connectors.sh` | `.github/scripts/verify-new-connectors.sh`, run in the **Run Tests** job | Connectors **added by this PR** | `alpha_connectors.json` + a `reason` |
 | `certify-connectors.sh` | `.github/scripts/certify-connectors.sh`, run in the **Run Tests** job | Connectors this PR **touched**, plus a sweep when shared code changed | merge-base arbitration |
 
@@ -71,7 +71,7 @@ siblings need **no** `connector_specs` entry at all.
 when its spec directory does not exist at the PR's base commit.
 
 ```bash
-spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
+spec_dir="tests/regression/src/connector_specs/$c"
 if ! git cat-file -e "${base_ref}:${spec_dir}" 2>/dev/null; then
   new_list="${new_list}${new_list:+,}${c}"
 fi
@@ -85,7 +85,7 @@ the target branch or it did not.
 Check your own branch the same way CI does:
 
 ```bash
-git cat-file -e "$(git merge-base origin/main HEAD):crates/internal/integration-tests/src/connector_specs/<name>" \
+git cat-file -e "$(git merge-base origin/main HEAD):tests/regression/src/connector_specs/<name>" \
   && echo "existing connector" || echo "NEW — verify-new-connectors.sh applies"
 ```
 
@@ -112,7 +112,7 @@ All of them are `exit 1` / `failures++` in `.github/scripts/verify-new-connector
 6. **Any declared scenario fails.** For a connector that clears all of the above:
 
    ```bash
-   ./scripts/run-tests --skip-setup --no-build --connector <name> --interface grpc --report
+   ./tests/regression/scripts/run-tests --skip-setup --no-build --connector <name> --interface grpc --report
    ```
 
    Every scenario of every suite in `supported_suites` runs against the live sandbox.
@@ -135,7 +135,7 @@ certified.
 
 ## 3. `alpha_connectors.json` — the escape hatch, and its price
 
-`crates/internal/integration-tests/src/connector_specs/alpha_connectors.json`:
+`tests/regression/src/connector_specs/alpha_connectors.json`:
 
 ```json
 {
@@ -267,7 +267,7 @@ suites by design.
    `webhook_payload.json` present if `EventService/HandleEvent` is declared.
 4. **Certification decided, in writing** — either
    - credentials for the connector exist in the CI creds file and every declared scenario
-     passes `./scripts/run-tests --connector <name> --interface grpc --report`, **or**
+     passes `./tests/regression/scripts/run-tests --connector <name> --interface grpc --report`, **or**
    - an `alpha_connectors.json` entry with a specific, non-empty `reason` that states what
      would remove it (§3), understanding that the PR will carry a public "merging without
      live sandbox proof" comment.
@@ -332,7 +332,7 @@ do.
 | "New" = spec dir absent at base | `.github/workflows/ci.yml`, step "Detect newly added connectors" |
 | Alpha promotion → no arbitration | `.github/workflows/ci.yml`, step "Detect connectors with a modified specs.json or override.json" |
 | Merge-base arbitration | `.github/scripts/certify-connectors.sh` header comment |
-| Phases and exit conditions | `crates/internal/integration-tests/src/bin/check_connector_specs.rs` (module doc + `main`) |
+| Phases and exit conditions | `tests/regression/src/bin/check_connector_specs.rs` (module doc + `main`) |
 | Coverage gap ≠ decision | `OUT_OF_SCOPE_FLOWS` in the same file |
 | specs.json seeding and merge semantics | `generate_connector_specs()` in `grace/rulesbook/codegen/add_connector.sh` |
 | Fork PRs skip certification | `RUN_TESTS` expression on the `test` job in `.github/workflows/ci.yml` |

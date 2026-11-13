@@ -119,7 +119,7 @@ Set up the foundation for the {ConnectorName} connector.
    superposition production override is correct:
    .skills/new-connector/scripts/add_connector.sh {connector_name} {base_url} --production-url {production_base_url} --force -y
 
-   The script also writes crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json
+   The script also writes tests/regression/src/connector_specs/{connector_name}/specs.json
    (required by CI's `cargo run --all-features --bin check_connector_specs`), seeding
    supported_suites from --flows. The default is the six core flows
    (Authorize,PSync,Capture,Void,Refund,RSync), so do NOT pass --flows unless this connector
@@ -240,7 +240,7 @@ Set up the foundation for the {ConnectorName} connector.
       - "{connector_name}" is in the "Supported connectors:" list in the `_ =>` error message.
 
 9. VERIFY the CI spec file landed:
-   crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json exists and its
+   tests/regression/src/connector_specs/{connector_name}/specs.json exists and its
    supported_suites list is non-empty. Without it, CI's check_connector_specs job fails.
    For CATEGORY: FRM, verify the opposite: no connector_specs/{connector_name}/
    directory was created.
@@ -258,7 +258,7 @@ Output:
    are required, NO when FRM was verified to need no override, and N/A only for categories
    that do not support superposition such as payout/surcharge)
   URL_PATCHING_WIRED: YES | NO
-  CONNECTOR_SPECS_JSON: crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json WRITTEN | MISSING | N/A_FOR_FRM | N/A_FOR_AUTHENTICATOR
+  CONNECTOR_SPECS_JSON: tests/regression/src/connector_specs/{connector_name}/specs.json WRITTEN | MISSING | N/A_FOR_FRM | N/A_FOR_AUTHENTICATOR
   BUILD: PASS | FAIL
   CONVENTION_VIOLATIONS: [none] or [list]
 ```
