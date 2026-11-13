@@ -9,7 +9,7 @@ use hyperswitch_masking::{ExposeInterface, Secret};
 use md5;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
-    hmac,
+    constant_time, hmac,
 };
 
 use crate::{
@@ -179,7 +179,7 @@ impl VerifySignature for NoAlgorithm {
         _signature: &[u8],
         _msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
-        Ok(true)
+        Ok(false)
     }
 }
 
@@ -319,7 +319,7 @@ impl VerifySignature for Blake3 {
     ) -> CustomResult<bool, errors::CryptoError> {
         let key = blake3::derive_key(&self.0, secret);
         let output = blake3::keyed_hash(&key, msg);
-        Ok(output.as_bytes() == signature)
+        Ok(constant_time::verify_slices_are_equal(output.as_bytes(), signature).is_ok())
     }
 }
 
@@ -492,7 +492,7 @@ impl VerifySignature for Sha512 {
                 .change_context(errors::CryptoError::SignatureVerificationFailed)?,
         );
         let hashed_digest_into_bytes = hashed_digest.into_bytes();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(constant_time::verify_slices_are_equal(&hashed_digest_into_bytes, signature).is_ok())
     }
 }
 /// MD5 hash function
@@ -516,7 +516,7 @@ impl VerifySignature for Md5 {
         let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        Ok(hashed_digest == signature)
+        Ok(constant_time::verify_slices_are_equal(&hashed_digest, signature).is_ok())
     }
 }
 
@@ -538,7 +538,7 @@ impl VerifySignature for Sha256 {
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
         let hashed_digest_into_bytes = hashed_digest.as_slice();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(constant_time::verify_slices_are_equal(hashed_digest_into_bytes, signature).is_ok())
     }
 }
 

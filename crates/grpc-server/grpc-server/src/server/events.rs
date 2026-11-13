@@ -1057,11 +1057,10 @@ async fn verify_webhook_source_external(
         connector_response_headers: None,
     };
 
-    let merchant_secret =
-        webhook_secrets.unwrap_or_else(|| domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: "default_secret".to_string().into_bytes(),
-            additional_secret: None,
-        });
+    let merchant_secret = match webhook_secrets {
+        Some(secret) if !secret.secret.is_empty() => secret,
+        Some(_) | None => return Ok(false),
+    };
 
     let verify_webhook_request = VerifyWebhookSourceRequestData {
         webhook_headers: request_details.headers.clone(),
