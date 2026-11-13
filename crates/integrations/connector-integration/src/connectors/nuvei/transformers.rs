@@ -6,8 +6,7 @@ use domain_types::{
         PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        AirlineLocation,
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        AirlineLocation, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, ContinueRedirectionResponse, EventType,
         MandateReference, MandateReferenceId,
         NuveiClientAuthenticationResponse as NuveiClientAuthenticationResponseDomain,
