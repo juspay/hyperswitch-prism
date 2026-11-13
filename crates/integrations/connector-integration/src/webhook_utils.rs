@@ -25,10 +25,10 @@ use crate::types::ConnectorData;
 ///
 /// - **Behaviour:** the payload is parsed and `event_content` is returned even when
 ///   `source_verified` is `false`; the flag is passed through to the response unchanged.
-/// - **Intentional:** UCS is stateless and does not act on webhook events. It reports the
+/// - **Intentional:** Prism is stateless and does not act on webhook events. It reports the
 ///   verification result and lets the caller decide, because some connectors do not sign
 ///   webhooks and callers may confirm the event another way (e.g. a PSync to the connector).
-/// - **Safe:** UCS takes no action on the event. Callers MUST check `source_verified`
+/// - **Safe:** Prism takes no action on the event. Callers MUST check `source_verified`
 ///   and must not act on unverified content without confirming it independently.
 pub fn process_webhook_event<
     T: PaymentMethodDataTypes
