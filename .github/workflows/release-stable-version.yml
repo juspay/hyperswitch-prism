@@ -205,48 +205,9 @@ jobs:
           fi
 
 
-  # Dispatched rather than invoked with `uses:`. npm trusted publishing
-  # validates the OIDC token's workflow_ref, which for a reusable workflow
-  # resolves to *this* file rather than the one running `npm publish` — and a
-  # package may only have one trusted publisher. Dispatching gives release-sdks
-  # its own top-level run, so this path and manual dispatch both authenticate
-  # against the single registered publisher (juspay/hyperswitch-prism ::
-  # release-sdks.yml).
-  #
-  # An app token is required: a workflow_dispatch triggered with GITHUB_TOKEN
-  # does not create a new workflow run.
-  publish-sdks:
-    name: Publish SDKs
-    runs-on: ubuntu-latest
-    needs: [tag-release]
-    if: ${{ inputs.dry_run == false && needs.tag-release.result == 'success' }}
-    steps:
-      - name: Generate GitHub app token
-        id: generate_app_token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
-          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
-
-      - name: Dispatch SDK release
-        env:
-          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
-          TAG: ${{ needs.tag-release.outputs.next_tag }}
-          VERSION: ${{ needs.tag-release.outputs.version }}
-        run: |
-          # Dispatch on the release tag, not the branch: the publish job runs in
-          # the `production` environment, whose deployment policy only admits
-          # release tags. This also makes the OIDC ref claim the exact tag being
-          # published.
-          gh workflow run release-sdks.yml \
-            --repo "${{ github.repository }}" \
-            --ref "${TAG}" \
-            --field publish_java=true \
-            --field publish_python=true \
-            --field publish_javascript=true \
-            --field preview_only=false \
-            --field ref="${TAG}" \
-            --field version="${VERSION}"
-
-          echo "Dispatched release-sdks.yml for ${TAG} (version ${VERSION})"
-          echo "Track it at ${{ github.server_url }}/${{ github.repository }}/actions/workflows/release-sdks.yml"
+  # Creating the SemVer tag above starts release-sdks.yml through its tag-push
+  # trigger. That gives npm trusted publishing a top-level release-sdks.yml
+  # workflow identity and the exact tag ref, without granting the GitHub App
+  # permission to dispatch arbitrary Actions workflows. For recovery, a manual
+  # run can load repaired workflow code from protected main while release_tag
+  # keeps every build and publish checkout pinned to the existing release.
