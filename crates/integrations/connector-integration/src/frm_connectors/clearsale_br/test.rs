@@ -597,6 +597,29 @@ mod tests {
     }
 
     #[test]
+    fn json_encoded_order_info_metadata_is_decoded_as_a_legacy_wrapper() {
+        let parsed = ClearSaleConnectorFeatureData::parse(Some(&Secret::new(
+            r#"{"enableDdc":false,"orderInfoMetadata":"{\"origin\":\"WebCheckout\",\"channelId\":\"sample channelId\",\"observation\":\"Legacy observation\",\"isGift\":true}"}"#
+                .to_owned(),
+        )))
+        .expect("legacy nested metadata should be decoded");
+
+        assert_eq!(
+            parsed.order_info_metadata.origin.as_deref(),
+            Some("WebCheckout")
+        );
+        assert_eq!(
+            parsed.order_info_metadata.channel_id.as_deref(),
+            Some("sample channelId")
+        );
+        assert_eq!(
+            parsed.order_info_metadata.observation.as_deref(),
+            Some("Legacy observation")
+        );
+        assert_eq!(parsed.order_info_metadata.is_gift, Some(true));
+    }
+
+    #[test]
     fn legacy_flat_feature_data_is_retained_instead_of_silently_dropped() {
         let mut req = pre_risk_check_request();
         req.installment_details = None;

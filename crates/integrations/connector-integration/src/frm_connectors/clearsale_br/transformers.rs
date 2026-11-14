@@ -25,7 +25,7 @@ use domain_types::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::types::ResponseRouterData;
 
@@ -1900,8 +1900,32 @@ pub struct ClearSaleConnectorFeatureData {
     #[serde(default)]
     installments: Option<u32>,
     /// Nested metadata takes precedence over equivalent legacy top-level keys.
-    #[serde(default)]
+    /// Some callers retain the legacy JSON-string encoding of this nested object.
+    #[serde(default, deserialize_with = "deserialize_order_info_metadata")]
     pub order_info_metadata: ClearSaleOrderInfoMetadata,
+}
+
+fn deserialize_order_info_metadata<'de, D>(
+    deserializer: D,
+) -> Result<ClearSaleOrderInfoMetadata, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OrderInfoMetadata {
+        Object(ClearSaleOrderInfoMetadata),
+        Encoded(String),
+    }
+
+    match OrderInfoMetadata::deserialize(deserializer)? {
+        OrderInfoMetadata::Object(metadata) => Ok(metadata),
+        OrderInfoMetadata::Encoded(json) => serde_json::from_str(&json).map_err(|err| {
+            serde::de::Error::custom(format!(
+                "orderInfoMetadata JSON string must contain a JSON object: {err}"
+            ))
+        }),
+    }
 }
 
 #[derive(Debug, Clone, Default)]
