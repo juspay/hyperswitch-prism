@@ -1,7 +1,7 @@
 # Netlify configuration for the Google Pay and Apple Pay token-generator pages.
 #
 # Deploy with:
-#   cd browser-automation-engine
+#   cd tests/regression/browser-automation
 #   netlify deploy --prod
 #
 # Pages will be served at:

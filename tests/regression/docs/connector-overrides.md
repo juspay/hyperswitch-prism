@@ -57,7 +57,7 @@ setup and change only the callback body, capture context, and expected outcome.
 ## Directory layout
 
 ```text
-backend/integration-tests/src/
+tests/regression/src/
   global_suites/
     <suite>_suite/scenario.json
   connector_specs/

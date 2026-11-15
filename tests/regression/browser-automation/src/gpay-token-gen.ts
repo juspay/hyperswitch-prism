@@ -781,7 +781,7 @@ async function main(): Promise<void> {
     console.log("[gpay]   GPay will require manual sign-in during the test flow.");
     console.log("[gpay]   To avoid this, run one-time setup first:");
     console.log("[gpay]");
-    console.log("[gpay]     cd browser-automation-engine && npm run gpay:login");
+    console.log("[gpay]     cd tests/regression/browser-automation && npm run gpay:login");
     console.log("[gpay]");
     console.log("[gpay]   This opens a browser for you to sign in to Google once.");
     console.log("[gpay]   The session is reused for all future GPay runs.");

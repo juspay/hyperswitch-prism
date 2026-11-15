@@ -19,6 +19,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.13.1
+
+### Features
+
+- **connector:** Add Worldpay XML incoming webhooks ([#2719](https://github.com/juspay/connector-service/pull/2719)) ([`c8d4e55`](https://github.com/juspay/connector-service/commit/c8d4e5561baa18424361407de3842acc998d7add))
+
+### Refactors
+
+- **connector:** Enhancement on PreRiskCheckRequest and clearsale ([#2734](https://github.com/juspay/connector-service/pull/2734)) ([`ca024c8`](https://github.com/juspay/connector-service/commit/ca024c8c1621da0091fb1c0d4a84cf76b8995d22))
+
+**Full Changelog:** [`2026.11.13.0...2026.11.13.1`](https://github.com/juspay/connector-service/compare/2026.11.13.0...2026.11.13.1)
+
+- - -
+
+## 2026.11.13.0
+
+### Features
+
+- **rapyd:** Add incoming webhooks ([#2724](https://github.com/juspay/connector-service/pull/2724)) ([`0630cb0`](https://github.com/juspay/connector-service/commit/0630cb0a30f475240bb9889e552dd311a3c5d691))
+
+### Bug Fixes
+
+- **paco:** Map acquirer failure to payment failure ([#2717](https://github.com/juspay/connector-service/pull/2717)) ([`b3a3c8b`](https://github.com/juspay/connector-service/commit/b3a3c8bbd63c3dfb72128281dec6aefbb6c15b69))
+
+### Miscellaneous Tasks
+
+- **tests:** Consolidate regression tests under tests ([#2720](https://github.com/juspay/connector-service/pull/2720)) ([`d25e67e`](https://github.com/juspay/connector-service/commit/d25e67e6c521acf638bc31ad776f5be3e9f28866))
+
+### Build System / Dependencies
+
+- **docker:** Find the descriptor by name instead of by cargo's build-dir layout ([#2744](https://github.com/juspay/connector-service/pull/2744)) ([`1ad23dd`](https://github.com/juspay/connector-service/commit/1ad23dd144e7b26d564d68259158b12164e06421))
+
+**Full Changelog:** [`2026.11.12.2...2026.11.13.0`](https://github.com/juspay/connector-service/compare/2026.11.12.2...2026.11.13.0)
+
+- - -
+
 ## 2026.11.12.2
 
 ### Features

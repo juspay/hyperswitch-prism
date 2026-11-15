@@ -87,14 +87,14 @@ If you prefer to set things up yourself outside of the setup script:
 
 ```bash
 export NETLIFY_AUTH_TOKEN=<your-token>
-cd browser-automation-engine
+cd tests/regression/browser-automation
 netlify deploy --prod
 ```
 
 **Option B — Interactive browser login**
 
 ```bash
-cd browser-automation-engine
+cd tests/regression/browser-automation
 npm install -g netlify-cli
 netlify login          # opens browser for OAuth
 netlify deploy --prod
@@ -114,7 +114,7 @@ You only need to redeploy if you change `gpay-token-gen.html`.
 ## Step 2 — Install Playwright WebKit (one-time)
 
 ```bash
-# From browser-automation-engine/
+# From tests/regression/browser-automation/
 npm install
 npm run install:browsers
 ```
@@ -152,7 +152,7 @@ can sign into your Google account. The session is then saved and reused on all
 subsequent runs.
 
 ```bash
-# From browser-automation-engine/
+# From tests/regression/browser-automation/
 npm run gpay -- \
   --config gpay/configs/cybersource.json \
   --url https://your-site-name.netlify.app/gpay-token-gen.html \

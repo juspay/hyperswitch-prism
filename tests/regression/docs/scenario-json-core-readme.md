@@ -30,7 +30,7 @@ The runner must:
 ## Directory layout
 
 ```text
-backend/integration-tests/
+tests/regression/
   scenarios/
     authorize/
       scenario.json

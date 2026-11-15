@@ -268,10 +268,10 @@ Note: PayoutService and DisputeService are ignored by default.
 
 ```bash
 # From project root
-./crates/internal/integration-tests/test_suite.sh stripe
+./tests/regression/test_suite.sh stripe
 
 # Test specific suite
-./crates/internal/integration-tests/test_suite.sh stripe authorize
+./tests/regression/test_suite.sh stripe authorize
 ```
 
 ---
@@ -331,5 +331,5 @@ cargo run --bin sdk_run_test -- --suite authorize --connector stripe
 ### Generate Report
 ```bash
 # Report is automatically generated at:
-# crates/internal/integration-tests/test_report/report_structure.json
+# tests/regression/test_report/report_structure.json
 ```

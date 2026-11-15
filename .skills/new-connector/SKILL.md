@@ -241,7 +241,7 @@ Do NOT attempt to infer API details from any other source. A tech spec is mandat
   dynamic URL overrides are required. The subagent verifies the right
   category-specific wiring landed.
 - The scaffold script also writes
-  `crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json`, which the
+  `tests/regression/src/connector_specs/{connector_name}/specs.json`, which the
   ungated CI check `cargo run --all-features --bin check_connector_specs` requires. It seeds
   `supported_suites` from `--flows`, defaulting to the six core flows
   (`Authorize,PSync,Capture,Void,Refund,RSync`), and merges into an existing file rather than
@@ -261,7 +261,7 @@ Do NOT attempt to infer API details from any other source. A tech spec is mandat
   `src/connectors/`, not `src/authenticator_connectors/`.
 
 **Outputs:** scaffold created, category URL wiring verified,
-`crates/internal/integration-tests/src/connector_specs/{connector_name}/specs.json` written or intentionally skipped, build passing, files list
+`tests/regression/src/connector_specs/{connector_name}/specs.json` written or intentionally skipped, build passing, files list
 
 For `--kind frm`, report `connector_specs` as `N/A`, and verify
 `frm_connectors.rs`, `FrmConnectorEnum`, `FrmConnectorData`,
@@ -299,7 +299,7 @@ For payment connectors:
 
    Ordering notes: `ServerAuthenticationToken` and `ServerSessionAuthenticationToken` have NO
    prerequisite (both suite specs under
-   `crates/internal/integration-tests/src/global_suites/MerchantAuthenticationService_*` have an
+   `tests/regression/src/global_suites/MerchantAuthenticationService_*` have an
    empty `depends_on`), so they go first and neither requires the other. `PaymentMethodToken`
    depends on `CreateConnectorCustomer` — NOT on Authorize; tokenization runs before Authorize,
    not after it.
@@ -493,7 +493,7 @@ commit. Splitting the PR does not change that. Every connector this skill produc
    (Phase 2b) — do not fabricate one
 4. Certification decided **in writing**: either the connector has CI credentials and every
    declared scenario passes
-   `./scripts/run-tests --connector <name> --interface grpc --report`, or an
+   `./tests/regression/scripts/run-tests --connector <name> --interface grpc --report`, or an
    `alpha_connectors.json` entry with a **specific, non-empty `reason`**. A bare `{}` entry
    is `exit 1` for a new connector. Listing it posts a public "merging without live sandbox
    proof" comment on the PR; removing the name later is a *promotion* that pulls the
@@ -518,7 +518,7 @@ and paste the `check_connector_specs` output.
 
 **"Out of scope" is not "do not build it."** `add_connector.sh`'s `is_out_of_scope_flow()`
 lists flows excluded from *certification*. The Rust source it mirrors
-(`OUT_OF_SCOPE_FLOWS` in `crates/internal/integration-tests/src/bin/check_connector_specs.rs`)
+(`OUT_OF_SCOPE_FLOWS` in `tests/regression/src/bin/check_connector_specs.rs`)
 says why: *"Each is a coverage gap, not a decision that it should never be covered."*
 `VoidPC` is on that list and is implemented by 14 connectors. Implement what the tech spec
 calls for; it simply contributes no suite to `supported_suites`.

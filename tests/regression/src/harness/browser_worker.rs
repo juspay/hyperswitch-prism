@@ -109,9 +109,7 @@ pub(super) fn execute(payload: &Value) -> Result<Value, ScenarioError> {
     }
     let root = std::env::var_os("UCS_BROWSER_AUTOMATION_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../browser-automation-engine")
-        });
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("browser-automation"));
     let script = root
         .join("scripts/run-worker.sh")
         .canonicalize()

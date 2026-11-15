@@ -110,8 +110,8 @@ The hosted page domain must be registered with Apple.
 2. Apple provides a file to place at:
    `https://<your-domain>/.well-known/apple-developer-merchantid-domain-association`
 3. Place that file at:
-   `browser-automation-engine/applepay/.well-known/apple-developer-merchantid-domain-association`
-4. Redeploy Netlify: `cd browser-automation-engine && npx netlify-cli deploy --prod`
+   `tests/regression/browser-automation/applepay/.well-known/apple-developer-merchantid-domain-association`
+4. Redeploy Netlify: `cd tests/regression/browser-automation && npx netlify-cli deploy --prod`
 5. Verify: Apple will fetch the file during domain registration
 
 The domain to register is `shimmering-pegasus-24c886.netlify.app`
@@ -135,7 +135,7 @@ This is a one-time step per Mac. SafariDriver ships with macOS — no extra inst
 ### Using creds.json (recommended)
 
 ```bash
-cd browser-automation-engine
+cd tests/regression/browser-automation
 
 npm run apay -- \
   --cert /path/to/merchant.pem \
@@ -268,7 +268,7 @@ When resuming work on this, go through in order:
 - [ ] Register domain `shimmering-pegasus-24c886.netlify.app` with the Merchant ID in Apple portal
 - [ ] Download the domain association file from Apple portal and place at:
       `applepay/.well-known/apple-developer-merchantid-domain-association`
-- [ ] Redeploy Netlify: `cd browser-automation-engine && npx netlify-cli deploy --prod`
+- [ ] Redeploy Netlify: `cd tests/regression/browser-automation && npx netlify-cli deploy --prod`
 - [ ] Run one-time SafariDriver setup: `sudo safaridriver --enable` + Safari Develop menu
 - [ ] Update `applepay/configs/stripe.json` and `cybersource.json` with real `merchantId`
 - [ ] Run the script with `--creds` or `--config` and approve Touch ID prompt
@@ -279,7 +279,7 @@ When resuming work on this, go through in order:
 ## Key Files
 
 ```
-browser-automation-engine/
+tests/regression/browser-automation/
 ├── src/applepay-token-gen.ts          # Main automation script (selenium-webdriver + SafariDriver)
 ├── applepay/
 │   ├── apay-token-gen.html            # Hosted page (ApplePaySession flow)
