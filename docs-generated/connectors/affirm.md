@@ -118,6 +118,7 @@ let config = ConnectorConfig {
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
@@ -249,7 +250,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L103) · [Kotlin](../../examples/affirm/affirm.kt#L109) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L115) · [Kotlin](../../examples/affirm/affirm.kt#L111) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Capture
 
@@ -260,7 +261,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L112) · [Kotlin](../../examples/affirm/affirm.kt#L121) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L124) · [Kotlin](../../examples/affirm/affirm.kt#L123) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Get
 
@@ -271,7 +272,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L121) · [Kotlin](../../examples/affirm/affirm.kt#L131) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L133) · [Kotlin](../../examples/affirm/affirm.kt#L133) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Refund
 
@@ -282,7 +283,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L130) · [Kotlin](../../examples/affirm/affirm.kt#L139) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L151) · [Kotlin](../../examples/affirm/affirm.kt#L156) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Void
 
@@ -293,7 +294,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts) · [Kotlin](../../examples/affirm/affirm.kt#L161) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts) · [Kotlin](../../examples/affirm/affirm.kt#L178) · [Rust](../../examples/affirm/affirm.rs)
 
 ### Refunds
 
@@ -306,4 +307,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L139) · [Kotlin](../../examples/affirm/affirm.kt#L149) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L160) · [Kotlin](../../examples/affirm/affirm.kt#L166) · [Rust](../../examples/affirm/affirm.rs)

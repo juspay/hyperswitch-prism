@@ -5,9 +5,9 @@
 // Redsys — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx redsys.ts checkout_autocapture
 
-import { PaymentMethodAuthenticationClient, PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["authenticate", "capture", "get", "pre_authenticate", "refund", "refund_get", "void"];
+import { PaymentMethodAuthenticationClient, PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authenticate", "capture", "get", "parse_event", "pre_authenticate", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -86,6 +86,18 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,
             "currency": Currency.USD
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -175,6 +187,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
 async function preAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
@@ -214,7 +235,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    authenticate, capture, get, preAuthenticate, refund, refundGet, voidPayment, _buildAuthenticateRequest, _buildCaptureRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    authenticate, capture, get, parseEvent, preAuthenticate, refund, refundGet, voidPayment, _buildAuthenticateRequest, _buildCaptureRequest, _buildGetRequest, _buildParseEventRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

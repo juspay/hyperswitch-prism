@@ -109,6 +109,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 
 ### Authentication
 
@@ -121,4 +122,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/pinelabs_online/pinelabs_online.py) · [TypeScript](../../examples/pinelabs_online/pinelabs_online.ts#L34) · [Kotlin](../../examples/pinelabs_online/pinelabs_online.kt#L38) · [Rust](../../examples/pinelabs_online/pinelabs_online.rs)
+**Examples:** [Python](../../examples/pinelabs_online/pinelabs_online.py) · [TypeScript](../../examples/pinelabs_online/pinelabs_online.ts#L46) · [Kotlin](../../examples/pinelabs_online/pinelabs_online.kt#L40) · [Rust](../../examples/pinelabs_online/pinelabs_online.rs)

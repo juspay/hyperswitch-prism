@@ -10,7 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &[];
+pub const SUPPORTED_FLOWS: &[&str] = &["parse_event"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -24,11 +24,33 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+    }
+}
+
 #[allow(dead_code)]
 pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
     PaymentServiceVerifyRedirectResponseRequest {
         ..Default::default()
     }
+}
+
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
 }
 
 #[allow(dead_code)]
@@ -37,10 +59,11 @@ async fn main() {
     let client = build_client();
     let flow = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "authorize".to_string());
+        .unwrap_or_else(|| "process_parse_event".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: ", flow);
+            eprintln!("Unknown flow: {}. Available: process_parse_event", flow);
             return;
         }
     };

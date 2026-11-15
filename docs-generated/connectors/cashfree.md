@@ -118,6 +118,7 @@ let config = ConnectorConfig {
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
@@ -133,7 +134,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L91) · [Kotlin](../../examples/cashfree/cashfree.kt#L85) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L103) · [Kotlin](../../examples/cashfree/cashfree.kt#L87) · [Rust](../../examples/cashfree/cashfree.rs)
 
 #### PaymentService.CreateOrder
 
@@ -144,7 +145,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L100) · [Kotlin](../../examples/cashfree/cashfree.kt#L95) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L112) · [Kotlin](../../examples/cashfree/cashfree.kt#L97) · [Rust](../../examples/cashfree/cashfree.rs)
 
 #### PaymentService.Get
 
@@ -155,7 +156,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L109) · [Kotlin](../../examples/cashfree/cashfree.kt#L109) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L121) · [Kotlin](../../examples/cashfree/cashfree.kt#L111) · [Rust](../../examples/cashfree/cashfree.rs)
 
 #### PaymentService.Refund
 
@@ -166,7 +167,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L118) · [Kotlin](../../examples/cashfree/cashfree.kt#L117) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L139) · [Kotlin](../../examples/cashfree/cashfree.kt#L134) · [Rust](../../examples/cashfree/cashfree.rs)
 
 #### PaymentService.Void
 
@@ -177,7 +178,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts) · [Kotlin](../../examples/cashfree/cashfree.kt#L139) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts) · [Kotlin](../../examples/cashfree/cashfree.kt#L156) · [Rust](../../examples/cashfree/cashfree.rs)
 
 ### Refunds
 
@@ -190,4 +191,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L127) · [Kotlin](../../examples/cashfree/cashfree.kt#L127) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L148) · [Kotlin](../../examples/cashfree/cashfree.kt#L144) · [Rust](../../examples/cashfree/cashfree.rs)

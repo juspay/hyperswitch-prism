@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L177) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L115) · [Rust](../../examples/powertranz/powertranz.rs#L228)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L188) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L117) · [Rust](../../examples/powertranz/powertranz.rs#L240)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L196) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L131) · [Rust](../../examples/powertranz/powertranz.rs#L244)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L207) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L133) · [Rust](../../examples/powertranz/powertranz.rs#L256)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L221) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L153) · [Rust](../../examples/powertranz/powertranz.rs#L267)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L232) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L155) · [Rust](../../examples/powertranz/powertranz.rs#L279)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L246) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L175) · [Rust](../../examples/powertranz/powertranz.rs#L290)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L257) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L177) · [Rust](../../examples/powertranz/powertranz.rs#L302)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L268) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L194) · [Rust](../../examples/powertranz/powertranz.rs#L309)
+**Examples:** [Python](../../examples/powertranz/powertranz.py#L279) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L196) · [Rust](../../examples/powertranz/powertranz.rs#L321)
 
 ## API Reference
 
@@ -168,6 +168,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
@@ -308,7 +309,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L305) · [Kotlin](../../examples/powertranz/powertranz.kt#L212) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L317) · [Kotlin](../../examples/powertranz/powertranz.kt#L214) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.Capture
 
@@ -319,7 +320,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L314) · [Kotlin](../../examples/powertranz/powertranz.kt#L224) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L326) · [Kotlin](../../examples/powertranz/powertranz.kt#L226) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.Get
 
@@ -330,7 +331,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L323) · [Kotlin](../../examples/powertranz/powertranz.kt#L234) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L335) · [Kotlin](../../examples/powertranz/powertranz.kt#L236) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -341,7 +342,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L332) · [Kotlin](../../examples/powertranz/powertranz.kt#L242) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L353) · [Kotlin](../../examples/powertranz/powertranz.kt#L259) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -352,7 +353,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L341) · [Kotlin](../../examples/powertranz/powertranz.kt#L271) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L362) · [Kotlin](../../examples/powertranz/powertranz.kt#L288) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.Refund
 
@@ -363,7 +364,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L350) · [Kotlin](../../examples/powertranz/powertranz.kt#L303) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L371) · [Kotlin](../../examples/powertranz/powertranz.kt#L320) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -374,7 +375,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L368) · [Kotlin](../../examples/powertranz/powertranz.kt#L325) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L389) · [Kotlin](../../examples/powertranz/powertranz.kt#L342) · [Rust](../../examples/powertranz/powertranz.rs)
 
 #### PaymentService.Void
 
@@ -385,7 +386,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts) · [Kotlin](../../examples/powertranz/powertranz.kt#L364) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts) · [Kotlin](../../examples/powertranz/powertranz.kt#L381) · [Rust](../../examples/powertranz/powertranz.rs)
 
 ### Refunds
 
@@ -398,4 +399,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L359) · [Kotlin](../../examples/powertranz/powertranz.kt#L313) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L380) · [Kotlin](../../examples/powertranz/powertranz.kt#L330) · [Rust](../../examples/powertranz/powertranz.rs)

@@ -5,9 +5,9 @@
 // Paytm — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx paytm.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "create_server_session_authentication_token", "get"];
+import { PaymentClient, MerchantAuthenticationClient, EventClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authorize", "create_server_session_authentication_token", "get", "parse_event"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -70,6 +70,18 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
     };
 }
 
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Authorize (UpiCollect)
@@ -99,10 +111,19 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    authorize, createServerSessionAuthenticationToken, get, _buildAuthorizeRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest
+    authorize, createServerSessionAuthenticationToken, get, parseEvent, _buildAuthorizeRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildParseEventRequest
 };
 
 // CLI runner

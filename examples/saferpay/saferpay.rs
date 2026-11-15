@@ -14,7 +14,14 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["capture", "get", "pre_authenticate", "refund_get", "void"];
+pub const SUPPORTED_FLOWS: &[&str] = &[
+    "capture",
+    "get",
+    "parse_event",
+    "pre_authenticate",
+    "refund_get",
+    "void",
+];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -64,6 +71,18 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             currency: Currency::Usd.into(),
         }),
         ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
     }
 }
 
@@ -149,6 +168,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
 #[allow(dead_code)]
 pub async fn process_pre_authenticate(
@@ -199,11 +228,12 @@ async fn main() {
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_pre_authenticate, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_parse_event, process_pre_authenticate, process_refund_get, process_void", flow);
             return;
         }
     };

@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/citigate/citigate.py#L149) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L127) · [Rust](../../examples/citigate/citigate.rs#L185)
+**Examples:** [Python](../../examples/citigate/citigate.py#L160) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L129) · [Rust](../../examples/citigate/citigate.rs#L197)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/citigate/citigate.py#L168) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L143) · [Rust](../../examples/citigate/citigate.rs#L201)
+**Examples:** [Python](../../examples/citigate/citigate.py#L179) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L145) · [Rust](../../examples/citigate/citigate.rs#L213)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/citigate/citigate.py#L193) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L165) · [Rust](../../examples/citigate/citigate.rs#L224)
+**Examples:** [Python](../../examples/citigate/citigate.py#L204) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L167) · [Rust](../../examples/citigate/citigate.rs#L236)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/citigate/citigate.py#L218) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L187) · [Rust](../../examples/citigate/citigate.rs#L247)
+**Examples:** [Python](../../examples/citigate/citigate.py#L229) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L189) · [Rust](../../examples/citigate/citigate.rs#L259)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/citigate/citigate.py#L240) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L206) · [Rust](../../examples/citigate/citigate.rs#L266)
+**Examples:** [Python](../../examples/citigate/citigate.py#L251) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L208) · [Rust](../../examples/citigate/citigate.rs#L278)
 
 ## API Reference
 
@@ -168,6 +168,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -306,7 +307,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L271) · [Kotlin](../../examples/citigate/citigate.kt#L224) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L283) · [Kotlin](../../examples/citigate/citigate.kt#L226) · [Rust](../../examples/citigate/citigate.rs)
 
 #### PaymentService.Capture
 
@@ -317,7 +318,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L280) · [Kotlin](../../examples/citigate/citigate.kt#L236) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L292) · [Kotlin](../../examples/citigate/citigate.kt#L238) · [Rust](../../examples/citigate/citigate.rs)
 
 #### PaymentService.Get
 
@@ -328,7 +329,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L289) · [Kotlin](../../examples/citigate/citigate.kt#L246) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L301) · [Kotlin](../../examples/citigate/citigate.kt#L248) · [Rust](../../examples/citigate/citigate.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -339,7 +340,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L298) · [Kotlin](../../examples/citigate/citigate.kt#L254) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L319) · [Kotlin](../../examples/citigate/citigate.kt#L271) · [Rust](../../examples/citigate/citigate.rs)
 
 #### PaymentService.Refund
 
@@ -350,7 +351,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L307) · [Kotlin](../../examples/citigate/citigate.kt#L296) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L328) · [Kotlin](../../examples/citigate/citigate.kt#L313) · [Rust](../../examples/citigate/citigate.rs)
 
 #### PaymentService.Void
 
@@ -361,7 +362,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts) · [Kotlin](../../examples/citigate/citigate.kt#L318) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts) · [Kotlin](../../examples/citigate/citigate.kt#L335) · [Rust](../../examples/citigate/citigate.rs)
 
 ### Refunds
 
@@ -374,4 +375,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L316) · [Kotlin](../../examples/citigate/citigate.kt#L306) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L337) · [Kotlin](../../examples/citigate/citigate.kt#L323) · [Rust](../../examples/citigate/citigate.rs)

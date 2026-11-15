@@ -5,9 +5,9 @@
 // Fiservcommercehub — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx fiservcommercehub.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, Currency, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_server_authentication_token", "get", "incremental_authorization", "recurring_charge", "refund", "refund_get", "reverse", "void"];
+import { PaymentClient, MerchantAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, Currency, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["capture", "create_server_authentication_token", "get", "incremental_authorization", "parse_event", "recurring_charge", "refund", "refund_get", "reverse", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -85,6 +85,18 @@ function _buildIncrementalAuthorizationRequest(): types.IPaymentServiceIncrement
         "additionalAmount": {  // Increase over the current authorized total. Must use the same currency as amount.
             "minorAmount": 100,
             "currency": Currency.USD
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -210,6 +222,15 @@ async function incrementalAuthorization(merchantTransactionId: string, config: t
     return incrementalResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: RecurringPaymentService.Charge
 async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const recurringPaymentClient = new RecurringPaymentClient(config);
@@ -258,7 +279,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createServerAuthenticationToken, get, incrementalAuthorization, recurringCharge, refund, refundGet, reverse, voidPayment, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildVoidRequest
+    capture, createServerAuthenticationToken, get, incrementalAuthorization, parseEvent, recurringCharge, refund, refundGet, reverse, voidPayment, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildVoidRequest
 };
 
 // CLI runner
