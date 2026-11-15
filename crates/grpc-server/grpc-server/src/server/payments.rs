@@ -2275,7 +2275,8 @@ impl PaymentMethodService for PaymentMethod {
                         }
                         ConnectorVariant::Payout(_)
                         | ConnectorVariant::Frm(_)
-                        | ConnectorVariant::Surcharge(_) => {
+                        | ConnectorVariant::Surcharge(_)
+                        | ConnectorVariant::Webhook(_) => {
                             return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
                                 IntegrationError::NotSupported {
                                     message: "Only Payment and Authenticator connectors support tokenization"

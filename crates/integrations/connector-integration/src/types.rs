@@ -3,17 +3,18 @@ use std::fmt::Debug;
 use domain_types::{
     connector_types::{
         AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
-        SurchargeConnectorEnum,
+        SurchargeConnectorEnum, WebhookConnectorEnum,
     },
     payment_method_data::PaymentMethodDataTypes,
 };
 use interfaces::connector_types::{
     BoxedAuthenticatorConnector, BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector,
-    BoxedSurchargeConnector,
+    BoxedSurchargeConnector, BoxedWebhookConnector,
 };
 
 use crate::{
     authenticator_connectors, connectors, frm_connectors, payout_connectors, surcharge_connectors,
+    webhooks,
 };
 
 #[derive(Clone)]
@@ -374,6 +375,49 @@ impl ConnectorDataProvider for AuthenticatorConnectorData {
         variant
             .as_authenticator()
             .map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+#[derive(Clone)]
+pub struct WebhookConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static>
+{
+    pub connector: BoxedWebhookConnector<T>,
+    pub connector_name: WebhookConnectorEnum,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    ConnectorDataProvider for WebhookConnectorData<T>
+{
+    type ConnectorEnumType = WebhookConnectorEnum;
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant
+            .as_webhook()
+            .or_else(|| {
+                variant
+                    .as_webhook()
+                    .and_then(|c| WebhookConnectorEnum::try_from(c).ok())
+            })
+            .map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    WebhookConnectorData<T>
+{
+    pub fn get_connector_by_name(connector_name: &WebhookConnectorEnum) -> Self {
+        let connector = Self::convert_connector(*connector_name);
+        Self {
+            connector,
+            connector_name: *connector_name,
+        }
+    }
+
+    pub fn convert_connector(connector_name: WebhookConnectorEnum) -> BoxedWebhookConnector<T> {
+        match connector_name {
+            WebhookConnectorEnum::Adyen => Box::new(webhooks::Adyen::<T>::new()),
+        }
     }
 }
 

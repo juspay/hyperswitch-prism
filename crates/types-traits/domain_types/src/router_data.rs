@@ -3131,6 +3131,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
     ) -> Result<Self, Error> {
         use connector_types::{
             ConnectorEnum, ConnectorVariant, PayoutConnectorEnum, SurchargeConnectorEnum,
+            WebhookConnectorEnum,
         };
 
         let err = || errors::IntegrationError::FailedToObtainAuthType {
@@ -4805,6 +4806,12 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+            },
+            // Webhook connectors share auth config with the payment connector of the same name.
+            ConnectorVariant::Webhook(webhook_connector) => match webhook_connector {
+                WebhookConnectorEnum::Adyen => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Adyen)))
+                }
             },
         }
     }

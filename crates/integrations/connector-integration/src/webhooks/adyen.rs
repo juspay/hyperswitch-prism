@@ -22,8 +22,8 @@ pub struct Adyen<T> {
 }
 
 impl<T> Adyen<T> {
-    pub const fn new() -> Self {
-        Self {
+    pub const fn new() -> &'static Self {
+        &Self {
             _phantom: PhantomData,
         }
     }
@@ -31,12 +31,14 @@ impl<T> Adyen<T> {
 
 impl<T> Default for Adyen<T> {
     fn default() -> Self {
-        Self::new()
+        Self {
+            _phantom: PhantomData,
+        }
     }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    IncomingWebhookEventParser for Adyen<T>
+    IncomingWebhookEventParser<T> for Adyen<T>
 {
     fn get_event_type(
         &self,

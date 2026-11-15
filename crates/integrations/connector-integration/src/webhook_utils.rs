@@ -9,7 +9,7 @@ use grpc_api_types::payments::{
     PaymentServiceGetResponse, PayoutServiceGetResponse, RefundResponse, WebhookEventType,
 };
 
-use crate::types::ConnectorData;
+use crate::types::{ConnectorData, WebhookConnectorData};
 
 /// Core webhook event processing shared by both the gRPC server and the FFI layer.
 ///
@@ -111,7 +111,7 @@ pub fn process_webhook_event<
 pub fn parse_webhook_event<
     T: PaymentMethodDataTypes + std::fmt::Debug + Default + Send + Sync + 'static,
 >(
-    connector_data: ConnectorData<T>,
+    connector_data: WebhookConnectorData<T>,
     request_details: domain_types::connector_types::RequestDetails,
 ) -> error_stack::Result<EventServiceParseResponse, WebhookError> {
     let event_type = connector_data

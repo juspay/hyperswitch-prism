@@ -5,6 +5,7 @@ use domain_types::{
         WebhookDetailsResponse, WebhookIntegrityCheck, WebhookResourceReference,
     },
     errors::WebhookError,
+    payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
 };
 use serde::{Deserialize, Serialize};
@@ -198,7 +199,7 @@ pub trait IncomingWebhook {
     }
 }
 
-pub trait IncomingWebhookEventParser {
+pub trait IncomingWebhookEventParser<T: PaymentMethodDataTypes> {
     fn get_event_type(
         &self,
         _request: RequestDetails,

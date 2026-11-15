@@ -60,7 +60,7 @@ use crate::{
     connector_integration_v2::ConnectorIntegrationV2,
     decode::BodyDecoding,
     verification::{ConnectorSourceVerificationSecrets, SourceVerification},
-    webhooks::IncomingWebhook,
+    webhooks::{self, IncomingWebhook},
 };
 
 /// Represents the next authentication step for composite authorize flow.
@@ -225,6 +225,9 @@ pub type BoxedAuthenticatorConnector = Box<
     &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
                   + Sync),
 >;
+
+pub type BoxedWebhookConnector<T> =
+    Box<&'static (dyn webhooks::IncomingWebhookEventParser<T> + Sync)>;
 
 /// Validate the common PSync contract used by connectors whose lookup requires a
 /// connector-generated transaction id.
