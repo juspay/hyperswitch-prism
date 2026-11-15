@@ -205,8 +205,8 @@ fn boost_payment_method_type_round_trips_through_shared_mappings() {
 fn refund_uses_original_payment_reference_and_a_separate_refund_reference() {
     let wire = proto::PaymentServiceRefundRequest {
         merchant_refund_id: Some("refund-unique-reference".into()),
-        connector_transaction_id: "gateway-transaction-id".into(),
-        connector_order_id: Some("payment-unique-reference".into()),
+        connector_transaction_id: "payment-unique-reference".into(),
+        connector_order_id: Some("unrelated-order-id".into()),
         refund_amount: Some(proto::Money {
             minor_amount: 500,
             currency: proto::Currency::Myr as i32,
@@ -250,12 +250,12 @@ fn refund_uses_original_payment_reference_and_a_separate_refund_reference() {
         .peek()
         .as_str()
     );
-    router.request.connector_order_id = None;
+    router.request.connector_transaction_id = String::new();
     assert!(
         RevpayRefundRequest::try_from(&router).is_err(),
-        "never substitute the refund or gateway transaction ID"
+        "never substitute the refund or connector order ID"
     );
-    router.request.connector_order_id = Some("  ".into());
+    router.request.connector_transaction_id = "  ".into();
     assert!(RevpayRefundRequest::try_from(&router).is_err());
 }
 
@@ -353,12 +353,14 @@ fn new_shared_payment_identifiers_round_trip() {
         proto::CardNetwork::Mydebit
     );
     assert_eq!(
-        common_enums::PaymentMethodType::foreign_try_from(proto::PaymentMethodType::AliPayPlus)
-            .unwrap(),
+        common_enums::PaymentMethodType::foreign_try_from(
+            proto::PaymentMethodType::AliPayPlusWallet
+        )
+        .unwrap(),
         common_enums::PaymentMethodType::AliPayPlus
     );
     assert_eq!(
-        common_enums::PaymentMethod::foreign_try_from(proto::PaymentMethodType::AliPayPlus)
+        common_enums::PaymentMethod::foreign_try_from(proto::PaymentMethodType::AliPayPlusWallet)
             .unwrap(),
         common_enums::PaymentMethod::Wallet
     );
@@ -433,4 +435,63 @@ fn request_signature_is_masked_in_debug_but_present_on_wire() {
     assert!(!format!("{request:?}").contains(&signature));
     let body = serde_json::to_value(&request).expect("wire body");
     assert_eq!(body["Signature"], signature);
+}
+
+#[test]
+fn missing_return_url_has_actionable_error_context() {
+    let mut router = authorize_router(json!({"online_banking_fpx": {"issuer": "Maybank"}}));
+    router.request.router_return_url = None;
+    let error = RevpayPaymentsRequest::try_from(&router).expect_err("return URL required");
+    match error.current_context() {
+        IntegrationError::MissingRequiredField {
+            field_name,
+            context,
+        } => {
+            assert_eq!(*field_name, "router_return_url");
+            assert!(context.suggested_action.is_some());
+            assert!(context.additional_context.is_some());
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn inquiry_preserves_merchant_reference_despite_gateway_transaction_id() {
+    let authorize = authorize_router(json!({"boost_redirect": {}}));
+    let mut router: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData> =
+        RouterDataV2 {
+            flow: std::marker::PhantomData,
+            resource_common_data: authorize.resource_common_data,
+            connector_config: authorize.connector_config,
+            request: PaymentsSyncData {
+                connector_transaction_id: ResponseId::ConnectorTransactionId(
+                    "original-reference".into(),
+                ),
+                money: authorize.request.money,
+                ..Default::default()
+            },
+            response: Err(ErrorResponse::default()),
+        };
+    router.resource_common_data.connector_request_reference_id = "different-sync-reference".into();
+    let request = RevpayPSyncRequest::try_from(&router).expect("inquiry request");
+    assert_eq!(request.reference_number, "original-reference");
+    let response: RevpayPSyncResponse = serde_json::from_value(json!({
+        "Transaction_ID": "gateway-id",
+        "Reference_Number": "original-reference",
+        "Response_Code": "00"
+    }))
+    .expect("inquiry response");
+    let result = RouterDataV2::try_from(ResponseRouterData {
+        response,
+        router_data: router,
+        http_code: 200,
+    })
+    .expect("inquiry transformation");
+    match result.response.expect("payment response") {
+        PaymentsResponseData::TransactionResponse { resource_id, .. } => {
+            assert!(matches!(resource_id,
+            ResponseId::ConnectorTransactionId(id) if id == "original-reference"))
+        }
+        other => panic!("unexpected response: {other:?}"),
+    }
 }

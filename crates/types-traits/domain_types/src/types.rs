@@ -3114,7 +3114,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::BoostWallet => {
                 Ok(PaymentMethodType::Boost)
             }
-            grpc_api_types::payments::PaymentMethodType::AliPayPlus => {
+            grpc_api_types::payments::PaymentMethodType::AliPayPlusWallet => {
                 Ok(PaymentMethodType::AliPayPlus)
             }
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
@@ -10464,7 +10464,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             | grpc_api_types::payments::PaymentMethodType::PayhereWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::BoostWallet => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethodType::AliPayPlus => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::AliPayPlusWallet => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),

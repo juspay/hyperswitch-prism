@@ -8,6 +8,10 @@
 #![allow(clippy::indexing_slicing)]
 
 use super::*;
+fn string_amount(value: &str) -> StringMajorUnit {
+    serde_json::from_value(serde_json::json!(value)).expect("string amount")
+}
+
 use crate::connectors::revpay::RevpayAmountConvertor;
 use common_utils::types::MinorUnit;
 use domain_types::payment_method_data::DefaultPCIHolder;
@@ -177,13 +181,13 @@ fn payment_response_parses_uat_redirect_body_with_null_transaction_id() {
 }
 
 #[test]
-fn redirect_without_transaction_id_falls_back_to_reference_number() {
+fn authorization_keeps_merchant_reference_as_payment_id() {
     let response = RevpayPaymentsResponse {
         revpay_merchant_id: None,
         payment_id: Some(2),
-        transaction_id: None,
+        transaction_id: Some("gateway-id".to_string()),
         reference_number: Some("reference".to_string()),
-        amount: Some(RevpayAmount::Text("10.00".to_string())),
+        amount: Some(RevpayAmount::Text(string_amount("10.00"))),
         currency: Some("MYR".to_string()),
         response_code: RevpayResponseCode::RedirectRequired,
         error_description: Some("Request in progress.".to_string()),
@@ -193,9 +197,7 @@ fn redirect_without_transaction_id_falls_back_to_reference_number() {
         bank_reference_number: None,
     };
 
-    // "09" carries `Transaction_ID: null`; the interim resource id is the
-    // `Reference_Number` we sent (PSync later overwrites it with the real
-    // Transaction_ID).
+    // The merchant reference is stable before and after a gateway ID exists.
     assert!(matches!(
         authorize_resource_id(&response, 200).expect("reference number is a valid interim id"),
         ResponseId::ConnectorTransactionId(id) if id == "reference"
@@ -209,7 +211,7 @@ fn response_without_any_identifier_is_rejected() {
         payment_id: Some(2),
         transaction_id: None,
         reference_number: None,
-        amount: Some(RevpayAmount::Text("10.00".to_string())),
+        amount: Some(RevpayAmount::Text(string_amount("10.00"))),
         currency: Some("MYR".to_string()),
         response_code: RevpayResponseCode::RedirectRequired,
         error_description: Some("Request in progress.".to_string()),
@@ -470,7 +472,7 @@ fn webhook_body_parses_form_encoded() {
     assert_eq!(body.payment_id, Some(2));
     assert_eq!(body.transaction_id, "RT000000007222");
     assert_eq!(body.reference_number, "RF201774111");
-    assert_eq!(body.amount, RevpayAmount::Text("52.40".into()));
+    assert_eq!(body.amount, string_amount("52.40"));
     assert_eq!(body.currency, Currency::MYR);
     assert_eq!(body.response_code, RevpayResponseCode::Success);
     assert_eq!(body.error_description, Some(String::new()));
@@ -514,7 +516,7 @@ fn webhook_event_and_status_mapping_follows_response_code() {
         transaction_id: "RT000000007222".to_string(),
         reference_number: "RF201774111".to_string(),
         bank_reference_number: None,
-        amount: RevpayAmount::Text("52.40".to_string()),
+        amount: string_amount("52.40"),
         currency: Currency::MYR,
         transaction_description: None,
         fraud_score: None,
@@ -592,12 +594,9 @@ fn webhook_typed_amount_preserves_signed_text() {
     let body: RevpayWebhookBody =
         serde_urlencoded::from_str(&webhook_form_body("52.4", "1", WEBHOOK_DOC_SIGNATURE))
             .expect("webhook parses");
-    assert_eq!(body.amount, RevpayAmount::Text("52.4".into()));
+    assert_eq!(body.amount, string_amount("52.4"));
     // Same numeric value, different signed bytes: never normalize to 52.40.
     assert!(!body.verifies_against(&webhook_auth()));
-    let mut numeric = body;
-    numeric.amount = RevpayAmount::Number(52.4);
-    assert!(!numeric.verifies_against(&webhook_auth()));
 }
 
 #[test]
@@ -605,4 +604,52 @@ fn webhook_rejects_unknown_currency() {
     let form = webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE)
         .replace("Currency=MYR", "Currency=INVALID");
     assert!(serde_urlencoded::from_str::<RevpayWebhookBody>(&form).is_err());
+}
+
+#[test]
+fn response_amount_accepts_shared_string_and_float_types() {
+    for raw in ["\"52.40\"", "52.4"] {
+        let amount: RevpayAmount = serde_json::from_str(raw).expect("response amount");
+        let money = amount.to_money(Currency::MYR).expect("money conversion");
+        assert_eq!(money.amount(), MinorUnit::new(5240));
+        assert_eq!(money.currency(), Currency::MYR);
+    }
+}
+
+#[test]
+fn webhook_amount_supplies_integrity_money() {
+    let body: RevpayWebhookBody =
+        serde_urlencoded::from_str(&webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE))
+            .expect("webhook body");
+    let money = body.money().expect("webhook money");
+    assert_eq!(money.amount(), MinorUnit::new(5240));
+    assert_eq!(money.currency(), Currency::MYR);
+    assert!(body.verifies_against(&webhook_auth()));
+}
+
+#[test]
+fn webhook_response_exposes_amount_and_only_successful_capture() {
+    use domain_types::connector_types::{HttpMethod, RequestDetails};
+    use interfaces::webhooks::IncomingWebhook;
+    let connector = crate::connectors::revpay::Revpay::<DefaultPCIHolder>::new();
+    for (code, captured) in [("00", true), ("09", false), ("30", false)] {
+        let request = RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers: Default::default(),
+            body: webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE)
+                .replace("Response_Code=00", &format!("Response_Code={code}"))
+                .into_bytes(),
+            query_params: None,
+        };
+        let response = connector
+            .process_payment_webhook(request, None, None, None)
+            .expect("webhook response");
+        assert!(matches!(&response.resource_id,
+            Some(ResponseId::ConnectorTransactionId(id)) if id == "RF201774111"));
+        let amount = response.amount.expect("integrity money");
+        assert_eq!(amount.amount(), MinorUnit::new(5240));
+        assert_eq!(amount.currency(), Currency::MYR);
+        assert_eq!(response.captured_money.is_some(), captured);
+    }
 }

@@ -418,6 +418,12 @@ impl FloatMajorUnit {
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
 pub struct StringMajorUnit(String);
 
+impl crate::crypto::SignatureValue for StringMajorUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(self.0.as_bytes());
+    }
+}
+
 impl StringMajorUnit {
     /// forms a new major unit from amount
     fn new(value: String) -> Self {

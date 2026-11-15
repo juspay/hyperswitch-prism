@@ -506,7 +506,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
             .change_context(WebhookError::WebhookReferenceIdNotFound)?;
         Ok(Some(WebhookResourceReference::Payment(
             PaymentWebhookReference {
-                connector_transaction_id: Some(body.transaction_id),
+                connector_transaction_id: Some(body.reference_number.clone()),
                 // Reference_Number is the merchant-assigned reference the
                 // original Payment call was keyed by.
                 merchant_transaction_id: Some(body.reference_number),
@@ -537,11 +537,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
 
         let status = body.attempt_status();
         let failure = body.failure_details();
+        let money = body
+            .money()
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(WebhookDetailsResponse {
             raw_connector_status: None,
-            amount: None,
-            resource_id: Some(ResponseId::ConnectorTransactionId(body.transaction_id)),
+            amount: Some(money.clone()),
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                body.reference_number.clone(),
+            )),
             status,
             connector_response_reference_id: Some(body.reference_number.clone()),
             // The payment was keyed by Reference_Number on Authorize — echo it
@@ -554,7 +559,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            captured_money: None,
+            captured_money: if status == common_enums::AttemptStatus::Charged {
+                Some(money)
+            } else {
+                None
+            },
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

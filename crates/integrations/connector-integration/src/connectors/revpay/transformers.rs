@@ -7,7 +7,8 @@ use common_utils::{
     errors::ParsingError,
     pii::Email,
     types::{
-        AmountConvertor, Money, StringMajorUnitWithTwoDecimals,
+        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, Money, StringMajorUnit,
+        StringMajorUnitForConnector, StringMajorUnitWithTwoDecimals,
         StringMajorUnitWithTwoDecimalsForConnector,
     },
 };
@@ -107,17 +108,6 @@ fn generate_revpay_signature(
 // =============================================================================
 // AMOUNT CONVERSION
 // =============================================================================
-
-/// Parse a connector-echoed `Amount` through the same shared converter used for
-/// request encoding, returning domain Money for the integrity object.
-pub fn parse_revpay_amount(
-    converter: &dyn AmountConvertor<Output = StringMajorUnitWithTwoDecimals>,
-    amount: &str,
-    currency: Currency,
-) -> Result<Money, error_stack::Report<ParsingError>> {
-    let amount = amount.parse::<StringMajorUnitWithTwoDecimals>()?;
-    converter.convert_back(amount, currency)
-}
 
 // =============================================================================
 // RESPONSE CODE
@@ -494,26 +484,20 @@ fn wallet_payment_id(wallet: &WalletData) -> Result<u16, error_stack::Report<Int
     })
 }
 
-/// Resource id for an authorize outcome: revPAY assigns `Transaction_ID` only
-/// once a redirect completes — the "09 Request in progress" response carries
-/// `Transaction_ID: null` (captured from the UAT sandbox, 22 Oct 2026) — so
-/// fall back to our `Reference_Number`, which is also what the `/v1/inquiry`
-/// sync correlates on (PSync later overwrites the resource id with the real
-/// `Transaction_ID`), and fail only when the response carries neither
-/// identifier.
+/// Keep the merchant Reference_Number as the stable payment identifier across
+/// authorization, inquiry, webhooks and refunds. Never substitute Transaction_ID.
 fn authorize_resource_id(
     response: &RevpayPaymentsResponse,
     http_code: u16,
 ) -> Result<ResponseId, error_stack::Report<ConnectorError>> {
     let transaction_id = response
-        .transaction_id
+        .reference_number
         .clone()
-        .or_else(|| response.reference_number.clone())
+        .filter(|value| !value.trim().is_empty())
         .ok_or_else(|| {
             crate::utils::response_deserialization_fail(
                 http_code,
-                "revpay: success/redirect response missing Transaction_ID \
-                 and Reference_Number; confirm API contract.",
+                "revpay: success/redirect response missing Reference_Number",
             )
         })?;
     Ok(ResponseId::ConnectorTransactionId(transaction_id))
@@ -667,7 +651,16 @@ impl<T: PaymentMethodDataTypes> RevpayPaymentsRequest<T> {
         let return_url = item.request.router_return_url.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "router_return_url",
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide router_return_url in the authorization request.".to_string()
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "RevPay requires Return_URL to redirect the shopper after payment."
+                            .to_string()
+                    ),
+                },
             })
         })?;
 
@@ -863,22 +856,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // RESPONSE TYPES
 // =============================================================================
 
-/// revPAY may echo `Amount`/`Currency`/dates either as JSON strings (matching
-/// what we sent) or as bare JSON numbers (as in the doc samples). `Number`
-/// exists only to parse lenient response and webhook echoes.
+/// RevPay JSON responses may echo amounts as strings or numbers. Both variants
+/// use shared money types and their converters. Form webhooks use StringMajorUnit
+/// directly so signature verification preserves the received amount text.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RevpayAmount {
-    Text(String),
-    Number(f64),
+    Text(StringMajorUnit),
+    Number(FloatMajorUnit),
 }
 
 impl RevpayAmount {
-    /// Normalised two-decimal-major rendering, ready for `parse_revpay_amount`.
-    fn as_two_decimal_string(&self) -> String {
+    fn to_money(&self, currency: Currency) -> Result<Money, error_stack::Report<ParsingError>> {
         match self {
-            Self::Text(text) => text.clone(),
-            Self::Number(number) => format!("{number:.2}"),
+            Self::Text(amount) => {
+                StringMajorUnitForConnector.convert_back(amount.clone(), currency)
+            }
+            Self::Number(amount) => FloatMajorUnitForConnector.convert_back(*amount, currency),
         }
     }
 }
@@ -983,7 +977,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
                     // failed Payment API attempt. Do NOT copy this into
                     // `build_error_response`, which is shared by every flow.
                     attempt_status: Some(FlowStatus::Payment(status)),
-                    connector_transaction_id: response.transaction_id.clone(),
+                    connector_transaction_id: response.reference_number.clone(),
                     ..Default::default()
                 }),
                 ..router_data.clone()
@@ -993,7 +987,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
         // revPAY's "09 Request in progress" (redirect) response carries
         // `Transaction_ID: null` — the id is only assigned once the shopper
         // completes the payment (captured from the UAT sandbox, 22 Oct 2026).
-        // See `authorize_resource_id` for the interim-identifier contract.
+        // The merchant Reference_Number remains our stable payment identifier.
         let resource_id = authorize_resource_id(response, item.http_code)?;
 
         // revPAY echoes Amount/Currency on the payment response — populate the
@@ -1002,16 +996,13 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
         // mandatory in the doc; fall back to the request value only when the
         // connector genuinely omits it.
         let integrity_amount = match &response.amount {
-            Some(amount) => parse_revpay_amount(
-                &StringMajorUnitWithTwoDecimalsForConnector,
-                &amount.as_two_decimal_string(),
-                router_data.request.money.currency(),
-            )
-            .change_context(crate::utils::response_handling_fail_for_connector(
-                item.http_code,
-                "revpay",
-            ))
-            .attach_printable("revpay: echoed Amount is not in revPAY's 2-decimal form")?,
+            Some(amount) => amount
+                .to_money(router_data.request.money.currency())
+                .change_context(crate::utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "revpay",
+                ))
+                .attach_printable("revpay: echoed Amount cannot be converted to domain money")?,
             None => router_data.request.money.clone(),
         };
         let integrity_currency = response
@@ -1124,21 +1115,13 @@ impl RevpayPSyncRequest {
             })
         })?;
 
-        // PRE-FLIGHT GATE: the inquiry Reference_Number must be the exact
-        // merchant reference the Authorize flow sent, carried into PSync by
-        // `connector_request_reference_id`. NEVER re-derive it from
-        // `connector_transaction_id` (revPAY only mints Transaction_ID in its
-        // Payment response, and the inquiry cannot be keyed by it) and NEVER
-        // fall back to a default — an empty reference resolves nothing and
-        // the payment would be miss-reported as not found. Ensure the original
-        // payment carried connector_request_reference_id before syncing.
-        let reference_number = item
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
-        if reference_number.trim().is_empty() {
-            return Err(missing_field_err("connector_request_reference_id")());
-        }
+        // The public connector transaction id carries the original merchant reference.
+        let reference_number = match &item.request.connector_transaction_id {
+            ResponseId::ConnectorTransactionId(reference) => {
+                resolve_original_reference_number(reference)?
+            }
+            _ => return Err(missing_field_err("connector_transaction_id")()),
+        };
 
         // The inquiry must re-send the ORIGINAL payment amount with the same
         // 2-decimal encoding that was signed at Payment time.
@@ -1224,25 +1207,9 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
         // still handled by the shared `build_error_response`.
         let status = response.response_code.psync_status();
 
-        let resource_id = match response.transaction_id.clone() {
-            Some(transaction_id) => ResponseId::ConnectorTransactionId(transaction_id),
-            // revPAY omits Transaction_ID when the reference resolves to
-            // nothing (e.g. "76"); mirror the request-side id the sync was
-            // keyed by instead of manufacturing a new identifier.
-            None => router_data.request.connector_transaction_id.clone(),
-        };
-
-        // Identifier round-trip: prefer the Reference_Number revPAY echoes;
-        // the fallback is the very reference the inquiry was keyed by, so the
-        // caller can always correlate the sync with the original attempt.
-        let connector_response_reference_id = response.reference_number.clone().or_else(|| {
-            Some(
-                router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            )
-        });
+        // Keep the same merchant reference even when RevPay returns a gateway ID.
+        let resource_id = router_data.request.connector_transaction_id.clone();
+        let connector_response_reference_id = response.reference_number.clone();
 
         // Identifier carrier chain: re-publish whatever metadata arrived on
         // the sync request so later flows keep access to it.
@@ -1263,16 +1230,15 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
             .and_then(|echoed| Currency::from_str(echoed).ok())
             .unwrap_or(router_data.request.money.currency());
         let integrity_amount = match &response.amount {
-            Some(amount) => parse_revpay_amount(
-                &StringMajorUnitWithTwoDecimalsForConnector,
-                &amount.as_two_decimal_string(),
-                integrity_currency,
-            )
-            .change_context(crate::utils::response_handling_fail_for_connector(
-                item.http_code,
-                "revpay",
-            ))
-            .attach_printable("revpay: inquiry echoed Amount is not in revPAY's 2-decimal form")?,
+            Some(amount) => amount
+                .to_money(integrity_currency)
+                .change_context(crate::utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "revpay",
+                ))
+                .attach_printable(
+                    "revpay: inquiry echoed Amount cannot be converted to domain money",
+                )?,
             None => router_data.request.money.clone(),
         };
 
@@ -1322,31 +1288,22 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
 // REFUND TYPES — POST {base}/v1/refund (§2.5), synchronous accept/reject
 // =============================================================================
 
-/// revPAY refunds the ORIGINAL payment by `Original_Reference_Number` — the
-/// Reference_Number signed on the Payment call — and identifies THIS refund
-/// with a NEW `Reference_Number` (UCS `refund_id`).
-///
-/// `RefundFlowData::connector_request_reference_id` cannot serve as the
-/// original reference: the framework derives it from `merchant_refund_id`, so
-/// it identifies the refund, not the payment. The original payment's Reference
-/// is taken from `RefundsData::connector_order_id` ("connector-side identifier
-/// for the original payment that this refund targets" — same idiom as
-/// travelhub). Absent => refuse locally rather than sending revPAY a reference
-/// that can never match a payment.
+/// Refunds use the stable merchant reference exposed as connector_transaction_id.
+/// The gateway Transaction_ID is a distinct identifier and must not be substituted.
 fn resolve_original_reference_number(
-    connector_order_id: Option<&str>,
+    connector_transaction_id: &str,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
-    connector_order_id
+    Some(connector_transaction_id)
         .filter(|value| !value.trim().is_empty())
         .map(ToOwned::to_owned)
         .ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "connector_order_id",
+                field_name: "connector_transaction_id",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
                         "Pass the original Authorize call's merchant reference (the \
                          connector_request_reference_id that revPAY signed as \
-                         `Reference_Number`) as `connector_order_id` on the refund request."
+                         `Reference_Number`) as `connector_transaction_id` on the refund request."
                             .to_string(),
                     ),
                     doc_url: None,
@@ -1420,7 +1377,7 @@ impl RevpayRefundRequest {
         }
 
         let original_reference_number =
-            resolve_original_reference_number(item.request.connector_order_id.as_deref())?;
+            resolve_original_reference_number(&item.request.connector_transaction_id)?;
 
         // Refund_Amount in the exact 2-decimal form that is also signed;
         // partial refunds are supported by the API (§2.5).
@@ -1547,7 +1504,9 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
                     attempt_status: Some(FlowStatus::Refund(
                         response.response_code.refund_status(),
                     )),
-                    connector_transaction_id: response.transaction_id.clone(),
+                    connector_transaction_id: Some(
+                        router_data.request.connector_transaction_id.clone(),
+                    ),
                     ..Default::default()
                 }),
                 ..router_data.clone()
@@ -1569,16 +1528,15 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
         // the request side (§2.5 refund table has no currency echo).
         let integrity_currency = router_data.request.refund_money.currency();
         let integrity_amount = match &response.refund_amount {
-            Some(amount) => parse_revpay_amount(
-                &StringMajorUnitWithTwoDecimalsForConnector,
-                &amount.as_two_decimal_string(),
-                integrity_currency,
-            )
-            .change_context(crate::utils::response_handling_fail_for_connector(
-                item.http_code,
-                "revpay",
-            ))
-            .attach_printable("revpay: echoed Refund_Amount is not in revPAY's 2-decimal form")?,
+            Some(amount) => amount
+                .to_money(integrity_currency)
+                .change_context(crate::utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "revpay",
+                ))
+                .attach_printable(
+                    "revpay: echoed Refund_Amount cannot be converted to domain money",
+                )?,
             None => router_data.request.refund_money.clone(),
         };
 
@@ -1870,7 +1828,7 @@ pub struct RevpayWebhookBody {
     pub bank_reference_number: Option<String>,
     /// The exact 2-decimal wire string — signed verbatim, never reformatted.
     #[serde(rename = "Amount")]
-    pub amount: RevpayAmount,
+    pub amount: StringMajorUnit,
     #[serde(rename = "Currency")]
     pub currency: Currency,
     #[serde(
@@ -1897,6 +1855,10 @@ pub struct RevpayWebhookBody {
 }
 
 impl RevpayWebhookBody {
+    pub fn money(&self) -> Result<Money, error_stack::Report<ParsingError>> {
+        StringMajorUnitForConnector.convert_back(self.amount.clone(), self.currency)
+    }
+
     /// SOURCE VERIFICATION (§3.3, Flow 5): recompute
     /// `lowercase_hex(sha512(MerchantKey + Revpay_Merchant_ID +
     /// Transaction_ID + Response_Code + Reference_Number + Amount +
@@ -1910,12 +1872,6 @@ impl RevpayWebhookBody {
         if self.key_index.trim() != auth.key_index.peek().trim() {
             return false;
         }
-        // Form notifications must retain the signed amount text exactly.
-        // A numeric amount has lost its original representation and cannot
-        // safely be reconstructed for signature verification.
-        let RevpayAmount::Text(amount) = &self.amount else {
-            return false;
-        };
         let currency = self.currency.to_string();
         let expected = generate_revpay_signature(
             auth.merchant_key.peek(),
@@ -1924,7 +1880,7 @@ impl RevpayWebhookBody {
                 &self.transaction_id,
                 &self.response_code.as_str(),
                 &self.reference_number,
-                amount,
+                &self.amount,
                 &currency,
             ],
         );

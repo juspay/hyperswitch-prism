@@ -37,8 +37,8 @@ and FPX B2B (`Payment_ID: 9`) are not implemented.
 
 Added protobuf identifiers (existing numbers unchanged):
 
-- `PaymentMethod.boost_redirect = 190`, `BOOST_WALLET = 144`.
-- `PaymentMethod.ali_pay_plus_redirect = 191`, `ALI_PAY_PLUS = 145`.
+- `PaymentMethod.boost_redirect = 194`, `BOOST_WALLET = 144`.
+- `PaymentMethod.ali_pay_plus_redirect = 195`, `ALI_PAY_PLUS_WALLET = 145`.
 - `CardNetwork.MYDEBIT = 19`.
 
 Regenerate gRPC clients to use these new identifiers. Other connectors keep
@@ -85,7 +85,7 @@ and separate original-payment/refund reference handling. Those paths are kept
 and covered by tests.
 
 For refunds, pass the original payment's `merchant_transaction_id` (the exact
-value sent to RevPay as `Reference_Number`) in `connector_order_id`, and a new
+value sent to RevPay as `Reference_Number`) in `connector_transaction_id`, and a new
 unique `merchant_refund_id` for the refund. Do not use the gateway Transaction_ID
 or the refund ID as the original payment reference. Missing or blank original
 references are rejected locally. The refund regression test exercises the shared
@@ -115,3 +115,8 @@ payment-method enablement, and a caller that emits the new payment-method
 payloads. This reconstruction changes only hyperswitch-prism; it does not
 restore Linux-side Euler code, database records (GPM/MGA/MGPMF), credentials,
 or running services. Confirm those separately before an end-to-end test.
+
+Payment identifiers use the original merchant `Reference_Number` across authorization,
+payment inquiry, webhooks and refunds. RevPay's gateway `Transaction_ID` is not the
+public payment identifier. Existing records holding gateway IDs need their original
+merchant reference supplied before using the updated refund/inquiry mapping.
