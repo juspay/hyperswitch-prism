@@ -61,15 +61,16 @@ use transformers::{
     self as adyen, AdyenCaptureRequest, AdyenCaptureResponse, AdyenClientAuthRequest,
     AdyenClientAuthResponse, AdyenDefendDisputeRequest, AdyenDefendDisputeResponse,
     AdyenDisputeAcceptRequest, AdyenDisputeAcceptResponse, AdyenDisputeSubmitEvidenceRequest,
-    AdyenIncrementalAuthRequest, AdyenIncrementalAuthResponse, AdyenNotificationRequestItemWH,
-    AdyenOrderCreateRequest, AdyenOrderCreateResponse, AdyenPSyncResponse, AdyenPaymentRequest,
-    AdyenPaymentResponse, AdyenRedirectRequest, AdyenRefundRequest, AdyenRefundResponse,
-    AdyenRepeatPaymentRequest, AdyenRepeatPaymentResponse, AdyenReversalRequest,
-    AdyenReversalResponse, AdyenSubmitEvidenceResponse, AdyenVoidRequest, AdyenVoidResponse,
-    SetupMandateRequest, SetupMandateResponse,
+    AdyenIncrementalAuthRequest, AdyenIncrementalAuthResponse, AdyenOrderCreateRequest,
+    AdyenOrderCreateResponse, AdyenPSyncResponse, AdyenPaymentRequest, AdyenPaymentResponse,
+    AdyenRedirectRequest, AdyenRefundRequest, AdyenRefundResponse, AdyenRepeatPaymentRequest,
+    AdyenRepeatPaymentResponse, AdyenReversalRequest, AdyenReversalResponse,
+    AdyenSubmitEvidenceResponse, AdyenVoidRequest, AdyenVoidResponse, SetupMandateRequest,
+    SetupMandateResponse,
 };
 
 use super::macros;
+use crate::common::adyen::{self as adyen_common, AdyenNotificationRequestItemWH};
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -799,7 +800,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body.clone()).map_err(|err| {
+            adyen_common::get_webhook_object_from_body(request.body.clone()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -819,7 +820,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body.clone()).map_err(|err| {
+            adyen_common::get_webhook_object_from_body(request.body.clone()).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -894,7 +895,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let request_body_copy = request.body.clone();
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            adyen_common::get_webhook_object_from_body(request.body).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -951,7 +952,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let request_body_copy = request.body.clone();
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            adyen_common::get_webhook_object_from_body(request.body).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -991,7 +992,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let request_body_copy = request.body.clone();
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            adyen_common::get_webhook_object_from_body(request.body).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;

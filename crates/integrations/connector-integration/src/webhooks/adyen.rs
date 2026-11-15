@@ -14,7 +14,7 @@ use error_stack::report;
 use interfaces::webhooks::IncomingWebhookEventParser;
 use serde::Serialize;
 
-use self::transformers::AdyenNotificationRequestItemWH;
+use crate::common::adyen::{self as adyen_common, AdyenNotificationRequestItemWH};
 
 #[derive(Debug, Clone)]
 pub struct Adyen<T> {
@@ -46,7 +46,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             return Ok(EventType::EndpointVerification);
         }
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            adyen_common::get_webhook_object_from_body(request.body).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
@@ -62,10 +62,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        use transformers::WebhookEventCode;
+        use adyen_common::WebhookEventCode;
 
         let notif: AdyenNotificationRequestItemWH =
-            transformers::get_webhook_object_from_body(request.body).map_err(|err| {
+            adyen_common::get_webhook_object_from_body(request.body).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
