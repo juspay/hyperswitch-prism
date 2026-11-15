@@ -610,8 +610,42 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by fiservcommercehub connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe",
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "additional_amount": {
+            "minor_amount": 100,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":1.0},\"transactionDetails\":{\"authorizationTypeIndicator\":\"INCREMENTAL\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+        }
       }
     },
     "parse_event": {
@@ -779,8 +813,26 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by fiservcommercehub connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/cancels",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"transactionDetails\":{\"merchantTransactionId\":\"probe_reverse_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+        }
       }
     },
     "setup_recurring": {

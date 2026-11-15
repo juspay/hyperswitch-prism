@@ -219,7 +219,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 /// at-least-once; replay protection stays with the caller's de-duplication on
 /// the event `id` (`evt_...`).
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Checkout<T>
+    interfaces::webhooks::IncomingWebhook for Checkout<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"id":"evt_dj6tpkmbhew3bnl4n7sxzrfmsi","type":"payment_captured","version":"1.0.6","created_on":"2020-08-17T14:12:59Z","data":{"id":"pay_y3oqhf46pyzuxjbcn2giaqnb44","action_id":"act_y3oqhf46pyzuxjbcn2giaqnb44","amount":999,"currency":"USD","approved":true,"status":"Captured","auth_code":"956084","response_code":"10000","response_summary":"Approved","reference":"ORD-5023-4E89","payment_id":"pay_y3oqhf46pyzuxjbcn2giaqnb44","action_type":"Capture","processed_on":"2020-08-17T14:12:59Z","processing":{"acquirer_transaction_id":"866461431360025","acquirer_reference_number":"00260971375618446482438"}},"_links":{"self":{"href":"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi"}}}"#
@@ -409,7 +409,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: body.data.scheme_id,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -494,10 +494,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = convert_amount_for_webhook(
             &StringMinorUnitForConnector,
-            &common_utils::types::Money {
-                amount: dispute_amount,
+            &domain_types::utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                dispute_amount,
                 currency,
-            },
+            )?,
         )?;
 
         Ok(DisputeWebhookDetailsResponse {
@@ -1250,7 +1251,7 @@ macros::macro_connector_implementation!(
 
 // Connector-decryption head: hand Checkout the raw Apple Pay / Google Pay payload and get a
 // single-use `tok_...` back. The Authorize / SetupMandate tail then spends that token as
-// `source.type = "token"` (see the `WalletSource` `From` impl in transformers.rs).
+// `source.type = "token"` (see `WalletSource::new` in transformers.rs).
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Checkout,

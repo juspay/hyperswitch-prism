@@ -1,9 +1,5 @@
 use common_enums::{self, enums, AttemptStatus, RefundStatus};
-use common_utils::{
-    consts,
-    pii::Email,
-    types::{FloatMajorUnit, MinorUnit},
-};
+use common_utils::{consts, pii::Email, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
@@ -925,7 +921,7 @@ pub struct AuthorizedotnetTransactionRequest<T: PaymentMethodDataTypes> {
     // Authorize.Net validates the element order of `transactionRequest` against its
     // XSD (`transactionRequestType`); a field in the wrong position is rejected with
     // E00003. Keep: order, lineItems, tax, duty, shipping, taxExempt, poNumber,
-    // customer, billTo, shipTo, cardholderAuthentication, userFields,
+    // customer, billTo, shipTo, cardholderAuthentication, retail, userFields,
     // merchantDescriptor, processingOptions, subsequentAuthInformation.
     line_items: Option<LineItems>,
     tax: Option<ExtendedAmount>,
@@ -937,11 +933,48 @@ pub struct AuthorizedotnetTransactionRequest<T: PaymentMethodDataTypes> {
     bill_to: Option<BillTo>,
     ship_to: Option<ShipTo>,
     cardholder_authentication: Option<CardholderAuthentication>,
+    retail: Option<Retail>,
     user_fields: Option<UserFields>,
     merchant_descriptor: Option<String>,
     processing_options: Option<ProcessingOptions>,
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     ref_trans_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Retail {
+    market_type: MarketType,
+    device_type: DeviceType,
+}
+
+/// `retail.marketType` (a numeric string).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum MarketType {
+    #[serde(rename = "1")]
+    Moto,
+}
+
+/// `retail.deviceType` (a numeric string). A MOTO payment is keyed in by the merchant
+/// through this API, not captured on a terminal, so the device is reported as unknown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum DeviceType {
+    #[serde(rename = "1")]
+    Unknown,
+}
+
+/// The `retail` element for a MOTO card payment; `None` otherwise. MOTO applies to keyed
+/// card payments only: a wallet or bank payment is never a mail / telephone order.
+fn build_moto_retail<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    payment_channel: Option<&common_enums::PaymentChannel>,
+) -> Option<Retail> {
+    (matches!(payment_method_data, PaymentMethodData::Card(_))
+        && crate::utils::is_moto_payment_channel(payment_channel))
+    .then_some(Retail {
+        market_type: MarketType::Moto,
+        device_type: DeviceType::Unknown,
+    })
 }
 
 /// `transactionRequest.cardholderAuthentication`: the result of a 3D Secure
@@ -1134,6 +1167,10 @@ fn create_regular_transaction_request<
     >,
     currency: api_enums::Currency,
 ) -> Result<AuthorizedotnetTransactionRequest<T>, Error> {
+    let retail = build_moto_retail(
+        &item.router_data.request.payment_method_data,
+        item.router_data.request.payment_channel.as_ref(),
+    );
     // External 3DS data is carried on card payments only (never on the wallet or
     // bank arms: Apple Pay opaque data may not include 3D Secure data).
     let mut cardholder_authentication = None;
@@ -1293,23 +1330,21 @@ fn create_regular_transaction_request<
 
     // Level 2 / Level 3 data. Every amount goes through the connector's
     // FloatMajorUnit converter; nothing is computed here.
-    let to_major_unit =
-        |amount: MinorUnit, currency: enums::Currency| -> Result<FloatMajorUnit, Error> {
-            item.connector
-                .amount_converter
-                .convert(&common_utils::types::Money { amount, currency })
-                .change_context(IntegrationError::AmountConversionFailed {
-                    context: IntegrationErrorContext {
-                        suggested_action: None,
-                        doc_url: None,
-                        additional_context: Some(
-                            "Failed to convert a Level 2/3 amount for the authorize transaction"
-                                .to_owned(),
-                        ),
-                    },
-                })
-        };
-    let request_currency = item.router_data.request.currency;
+    let to_major_unit = |money: &common_utils::types::Money| -> Result<FloatMajorUnit, Error> {
+        item.connector
+            .amount_converter
+            .convert(money)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    suggested_action: None,
+                    doc_url: None,
+                    additional_context: Some(
+                        "Failed to convert a Level 2/3 amount for the authorize transaction"
+                            .to_owned(),
+                    ),
+                },
+            })
+    };
     let l2_l3_data = item.router_data.resource_common_data.l2_l3_data.as_deref();
     let order_info = l2_l3_data.and_then(|data| data.order_info.as_ref());
     let tax_info = l2_l3_data.and_then(|data| data.tax_info.as_ref());
@@ -1342,15 +1377,19 @@ fn create_regular_transaction_request<
                         name: detail.product_name.clone(),
                         description: detail.description.clone(),
                         quantity: detail.quantity,
-                        unit_price: to_major_unit(detail.amount, request_currency)?,
+                        unit_price: to_major_unit(
+                            &detail.get_unit_money(&item.router_data.request.money),
+                        )?,
                         unit_of_measure: detail.unit_of_measure.clone(),
                         tax_amount: detail
-                            .total_tax_amount
-                            .map(|amount| to_major_unit(amount, request_currency))
+                            .get_total_tax_money(&item.router_data.request.money)
+                            .as_ref()
+                            .map(to_major_unit)
                             .transpose()?,
                         total_amount: detail
-                            .total_amount
-                            .map(|amount| to_major_unit(amount, request_currency))
+                            .get_total_money(&item.router_data.request.money)
+                            .as_ref()
+                            .map(to_major_unit)
                             .transpose()?,
                         commodity_code: detail.commodity_code.clone(),
                     })
@@ -1364,16 +1403,19 @@ fn create_regular_transaction_request<
     let tax = item
         .router_data
         .request
-        .order_tax_amount
+        .get_order_tax_money()
+        .or_else(|| {
+            tax_info.and_then(|info| info.get_order_tax_money(&item.router_data.request.money))
+        })
         .as_ref()
-        .or_else(|| tax_info.and_then(|info| info.order_tax_amount.as_ref()))
-        .map(|money| to_major_unit(money.amount, money.currency))
+        .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });
 
     let duty = order_info
-        .and_then(|info| info.duty_amount.as_ref())
-        .map(|money| to_major_unit(money.amount, money.currency))
+        .and_then(|info| info.get_duty_money(&item.router_data.request.money))
+        .as_ref()
+        .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });
 
@@ -1381,10 +1423,12 @@ fn create_regular_transaction_request<
     let shipping = item
         .router_data
         .request
-        .shipping_cost
+        .get_shipping_money()
+        .or_else(|| {
+            order_info.and_then(|info| info.get_shipping_money(&item.router_data.request.money))
+        })
         .as_ref()
-        .or_else(|| order_info.and_then(|info| info.shipping_cost.as_ref()))
-        .map(|money| to_major_unit(money.amount, money.currency))
+        .map(to_major_unit)
         .transpose()?
         .map(|amount| ExtendedAmount { amount });
 
@@ -1460,7 +1504,7 @@ fn create_regular_transaction_request<
         amount: Some(
             item.connector
                 .amount_converter
-                .convert(&item.router_data.request.amount)
+                .convert(&item.router_data.request.money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })
@@ -1480,6 +1524,7 @@ fn create_regular_transaction_request<
         bill_to,
         ship_to,
         cardholder_authentication,
+        retail,
         user_fields,
         merchant_descriptor,
         processing_options: None,
@@ -1818,7 +1863,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item
                 .connector
                 .amount_converter
-                .convert(&item.router_data.request.amount)
+                .convert(&item.router_data.request.money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })
@@ -1918,7 +1963,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item
                 .connector
                 .amount_converter
-                .convert(&item.router_data.request.amount_to_capture)
+                .convert(&item.router_data.request.capture_money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })
@@ -2466,7 +2511,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item
                 .connector
                 .amount_converter
-                .convert(&item.router_data.request.refund_amount)
+                .convert(&item.router_data.request.refund_money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })

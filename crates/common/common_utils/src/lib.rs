@@ -14,6 +14,7 @@ pub mod id_type;
 pub mod lineage;
 pub mod macros;
 pub mod metadata;
+pub mod money;
 pub mod new_types;
 pub mod pii;
 pub mod request;

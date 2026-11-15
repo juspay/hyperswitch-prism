@@ -342,8 +342,8 @@ pub fn convert_amount_for_webhook<T>(
         error_stack::report!(errors::WebhookError::WebhookAmountConversionFailed {
             reason: format!(
                 "Failed to convert amount from minor units: amount={}, currency={}",
-                money.amount.get_amount_as_i64(),
-                money.currency
+                money.amount().get_amount_as_i64(),
+                money.currency()
             ),
         })
     })

@@ -321,6 +321,7 @@ message TravelSegment {
   optional string boarding_date_time = 6;                 // Boarding gate opening timestamp (RFC 3339)
   optional string departure_date_time = 7;                // Departure timestamp (RFC 3339)
   optional string identification_number = 8;               // Trip / service / coach / flight number
+  optional string trip_type = 9;
 }
 
 // Mode of ground / sea transport.

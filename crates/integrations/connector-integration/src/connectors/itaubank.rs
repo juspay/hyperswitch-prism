@@ -359,7 +359,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Itaubank<T>
+    interfaces::webhooks::IncomingWebhook for Itaubank<T>
 {
 }
 

@@ -574,7 +574,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .clone(),
             }),
             destination,
-            amount: data.request.amount,
+            amount: domain_types::utils::convert_amount(
+                &common_utils::types::MinorUnitForConnector,
+                &data.request.money,
+            )?,
             currency: data.request.destination_currency,
             reference: data
                 .resource_common_data

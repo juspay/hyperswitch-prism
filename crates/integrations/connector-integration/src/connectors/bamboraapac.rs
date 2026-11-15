@@ -100,7 +100,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::connector_types::IncomingWebhook for Bamboraapac<T>
+    interfaces::webhooks::IncomingWebhook for Bamboraapac<T>
 {
 }
 

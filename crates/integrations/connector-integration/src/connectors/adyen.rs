@@ -792,7 +792,7 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Adyen<T>
+    interfaces::webhooks::IncomingWebhook for Adyen<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -1043,7 +1043,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             error_reason,
             network_txn_id,
             payment_method_update,
@@ -1110,10 +1110,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = utils::convert_amount_for_webhook(
             self.amount_converter_webhooks,
-            &common_utils::types::Money {
-                amount: notif.amount.value,
-                currency: notif.amount.currency,
-            },
+            &utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                notif.amount.value,
+                notif.amount.currency,
+            )?,
         )?;
 
         Ok(
@@ -1139,7 +1140,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_api_response(
         &self,
         _request: RequestDetails,
-        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _error_kind: Option<interfaces::webhooks::IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<WebhookError>> {
         Ok(interfaces::api::EventAckResponse {
