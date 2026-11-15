@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.15.0
+
+### Features
+
+- **connector:** Add support for decoding legacy JSON order info meta… ([#2748](https://github.com/juspay/connector-service/pull/2748)) ([`3463cf9`](https://github.com/juspay/connector-service/commit/3463cf9a46552bd58c80b2f5c203911a044046b0))
+
+**Full Changelog:** [`2026.11.13.1...2026.11.15.0`](https://github.com/juspay/connector-service/compare/2026.11.13.1...2026.11.15.0)
+
+- - -
+
 ## 2026.11.13.1
 
 ### Features
