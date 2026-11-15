@@ -5063,6 +5063,7 @@ message CheckoutConfig {
   // Payout-only; kept separate from `api_key` (the payment public key).
   optional SecretString connector_currency_account_id = 5;
   optional string base_url = 50;
+  optional string endpoint_prefix = 51;
 }
 
 message CryptopayConfig {

@@ -207,6 +207,7 @@ mod tests {
                 connector_client_id: None,
                 connector_currency_account_id: None,
                 base_url: None,
+                endpoint_prefix: None,
             }
         }
 
@@ -392,6 +393,7 @@ mod tests {
                         "ca_testcurrencyaccount".to_string(),
                     )),
                     base_url: None,
+                    endpoint_prefix: None,
                 },
                 request: PayoutTransferRequest {
                     merchant_payout_id: Some(CONNECTOR_REFERENCE.to_string()),
@@ -681,6 +683,7 @@ mod tests {
                 connector_client_id: None,
                 connector_currency_account_id: None,
                 base_url: None,
+                endpoint_prefix: None,
             };
             let connector = CheckoutPayouts::<DefaultPCIHolder>::new();
             let connector_integration: BoxedConnectorIntegrationV2<

@@ -642,6 +642,7 @@ pub enum ConnectorSpecificConfig {
         /// Payout-only Checkout currency account (`ca_...`) used as `source.id`.
         connector_currency_account_id: Option<Secret<String>>,
         base_url: Option<String>,
+        endpoint_prefix: Option<String>,
     },
     Cybersource {
         api_key: Secret<String>,
@@ -2333,6 +2334,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 connector_client_id: checkout.connector_client_id,
                 connector_currency_account_id: checkout.connector_currency_account_id,
                 base_url: checkout.base_url,
+                endpoint_prefix: checkout.endpoint_prefix,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
                 api_key: cryptopay.api_key.ok_or_else(err)?,
@@ -3644,6 +3646,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         connector_client_id: None,
                         connector_currency_account_id: None,
                         base_url: None,
+                        endpoint_prefix: None,
                     }),
                     _ => Err(err().into()),
                 },
