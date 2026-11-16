@@ -6,7 +6,6 @@
 #![forbid(unfulfilled_lint_expectations)]
 
 pub mod authenticator_connectors;
-pub mod common;
 pub mod common_macros;
 pub mod connectors;
 pub mod default_implementations;

@@ -70,7 +70,10 @@ use transformers::{
 };
 
 use super::macros;
-use crate::common::adyen::{self as adyen_common, AdyenNotificationRequestItemWH};
+use crate::webhooks::adyen::{
+    transformers::{self as adyen_common, AdyenNotificationRequestItemWH},
+    Adyen as AdyenWebhook,
+};
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -794,6 +797,17 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::webhooks::IncomingWebhook for Adyen<T>
 {
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            AdyenWebhook::<T>::new(),
+            request,
+        )
+    }
+
     fn get_webhook_source_verification_signature(
         &self,
         request: &RequestDetails,

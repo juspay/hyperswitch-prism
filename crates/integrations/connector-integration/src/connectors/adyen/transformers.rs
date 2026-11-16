@@ -52,14 +52,14 @@ use url::Url;
 
 use super::AdyenRouterData;
 use crate::{
-    common::adyen::{
-        is_success_scenario, AdyenNotificationRequestItemWH, DisputeStatus, WebhookEventCode,
-    },
     types::ResponseRouterData,
     utils::{
         self, is_manual_capture,
         qr_code::{QrCodeInformation, QrImage},
         to_connector_meta_from_secret,
+    },
+    webhooks::adyen::transformers::{
+        is_success_scenario, AdyenNotificationRequestItemWH, DisputeStatus, WebhookEventCode,
     },
 };
 use domain_types::errors::ConnectorError;

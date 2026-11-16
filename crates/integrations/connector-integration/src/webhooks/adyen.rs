@@ -14,7 +14,7 @@ use error_stack::report;
 use interfaces::webhooks::IncomingWebhookEventParser;
 use serde::Serialize;
 
-use crate::common::adyen::{self as adyen_common, AdyenNotificationRequestItemWH};
+use self::transformers::{self as adyen_common, AdyenNotificationRequestItemWH};
 
 #[derive(Debug, Clone)]
 pub struct Adyen<T> {
