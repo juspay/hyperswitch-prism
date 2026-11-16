@@ -88,6 +88,31 @@ message PayoutEnums {
     INTERNAL = 6;
   }
 
+  // Merchant-supplied business purpose for a payout. Absence and UNSPECIFIED preserve
+  // the connector's omitted-purpose behavior; UCS does not select or default a purpose.
+  enum PayoutPurpose {
+    UNSPECIFIED = 0;
+    FAMILY_SUPPORT = 1;
+    EXPATRIATION = 2;
+    TRAVEL_AND_TOURISM = 3;
+    EDUCATION = 4;
+    MEDICAL_TREATMENT = 5;
+    EMERGENCY_NEED = 6;
+    LEISURE = 7;
+    SAVINGS = 8;
+    GIFTS = 9;
+    DONATIONS = 10;
+    FINANCIAL_SERVICES = 11;
+    IT_SERVICES = 12;
+    INVESTMENT = 13;
+    INSURANCE = 14;
+    LOAN_PAYMENT = 15;
+    PENSION = 16;
+    ROYALTIES = 17;
+    OTHER = 18;
+    INCOME = 19;
+  }
+
   // Connected-account type
   enum PayoutAccountType {
     PAYOUT_ACCOUNT_TYPE_UNSPECIFIED = 0;
@@ -269,6 +294,19 @@ message ApplePayDecrypt {
   optional CardNetwork card_network = 5;
 }
 
+message GooglePayDecrypt {
+  // The application primary account number (DPAN)
+  CardNumberType application_primary_account_number = 1;
+  // The card's expiration month (MM)
+  SecretString expiry_month = 2;
+  // The card's expiration year (YYYY)
+  SecretString expiry_year = 3;
+  // The full name of the cardholder
+  optional SecretString card_holder_name = 4;
+  // The network of the card (e.g., VISA, MASTERCARD)
+  optional CardNetwork card_network = 5;
+}
+
 message Paypal {
   // The email address associated with the PayPal account
   optional SecretString email = 1;
@@ -360,6 +398,7 @@ message PayoutMethod {
     Mifinity mifinity = 19;
     // Populated by the orchestrator with opaque external-vault aliases; UCS injects the resolved card data.
     CardProxyPayout card_proxy = 20;
+    GooglePayDecrypt google_pay_decrypt = 21;
   }
 }
 
@@ -484,6 +523,8 @@ message PayoutServiceTransferRequest {
   optional PayoutFundsTransferType funds_transfer_type = 20;
   // Sender API input is normalized by Hyperswitch into the common vendor type.
   optional PayoutVendorAccountDetails vendor_account_details = 21;
+  // Merchant-supplied business purpose. Absence omits connector instruction.purpose.
+  optional PayoutEnums.PayoutPurpose purpose = 22;
 }
 
 // Response message for transferring a payout
