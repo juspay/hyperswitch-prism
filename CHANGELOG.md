@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.16.0
+
+### Features
+
+- **connector:** [Checkout] support account-specific payment hosts ([#2721](https://github.com/juspay/connector-service/pull/2721)) ([`f9f77ee`](https://github.com/juspay/connector-service/commit/f9f77ee6a042f7083135d557b08fa52dddb33ce4))
+
+**Full Changelog:** [`2026.11.15.0...2026.11.16.0`](https://github.com/juspay/connector-service/compare/2026.11.15.0...2026.11.16.0)
+
+- - -
+
 ## 2026.11.15.0
 
 ### Features
