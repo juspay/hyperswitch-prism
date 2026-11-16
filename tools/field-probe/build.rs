@@ -18,8 +18,10 @@ use std::path::Path;
 const PAYMENT_METHOD_ITERATED_FLOWS: &[&str] = &["authorize", "tokenize"];
 
 fn main() {
-    println!("cargo:rerun-if-changed=../../ffi/ffi/src/services/payments.rs");
-    println!("cargo:rerun-if-changed=../../types-traits/grpc-api-types/proto/services.proto");
+    println!("cargo:rerun-if-changed=../../crates/ffi/ffi/src/services/payments.rs");
+    println!(
+        "cargo:rerun-if-changed=../../crates/types-traits/grpc-api-types/proto/services.proto"
+    );
 
     let flows = discover_flows_from_ffi();
     generate_flow_runners(&flows);
@@ -39,7 +41,7 @@ struct FlowInfo {
 }
 
 fn discover_flows_from_ffi() -> Vec<FlowInfo> {
-    let ffi_path = Path::new("../../ffi/ffi/src/services/payments.rs");
+    let ffi_path = Path::new("../../crates/ffi/ffi/src/services/payments.rs");
     let content = fs::read_to_string(ffi_path).expect("Failed to read FFI payments.rs");
 
     let mut flows = Vec::new();
