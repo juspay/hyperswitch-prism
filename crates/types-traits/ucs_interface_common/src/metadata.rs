@@ -261,6 +261,18 @@ pub fn connector_from_metadata(
         })
     })
 }
+
+/// Extracts the merchant ID from request metadata, falling back to a default when absent.
+///
+/// # Design notes
+///
+/// - **Behaviour:** the `merchant_id` / `tenant_id` / `org_id` / `request_id` extractors do
+///   not fail on a missing header; they fall back to `"DefaultMerchantId"` / `"public"` /
+///   `""` / a generated UUID.
+/// - **Intentional:** these values are used for logging, tracing and pass-through to
+///   connector requests, not for authorization.
+/// - **Invariant:** callers are authenticated upstream and credentials come with each
+///   request, so a default ID does not give access to another merchant's data.
 pub fn merchant_id_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<String, IntegrationError> {

@@ -667,7 +667,7 @@ fn cybersource_flag_is_strictly_validated() {
 #[test]
 fn webhook_statuses_follow_rdp_mapping_and_are_never_treated_as_verified() {
     use domain_types::connector_types::{EventType, RequestDetails};
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
     let connector = Reddot::<DefaultPCIHolder>::new();
     for (code, expected_status, expected_event) in [
         (

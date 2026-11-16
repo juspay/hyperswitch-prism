@@ -79,6 +79,11 @@ pub struct MerchantDetails {
     pub merchant_country_code: Option<common_enums::CountryAlpha2>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct InstallmentDetails {
+    pub installment_count: u32,
+}
+
 /// Request data for pre-risk check
 #[derive(Debug, Clone)]
 pub struct PreRiskCheckRequest {
@@ -87,6 +92,9 @@ pub struct PreRiskCheckRequest {
     pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub browser_info: Option<BrowserInformation>,
     pub merchant_transaction_id: Option<String>,
+    pub merchant_order_id: Option<String>,
+    pub installment_details: Option<InstallmentDetails>,
+    pub order_description: Option<String>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub address: Option<PaymentAddress>,
     pub metadata: Option<Secret<String>>,
@@ -127,6 +135,9 @@ pub struct PostRiskCheckRequest {
     pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub browser_info: Option<BrowserInformation>,
     pub merchant_transaction_id: Option<String>,
+    pub merchant_order_id: Option<String>,
+    pub installment_details: Option<InstallmentDetails>,
+    pub order_description: Option<String>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,

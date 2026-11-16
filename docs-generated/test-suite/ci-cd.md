@@ -3,7 +3,7 @@
 title: CI/CD Integration
 description: Continuous integration and automated testing
 last_updated: 2026-03-12
-generated_from: backend/integration-tests/
+generated_from: tests/regression/
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12
@@ -114,8 +114,8 @@ jobs:
         with:
           name: test-reports
           path: |
-            backend/integration-tests/report.json
-            backend/integration-tests/test_report.md
+            tests/regression/report.json
+            tests/regression/test_report.md
 ```
 
 ### PR Validation Workflow
@@ -174,7 +174,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add backend/integration-tests/docs/test-reports/
+          git add tests/regression/docs/test-reports/
           git diff --staged --quiet || git commit -m "Update test snapshots [skip ci]"
           git push
 ```
@@ -206,8 +206,8 @@ test:
   artifacts:
     when: always
     paths:
-      - backend/integration-tests/test_report.md
-      - backend/integration-tests/report.json
+      - tests/regression/test_report.md
+      - tests/regression/report.json
     expire_in: 1 week
   only:
     - merge_requests
@@ -242,8 +242,8 @@ pipeline {
 
         stage('Archive Reports') {
             steps {
-                archiveArtifacts artifacts: 'backend/integration-tests/*.md', allowEmptyArchive: true
-                archiveArtifacts artifacts: 'backend/integration-tests/*.json', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'tests/regression/*.md', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'tests/regression/*.json', allowEmptyArchive: true
             }
         }
     }
@@ -254,7 +254,7 @@ pipeline {
                 allowMissing: false,
                 alwaysLinkToLastBuild: true,
                 keepAll: true,
-                reportDir: 'backend/integration-tests',
+                reportDir: 'tests/regression',
                 reportFiles: 'test_report.md',
                 reportName: 'Test Report'
             ])
@@ -338,8 +338,8 @@ Upload test reports as CI artifacts:
   with:
     name: test-reports-${{ github.run_id }}
     path: |
-      backend/integration-tests/report.json
-      backend/integration-tests/test_report.md
+      tests/regression/report.json
+      tests/regression/test_report.md
     retention-days: 30
 ```
 
@@ -354,7 +354,7 @@ Post test results as PR comments:
   with:
     script: |
       const fs = require('fs');
-      const report = fs.readFileSync('backend/integration-tests/test_report.md', 'utf8');
+      const report = fs.readFileSync('tests/regression/test_report.md', 'utf8');
       github.rest.issues.createComment({
         issue_number: context.issue.number,
         owner: context.repo.owner,

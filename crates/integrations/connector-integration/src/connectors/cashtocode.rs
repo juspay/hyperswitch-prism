@@ -62,7 +62,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Cashtocode<T>
+    interfaces::webhooks::IncomingWebhook for Cashtocode<T>
 {
     fn verify_webhook_source(
         &self,

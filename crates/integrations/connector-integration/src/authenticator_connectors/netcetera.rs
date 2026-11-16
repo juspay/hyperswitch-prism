@@ -142,7 +142,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Netcetera<T>
+    interfaces::webhooks::IncomingWebhook for Netcetera<T>
 {
 }
 

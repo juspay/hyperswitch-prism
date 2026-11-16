@@ -290,7 +290,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Globalpay<T>
+    interfaces::webhooks::IncomingWebhook for Globalpay<T>
 {
     fn get_webhook_source_verification_signature(
         &self,

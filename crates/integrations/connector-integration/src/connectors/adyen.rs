@@ -792,7 +792,7 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Adyen<T>
+    interfaces::webhooks::IncomingWebhook for Adyen<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -1140,7 +1140,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_api_response(
         &self,
         _request: RequestDetails,
-        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _error_kind: Option<interfaces::webhooks::IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<WebhookError>> {
         Ok(interfaces::api::EventAckResponse {

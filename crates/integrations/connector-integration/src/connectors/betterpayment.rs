@@ -262,7 +262,7 @@ impl domain_types::connector_types::ConnectorSpecifications for Betterpayment<De
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Betterpayment<T>
+    interfaces::webhooks::IncomingWebhook for Betterpayment<T>
 {
     fn get_event_type(
         &self,
