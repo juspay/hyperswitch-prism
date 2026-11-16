@@ -9,6 +9,8 @@ path = "src/main.rs"
 
 [dependencies]
 # First-party
+interfaces = { path = "../../types-traits/interfaces" }
+connector-integration = { path = "../../integrations/connector-integration" }
 ffi = { path = "../../ffi/ffi", default-features = false, features = ["uniffi"] }
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
 domain_types = { path = "../../types-traits/domain_types" }

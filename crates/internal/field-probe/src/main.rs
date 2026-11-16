@@ -49,6 +49,7 @@ mod requests;
 mod sample_data;
 mod status;
 mod types;
+mod webhooks;
 
 use config::get_config;
 use orchestrator::probe_connector;
@@ -88,7 +89,7 @@ fn main() {
         skip_set.len()
     );
 
-    let results: Vec<_> = connectors
+    let mut results: Vec<_> = connectors
         .par_iter()
         .map(|c| {
             let name = format!("{c:?}");
@@ -96,6 +97,9 @@ fn main() {
             probe_connector(c)
         })
         .collect();
+
+    // Standalone/payout-only webhook providers are not covered by ConnectorEnum.
+    webhooks::probe_registered_providers(&mut results);
 
     // Determine output directory
     let output_dir = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {

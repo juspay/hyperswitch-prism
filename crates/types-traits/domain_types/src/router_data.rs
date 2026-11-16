@@ -3138,6 +3138,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
         };
 
         match connector {
+            ConnectorVariant::Webhook(_) => Err(err().into()),
             ConnectorVariant::Payment(connector_enum) => match connector_enum {
                 // --- HeaderKey connectors ---
                 ConnectorEnum::Stripe => match auth {

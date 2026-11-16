@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use common_utils::{consts, metadata::MaskedMetadata, request_metrics::ConnectorLatencyTracker};
-use domain_types::{errors::IntegrationError, router_data::ConnectorSpecificConfig};
+use domain_types::errors::IntegrationError;
 use error_stack::Report;
 use tonic::metadata;
 use ucs_env::{
@@ -9,16 +9,11 @@ use ucs_env::{
     error::{GrpcError, InternalError, ResultExtGrpcError},
 };
 
-use crate::utils::{
-    connector_and_config_from_metadata, connector_variant_from_metadata, MetadataPayload,
-};
+use crate::utils::MetadataPayload;
 use ucs_interface_common::metadata::{
     merchant_id_from_metadata, org_id_from_metadata, proxy_name_from_metadata,
     request_id_from_metadata, tenant_id_from_metadata,
 };
-
-/// Deprecated header carrying the typed connector config (kept for backward compatibility).
-const X_CONNECTOR_AUTH_DEPRECATED: &str = "x-connector-auth";
 
 /// Structured request data with secure metadata access.
 /// This is the gRPC-specific wrapper around `InterfaceRequestData` that
@@ -50,9 +45,8 @@ impl<T> RequestData<T> {
         })
     }
 
-    /// Parse request for webhook flows that only need routing metadata.
-    /// This does not require connector authentication credentials.
-    pub fn from_grpc_request_unauthenticated(
+    /// Resolve webhook identity and optional credentials for both webhook RPCs.
+    pub fn from_grpc_webhook_request(
         request: tonic::Request<T>,
         config: Arc<configs::Config>,
     ) -> Result<Self, Report<GrpcError>> {
@@ -60,8 +54,7 @@ impl<T> RequestData<T> {
 
         // Extract routing metadata only (connector, request_id, etc.)
         // without requiring connector_config/auth credentials
-        let mut routing_metadata =
-            extract_routing_metadata_only(&metadata, config.clone()).to_grpc_error()?;
+        let mut routing_metadata = extract_routing_metadata_only(&metadata).to_grpc_error()?;
         if let Some(connector_latency) = extensions.get::<ConnectorLatencyTracker>() {
             routing_metadata.connector_latency = connector_latency.clone();
         }
@@ -81,7 +74,6 @@ impl<T> RequestData<T> {
 /// Used for webhook flows where connector_config is not needed for initial processing.
 fn extract_routing_metadata_only(
     metadata: &metadata::MetadataMap,
-    _config: Arc<configs::Config>,
 ) -> Result<MetadataPayload, Report<IntegrationError>> {
     // Extract other routing fields - use defaults where appropriate
     let merchant_id = merchant_id_from_metadata(metadata).unwrap_or_default();
@@ -92,16 +84,8 @@ fn extract_routing_metadata_only(
     // typed `x-connector-config` header, falling back to the deprecated
     // `x-connector-auth` header. When neither is present, use NoKey so the webhook can
     // still be routed and processed. The connector name header is always required.
-    let (connector, connector_config) = match metadata
-        .get(consts::X_CONNECTOR_CONFIG)
-        .or_else(|| metadata.get(X_CONNECTOR_AUTH_DEPRECATED))
-    {
-        Some(_) => connector_and_config_from_metadata(metadata)?,
-        None => (
-            connector_variant_from_metadata(metadata)?,
-            ConnectorSpecificConfig::NoKey,
-        ),
-    };
+    let (connector, connector_config) =
+        ucs_interface_common::metadata::parse_event_connector_and_config_from_metadata(metadata)?;
 
     // Extract optional fields
     let reference_id = metadata

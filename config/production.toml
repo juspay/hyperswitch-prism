@@ -227,6 +227,12 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
+# ParseEvent and HandleEvent rollout; empty keeps legacy webhook operations.
+# Enable only providers with a registered common implementation.
+# TODO(webhook-migration): remove this section after every supported connector is migrated and verified.
+[webhook_parse]
+migrated_connectors = ""
+
 [connector_response_masking]
 enabled = false
 

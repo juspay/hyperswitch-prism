@@ -141,6 +141,9 @@ pub async fn apply_url_overrides(
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
                     let patch_result = match connector {
+                        connector_types::ConnectorVariant::Webhook(provider) => config
+                            .connectors
+                            .patch_webhook_provider_urls(provider, &urls),
                         connector_types::ConnectorVariant::Payment(c) => {
                             config.connectors.patch_connector_urls(c, &urls)
                         }

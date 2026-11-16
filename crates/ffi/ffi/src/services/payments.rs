@@ -774,12 +774,17 @@ pub fn get_webhook_sample_body(
 /// extracted purely from the raw webhook payload.
 pub fn parse_event_transformer(
     payload: grpc_api_types::payments::EventServiceParseRequest,
-    _config: &std::sync::Arc<ucs_env::configs::Config>,
-    connector: domain_types::connector_types::ConnectorEnum,
+    config: &std::sync::Arc<ucs_env::configs::Config>,
+    connector: domain_types::connector_types::ConnectorVariant,
     _connector_config: Option<domain_types::router_data::ConnectorSpecificConfig>,
-    _metadata: &common_utils::metadata::MaskedMetadata,
+    metadata: &common_utils::metadata::MaskedMetadata,
 ) -> Result<grpc_api_types::payments::EventServiceParseResponse, IntegrationError> {
     use common_utils::errors::ErrorSwitch as _;
+    use connector_integration::webhook_dispatch::get_parse_event_connector_data;
+    use connector_integration::{
+        types::ParseEventConnectorData,
+        webhook_utils::{parse_payment_webhook_event, parse_webhook_event},
+    };
     use domain_types::utils::ForeignTryFrom as _;
 
     let request_details = RequestDetails::foreign_try_from(
@@ -792,16 +797,24 @@ pub fn parse_event_transformer(
         |e: error_stack::Report<domain_types::errors::WebhookError>| e.current_context().switch(),
     )?;
 
-    let connector_data: connector_integration::types::ConnectorData<
-        domain_types::payment_method_data::DefaultPCIHolder,
-    > = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+    let connector_data = get_parse_event_connector_data(
+        &connector,
+        config.webhook_parse.is_migrated(&connector),
+        metadata
+            .get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME)
+            .as_deref(),
+    )
+    .map_err(|e| e.current_context().switch())?;
 
-    connector_integration::webhook_utils::parse_webhook_event(connector_data, request_details)
-        .map_err(
-            |e: error_stack::Report<domain_types::errors::WebhookError>| {
-                e.current_context().switch()
-            },
-        )
+    match connector_data {
+        ParseEventConnectorData::Webhook(connector) => {
+            parse_webhook_event(connector, request_details)
+        }
+        ParseEventConnectorData::Payment(connector) => {
+            parse_payment_webhook_event(connector, request_details)
+        }
+    }
+    .map_err(|e| e.current_context().switch())
 }
 
 /// handle_event — synchronous webhook processing (single-step, no outgoing HTTP).
@@ -814,10 +827,10 @@ pub fn parse_event_transformer(
 /// The gRPC server performs external verification before calling its equivalent path.
 pub fn handle_event_transformer(
     payload: EventServiceHandleRequest,
-    _config: &std::sync::Arc<ucs_env::configs::Config>,
-    connector: domain_types::connector_types::ConnectorEnum,
+    config: &std::sync::Arc<ucs_env::configs::Config>,
+    connector: domain_types::connector_types::ConnectorVariant,
     connector_config: Option<domain_types::router_data::ConnectorSpecificConfig>,
-    _metadata: &common_utils::metadata::MaskedMetadata,
+    metadata: &common_utils::metadata::MaskedMetadata,
 ) -> Result<EventServiceHandleResponse, IntegrationError> {
     use common_utils::errors::ErrorSwitch as _;
     use domain_types::utils::ForeignTryFrom as _;
@@ -852,32 +865,70 @@ pub fn handle_event_transformer(
             },
         )?;
 
-    let connector_data: connector_integration::types::ConnectorData<
-        domain_types::payment_method_data::DefaultPCIHolder,
-    > = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
-
-    // Local synchronous source verification only (no external HTTP call in FFI).
-    let source_verified = connector_data
-        .connector
-        .verify_webhook_source(
-            request_details.clone(),
-            webhook_secrets.clone(),
-            connector_config.clone(),
-        )
-        .unwrap_or(false);
-
-    connector_integration::webhook_utils::process_webhook_event(
-        connector_data,
-        request_details,
-        webhook_secrets,
-        connector_config,
-        source_verified,
-        payload.merchant_event_id,
-        event_context,
+    let common_data = connector_integration::webhook_dispatch::get_webhook_connector_data(
+        &connector,
+        config.webhook_parse.is_migrated(&connector),
+        metadata
+            .get_raw(common_utils::consts::X_WEBHOOK_CONNECTOR_NAME)
+            .as_deref(),
     )
-    .map_err(
-        |e: error_stack::Report<domain_types::errors::WebhookError>| e.current_context().switch(),
-    )
+    .map_err(|e| e.current_context().switch())?;
+    match common_data {
+        // TODO(webhook-migration): delete this legacy branch after all connectors
+        // migrate and their compatibility checks pass.
+        connector_integration::types::ParseEventConnectorData::Payment(connector_data) => {
+            let source_verified = connector_data
+                .connector
+                .verify_webhook_source(
+                    request_details.clone(),
+                    webhook_secrets.clone(),
+                    connector_config.clone(),
+                )
+                .unwrap_or(false);
+            connector_integration::webhook_utils::process_webhook_event(
+                connector_data,
+                request_details,
+                webhook_secrets,
+                connector_config,
+                source_verified,
+                payload.merchant_event_id,
+                event_context,
+            )
+        }
+        connector_integration::types::ParseEventConnectorData::Webhook(provider) => {
+            let webhook = provider.connector.as_ref();
+            let event_type = webhook
+                .get_event_type(request_details.clone())
+                .map_err(|e| e.current_context().switch())?;
+            let resource = connector_integration::types::get_webhook_handler_connector_data(
+                &connector,
+                &event_type,
+            )
+            .map_err(|e| e.current_context().switch())?;
+            // Native FFI retains local verification only and false-on-error behavior.
+            let source_verified = webhook
+                .verify_webhook_source(
+                    request_details.clone(),
+                    webhook_secrets.clone(),
+                    connector_config.clone(),
+                )
+                .unwrap_or(false);
+            connector_integration::webhook_utils::process_provider_webhook_event(
+                webhook,
+                resource,
+                event_type,
+                request_details,
+                connector_integration::webhook_utils::WebhookHandlingContext {
+                    webhook_secrets,
+                    connector_config,
+                    source_verified,
+                    merchant_event_id: payload.merchant_event_id,
+                    event_context,
+                },
+            )
+        }
+    }
+    .map_err(|e| e.current_context().switch())
 }
 
 // incremental authorization request transformer

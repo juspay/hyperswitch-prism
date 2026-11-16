@@ -483,7 +483,7 @@ pub enum ConnectorHttpErrorHandling {
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     response: CustomResult<Result<Response, Response>, ConnectorError>,
     mut updated_router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
-    connector: &BoxedConnectorIntegrationV2<'static, F, ResourceCommonData, Req, Resp>,
+    connector: &BoxedConnectorIntegrationV2<'_, F, ResourceCommonData, Req, Resp>,
     mut event: Option<&mut Event>,
     all_keys_required: Option<bool>,
     method: &str,
@@ -496,7 +496,7 @@ where
     Req: Clone + 'static + std::fmt::Debug,
     Resp: Clone + 'static + std::fmt::Debug,
     ResourceCommonData:
-        Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
+        Clone + 'static + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
 {
     let return_raw_connector_data = event_params.is_none_or(|p| p.return_raw_connector_data);
     let return_typed_connector_data = event_params.is_none_or(|p| p.return_typed_connector_data);
@@ -810,7 +810,7 @@ pub struct EventProcessingParams<'a> {
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_connector_processing_step<T, F, ResourceCommonData, Req, Resp>(
     proxy: &ProxyConfig,
-    connector: BoxedConnectorIntegrationV2<'static, F, ResourceCommonData, Req, Resp>,
+    connector: BoxedConnectorIntegrationV2<'_, F, ResourceCommonData, Req, Resp>,
     router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
     all_keys_required: Option<bool>,
     event_params: EventProcessingParams<'_>,

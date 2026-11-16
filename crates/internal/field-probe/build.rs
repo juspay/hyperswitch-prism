@@ -468,6 +468,7 @@ fn generate_parse_event_probe(f: &mut fs::File) {
     writeln!(f, "        auth: ConnectorSpecificConfig,").unwrap();
     writeln!(f, "        metadata: &MaskedMetadata,").unwrap();
     writeln!(f, "    ) -> FlowResult {{").unwrap();
+    writeln!(f, "        if let Some(result) = crate::webhooks::probe_registered_provider(&connector.to_string()) {{ return result; }}").unwrap();
     writeln!(f, "        let webhook_body = ffi::services::payments::get_webhook_sample_body(connector.clone());").unwrap();
     writeln!(f, "        let mut req = base_parse_event_request();").unwrap();
     writeln!(
@@ -502,7 +503,7 @@ fn generate_parse_event_probe(f: &mut fs::File) {
     writeln!(f, "        }};").unwrap();
     writeln!(
         f,
-        "        match ffi::services::payments::parse_event_transformer(req, config, connector.clone(), Some(auth), metadata) {{"
+        "        match ffi::services::payments::parse_event_transformer(req, config, domain_types::connector_types::ConnectorVariant::Payment(*connector), Some(auth), metadata) {{"
     )
     .unwrap();
     writeln!(
@@ -588,7 +589,7 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     writeln!(f, "        }};").unwrap();
     writeln!(
         f,
-        "        match ffi::services::payments::handle_event_transformer(req, config, connector.clone(), Some(auth), metadata) {{"
+        "        match ffi::services::payments::handle_event_transformer(req, config, domain_types::connector_types::ConnectorVariant::Payment(*connector), Some(auth), metadata) {{"
     )
     .unwrap();
     writeln!(

@@ -65,6 +65,7 @@ pub const GRPC_HTTP2_KEEPALIVE_INTERVAL_SECS: u64 = 30;
 pub const GRPC_HTTP2_KEEPALIVE_TIMEOUT_SECS: u64 = 20;
 /// Header key for connector identification
 pub const X_CONNECTOR_NAME: &str = "x-connector";
+pub const X_WEBHOOK_CONNECTOR_NAME: &str = "x-webhook-connector";
 /// Header key for surcharge connector identification
 pub const X_SURCHARGE_CONNECTOR_NAME: &str = "x-surcharge-connector";
 /// Header key for payout connector identification
