@@ -707,7 +707,6 @@ pub struct CheckoutPayoutResponse {
     processed_on: Option<String>,
     amount: Option<MinorUnit>,
     currency: Option<Currency>,
-    approved: Option<bool>,
 }
 /// Checkout.com returns transfer statuses in PascalCase on the wire (e.g. `"Pending"`,
 /// `"Paid"`); the lowercase forms are kept as deserialize aliases for safety. The set
