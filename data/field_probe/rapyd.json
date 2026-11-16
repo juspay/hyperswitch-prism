@@ -77,7 +77,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"}}"
         }
       },
       "ApplePayDecrypted": {
@@ -131,7 +131,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":{\"decrypted_data\":{\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"applicationExpirationDate\":\"300331\",\"currencyCode\":\"978\",\"transactionAmount\":1000,\"paymentDataType\":\"3DSecure\",\"paymentData\":{\"onlinePaymentCryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}},\"brand_data\":{\"displayName\":\"Visa 1111\",\"network\":\"Visa\",\"type\":\"debit\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":{\"decrypted_data\":{\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"applicationExpirationDate\":\"300331\",\"currencyCode\":\"978\",\"transactionAmount\":1000,\"paymentDataType\":\"3DSecure\",\"paymentData\":{\"onlinePaymentCryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}},\"brand_data\":{\"displayName\":\"Visa 1111\",\"network\":\"Visa\",\"type\":\"debit\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"}}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -223,7 +223,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"}}"
         }
       },
       "CashappQr": {
@@ -342,7 +342,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"}}"
         }
       },
       "GooglePayDecrypted": {
@@ -392,7 +392,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":{\"decrypted_data\":{\"gatewayMerchantId\":\"probe_key\",\"paymentMethod\":\"CARD\",\"paymentMethodDetails\":{\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"pan\":\"4111111111111111\",\"authMethod\":\"CRYPTOGRAM_3DS\",\"eciIndicator\":\"05\",\"cryptogram\":\"AAAAAA==\"}},\"brand_data\":{\"cardDetails\":\"1111\",\"cardNetwork\":\"Visa\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":{\"decrypted_data\":{\"gatewayMerchantId\":\"probe_key\",\"paymentMethod\":\"CARD\",\"paymentMethodDetails\":{\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"pan\":\"4111111111111111\",\"authMethod\":\"CRYPTOGRAM_3DS\",\"eciIndicator\":\"05\",\"cryptogram\":\"AAAAAA==\"}},\"brand_data\":{\"cardDetails\":\"1111\",\"cardNetwork\":\"Visa\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"}}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -926,7 +926,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"}}"
         }
       }
     },
@@ -975,7 +975,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
+          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"},\"receipt_email\":\"test@example.com\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
         }
       }
     },
@@ -1135,7 +1135,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/mandate-return\",\"error_payment_url\":\"https://example.com/mandate-return\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
+          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/mandate-return\",\"error_payment_url\":\"https://example.com/mandate-return\",\"address\":{\"country\":\"IS\"},\"receipt_email\":\"test@example.com\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
         }
       }
     },
@@ -1166,7 +1166,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{}}"
         }
       }
     },
