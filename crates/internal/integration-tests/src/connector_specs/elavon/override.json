@@ -187,5 +187,113 @@
         }
       }
     }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4124939999999990"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4124939999999990"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4124939999999990"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/IncrementalAuthorization": {
+    "incremental_auth_basic": {
+      "grpc_req": {
+        "additional_amount": {
+          "minor_amount": 2000,
+          "currency": "USD"
+        }
+      }
+    },
+    "incremental_auth_with_tip": {
+      "grpc_req": {
+        "additional_amount": {
+          "minor_amount": 1200,
+          "currency": "USD"
+        }
+      }
+    },
+    "incremental_auth_multiple_increase": {
+      "grpc_req": {
+        "additional_amount": {
+          "minor_amount": 3000,
+          "currency": "USD"
+        }
+      }
+    },
+    "incremental_auth_fail_invalid_transaction_id": {
+      "grpc_req": {
+        "additional_amount": {
+          "minor_amount": 2000,
+          "currency": "USD"
+        }
+      }
+    }
   }
 }
