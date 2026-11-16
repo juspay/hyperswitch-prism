@@ -39,6 +39,7 @@ tonic = { workspace = true }
 base64 = "0.21.2"
 md5 = "0.7.0"
 ring = { version = "0.17.14", features = ["std", "wasm32_unknown_unknown_js"] }
+constant_time_eq = "0.4.2"
 blake3 = { version = "1.8.2", features = ["serde"] }
 hex = "0.4.3"
 rand = "0.8.6"

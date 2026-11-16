@@ -619,7 +619,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Incoming Webhook
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Stax<T>
+    interfaces::webhooks::IncomingWebhook for Stax<T>
 {
 }
 

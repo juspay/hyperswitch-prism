@@ -4425,12 +4425,9 @@ dependencies = [
 name = "interfaces"
 version = "0.1.0"
 dependencies = [
- "actix-web",
- "async-trait",
  "bytes",
  "domain_types",
  "error-stack 0.4.1",
- "http 1.4.0",
  "hyperswitch_masking",
  "mime",
  "reqwest 0.12.28",
@@ -8545,6 +8542,7 @@ dependencies = [
  "bytes",
  "chrono",
  "config_patch_derive",
+ "constant_time_eq",
  "deja",
  "error-stack 0.4.1",
  "futures",
