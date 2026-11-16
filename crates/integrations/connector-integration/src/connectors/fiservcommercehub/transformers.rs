@@ -555,6 +555,22 @@ fn build_decrypted_wallet_source(
     }
 }
 
+fn get_decrypted_wallet_eci_indicator(wallet_data: &WalletData) -> Option<String> {
+    match wallet_data {
+        WalletData::ApplePay(apple_pay_data) => match &apple_pay_data.payment_data {
+            ApplePayPaymentData::Decrypted(decrypted_apple_pay) => {
+                decrypted_apple_pay.payment_data.eci_indicator.clone()
+            }
+            ApplePayPaymentData::Encrypted(_) => None,
+        },
+        WalletData::GooglePay(gpay_data) => match &gpay_data.tokenization_data {
+            GpayTokenizationData::Decrypted(decrypted_gpay) => decrypted_gpay.eci_indicator.clone(),
+            GpayTokenizationData::Encrypted(_) => None,
+        },
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct FiservcommercehubAuthType {
     pub api_key: Secret<String>,
@@ -1220,17 +1236,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(wallet_data) => {
                 let source = build_decrypted_wallet_source(wallet_data, key_id, &public_key_der)?;
 
-                let wallet_eci = match wallet_data {
-                    WalletData::ApplePay(apple_pay_data) => match &apple_pay_data.payment_data {
-                        ApplePayPaymentData::Decrypted(d) => d.payment_data.eci_indicator.clone(),
-                        _ => None,
-                    },
-                    WalletData::GooglePay(gpay_data) => match &gpay_data.tokenization_data {
-                        GpayTokenizationData::Decrypted(d) => d.eci_indicator.clone(),
-                        _ => None,
-                    },
-                    _ => None,
-                };
+                let wallet_eci = get_decrypted_wallet_eci_indicator(wallet_data);
 
                 let stored_credentials =
                     if router_data.request.is_customer_initiated_mandate_payment() {
@@ -2895,7 +2901,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservcommercehubRepe
 }
 
 // =============================================================================
-// SETUP MANDATE FLOW (Tokenize Card)
+// SETUP MANDATE FLOW (Tokenize Payment Source)
 // =============================================================================
 
 #[derive(Debug, Serialize)]
@@ -2976,26 +2982,58 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let key_id = parts
             .first()
+            .filter(|key_id| !key_id.is_empty())
             .ok_or_else(|| {
                 error_stack::report!(errors::IntegrationError::MissingRequiredField {
                     field_name: "key_id",
-                    context: Default::default()
+                    context: errors::IntegrationErrorContext {
+                        doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                        suggested_action: Some(
+                            "Refresh the Fiserv access token and ensure its response contains the MUPK key id"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "The access token did not include a key id required to encrypt the payment source"
+                                .to_string(),
+                        ),
+                    },
                 })
             })?
             .to_string();
 
-        let encoded_public_key = parts.get(1).ok_or_else(|| {
+        let encoded_public_key = parts.get(1).filter(|key| !key.is_empty()).ok_or_else(|| {
             error_stack::report!(errors::IntegrationError::MissingRequiredField {
                 field_name: "encoded_public_key",
-                context: Default::default()
+                context: errors::IntegrationErrorContext {
+                    doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                    suggested_action: Some(
+                        "Refresh the Fiserv access token and ensure its response contains the MUPK public key"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "The access token did not include the public key required to encrypt the payment source"
+                            .to_string(),
+                    ),
+                },
             })
         })?;
 
         let public_key_der = general_purpose::STANDARD
             .decode(encoded_public_key)
             .map_err(|_| {
-                error_stack::report!(errors::IntegrationError::RequestEncodingFailed {
-                    context: Default::default()
+                error_stack::report!(errors::IntegrationError::InvalidDataFormat {
+                    field_name: "access_token.encoded_public_key",
+                    context: errors::IntegrationErrorContext {
+                        doc_url: Some(FISERV_DECRYPTED_WALLET_DOC_URL.to_string()),
+                        suggested_action: Some(
+                            "Refresh the Fiserv access token and verify its MUPK public key is base64 encoded"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "The MUPK public key from the access token could not be base64 decoded"
+                                .to_string(),
+                        ),
+                    },
                 })
             })
             .attach_printable("Failed to decode Base64 RSA public key")?;
@@ -3020,52 +3058,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             }
             PaymentMethodData::Wallet(wallet_data) => {
-                let google_pay_data = match wallet_data {
-                    WalletData::GooglePay(gpay_data) => gpay_data,
-                    _ => {
-                        return Err(error_stack::report!(
-                        errors::IntegrationError::NotImplemented(
-                            "Fiserv CommerceHub SetupMandate supports only Card or GooglePay"
-                                .to_string(),
-                            errors::IntegrationErrorContext {
-                                doc_url: Some(FISERV_TOKEN_API_VERSION_URL.to_string()),
-                                additional_context: Some(
-                                    "Received an unsupported wallet type for the SetupMandate flow"
-                                        .to_string(),
-                                ),
-                                ..Default::default()
-                            },
-                        )
-                    ))
-                    }
-                };
+                let wallet_eci = get_decrypted_wallet_eci_indicator(wallet_data);
 
-                let wallet_eci = match &google_pay_data.tokenization_data {
-                    GpayTokenizationData::Decrypted(decrypted_gpay) => {
-                        decrypted_gpay.eci_indicator.clone()
-                    }
-                    GpayTokenizationData::Encrypted(_) => None,
-                };
-
-                (
-                    build_decrypted_wallet_source(wallet_data, key_id, &public_key_der)?,
-                    wallet_eci,
-                )
+                let source = build_decrypted_wallet_source(wallet_data, key_id, &public_key_der)?;
+                (source, wallet_eci)
             }
             _ => {
                 return Err(error_stack::report!(
-                errors::IntegrationError::NotImplemented(
-                    "Fiserv CommerceHub SetupMandate supports only Card or GooglePay".to_string(),
-                    errors::IntegrationErrorContext {
-                        doc_url: Some(FISERV_TOKEN_API_VERSION_URL.to_string()),
-                        additional_context: Some(
-                            "Received an unsupported payment method type for the SetupMandate flow"
-                                .to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                )
-            ))
+                    errors::IntegrationError::NotImplemented(
+                        "Fiserv Commerce Hub SetupMandate supports only Card, decrypted Apple Pay, or \
+                         decrypted Google Pay"
+                            .to_string(),
+                        errors::IntegrationErrorContext {
+                            doc_url: Some(FISERV_TOKEN_API_VERSION_URL.to_string()),
+                            suggested_action: Some(
+                                "Provide card data or a supported decrypted Apple Pay or Google Pay wallet"
+                                    .to_string(),
+                            ),
+                            additional_context: Some(
+                                "Received an unsupported payment method type for the SetupMandate flow"
+                                    .to_string(),
+                            ),
+                        },
+                    )
+                ));
             }
         };
 
