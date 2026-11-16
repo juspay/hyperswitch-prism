@@ -1097,7 +1097,10 @@ where
                                 )
                             })
                             .chain(default_xml_content_type.then(|| {
-                                ("Content-Type".to_owned(), Secret::new("text/xml".to_owned()))
+                                (
+                                    "Content-Type".to_owned(),
+                                    Secret::new("text/xml".to_owned()),
+                                )
                             }))
                             .collect();
 
