@@ -18,8 +18,9 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, MandateReference,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPostAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData,
         PaypalClientAuthenticationResponse as PaypalClientAuthenticationResponseDomain,
         PaypalFlow as PaypalFlowDomain, PaypalTransactionInfo as PaypalTransactionInfoDomain,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
@@ -524,6 +525,152 @@ pub struct CardRequestStruct<
     number: Option<RawCardNumber<T>>,
     security_code: Option<Secret<String>>,
     attributes: Option<CardRequestAttributes>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    network_token: Option<PaypalNetworkTokenRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stored_credential: Option<PaypalCardStoredCredential>,
+}
+
+/// Orders v2 `card_stored_credential`. PayPal rejects ONE_TIME / FIRST with a MERCHANT
+/// initiator, and `previous_network_transaction_reference` with a CUSTOMER initiator.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalCardStoredCredential {
+    payment_initiator: PaypalPaymentInitiator,
+    payment_type: PaypalStoredPaymentType,
+    usage: PaypalStoredCredentialUsage,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    previous_network_transaction_reference: Option<PaypalPreviousNetworkTransactionReference>,
+}
+
+impl PaypalCardStoredCredential {
+    /// Customer-present charge on a card that was saved earlier.
+    fn customer_initiated_repeat() -> Self {
+        Self {
+            payment_initiator: PaypalPaymentInitiator::Customer,
+            payment_type: PaypalStoredPaymentType::OneTime,
+            usage: PaypalStoredCredentialUsage::Subsequent,
+            previous_network_transaction_reference: None,
+        }
+    }
+
+    fn merchant_initiated(
+        mit_category: Option<common_enums::MitCategory>,
+        previous_network_transaction_reference: Option<PaypalPreviousNetworkTransactionReference>,
+    ) -> Self {
+        let payment_type = match mit_category {
+            Some(
+                common_enums::MitCategory::Recurring
+                | common_enums::MitCategory::Subscription
+                | common_enums::MitCategory::Installment,
+            ) => PaypalStoredPaymentType::Recurring,
+            Some(
+                common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
+            )
+            | None => PaypalStoredPaymentType::Unscheduled,
+        };
+        Self {
+            payment_initiator: PaypalPaymentInitiator::Merchant,
+            payment_type,
+            usage: PaypalStoredCredentialUsage::Subsequent,
+            previous_network_transaction_reference,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalPaymentInitiator {
+    Customer,
+    Merchant,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalStoredPaymentType {
+    OneTime,
+    Recurring,
+    Unscheduled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalStoredCredentialUsage {
+    Subsequent,
+}
+
+/// PayPal requires `date` here for Mastercard (and documents it for Discover). No field
+/// carries the original transaction date to prism yet, so those MITs surface PayPal's
+/// MISSING_REQUIRED_PARAMETER error.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalPreviousNetworkTransactionReference {
+    id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    network: Option<PaypalCardBrand>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalCardBrand {
+    Visa,
+    Mastercard,
+    Discover,
+    Amex,
+    Jcb,
+    Diners,
+    Maestro,
+    ChinaUnionPay,
+    Rupay,
+    CarteBancaire,
+}
+
+impl PaypalCardBrand {
+    /// Prefer the network Hyperswitch sent; fall back to the BIN-derived issuer.
+    fn resolve(
+        network: Option<&common_enums::CardNetwork>,
+        issuer: Option<utils::CardIssuer>,
+    ) -> Option<Self> {
+        match network {
+            Some(common_enums::CardNetwork::Visa) => Some(Self::Visa),
+            Some(common_enums::CardNetwork::Mastercard) => Some(Self::Mastercard),
+            Some(common_enums::CardNetwork::Discover) => Some(Self::Discover),
+            Some(common_enums::CardNetwork::AmericanExpress) => Some(Self::Amex),
+            Some(common_enums::CardNetwork::JCB) => Some(Self::Jcb),
+            Some(common_enums::CardNetwork::DinersClub) => Some(Self::Diners),
+            Some(common_enums::CardNetwork::Maestro) => Some(Self::Maestro),
+            Some(common_enums::CardNetwork::UnionPay) => Some(Self::ChinaUnionPay),
+            Some(common_enums::CardNetwork::RuPay) => Some(Self::Rupay),
+            Some(common_enums::CardNetwork::CartesBancaires) => Some(Self::CarteBancaire),
+            Some(_) => None,
+            None => match issuer? {
+                utils::CardIssuer::Visa => Some(Self::Visa),
+                utils::CardIssuer::Master => Some(Self::Mastercard),
+                utils::CardIssuer::Discover => Some(Self::Discover),
+                utils::CardIssuer::AmericanExpress => Some(Self::Amex),
+                utils::CardIssuer::JCB => Some(Self::Jcb),
+                utils::CardIssuer::DinersClub | utils::CardIssuer::CarteBlanche => {
+                    Some(Self::Diners)
+                }
+                utils::CardIssuer::Maestro => Some(Self::Maestro),
+                utils::CardIssuer::UnionPay => Some(Self::ChinaUnionPay),
+                utils::CardIssuer::CartesBancaires => Some(Self::CarteBancaire),
+            },
+        }
+    }
+}
+
+/// Orders v2 `network_token_request`. The cryptogram is optional for recurring charges.
+#[derive(Debug, Serialize)]
+pub struct PaypalNetworkTokenRequest {
+    number: cards::NetworkToken,
+    expiry: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cryptogram: Option<Secret<String>>,
+}
+
+/// Orders v2 `paypal_wallet_stored_credential`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalWalletStoredCredential {
+    payment_initiator: PaypalPaymentInitiator,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -531,6 +678,8 @@ pub struct CardVaultStruct {
     vault_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     attributes: Option<VaultRequestAttributes>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stored_credential: Option<PaypalCardStoredCredential>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -550,6 +699,8 @@ pub struct PaypalVaultStruct {
     // re-approval. Only valid on `payment_source.paypal`.
     #[serde(skip_serializing_if = "Option::is_none")]
     experience_context: Option<ContextStruct>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stored_credential: Option<PaypalWalletStoredCredential>,
 }
 
 #[derive(Debug, Serialize)]
@@ -557,7 +708,7 @@ pub struct PaypalVaultStruct {
 pub enum CardRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    CardRequestStruct(CardRequestStruct<T>),
+    CardRequestStruct(Box<CardRequestStruct<T>>),
     CardVaultStruct(CardVaultStruct),
 }
 #[derive(Debug, Serialize)]
@@ -1383,7 +1534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest::CardRequestStruct(
-                    CardRequestStruct {
+                    Box::new(CardRequestStruct {
                         billing_address: get_address_info(
                             item.router_data
                                 .resource_common_data
@@ -1420,7 +1571,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     merchant_customer_id: Some(customer_id),
                                 }),
                         }),
-                    },
+                        network_token: None,
+                        // A saved card charged with the customer present (Hyperswitch sends
+                        // the vaulted card through Authorize); a card being saved now is not
+                        // a repeat.
+                        stored_credential: (item.router_data.request.is_stored_credential
+                            == Some(true)
+                            && item.router_data.request.setup_future_usage
+                                != Some(common_enums::FutureUsage::OffSession))
+                        .then(PaypalCardStoredCredential::customer_initiated_repeat),
+                    }),
                 )));
 
                 Ok(Self {
@@ -1909,7 +2069,7 @@ pub enum PaypalIncrementalStatus {
     PENDING,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaypalNetworkTransactionReference {
     id: String,
 }
@@ -2094,6 +2254,7 @@ pub struct PaymentsCollectionItem {
     final_capture: Option<bool>,
     status: PaypalPaymentStatus,
     processor_response: Option<ProcessorResponse>,
+    network_transaction_reference: Option<PaypalNetworkTransactionReference>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2430,6 +2591,10 @@ where
         // `DECLINED` capture maps to `AttemptStatus::Failure` and is handled by the branch below.
         let status = payment_collection_item.status.clone();
         let status = common_enums::AttemptStatus::from(status);
+        let network_txn_id = payment_collection_item
+            .network_transaction_reference
+            .as_ref()
+            .map(|reference| reference.id.clone());
 
         match utils::is_payment_failure(status) {
             true => {
@@ -2520,7 +2685,7 @@ where
                     })),
                     status_code: item.http_code,
                     connector_metadata: Some(connector_meta),
-                    network_txn_id: None,
+                    network_txn_id,
                     network_txn_link_id: None,
                     connector_response_reference_id: purchase_units
                         .invoice_id
@@ -2930,7 +3095,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         Ok(Self {
             amount,
-            final_capture: true,
+            // Non-final when Hyperswitch is doing multiple partial captures, so PayPal keeps
+            // the remaining authorization open for the next one.
+            final_capture: item.router_data.request.multiple_capture_data.is_none(),
         })
     }
 }
@@ -3581,25 +3748,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        // Extract connector mandate ID (vault_id) from mandate_reference
-        let connector_mandate_id = match &item.router_data.request.mandate_reference {
-            domain_types::connector_types::MandateReferenceId::ConnectorMandateId(data) => data
-                .get_connector_mandate_id()
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "connector_mandate_id",
-                    context: Default::default(),
-                })?,
-            domain_types::connector_types::MandateReferenceId::NetworkMandateId(_)
-            | domain_types::connector_types::MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Network mandate ID not supported for PayPal repeat payments"
-                        .to_string(),
-                    connector: "paypal",
-                    context: Default::default()
-                }));
-            }
-        };
-
         // Determine intent based on capture_method
         let intent = if item.router_data.request.is_auto_capture() {
             PaypalPaymentIntent::Capture
@@ -3630,64 +3778,187 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             items: item_details,
         }];
 
-        let payment_method_type = item.router_data.request.payment_method_type.ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "payment_method_type",
-                context: Default::default(),
-            },
-        )?;
-
-        let payment_source = match payment_method_type {
-            common_enums::PaymentMethodType::Card => Some(PaymentSourceItem::Card(
-                CardRequest::CardVaultStruct(CardVaultStruct {
-                    vault_id: Secret::new(connector_mandate_id),
-                    attributes: item
-                        .router_data
-                        .resource_common_data
-                        .customer_id
-                        .clone()
-                        .map(|customer_id| VaultRequestAttributes {
-                            customer: Some(CustomerRequestData {
-                                merchant_customer_id: Some(customer_id),
+        let request = &item.router_data.request;
+        let payment_source = match &request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(data) => {
+                let vault_id = Secret::new(data.get_connector_mandate_id().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: Default::default(),
+                    },
+                )?);
+                // Hyperswitch marks a customer-present charge on a saved method with
+                // off_session = false; everything else is merchant-initiated.
+                let is_customer_initiated = request.off_session == Some(false);
+                let payment_method_type =
+                    request
+                        .payment_method_type
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_type",
+                            context: Default::default(),
+                        })?;
+                match payment_method_type {
+                    common_enums::PaymentMethodType::Card => {
+                        PaymentSourceItem::Card(CardRequest::CardVaultStruct(CardVaultStruct {
+                            vault_id,
+                            attributes: item
+                                .router_data
+                                .resource_common_data
+                                .customer_id
+                                .clone()
+                                .map(|customer_id| VaultRequestAttributes {
+                                    customer: Some(CustomerRequestData {
+                                        merchant_customer_id: Some(customer_id),
+                                    }),
+                                }),
+                            stored_credential: Some(if is_customer_initiated {
+                                PaypalCardStoredCredential::customer_initiated_repeat()
+                            } else {
+                                PaypalCardStoredCredential::merchant_initiated(
+                                    request.mit_category.clone(),
+                                    None,
+                                )
                             }),
+                        }))
+                    }
+                    common_enums::PaymentMethodType::Paypal => PaymentSourceItem::Paypal(
+                        PaypalRedirectionRequest::PaypalVaultStruct(PaypalVaultStruct {
+                            vault_id,
+                            // If PayPal requires buyer re-approval for this wallet MIT, return the
+                            // buyer to Hyperswitch's complete-authorize endpoint so the order can be
+                            // captured on return. Falls back to router_return_url when unset.
+                            experience_context: request
+                                .complete_authorize_url
+                                .clone()
+                                .or_else(|| request.router_return_url.clone())
+                                .map(|url| ContextStruct {
+                                    return_url: Some(url.clone()),
+                                    cancel_url: Some(url),
+                                    user_action: Some(UserAction::PayNow),
+                                    shipping_preference: ShippingPreference::GetFromFile,
+                                }),
+                            // Only the customer-present case is marked; a wallet MIT keeps
+                            // PayPal's default, which existing recurring flows rely on.
+                            stored_credential: is_customer_initiated.then_some(
+                                PaypalWalletStoredCredential {
+                                    payment_initiator: PaypalPaymentInitiator::Customer,
+                                },
+                            ),
                         }),
-                }),
-            )),
-            common_enums::PaymentMethodType::Paypal => Some(PaymentSourceItem::Paypal(
-                PaypalRedirectionRequest::PaypalVaultStruct(PaypalVaultStruct {
-                    vault_id: Secret::new(connector_mandate_id),
-                    // If PayPal requires buyer re-approval for this wallet MIT, return the
-                    // buyer to Hyperswitch's complete-authorize endpoint so the order can be
-                    // captured on return. Falls back to router_return_url when unset.
-                    experience_context: item
-                        .router_data
-                        .request
-                        .complete_authorize_url
-                        .clone()
-                        .or_else(|| item.router_data.request.router_return_url.clone())
-                        .map(|url| ContextStruct {
-                            return_url: Some(url.clone()),
-                            cancel_url: Some(url),
-                            user_action: Some(UserAction::PayNow),
-                            shipping_preference: ShippingPreference::GetFromFile,
-                        }),
-                }),
-            )),
-            _ => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: format!(
-                        "Payment method type {payment_method_type:?} not supported for PayPal repeat payments"
                     ),
-                    connector: "paypal",
-                context: Default::default()
-                }));
+                    _ => {
+                        return Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: format!(
+                                "Payment method type {payment_method_type:?} not supported for PayPal repeat payments"
+                            ),
+                            connector: "paypal",
+                            context: Default::default()
+                        }));
+                    }
+                }
             }
+            MandateReferenceId::NetworkMandateId(nti) => match &request.payment_method_data {
+                PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+                    let previous_reference = PaypalPreviousNetworkTransactionReference {
+                        id: nti.network_transaction_id.clone(),
+                        network: PaypalCardBrand::resolve(
+                            card.card_network.as_ref(),
+                            card.get_card_issuer().ok(),
+                        ),
+                    };
+                    PaymentSourceItem::Card(CardRequest::CardRequestStruct(Box::new(
+                        CardRequestStruct {
+                            billing_address: get_address_info(
+                                item.router_data
+                                    .resource_common_data
+                                    .get_optional_payment_billing(),
+                            ),
+                            expiry: Some(card.get_expiry_date_as_yyyymm("-")),
+                            name: card.card_holder_name.clone().or_else(|| {
+                                item.router_data
+                                    .resource_common_data
+                                    .get_optional_payment_billing_full_name()
+                            }),
+                            number: Some(card.card_number.clone()),
+                            security_code: None,
+                            attributes: None,
+                            network_token: None,
+                            stored_credential: Some(
+                                PaypalCardStoredCredential::merchant_initiated(
+                                    request.mit_category.clone(),
+                                    Some(previous_reference),
+                                ),
+                            ),
+                        },
+                    )))
+                }
+                _ => {
+                    return Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name:
+                                "payment_method_data.card_details_for_network_transaction_id",
+                            context: Default::default(),
+                        }
+                    ));
+                }
+            },
+            MandateReferenceId::NetworkTokenWithNTI(nti) => match &request.payment_method_data {
+                PaymentMethodData::NetworkToken(token) => {
+                    let previous_reference = PaypalPreviousNetworkTransactionReference {
+                        id: nti.network_transaction_id.clone(),
+                        network: PaypalCardBrand::resolve(
+                            token.card_network.as_ref(),
+                            token.get_card_issuer().ok(),
+                        ),
+                    };
+                    PaymentSourceItem::Card(CardRequest::CardRequestStruct(Box::new(
+                        CardRequestStruct {
+                            billing_address: get_address_info(
+                                item.router_data
+                                    .resource_common_data
+                                    .get_optional_payment_billing(),
+                            ),
+                            expiry: None,
+                            name: item
+                                .router_data
+                                .resource_common_data
+                                .get_optional_payment_billing_full_name(),
+                            number: None,
+                            security_code: None,
+                            attributes: None,
+                            network_token: Some(PaypalNetworkTokenRequest {
+                                number: token.get_network_token(),
+                                expiry: Secret::new(format!(
+                                    "{}-{}",
+                                    token.get_expiry_year_4_digit().expose(),
+                                    token.get_network_token_expiry_month().expose()
+                                )),
+                                cryptogram: token.get_cryptogram(),
+                            }),
+                            stored_credential: Some(
+                                PaypalCardStoredCredential::merchant_initiated(
+                                    request.mit_category.clone(),
+                                    Some(previous_reference),
+                                ),
+                            ),
+                        },
+                    )))
+                }
+                _ => {
+                    return Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "payment_method_data.network_token",
+                            context: Default::default(),
+                        }
+                    ));
+                }
+            },
         };
 
         Ok(Self {
             intent,
             purchase_units,
-            payment_source,
+            payment_source: Some(payment_source),
         })
     }
 }
