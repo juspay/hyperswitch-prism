@@ -163,6 +163,13 @@
       "grpc_req": {
         "setup_future_usage": "OFF_SESSION"
       }
+    },
+    "paypal_no3ds_auto_capture_saved_card_customer_initiated": {
+      "extends": "no3ds_auto_capture_credit_card",
+      "grpc_req": {
+        "is_stored_credential": true,
+        "shipping_cost": null
+      }
     }
   },
   "PaymentService/CompleteAuthorize": {
@@ -174,6 +181,13 @@
   },
   "RecurringPaymentService/Charge": {
     "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "payment_method_type": "CREDIT",
+        "connector_customer_id": null,
+        "customer": null
+      }
+    },
+    "recurring_charge": {
       "grpc_req": {
         "payment_method_type": "CREDIT",
         "connector_customer_id": null,
@@ -192,6 +206,71 @@
         "payment_method_type": "CREDIT",
         "connector_customer_id": null,
         "customer": null
+      }
+    },
+    "paypal_recurring_charge_network_transaction_id": {
+      "extends": "recurring_charge",
+      "grpc_req": {
+        "payment_method_type": "CREDIT",
+        "connector_customer_id": null,
+        "customer": null,
+        "connector_recurring_payment_id": {
+          "connector_mandate_id": null,
+          "network_mandate_id": {
+            "network_transaction_id": "279246242181739"
+          }
+        },
+        "payment_method": {
+          "card_details_for_network_transaction_id": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_network": "VISA",
+            "card_holder_name": {
+              "value": "john smith"
+            }
+          }
+        }
+      }
+    },
+    "paypal_recurring_charge_network_token_with_nti": {
+      "extends": "recurring_charge",
+      "grpc_req": {
+        "payment_method_type": "CREDIT",
+        "connector_customer_id": null,
+        "customer": null,
+        "connector_recurring_payment_id": {
+          "connector_mandate_id": null,
+          "network_token_with_nti": {
+            "network_transaction_id": "279246242181739",
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            }
+          }
+        },
+        "payment_method": {
+          "network_token": {
+            "token_number": {
+              "value": "4111111111111111"
+            },
+            "token_exp_month": {
+              "value": "12"
+            },
+            "token_exp_year": {
+              "value": "2030"
+            },
+            "card_network": "VISA"
+          }
+        }
       }
     }
   },
@@ -223,6 +302,27 @@
     "invalid_signature": {
       "assert": {
         "event_status": null
+      }
+    }
+  },
+  "PaymentService/Capture": {
+    "paypal_capture_partial_non_final": {
+      "extends": "capture_partial_amount",
+      "grpc_req": {
+        "multiple_capture_data": {
+          "capture_sequence": 1,
+          "capture_reference": "paypal_partial_1"
+        }
+      }
+    },
+    "paypal_capture_overcapture": {
+      "extends": "capture_full_amount",
+      "grpc_req": {
+        "amount_to_capture": {
+          "minor_amount": 6600,
+          "currency": "USD"
+        },
+        "is_overcapture_enabled": true
       }
     }
   }
