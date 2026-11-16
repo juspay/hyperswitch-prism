@@ -112,6 +112,8 @@ message EventContext {
 message PaymentEventContext {
   // From original PaymentServiceAuthorizeRequest.capture_method.
   optional CaptureMethod capture_method = 1;
+  // Payment attempt status before processing this notification.
+  optional PaymentStatus previous_status = 2;
 }
 
 // Context from the original RefundServiceRefundRequest.
