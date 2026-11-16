@@ -878,7 +878,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Elavon SetupMandate"
+        "error": "This feature is not implemented: Only card payments are supported for Elavon SetupMandate. Elavon SetupMandate (ccgettoken) verifies and saves a raw card; other payment methods cannot be saved this way"
       }
     },
     "verify_redirect": {
