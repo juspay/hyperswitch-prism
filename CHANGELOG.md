@@ -19,6 +19,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.16.0
+
+### Features
+
+- **connector:** [Checkout] support account-specific payment hosts ([#2721](https://github.com/juspay/connector-service/pull/2721)) ([`f9f77ee`](https://github.com/juspay/connector-service/commit/f9f77ee6a042f7083135d557b08fa52dddb33ce4))
+
+**Full Changelog:** [`2026.11.15.0...2026.11.16.0`](https://github.com/juspay/connector-service/compare/2026.11.15.0...2026.11.16.0)
+
+- - -
+
+## 2026.11.15.0
+
+### Features
+
+- **connector:** Add support for decoding legacy JSON order info meta… ([#2748](https://github.com/juspay/connector-service/pull/2748)) ([`3463cf9`](https://github.com/juspay/connector-service/commit/3463cf9a46552bd58c80b2f5c203911a044046b0))
+
+**Full Changelog:** [`2026.11.13.1...2026.11.15.0`](https://github.com/juspay/connector-service/compare/2026.11.13.1...2026.11.15.0)
+
+- - -
+
+## 2026.11.13.1
+
+### Features
+
+- **connector:** Add Worldpay XML incoming webhooks ([#2719](https://github.com/juspay/connector-service/pull/2719)) ([`c8d4e55`](https://github.com/juspay/connector-service/commit/c8d4e5561baa18424361407de3842acc998d7add))
+
+### Refactors
+
+- **connector:** Enhancement on PreRiskCheckRequest and clearsale ([#2734](https://github.com/juspay/connector-service/pull/2734)) ([`ca024c8`](https://github.com/juspay/connector-service/commit/ca024c8c1621da0091fb1c0d4a84cf76b8995d22))
+
+**Full Changelog:** [`2026.11.13.0...2026.11.13.1`](https://github.com/juspay/connector-service/compare/2026.11.13.0...2026.11.13.1)
+
+- - -
+
 ## 2026.11.13.0
 
 ### Features

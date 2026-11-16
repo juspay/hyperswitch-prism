@@ -11,6 +11,7 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.EventClient
 import payments.PaymentMethodAuthenticationClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
@@ -20,6 +21,7 @@ import payments.CaptureMethod
 import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
+import payments.HttpMethod
 import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -28,7 +30,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.WorldpayxmlConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -252,6 +254,37 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+        merchantEventId = "probe_event_001"
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
+}
+
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
 fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentMethodAuthenticationClient(config)
@@ -452,6 +485,8 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
+        "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
@@ -461,6 +496,6 @@ fun main(args: Array<String>) {
         "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, reverse, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, reverse, setupRecurring, void")
     }
 }
