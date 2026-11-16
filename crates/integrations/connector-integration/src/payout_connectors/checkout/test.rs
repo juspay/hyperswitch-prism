@@ -6,13 +6,13 @@ mod tests {
     pub mod base_url {
         use hyperswitch_masking::Secret;
 
-        use crate::payout_connectors::checkout::get_checkout_payout_base_url;
+        use crate::connectors::checkout::get_checkout_base_url;
 
         const SANDBOX_TEMPLATE: &str = "https://{{optional_client_id}}api.sandbox.checkout.com";
 
         #[test]
         fn client_id_contributes_account_prefix_subdomain() {
-            let url = get_checkout_payout_base_url(
+            let url = get_checkout_base_url(
                 SANDBOX_TEMPLATE,
                 Some(&Secret::new(
                     "cli_x46dhqyzrrrhjrbnl5hyexcluderequest".to_string(),
@@ -24,47 +24,46 @@ mod tests {
 
         #[test]
         fn absent_client_id_drops_optional_subdomain() {
-            let url = get_checkout_payout_base_url(SANDBOX_TEMPLATE, None).unwrap();
+            let url = get_checkout_base_url(SANDBOX_TEMPLATE, None).unwrap();
             assert_eq!(url, "https://api.sandbox.checkout.com");
         }
 
         #[test]
         fn override_without_placeholder_is_used_literally() {
             // Same leniency as payment URL resolution: a plain override must not fail.
-            let url = get_checkout_payout_base_url("http://localhost:8080", None).unwrap();
+            let url = get_checkout_base_url("http://localhost:8080", None).unwrap();
             assert_eq!(url, "http://localhost:8080");
         }
 
         #[test]
         fn override_without_placeholder_trailing_slash_is_trimmed() {
-            let url = get_checkout_payout_base_url("https://payouts.example.com/", None).unwrap();
+            let url = get_checkout_base_url("https://payouts.example.com/", None).unwrap();
             assert_eq!(url, "https://payouts.example.com");
         }
 
         #[test]
         fn override_with_placeholder_trailing_slash_is_trimmed() {
             let url =
-                get_checkout_payout_base_url("https://{{optional_client_id}}api.x.com/", None)
-                    .unwrap();
+                get_checkout_base_url("https://{{optional_client_id}}api.x.com/", None).unwrap();
             assert_eq!(url, "https://api.x.com");
         }
 
         #[test]
         fn malformed_client_id_is_rejected() {
             // Missing the `cli_` prefix.
-            assert!(get_checkout_payout_base_url(
+            assert!(get_checkout_base_url(
                 SANDBOX_TEMPLATE,
                 Some(&Secret::new("x46dhqyzrrrh".to_string())),
             )
             .is_err());
             // Shorter than the 8-character account prefix.
-            assert!(get_checkout_payout_base_url(
+            assert!(get_checkout_base_url(
                 SANDBOX_TEMPLATE,
                 Some(&Secret::new("cli_x46".to_string())),
             )
             .is_err());
             // Non-alphanumeric account prefix.
-            assert!(get_checkout_payout_base_url(
+            assert!(get_checkout_base_url(
                 SANDBOX_TEMPLATE,
                 Some(&Secret::new("cli_x46-hqyzrrrh".to_string())),
             )

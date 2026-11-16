@@ -2,6 +2,7 @@
 name = "uniffi-bindgen"
 version = "0.1.0"
 edition = "2021"
+publish = false
 # Minimal crate whose only job is to expose the uniffi-bindgen CLI.
 # Keeping it separate from the `ffi` library means the `uniffi/cli` feature
 # (and its large template/codegen deps) is never compiled when building the dylib.

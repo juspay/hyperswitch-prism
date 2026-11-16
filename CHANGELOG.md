@@ -19,6 +19,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.16.1
+
+### Bug Fixes
+
+- **enhancement:** Harden config overrides and source verification ([#2743](https://github.com/juspay/connector-service/pull/2743)) ([`d687ada`](https://github.com/juspay/connector-service/commit/d687adaaef53c1aa0c3a1b208356b7f9efe31f72))
+
+**Full Changelog:** [`2026.11.16.0...2026.11.16.1`](https://github.com/juspay/connector-service/compare/2026.11.16.0...2026.11.16.1)
+
+- - -
+
+## 2026.11.16.0
+
+### Features
+
+- **connector:** [Checkout] support account-specific payment hosts ([#2721](https://github.com/juspay/connector-service/pull/2721)) ([`f9f77ee`](https://github.com/juspay/connector-service/commit/f9f77ee6a042f7083135d557b08fa52dddb33ce4))
+
+**Full Changelog:** [`2026.11.15.0...2026.11.16.0`](https://github.com/juspay/connector-service/compare/2026.11.15.0...2026.11.16.0)
+
+- - -
+
+## 2026.11.15.0
+
+### Features
+
+- **connector:** Add support for decoding legacy JSON order info meta… ([#2748](https://github.com/juspay/connector-service/pull/2748)) ([`3463cf9`](https://github.com/juspay/connector-service/commit/3463cf9a46552bd58c80b2f5c203911a044046b0))
+
+**Full Changelog:** [`2026.11.13.1...2026.11.15.0`](https://github.com/juspay/connector-service/compare/2026.11.13.1...2026.11.15.0)
+
+- - -
+
 ## 2026.11.13.1
 
 ### Features
