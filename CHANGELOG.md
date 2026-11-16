@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.16.1
+
+### Bug Fixes
+
+- **enhancement:** Harden config overrides and source verification ([#2743](https://github.com/juspay/connector-service/pull/2743)) ([`d687ada`](https://github.com/juspay/connector-service/commit/d687adaaef53c1aa0c3a1b208356b7f9efe31f72))
+
+**Full Changelog:** [`2026.11.16.0...2026.11.16.1`](https://github.com/juspay/connector-service/compare/2026.11.16.0...2026.11.16.1)
+
+- - -
+
 ## 2026.11.16.0
 
 ### Features
