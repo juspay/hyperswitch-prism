@@ -3,7 +3,7 @@
 title: Test Suite Usage
 description: Running tests and command reference
 last_updated: 2026-03-12
-generated_from: backend/integration-tests/src/bin/
+generated_from: tests/regression/src/bin/
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12
@@ -224,13 +224,13 @@ export UCS_DEBUG_EFFECTIVE_REQ=1
 
 | File | Location | Description |
 |------|----------|-------------|
-| `report.json` | `backend/integration-tests/` | Machine-readable test results |
-| `test_report.md` | `backend/integration-tests/` | Human-readable markdown summary |
+| `report.json` | `tests/regression/` | Machine-readable test results |
+| `test_report.md` | `tests/regression/` | Human-readable markdown summary |
 
 ### Report Structure
 
 ```
-backend/integration-tests/
+tests/regression/
 ├── report.json              # Raw test data
 ├── test_report.md           # Markdown report
 └── docs/test-reports/       # Historical reports (optional)
@@ -322,7 +322,7 @@ Shows the dependency chain for a suite.
 
 1. Edit suite scenario.json:
    ```bash
-   vim backend/integration-tests/src/global_suites/authorize_suite/scenario.json
+   vim tests/regression/src/global_suites/authorize_suite/scenario.json
    ```
 
 2. Add new scenario:
@@ -348,7 +348,7 @@ Shows the dependency chain for a suite.
 
 1. Create connector spec:
    ```bash
-   cat > backend/integration-tests/src/connector_specs/mynewconnector.json << 'EOF'
+   cat > tests/regression/src/connector_specs/mynewconnector.json << 'EOF'
    {
      "connector": "mynewconnector",
      "supported_suites": ["authorize", "capture"]
@@ -376,7 +376,7 @@ Shows the dependency chain for a suite.
 
 2. Check the report:
    ```bash
-   cat backend/integration-tests/test_report.md
+   cat tests/regression/test_report.md
    ```
 
 3. Print grpcurl to test manually:
@@ -415,7 +415,7 @@ cargo run --bin run_test -- --suite authorize --list-scenarios
 **Solution**:
 ```bash
 # Check suite directory exists
-ls backend/integration-tests/src/global_suites/authorize_suite/
+ls tests/regression/src/global_suites/authorize_suite/
 
 # Should contain: scenario.json, suite_spec.json
 ```

@@ -26,6 +26,7 @@ import {
 } from "@medusajs/framework/types"
 import { HyperswitchPrismOptions } from "./types"
 import PrismService from "./prism"
+import { assertNotProduction as assertAuthorizedotnetNotProduction } from "./connector/prism-authorizedotnet"
 
 class HyperswitchPrismService extends AbstractPaymentProvider<HyperswitchPrismOptions> {
   static identifier = "hyperswitch-prism"
@@ -53,6 +54,10 @@ class HyperswitchPrismService extends AbstractPaymentProvider<HyperswitchPrismOp
       throw new Error(
         "Required option `connectorConfig` is missing in Hyperswitch Prism provider"
       )
+    }
+    if (options.connector === "authorizedotnet") {
+      // Raw-card test integration — refuse to boot against production.
+      assertAuthorizedotnetNotProduction(options)
     }
   }
 

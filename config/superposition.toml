@@ -175,7 +175,7 @@ connector_base_url = "https://api.razorpay.com/"
 # Checkout.com
 [[overrides]]
 _context_ = { connector = "checkout" }
-connector_base_url = "https://api.sandbox.checkout.com/"
+connector_base_url = "https://{{optional_client_id}}api.sandbox.checkout.com"
 
 # Braintree
 [[overrides]]

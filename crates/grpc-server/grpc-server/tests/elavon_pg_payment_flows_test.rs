@@ -1210,7 +1210,7 @@ async fn stored_cards_cross_the_grpc_boundary() {
         assert_eq!(cit["threeDSecure"]["transactionStatus"], json!("Y"));
         assert!(cit.get("card").is_none());
         for (repeat, credential_on_file_type) in sales[1..].iter().zip([
-            "recurring",
+            "unscheduled",
             "recurring",
             "subscription",
             "unscheduled",

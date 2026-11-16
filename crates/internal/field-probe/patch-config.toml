@@ -147,6 +147,34 @@ aliases = [
 type = "secret_string"
 value = "123 Main St"
 
+["pre_authenticate.address.billing_address.line1"]
+# Moneris reports this path when its 3DS pre-authentication request lacks the
+# billing street address. Keep the alias scoped to this flow.
+aliases = ["billing.address.line1"]
+type = "secret_string"
+value = "123 Main St"
+
+["pre_authenticate.address.billing_address.city"]
+aliases = ["billing.address.city"]
+type = "secret_string"
+value = "Seattle"
+
+["pre_authenticate.address.billing_address.state_code_iso"]
+# Moneris expects the subdivision code; the generic state patch only sets the
+# display-name field, which this connector deliberately does not use.
+aliases = ["billing.address.state"]
+type = "secret_string"
+value = "WA"
+
+["pre_authenticate.address.billing_address.zip_code"]
+aliases = ["billing.address.postal_code"]
+type = "secret_string"
+value = "98101"
+
+["pre_authenticate.address.billing_address.country_alpha2_code"]
+aliases = ["billing.address.country"]
+type = "country_us"
+
 ["address.billing_address.phone_number"]
 aliases = [
   "payment_method_data.billing.phone",

@@ -228,7 +228,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount to string major unit format (e.g., "10.00" for $10.00)
         let converter = StringMajorUnitForConnector;
         let amount_value = converter
-            .convert(&item.request.amount)
+            .convert(&item.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })
@@ -741,7 +741,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount to string major unit format (e.g., "10.00" for $10.00)
         let converter = StringMajorUnitForConnector;
         let amount_value = converter
-            .convert(&item.request.refund_amount)
+            .convert(&item.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1030,7 +1030,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount to string major unit format (e.g., "10.00" for $10.00)
         let converter = StringMajorUnitForConnector;
         let amount_value = converter
-            .convert(&item.request.amount_to_capture)
+            .convert(&item.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1158,7 +1158,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount to string major unit format (e.g., "10.00" for $10.00)
         let converter = StringMajorUnitForConnector;
         let amount_value = converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })

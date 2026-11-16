@@ -11,12 +11,13 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
-        SetupMandate, Void,
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment,
+        ServerAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         SetupMandateRequestData,
@@ -41,9 +42,13 @@ pub(crate) const TOKEN_SOURCE_TRANSARMOR: &str = "TRANSARMOR";
 const MERCHANT_INVOICE_NUMBER_MAX_LEN: usize = 12;
 const FISERV_PAYMENT_METHOD_ENCRYPTION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx";
-const FISERV_PAYMENT_AUTHENTICATION_URL: &str =
+pub(crate) const FISERV_PAYMENT_AUTHENTICATION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Developer-Resources/Authentication/Authentication.mdx";
-const FISERV_CHARGES_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments/v1/charges?branch=active&version=1.26.0602";
+pub(crate) const FISERV_CHARGES_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments/v1/charges?branch=active&version=1.26.0602";
+pub(crate) const FISERV_CANCEL_API_URL: &str =
+    "https://developer.fiserv.com/product/CommerceHub/api/post/payments/v1/cancels?branch=active";
+pub(crate) const FISERV_INCREMENTAL_AUTH_DOC_URL: &str =
+    "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Operations/Accept-Payments/Incremental-Auth.mdx?branch=active";
 const FISERV_TOKEN_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments-vas/v1/tokens?branch=active&version=1.26.0602";
 const FISERV_TRANSACTION_DETAILS_DOC_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Reference/Master-Data/Transaction-Details.mdx";
@@ -1127,13 +1132,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
 
         let currency = router_data.request.currency;
-        let total = utils::convert_amount(
-            item.connector.amount_converter,
-            &common_utils::types::Money {
-                amount: router_data.request.amount.amount,
-                currency,
-            },
-        )?;
+        let total =
+            utils::convert_amount(item.connector.amount_converter, &router_data.request.money)?;
 
         let access_token = router_data.resource_common_data.get_access_token()?;
         let parts: Vec<&str> = access_token.split(ACCESS_TOKEN_SEPARATOR).collect();
@@ -1320,10 +1320,12 @@ pub enum FiservcommercehubTransactionState {
     Captured,
     Authorized,
     Pending,
+    Timeout,
     Declined,
     Rejected,
     Failed,
     Cancelled,
+    Voided,
 }
 
 impl From<&FiservcommercehubTransactionState> for AttemptStatus {
@@ -1332,11 +1334,30 @@ impl From<&FiservcommercehubTransactionState> for AttemptStatus {
             FiservcommercehubTransactionState::Approved
             | FiservcommercehubTransactionState::Captured => Self::Charged,
             FiservcommercehubTransactionState::Authorized => Self::Authorized,
-            FiservcommercehubTransactionState::Pending => Self::Pending,
+            FiservcommercehubTransactionState::Pending
+            | FiservcommercehubTransactionState::Timeout => Self::Pending,
             FiservcommercehubTransactionState::Declined
             | FiservcommercehubTransactionState::Rejected
             | FiservcommercehubTransactionState::Failed => Self::Failure,
-            FiservcommercehubTransactionState::Cancelled => Self::Voided,
+            FiservcommercehubTransactionState::Cancelled
+            | FiservcommercehubTransactionState::Voided => Self::Voided,
+        }
+    }
+}
+
+impl From<&FiservcommercehubTransactionState> for common_enums::AuthorizationStatus {
+    fn from(state: &FiservcommercehubTransactionState) -> Self {
+        match state {
+            FiservcommercehubTransactionState::Approved
+            | FiservcommercehubTransactionState::Authorized => Self::Success,
+            FiservcommercehubTransactionState::Pending => Self::Processing,
+            FiservcommercehubTransactionState::Timeout => Self::Unresolved,
+            FiservcommercehubTransactionState::Captured
+            | FiservcommercehubTransactionState::Declined
+            | FiservcommercehubTransactionState::Rejected
+            | FiservcommercehubTransactionState::Failed
+            | FiservcommercehubTransactionState::Cancelled
+            | FiservcommercehubTransactionState::Voided => Self::Failure,
         }
     }
 }
@@ -1586,13 +1607,22 @@ impl<T: PaymentMethodDataTypes>
             item.response.additional_data_3ds.as_ref(),
             item.response.approval_code(),
         );
-        let response = build_transaction_payment_response(
+        let request_incremental_authorization =
+            item.router_data.request.request_incremental_authorization;
+        let mut response = build_transaction_payment_response(
             status,
             item.http_code,
             txn,
             item.response.payment_tokens.as_ref(),
             item.response.payment_receipt.as_ref(),
         );
+        if let Ok(PaymentsResponseData::TransactionResponse {
+            incremental_authorization_allowed,
+            ..
+        }) = &mut response
+        {
+            *incremental_authorization_allowed = request_incremental_authorization;
+        }
 
         Ok(Self {
             response,
@@ -1813,7 +1843,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            &router_data.request.refund_amount,
+            &router_data.request.refund_money,
         )?;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
         Ok(Self {
@@ -2019,21 +2049,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
 
         let amount = match (
-            router_data
-                .request
-                .amount
-                .as_ref()
-                .map(|money| money.amount),
+            router_data.request.money.as_ref(),
             router_data.request.currency,
         ) {
-            (Some(minor_amount), Some(currency)) => {
-                let total = utils::convert_amount(
-                    item.connector.amount_converter,
-                    &common_utils::types::Money {
-                        amount: minor_amount,
-                        currency,
-                    },
-                )?;
+            (Some(money), Some(currency)) => {
+                let total = utils::convert_amount(item.connector.amount_converter, money)?;
                 Some(FiservcommercehubAuthorizeAmount { currency, total })
             }
             _ => None,
@@ -2065,6 +2085,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubVoidResponse {
     pub gateway_response: FiservcommercehubGatewayResponseBody,
+    pub payment_receipt: Option<FiservcommercehubPaymentReceipt>,
 }
 
 impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
@@ -2098,6 +2119,302 @@ impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
                 status,
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// POST-CAPTURE VOID (CANCEL BEFORE SETTLEMENT) FLOW
+// =============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubVoidPCRequest {
+    pub transaction_details: FiservcommercehubRefundTransactionDetails,
+    pub merchant_details: FiservcommercehubMerchantDetails,
+    pub reference_transaction_details: FiservcommercehubReferenceTransactionDetails,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::FiservcommercehubRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservcommercehubVoidPCRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: super::FiservcommercehubRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
+
+        Ok(Self {
+            transaction_details: FiservcommercehubRefundTransactionDetails {
+                merchant_transaction_id: router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            },
+            merchant_details: FiservcommercehubMerchantDetails {
+                merchant_id: auth.merchant_id.clone(),
+                terminal_id: auth.terminal_id.clone(),
+            },
+            reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
+                reference_transaction_id: Some(
+                    router_data.request.connector_transaction_id.clone(),
+                ),
+                reference_merchant_transaction_id: None,
+            },
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservcommercehubVoidResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let gateway_response = item.response.gateway_response;
+        let transaction_id = gateway_response
+            .transaction_processing_details
+            .transaction_id
+            .clone();
+        let post_capture_void_status = match &gateway_response.transaction_state {
+            FiservcommercehubTransactionState::Cancelled
+            | FiservcommercehubTransactionState::Voided => {
+                common_enums::PostCaptureVoidStatus::Succeeded
+            }
+            FiservcommercehubTransactionState::Pending
+            | FiservcommercehubTransactionState::Timeout => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            FiservcommercehubTransactionState::Approved
+            | FiservcommercehubTransactionState::Captured
+            | FiservcommercehubTransactionState::Authorized
+            | FiservcommercehubTransactionState::Declined
+            | FiservcommercehubTransactionState::Rejected
+            | FiservcommercehubTransactionState::Failed => {
+                common_enums::PostCaptureVoidStatus::Failed
+            }
+        };
+
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            build_payment_response(
+                AttemptStatus::Failure,
+                item.http_code,
+                ResponseId::ConnectorTransactionId(transaction_id.clone()),
+                Some(transaction_id),
+                None,
+                None,
+                item.response.payment_receipt.as_ref(),
+            )
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(transaction_id),
+                status_code: item.http_code,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// INCREMENTAL AUTHORIZATION FLOW
+// =============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FiservcommercehubAuthorizationTypeIndicator {
+    #[serde(rename = "INCREMENTAL")]
+    Incremental,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubIncrementalAuthorizationTransactionDetails {
+    pub authorization_type_indicator: FiservcommercehubAuthorizationTypeIndicator,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubIncrementalAuthorizationRequest {
+    pub amount: FiservcommercehubAuthorizeAmount,
+    pub transaction_details: FiservcommercehubIncrementalAuthorizationTransactionDetails,
+    pub merchant_details: FiservcommercehubMerchantDetails,
+    pub reference_transaction_details: FiservcommercehubReferenceTransactionDetails,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::FiservcommercehubRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservcommercehubIncrementalAuthorizationRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: super::FiservcommercehubRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
+        let additional_amount = request.additional_money.as_ref().ok_or(
+            errors::IntegrationError::MissingRequiredField {
+                field_name: "additional_amount",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the positive amount to add to the current authorization"
+                            .to_string(),
+                    ),
+                    doc_url: Some(FISERV_INCREMENTAL_AUTH_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Fiserv CommerceHub charges the supplied additional_amount as the increment, not the cumulative authorized total".to_string(),
+                    ),
+                },
+            },
+        )?;
+
+        if additional_amount.currency() != request.currency
+            || request.money.currency() != request.currency
+            || additional_amount.amount() <= common_utils::types::MinorUnit::zero()
+            || additional_amount.amount() > request.money.amount()
+        {
+            return Err(errors::IntegrationError::InvalidDataFormat {
+                field_name: "additional_amount",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use a positive additional amount in the same currency as the new authorization total".to_string(),
+                    ),
+                    doc_url: Some(FISERV_INCREMENTAL_AUTH_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "additional_amount must be positive, in the request currency, and no greater than the new total authorization amount".to_string(),
+                    ),
+                },
+            }
+            .into());
+        }
+
+        let total = utils::convert_amount(item.connector.amount_converter, additional_amount)?;
+        let reference_transaction_id = request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::IntegrationError::MissingConnectorTransactionID {
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Pass the connector transaction ID returned by the original Fiserv authorization".to_string(),
+                    ),
+                    doc_url: Some(FISERV_INCREMENTAL_AUTH_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Fiserv CommerceHub incremental authorization requires the original authorization transaction ID".to_string(),
+                    ),
+                },
+            })?;
+
+        Ok(Self {
+            amount: FiservcommercehubAuthorizeAmount {
+                currency: request.currency,
+                total,
+            },
+            transaction_details: FiservcommercehubIncrementalAuthorizationTransactionDetails {
+                authorization_type_indicator:
+                    FiservcommercehubAuthorizationTypeIndicator::Incremental,
+            },
+            merchant_details: FiservcommercehubMerchantDetails {
+                merchant_id: auth.merchant_id.clone(),
+                terminal_id: auth.terminal_id.clone(),
+            },
+            reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
+                reference_transaction_id: Some(reference_transaction_id),
+                reference_merchant_transaction_id: None,
+            },
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<FiservcommercehubAuthorizeResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservcommercehubAuthorizeResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let txn = &item
+            .response
+            .gateway_response
+            .transaction_processing_details;
+        let authorization_status = common_enums::AuthorizationStatus::from(
+            &item.response.gateway_response.transaction_state,
+        );
+
+        let response = match authorization_status {
+            common_enums::AuthorizationStatus::Success
+            | common_enums::AuthorizationStatus::Processing
+            | common_enums::AuthorizationStatus::Unresolved => {
+                Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status: authorization_status,
+                    connector_authorization_id: Some(txn.transaction_id.clone()),
+                    status_code: item.http_code,
+                })
+            }
+            common_enums::AuthorizationStatus::Failure => build_payment_response(
+                AttemptStatus::Failure,
+                item.http_code,
+                ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
+                Some(txn.transaction_id.clone()),
+                txn.order_id.clone(),
+                item.response.payment_tokens.as_ref(),
+                item.response.payment_receipt.as_ref(),
+            ),
+        };
+
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }
@@ -2249,7 +2566,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
         let total = utils::convert_amount(
             item.connector.amount_converter,
-            &router_data.request.amount_to_capture,
+            &router_data.request.capture_money,
         )?;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
         let connector_transaction_id = router_data
@@ -2324,8 +2641,8 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
         let integrity_object = amount_captured
             .as_ref()
             .map(|amount| CaptureIntegrityObject {
-                amount_to_capture: amount.amount,
-                currency: amount.currency,
+                amount_to_capture: amount.amount(),
+                currency: amount.currency(),
             });
         let response = build_transaction_payment_response(
             status,
@@ -2339,12 +2656,8 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: amount_captured.or_else(|| {
-                    item.router_data
-                        .resource_common_data
-                        .amount_captured
-                        .clone()
-                }),
+                captured_money: amount_captured
+                    .or_else(|| item.router_data.resource_common_data.captured_money.clone()),
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -2404,7 +2717,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = item.router_data;
 
         let total =
-            utils::convert_amount(item.connector.amount_converter, &router_data.request.amount)?;
+            utils::convert_amount(item.connector.amount_converter, &router_data.request.money)?;
 
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
 
@@ -2637,9 +2950,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // SetupMandate (tokenization) should not have an amount - it's for storing cards without charging
         if router_data
             .request
-            .amount
+            .money
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
         {
             return Err(error_stack::report!(

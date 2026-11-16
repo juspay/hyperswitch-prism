@@ -169,7 +169,7 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnit::new(
-                router_data.request.amount.amount.get_amount_as_i64(),
+                router_data.request.money.amount().get_amount_as_i64(),
             ),
         };
 
@@ -549,7 +549,7 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.amount_to_capture.amount,
+            amount: item.router_data.request.capture_money.amount(),
         })
     }
 }
@@ -580,13 +580,13 @@ where
         let amount = item
             .router_data
             .request
-            .amount
-            .map(|amount| amount.amount)
+            .money
+            .map(|amount| amount.amount())
             .or(item
                 .router_data
                 .resource_common_data
-                .amount_authorized
-                .map(|amount| amount.amount))
+                .authorized_money
+                .map(|amount| amount.amount()))
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount or amount_authorized.amount",
                 context: Default::default(),
@@ -620,7 +620,7 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.refund_amount.amount,
+            amount: item.router_data.request.refund_money.amount(),
             merchant_refund_reference: item.router_data.request.refund_id.clone(),
             refund_reason: item
                 .router_data
@@ -883,9 +883,9 @@ where
             .or_else(|| {
                 item.router_data
                     .resource_common_data
-                    .amount
+                    .money
                     .as_ref()
-                    .map(|m| m.currency)
+                    .map(|m| m.currency())
             });
 
         let response_amount = resolved_minor_amount
@@ -948,17 +948,17 @@ where
         let response_currency = item
             .router_data
             .resource_common_data
-            .amount
+            .money
             .as_ref()
-            .map(|money| money.currency)
+            .map(|money| money.currency())
             .unwrap_or_default();
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_status: Some(raw_connector_status),
-                amount: response_amount.or(item.router_data.resource_common_data.amount),
-                amount_captured: captured_amount
+                money: response_amount.or(item.router_data.resource_common_data.money),
+                captured_money: captured_amount
                     .map(|amount| {
                         crate::utils::response_amount_to_money(
                             &connector,
@@ -969,7 +969,7 @@ where
                         )
                     })
                     .transpose()?
-                    .or(item.router_data.resource_common_data.amount_captured),
+                    .or(item.router_data.resource_common_data.captured_money),
                 ..item.router_data.resource_common_data
             },
             response,
@@ -1326,9 +1326,9 @@ where
             value: common_utils::MinorUnit::new(
                 router_data
                     .request
-                    .amount
+                    .money
                     .as_ref()
-                    .map(|money| money.amount)
+                    .map(|money| money.amount())
                     .map(|a| a.get_amount_as_i64())
                     .unwrap_or(0),
             ),
@@ -1727,7 +1727,7 @@ where
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
             value: common_utils::MinorUnit::new(
-                router_data.request.amount.amount.get_amount_as_i64(),
+                router_data.request.money.amount().get_amount_as_i64(),
             ),
         };
 

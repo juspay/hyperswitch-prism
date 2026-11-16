@@ -1,11 +1,70 @@
 use common_enums::{
     CardNetwork, CardSegmentType, CardType, CountryAlpha2, FundingSource, PaymentMethodType,
+    RefundStatus,
 };
-use domain_types::router_data::AdditionalPaymentMethodConnectorResponse;
+use domain_types::{
+    connector_types::{EventType, HttpMethod, RequestDetails, WebhookResourceReference},
+    payment_method_data::DefaultPCIHolder,
+    router_data::AdditionalPaymentMethodConnectorResponse,
+};
+use interfaces::webhooks::IncomingWebhook;
 
 use super::{
     responses::WorldpayxmlAuthorizeResponse, transformers::get_worldpayxml_connector_response,
+    Worldpayxml,
 };
+
+#[test]
+fn pending_refund_webhooks_report_processing_and_preserve_refund_reference() {
+    let connector = Worldpayxml::<DefaultPCIHolder>::new();
+    for last_event in [
+        "REFUND_REQUESTED",
+        "SENT_FOR_REFUND",
+        "SENT_FOR_FAST_REFUND",
+    ] {
+        let request = RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers: std::collections::HashMap::new(),
+            body: format!(
+                r#"<paymentService version="1.4" merchantCode="fixture-merchant">
+  <notify>
+    <orderStatusEvent orderCode="refund-requested">
+      <payment><lastEvent>{last_event}</lastEvent></payment>
+    </orderStatusEvent>
+  </notify>
+</paymentService>"#
+            )
+            .into_bytes(),
+            query_params: None,
+        };
+
+        assert_eq!(
+            connector
+                .get_event_type(request.clone())
+                .expect("refund request event must decode"),
+            EventType::RefundProcessing
+        );
+        let reference = connector
+            .get_webhook_event_reference(request.clone())
+            .expect("pending refund reference must decode");
+        let Some(WebhookResourceReference::Refund(reference)) = reference else {
+            panic!("expected a refund reference for {last_event}");
+        };
+        assert_eq!(
+            reference.connector_refund_id.as_deref(),
+            Some("refund-requested")
+        );
+        let response = connector
+            .process_refund_webhook(request, None, None)
+            .expect("refund request must remain pending");
+        assert_eq!(response.status, RefundStatus::Pending);
+        assert_eq!(
+            response.connector_refund_id.as_deref(),
+            Some("refund-requested")
+        );
+    }
+}
 
 const CARD_WITH_BIN: &str = r#"
 <paymentService version="1.4" merchantCode="fixture-merchant">

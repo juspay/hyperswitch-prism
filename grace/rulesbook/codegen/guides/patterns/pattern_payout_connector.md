@@ -426,7 +426,7 @@ PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
 
 6. **Chasing a certification failure that does not exist.**
    - *Problem*: you look for `connector_specs/foo/specs.json` and find no payout suites.
-   - *Solution*: `IGNORE_SERVICES` in `crates/internal/integration-tests/src/bin/check_connector_specs.rs` contains `"PayoutService"`, and the eight non-eligibility payout flows are in `OUT_OF_SCOPE_FLOWS`. A payout-only connector never appears in `connector_specs/` at all, because that checker reads only `src/connectors`.
+   - *Solution*: `IGNORE_SERVICES` in `tests/regression/src/bin/check_connector_specs.rs` contains `"PayoutService"`, and the eight non-eligibility payout flows are in `OUT_OF_SCOPE_FLOWS`. A payout-only connector never appears in `connector_specs/` at all, because that checker reads only `src/connectors`.
 
 7. **Treating "out of scope for certification" as "do not build".**
    - *Problem*: `OUT_OF_SCOPE_FLOWS` is easy to misread as a prohibition.
@@ -435,7 +435,7 @@ PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
 ## Testing & Certification Notes
 
 - **Unit tests** go in `payout_connectors/foo/transformers.rs` (or a `#[cfg(test)] mod test`): request-shape assertions, one test per status-mapping branch including the `Unknown` branch, and auth-type extraction failure on the wrong `ConnectorSpecificConfig` variant.
-- **No `connector_specs` entry, no CI certification.** `.github/scripts/verify-new-connectors.sh` keys off a new spec directory under `crates/internal/integration-tests/src/connector_specs/`; a payout-only connector creates none, so it is not merge-gated by certification. That is a coverage gap, not permission to skip validation — record a manual sandbox run in the PR.
+- **No `connector_specs` entry, no CI certification.** `.github/scripts/verify-new-connectors.sh` keys off a new spec directory under `tests/regression/src/connector_specs/`; a payout-only connector creates none, so it is not merge-gated by certification. That is a coverage gap, not permission to skip validation — record a manual sandbox run in the PR.
 - **Integration scenarios worth exercising by hand**: happy-path transfer; transfer with `PayoutFlowData.access_token = None` (expect `FailedToObtainAuthType` if the connector needs OAuth); `PayoutGet` on an unknown payout id; processor decline mapped through `build_error_response`; malformed 2xx body → `ConnectorError::ResponseDeserializationFailed`.
 
 ## Cross-References

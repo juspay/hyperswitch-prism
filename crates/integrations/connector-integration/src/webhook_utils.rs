@@ -20,6 +20,15 @@ use crate::types::ConnectorData;
 ///
 /// This function then: determines the event type, dispatches to the appropriate
 /// content helper, and assembles the final `EventServiceHandleResponse`.
+///
+/// # Design notes
+///
+/// - **Behaviour:** the payload is parsed and `event_content` is returned even when
+///   `source_verified` is `false`.
+/// - **Intentional:** some connectors do not sign webhooks, and callers may confirm the event
+///   another way (e.g. a PSync to the connector), so the decision is left to the caller.
+/// - **Invariant:** Prism never acts on webhook events itself; callers must check
+///   `source_verified` before acting on the event content.
 pub fn process_webhook_event<
     T: PaymentMethodDataTypes
         + Default
@@ -47,45 +56,50 @@ pub fn process_webhook_event<
     let api_event_type = WebhookEventType::foreign_try_from(event_type.clone())
         .change_context(WebhookError::WebhookProcessingFailed)?;
 
-    let event_content = if event_type.is_payment_event() {
-        get_payments_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-            event_context.clone(),
-        )?
-    } else if event_type.is_refund_event() {
-        get_refunds_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-        )?
-    } else if event_type.is_dispute_event() {
-        get_disputes_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-        )?
-    } else if event_type.is_payout_event() {
-        get_payouts_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-        )?
-    } else {
-        // Default: treat as payment event (mandate, recovery, misc).
-        get_payments_webhook_content(
-            connector_data.clone(),
-            request_details.clone(),
-            webhook_secrets,
-            connector_config.clone(),
-            event_context,
-        )?
-    };
+    let event_content =
+        if event_type == domain_types::connector_types::EventType::EndpointVerification {
+            None
+        } else {
+            Some(if event_type.is_payment_event() {
+                get_payments_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                    event_context.clone(),
+                )?
+            } else if event_type.is_refund_event() {
+                get_refunds_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                )?
+            } else if event_type.is_dispute_event() {
+                get_disputes_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                )?
+            } else if event_type.is_payout_event() {
+                get_payouts_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                )?
+            } else {
+                // Default: treat as payment event (mandate, recovery, misc).
+                get_payments_webhook_content(
+                    connector_data.clone(),
+                    request_details.clone(),
+                    webhook_secrets,
+                    connector_config.clone(),
+                    event_context,
+                )?
+            })
+        };
 
     let ack = connector_data.connector.get_webhook_api_response(
         request_details.clone(),
@@ -100,7 +114,7 @@ pub fn process_webhook_event<
 
     Ok(EventServiceHandleResponse {
         event_type: api_event_type.into(),
-        event_content: Some(event_content),
+        event_content,
         source_verified,
         merchant_event_id,
         event_ack_response,
