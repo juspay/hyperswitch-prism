@@ -63,7 +63,7 @@ Three overlapping copies of the same procedures exist. In order of precedence:
 - **Tech specs** land at `grace/rulesbook/codegen/references/<connector>/technical_specification.md`
   (the `new-connector` skill reads this path). The grace CLI's own output goes to
   `grace/rulesbook/codegen/references/specs/<Connector>.md`.
-- **Test specs / scenarios**: `crates/internal/integration-tests/src/connector_specs/<connector>/specs.json`.
+- **Test specs / scenarios**: `tests/regression/src/connector_specs/<connector>/specs.json`.
 - **Credentials** resolve in this order: `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` →
   `creds.json` at repo root. `creds_dummy.json` is the placeholder template; never commit real creds. Entries must use
   the **flat** shape mirroring the connector's `*Config` proto message — the legacy `connector_account_details` shape is

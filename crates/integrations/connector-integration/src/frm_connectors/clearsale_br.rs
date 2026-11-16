@@ -565,15 +565,16 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<FrmPaymentOutcome, FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            // Order `code` is the merchant transaction id only — the PSP
-            // connector_transaction_id is not a ClearSale order key.
+            // This is the order code echoed by ClearSale during risk creation.
+            // Neither the Euler attempt ID nor the PSP transaction ID can be
+            // substituted when ClearSale was created with a business order ID.
             let order_code = req
                 .request
-                .merchant_transaction_id
+                .frm_transaction_id
                 .as_deref()
                 .ok_or_else(|| {
                     IntegrationError::MissingRequiredField {
-                        field_name: "merchant_transaction_id",
+                        field_name: "frm_transaction_id",
                         context: IntegrationErrorContext {
                             additional_context: Some(
                                 "ClearSale addresses the status push by the order `code`: \
@@ -581,7 +582,9 @@ macros::macro_connector_implementation!(
                                     .to_owned(),
                             ),
                             suggested_action: Some(
-                                "Send merchant_transaction_id on the FRM notification".to_owned(),
+                                "Retain the ClearSale order code returned by the risk check \
+                                 and send it as frm_transaction_id on the FRM notification"
+                                    .to_owned(),
                             ),
                             doc_url: Some(clearsale::CLEARSALE_DOC_URL.to_owned()),
                         },
