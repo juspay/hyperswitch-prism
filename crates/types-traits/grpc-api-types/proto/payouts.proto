@@ -295,7 +295,7 @@ message ApplePayDecrypt {
 }
 
 message GooglePayDecrypt {
-  // The application primary account number (DPAN)
+  // The application primary account number (DPAN/FPAN)
   CardNumberType application_primary_account_number = 1;
   // The card's expiration month (MM)
   SecretString expiry_month = 2;

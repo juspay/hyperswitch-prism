@@ -102,6 +102,52 @@ struct CheckoutPayoutNetworkToken {
     eci: Option<String>,
     account_holder: CheckoutPayoutAccountHolder,
 }
+impl CheckoutPayoutNetworkToken {
+    fn from_decrypted_wallet(
+        pan: &cards::CardNumber,
+        month: &Secret<String>,
+        year: &Secret<String>,
+        token_type: CheckoutPayoutTokenType,
+        account_holder: CheckoutPayoutAccountHolder,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let expiry_month = month
+            .peek()
+            .parse::<u8>()
+            .ok()
+            .filter(|month| (1..=12).contains(month))
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "expiry_month",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some("expiry month must be a number 1-12".to_owned()),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        let expiry_year = domain_types::utils::expand_expiry_year_to_four_digits(year)
+            .peek()
+            .parse()
+            .map_err(|_| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "expiry_year",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some("expiry year must be a number".to_owned()),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(Self {
+            token: pan.clone(),
+            expiry_month: Secret::new(expiry_month),
+            expiry_year: Secret::new(expiry_year),
+            token_type,
+            cryptogram: None,
+            eci: None,
+            account_holder,
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct CheckoutPaymentInstrument {
     id: Secret<String>,
@@ -554,92 +600,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
         let destination = match data.request.payout_method_data.as_ref() {
             Some(PayoutMethodData::Wallet(Wallet::ApplePayDecrypt(token))) => {
-                CheckoutPayoutMethod::NetworkToken(Box::new(CheckoutPayoutNetworkToken {
-                    token: token.dpan.clone(),
-                    expiry_month: Secret::new(
-                        token
-                            .expiry_month
-                            .peek()
-                            .parse::<u8>()
-                            .ok()
-                            .filter(|month| (1..=12).contains(month))
-                            .ok_or_else(|| {
-                                error_stack::report!(IntegrationError::InvalidDataFormat {
-                                    field_name: "apple_pay.expiry_month",
-                                    context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: Some(
-                                            "expiry month must be a number 1-12".to_owned(),
-                                        ),
-                                        ..Default::default()
-                                    },
-                                })
-                            })?,
-                    ),
-                    expiry_year: Secret::new(
-                        domain_types::utils::expand_expiry_year_to_four_digits(&token.expiry_year)
-                            .peek()
-                            .parse()
-                            .map_err(|_| {
-                                error_stack::report!(IntegrationError::InvalidDataFormat {
-                                    field_name: "apple_pay.expiry_year",
-                                    context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: Some(
-                                            "expiry year must be a number".to_owned(),
-                                        ),
-                                        ..Default::default()
-                                    },
-                                })
-                            })?,
-                    ),
-                    token_type: CheckoutPayoutTokenType::Applepay,
-                    cryptogram: None,
-                    eci: None,
-                    account_holder: holder,
-                }))
+                CheckoutPayoutMethod::NetworkToken(Box::new(
+                    CheckoutPayoutNetworkToken::from_decrypted_wallet(
+                        &token.dpan,
+                        &token.expiry_month,
+                        &token.expiry_year,
+                        CheckoutPayoutTokenType::Applepay,
+                        holder,
+                    )?,
+                ))
             }
             Some(PayoutMethodData::Wallet(Wallet::GooglePayDecrypt(token))) => {
-                CheckoutPayoutMethod::NetworkToken(Box::new(CheckoutPayoutNetworkToken {
-                    token: token.application_primary_account_number.clone(),
-                    expiry_month: Secret::new(
-                        token
-                            .expiry_month
-                            .peek()
-                            .parse::<u8>()
-                            .ok()
-                            .filter(|month| (1..=12).contains(month))
-                            .ok_or_else(|| {
-                                error_stack::report!(IntegrationError::InvalidDataFormat {
-                                    field_name: "google_pay.expiry_month",
-                                    context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: Some(
-                                            "expiry month must be a number 1-12".to_owned(),
-                                        ),
-                                        ..Default::default()
-                                    },
-                                })
-                            })?,
-                    ),
-                    expiry_year: Secret::new(
-                        domain_types::utils::expand_expiry_year_to_four_digits(&token.expiry_year)
-                            .peek()
-                            .parse()
-                            .map_err(|_| {
-                                error_stack::report!(IntegrationError::InvalidDataFormat {
-                                    field_name: "google_pay.expiry_year",
-                                    context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: Some(
-                                            "expiry year must be a number".to_owned(),
-                                        ),
-                                        ..Default::default()
-                                    },
-                                })
-                            })?,
-                    ),
-                    token_type: CheckoutPayoutTokenType::Googlepay,
-                    cryptogram: None,
-                    eci: None,
-                    account_holder: holder,
-                }))
+                CheckoutPayoutMethod::NetworkToken(Box::new(
+                    CheckoutPayoutNetworkToken::from_decrypted_wallet(
+                        &token.application_primary_account_number,
+                        &token.expiry_month,
+                        &token.expiry_year,
+                        CheckoutPayoutTokenType::Googlepay,
+                        holder,
+                    )?,
+                ))
             }
             Some(PayoutMethodData::Passthrough(token)) => {
                 CheckoutPayoutMethod::PaymentInstrument(Box::new(CheckoutPaymentInstrument {
