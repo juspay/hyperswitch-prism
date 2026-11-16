@@ -17,6 +17,7 @@ use common_utils::types::{AmountConvertor, ConnectorMinorUnitForConnector, Money
 
 #[cfg(feature = "domain_boundary")]
 pub fn domain_boundary(amount: MinorUnit, currency: Currency) -> Money {
+    let _created = MinorUnit::new(1);
     common_utils::types::Money::from_minor_unit(amount, currency)
 }
 
@@ -136,6 +137,25 @@ pub fn domain_mapper(proto: grpc_api_types::payments::Money) {
 #[cfg(feature = "domain_minor_unit")]
 pub struct DomainMinorUnitPayload {
     pub amount: common_utils::types::MinorUnit,
+}
+
+#[cfg(feature = "minor_unit_constructor")]
+#[expect(
+    clippy::disallowed_types,
+    reason = "Exercise the constructor-method ban independently of the type ban"
+)]
+pub fn minor_unit_constructor() {
+    let _ = common_utils::types::MinorUnit::new(1);
+}
+
+#[cfg(feature = "minor_unit_constructor_pointer")]
+#[expect(
+    clippy::disallowed_types,
+    reason = "Exercise the constructor-method ban independently of the type ban"
+)]
+pub fn minor_unit_constructor_pointer() {
+    let create = common_utils::types::MinorUnit::new;
+    let _ = create(1);
 }
 
 #[cfg(feature = "domain_minor_converter")]

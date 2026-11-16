@@ -46,6 +46,8 @@ boundary_reexport = []
 proto_trait = []
 domain_mapper = []
 domain_minor_unit = []
+minor_unit_constructor = []
+minor_unit_constructor_pointer = []
 domain_minor_converter = []
 inferred_domain_minor_unit = []
 money_amount = []
@@ -106,6 +108,8 @@ check boundary_reexport clippy::disallowed_methods
 check proto_trait E0599
 check domain_mapper E0603
 check domain_minor_unit clippy::disallowed_types
+check minor_unit_constructor clippy::disallowed_methods
+check minor_unit_constructor_pointer clippy::disallowed_methods
 check domain_minor_converter E0425
 check inferred_domain_minor_unit clippy::disallowed_methods
 check money_amount clippy::disallowed_methods
