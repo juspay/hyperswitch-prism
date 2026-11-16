@@ -124,6 +124,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 
 ### Authentication
 
@@ -136,4 +137,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/qwikcilver/qwikcilver.py) · [TypeScript](../../examples/qwikcilver/qwikcilver.ts#L36) · [Kotlin](../../examples/qwikcilver/qwikcilver.kt#L40) · [Rust](../../examples/qwikcilver/qwikcilver.rs)
+**Examples:** [Python](../../examples/qwikcilver/qwikcilver.py) · [TypeScript](../../examples/qwikcilver/qwikcilver.ts#L48) · [Kotlin](../../examples/qwikcilver/qwikcilver.kt#L42) · [Rust](../../examples/qwikcilver/qwikcilver.rs)

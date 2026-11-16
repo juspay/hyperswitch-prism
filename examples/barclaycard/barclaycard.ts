@@ -5,9 +5,9 @@
 // Barclaycard — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx barclaycard.ts checkout_autocapture
 
-import { PaymentClient, PaymentMethodAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
+import { PaymentClient, PaymentMethodAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "get", "parse_event", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -117,6 +117,18 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,
             "currency": Currency.USD
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -493,6 +505,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 async function postAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
@@ -577,7 +598,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthenticateRequest, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, parseEvent, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthenticateRequest, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

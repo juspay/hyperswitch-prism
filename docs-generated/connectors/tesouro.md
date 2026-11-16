@@ -120,6 +120,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 
 ### Authentication
 
@@ -132,4 +133,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/tesouro/tesouro.py) · [TypeScript](../../examples/tesouro/tesouro.ts#L35) · [Kotlin](../../examples/tesouro/tesouro.kt#L39) · [Rust](../../examples/tesouro/tesouro.rs)
+**Examples:** [Python](../../examples/tesouro/tesouro.py) · [TypeScript](../../examples/tesouro/tesouro.ts#L47) · [Kotlin](../../examples/tesouro/tesouro.kt#L41) · [Rust](../../examples/tesouro/tesouro.rs)

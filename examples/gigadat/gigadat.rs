@@ -10,7 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["get", "refund"];
+pub const SUPPORTED_FLOWS: &[&str] = &["get", "parse_event", "refund"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -52,6 +52,18 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     }
 }
 
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+    }
+}
+
 pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
     PaymentServiceRefundRequest {
         merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
@@ -82,6 +94,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: PaymentService.Refund
 #[allow(dead_code)]
 pub async fn process_refund(
@@ -107,10 +129,11 @@ async fn main() {
         .unwrap_or_else(|| "process_get".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         _ => {
             eprintln!(
-                "Unknown flow: {}. Available: process_get, process_refund",
+                "Unknown flow: {}. Available: process_get, process_parse_event, process_refund",
                 flow
             );
             return;

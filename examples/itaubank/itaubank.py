@@ -8,9 +8,10 @@
 import asyncio
 import sys
 from payments import MerchantAuthenticationClient
-from payments.generated import payment_methods_pb2, payment_pb2, sdk_config_pb2
+from payments import EventClient
+from payments.generated import events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["create_server_authentication_token"]
+SUPPORTED_FLOWS = ["create_server_authentication_token", "parse_event"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -32,6 +33,16 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 def _build_create_server_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
     )
+
+def _build_parse_event_request():
+    return events_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers={},  # Headers of the HTTP request.
+            body="{}".encode(),  # Body of the HTTP request.
+        ),
+    )
 async def process_create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: MerchantAuthenticationService.CreateServerAuthenticationToken"""
     merchantauthentication_client = MerchantAuthenticationClient(config)
@@ -39,6 +50,15 @@ async def process_create_server_authentication_token(merchant_transaction_id: st
     create_response = await merchantauthentication_client.create_server_authentication_token(_build_create_server_authentication_token_request())
 
     return {"status": create_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = event_client.parse_event(_build_parse_event_request())
+
+    return {"event_type": parse_response.event_type}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "create_server_authentication_token"

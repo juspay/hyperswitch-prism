@@ -117,6 +117,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 
 ### Payments
 
@@ -246,4 +247,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L40) · [Kotlin](../../examples/loonio/loonio.kt#L51) · [Rust](../../examples/loonio/loonio.rs)
+**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L52) · [Kotlin](../../examples/loonio/loonio.kt#L53) · [Rust](../../examples/loonio/loonio.rs)

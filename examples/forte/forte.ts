@@ -5,9 +5,9 @@
 // Forte — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx forte.ts checkout_autocapture
 
-import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "get", "refund_get", "void"];
+import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authorize", "get", "parse_event", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -59,6 +59,18 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,
             "currency": Currency.USD
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -161,6 +173,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: RefundService.Get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const refundClient = new RefundClient(config);
@@ -182,7 +203,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processVoidPayment, processGetPayment, authorize, get, refundGet, voidPayment, _buildAuthorizeRequest, _buildGetRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processVoidPayment, processGetPayment, authorize, get, parseEvent, refundGet, voidPayment, _buildAuthorizeRequest, _buildGetRequest, _buildParseEventRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner
