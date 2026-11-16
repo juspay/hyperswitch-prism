@@ -32,7 +32,7 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
-    utils::{get_unimplemented_payment_method_error_message, is_payment_failure},
+    utils::{convert_amount, get_unimplemented_payment_method_error_message, is_payment_failure},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -140,23 +140,19 @@ static PAYHOUND_NONCE: AtomicU64 = AtomicU64::new(0);
 /// The clock read is propagated with `?` rather than defaulted — a nonce of `0` would be rejected
 /// by Payhound and would be far harder to diagnose than the clock error itself.
 pub(super) fn next_nonce() -> CustomResult<u64, IntegrationError> {
-    // Read the clock through `common_utils::date_time::now`, the one sanctioned source
-    // (`connector-integration/clippy.toml` bans `SystemTime::now` outright). Microseconds are
-    // derived here rather than using `date_time::now_unix_millis` on purpose: a millisecond nonce
+    // Read the clock through `common_utils::date_time`, the one sanctioned source
+    // (`connector-integration/clippy.toml` bans `SystemTime::now` outright). Microseconds rather
+    // than `date_time::now_unix_millis` on purpose: a millisecond nonce
     // is ~1000x smaller than a microsecond one, and Payhound requires every nonce to be strictly
     // greater than any previously used with the same API key, with no way to reset it. Narrowing
     // the resolution would permanently brick any key that has already signed with microseconds.
-    let now_micros = u64::try_from(
-        common_utils::date_time::now()
-            .assume_utc()
-            .unix_timestamp_nanos()
-            / 1_000,
-    )
-    .change_context(IntegrationError::RequestEncodingFailed {
-        context: payhound_context(
-            "payhound: microsecond epoch does not fit in the unsigned 64-bit X-MB-Nonce range",
-        ),
-    })?;
+    let now_micros =
+        u64::try_from(common_utils::date_time::now_unix_micros())
+            .change_context(IntegrationError::RequestEncodingFailed {
+            context: payhound_context(
+                "payhound: microsecond epoch does not fit in the unsigned 64-bit X-MB-Nonce range",
+            ),
+        })?;
 
     let next = |previous: u64| std::cmp::max(now_micros, previous.saturating_add(1));
     Ok(next(PAYHOUND_NONCE.update(
@@ -823,7 +819,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = PayhoundSettlementCurrency::try_from(request.money.currency())?;
         // Payhound's `price` is a decimal major-unit string ("266.45"); minor units would be
         // rejected as a wildly different amount.
-        let price = PayhoundAmountConvertor::convert(&request.money)?;
+        let price = convert_amount(item.connector.amount_converter, &request.money)?;
 
         Ok(Self {
             currency,

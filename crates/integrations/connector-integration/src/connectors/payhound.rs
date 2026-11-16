@@ -54,6 +54,7 @@ use common_utils::{
     events,
     ext_traits::ByteSliceExt,
     request::Method,
+    types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, PSync},
@@ -240,7 +241,9 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [
+        amount_converter: StringMajorUnit
+    ],
     member_functions: {
         /// Builds the complete Payhound header set, signing exactly the bytes that will be sent.
         pub fn build_headers<F, Req, Res>(
