@@ -156,7 +156,6 @@ pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
 
 /// Merchant-supplied business purpose. Each connector defines its own supported mappings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
 pub enum PayoutPurpose {
     Donations,
     Education,

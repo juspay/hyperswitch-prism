@@ -1086,7 +1086,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::GooglePayDecrypt>
                     .expiry_month
                     .ok_or_else(|| {
                         error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "card_exp_month",
+                            field_name: "expiry_month",
                             context: IntegrationErrorContext {
                                 additional_context: Some(
                                     "Card expiry month is required".to_owned()
@@ -1103,7 +1103,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::GooglePayDecrypt>
                     .expiry_year
                     .ok_or_else(|| {
                         error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "card_exp_year",
+                            field_name: "expiry_year",
                             context: IntegrationErrorContext {
                                 additional_context: Some("Card expiry year is required".to_owned()),
                                 ..Default::default()

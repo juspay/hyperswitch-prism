@@ -160,30 +160,28 @@ enum CheckoutPayoutPurpose {
     Other,
 }
 
-impl CheckoutPayoutPurpose {
-    fn from_shared(value: PayoutPurpose) -> Option<Self> {
+impl From<PayoutPurpose> for CheckoutPayoutPurpose {
+    fn from(value: PayoutPurpose) -> Self {
         match value {
-            PayoutPurpose::Donations => Some(Self::Donations),
-            PayoutPurpose::Education => Some(Self::Education),
-            PayoutPurpose::EmergencyNeed => Some(Self::EmergencyNeed),
-            PayoutPurpose::Expatriation => Some(Self::Expatriation),
-            PayoutPurpose::FamilySupport => Some(Self::FamilySupport),
-            PayoutPurpose::FinancialServices => Some(Self::FinancialServices),
-            PayoutPurpose::Gifts => Some(Self::Gifts),
-            PayoutPurpose::Income => Some(Self::Income),
-            PayoutPurpose::Insurance => Some(Self::Insurance),
-            PayoutPurpose::Investment => Some(Self::Investment),
-            PayoutPurpose::ItServices => Some(Self::ItServices),
-            PayoutPurpose::Leisure => Some(Self::Leisure),
-            PayoutPurpose::LoanPayment => Some(Self::LoanPayment),
-            PayoutPurpose::MedicalTreatment => Some(Self::MedicalTreatment),
-            PayoutPurpose::Pension => Some(Self::Pension),
-            PayoutPurpose::Royalties => Some(Self::Royalties),
-            PayoutPurpose::Savings => Some(Self::Savings),
-            PayoutPurpose::TravelAndTourism => Some(Self::TravelAndTourism),
-            PayoutPurpose::Other => Some(Self::Other),
-            // Future shared purposes without a verified Checkout mapping stay omitted.
-            _ => None,
+            PayoutPurpose::Donations => Self::Donations,
+            PayoutPurpose::Education => Self::Education,
+            PayoutPurpose::EmergencyNeed => Self::EmergencyNeed,
+            PayoutPurpose::Expatriation => Self::Expatriation,
+            PayoutPurpose::FamilySupport => Self::FamilySupport,
+            PayoutPurpose::FinancialServices => Self::FinancialServices,
+            PayoutPurpose::Gifts => Self::Gifts,
+            PayoutPurpose::Income => Self::Income,
+            PayoutPurpose::Insurance => Self::Insurance,
+            PayoutPurpose::Investment => Self::Investment,
+            PayoutPurpose::ItServices => Self::ItServices,
+            PayoutPurpose::Leisure => Self::Leisure,
+            PayoutPurpose::LoanPayment => Self::LoanPayment,
+            PayoutPurpose::MedicalTreatment => Self::MedicalTreatment,
+            PayoutPurpose::Pension => Self::Pension,
+            PayoutPurpose::Royalties => Self::Royalties,
+            PayoutPurpose::Savings => Self::Savings,
+            PayoutPurpose::TravelAndTourism => Self::TravelAndTourism,
+            PayoutPurpose::Other => Self::Other,
         }
     }
 }
@@ -690,10 +688,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             processing_channel_id: creds.processing_channel_id.clone(),
             instruction: CheckoutPayoutInstruction {
-                purpose: data
-                    .request
-                    .purpose
-                    .and_then(CheckoutPayoutPurpose::from_shared),
+                purpose: data.request.purpose.map(Into::into),
                 funds_transfer_type: data.request.funds_transfer_type.map(Into::into),
             },
             sender: CheckoutPayoutSender::try_from(&data.request)?,
