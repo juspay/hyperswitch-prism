@@ -131,9 +131,17 @@ impl From<Option<common_enums::MitCategory>> for CofIndicator {
     }
 }
 
+/// The Card Manager token, only when Converge reports it was stored (`ssl_token_response`
+/// SUCCESS). A token with any other status cannot be charged later.
+pub(super) fn get_saved_card_token(response: &PaymentResponse) -> Option<String> {
+    (response.ssl_token_response.as_deref() == Some("SUCCESS"))
+        .then(|| response.ssl_token.as_ref().map(|t| t.peek().to_string()))
+        .flatten()
+}
+
 /// Converge rejects the whole request (`5005 Field Character Limit Exceeded`) when a field is
 /// over its documented length. Keep the tail, which holds the unique part of our IDs.
-fn fit_to_length(value: &str, max_chars: usize) -> String {
+pub(super) fn fit_to_length(value: &str, max_chars: usize) -> String {
     let skip = value.chars().count().saturating_sub(max_chars);
     value.chars().skip(skip).collect()
 }
@@ -180,7 +188,9 @@ pub struct ElavonThreeDsFields {
 /// Converge accepts only 5 (authenticated), 6 (attempted) and 7 (not authenticated). Its
 /// API reference maps 02/05 to 5 and 01/06 to 6, matching the schemes: Mastercard 02 and
 /// Visa 05 are authenticated, Mastercard 01 and Visa 06 are attempted.
-fn get_converge_eci(eci: Option<&str>) -> Result<u8, error_stack::Report<IntegrationError>> {
+pub(super) fn get_converge_eci(
+    eci: Option<&str>,
+) -> Result<u8, error_stack::Report<IntegrationError>> {
     match eci.map(|eci| eci.trim().trim_start_matches('0')) {
         Some("2" | "5") => Ok(5),
         Some("1" | "6") => Ok(6),
@@ -316,21 +326,12 @@ fn get_first_and_last_name<T: PaymentMethodDataTypes>(
     common: &PaymentFlowData,
     card: &Card<T>,
 ) -> (Option<Secret<String>>, Option<Secret<String>>) {
-    let holder_name = card
-        .card_holder_name
-        .as_ref()
-        .map(|name| name.peek().trim());
-    let first_name = common.get_optional_billing_first_name().or_else(|| {
-        holder_name
-            .and_then(|name| name.split_whitespace().next())
-            .map(|first| Secret::new(first.to_string()))
-    });
-    let last_name = common.get_optional_billing_last_name().or_else(|| {
-        holder_name
-            .and_then(|name| name.split_once(char::is_whitespace))
-            .map(|(_, last)| Secret::new(last.trim().to_string()))
-    });
-    (first_name, last_name)
+    let (holder_first, holder_last) =
+        domain_types::utils::split_full_name(card.card_holder_name.clone());
+    (
+        common.get_optional_billing_first_name().or(holder_first),
+        common.get_optional_billing_last_name().or(holder_last),
+    )
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -389,7 +390,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     &router_data.resource_common_data.address,
                 ));
 
-                let _cvv_indicator = if card.card_cvc.peek().is_empty() {
+                let cvv_indicator = if card.card_cvc.peek().is_empty() {
                     Some(0)
                 } else {
                     Some(1)
@@ -438,7 +439,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ssl_card_number: card.card_number.clone(),
                     ssl_exp_date: get_card_exp_date(card),
                     ssl_cvv2cvc2: Some(card.card_cvc.clone()),
-                    ssl_cvv2cvc2_indicator: Some(1),
+                    ssl_cvv2cvc2_indicator: cvv_indicator,
                     ssl_first_name: first_name,
                     ssl_last_name: last_name,
                     ssl_email: request_data.email.clone(),
@@ -825,15 +826,18 @@ impl<
 
         let payments_response_data = match (&response.result, error_response) {
             (ElavonResult::Success(payment_resp_struct), None) => {
-                let ssl_token =
-                    if payment_resp_struct.ssl_token_response.as_deref() == Some("SUCCESS") {
-                        payment_resp_struct
-                            .ssl_token
-                            .as_ref()
-                            .map(|t| t.peek().to_string())
-                    } else {
-                        None
-                    };
+                let ssl_token = get_saved_card_token(payment_resp_struct);
+                if ssl_token.is_none()
+                    && matches!(
+                        router_data.request.setup_future_usage,
+                        Some(FutureUsage::OnSession | FutureUsage::OffSession)
+                    )
+                {
+                    tracing::warn!(
+                        ssl_token_response = ?payment_resp_struct.ssl_token_response,
+                        "Elavon approved the payment but did not save the card; it cannot be used for MIT"
+                    );
+                }
                 let mandate_reference = ssl_token.map(|token| {
                     Box::new(MandateReference {
                         connector_mandate_id: Some(token),
@@ -1267,20 +1271,31 @@ impl<F> TryFrom<ResponseRouterData<ElavonVoidResponse, Self>>
                     payment_account_reference: None,
                 }),
             ),
-            ElavonResult::Error(error_payload) => (
-                AttemptStatus::VoidFailed,
-                Err(ErrorResponse {
-                    status_code: http_code,
-                    code: error_payload
-                        .error_code
-                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-                    message: error_payload.error_message,
-                    reason: error_payload.error_name,
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
-                    connector_transaction_id: error_payload.ssl_txn_id,
-                    ..Default::default()
-                }),
-            ),
+            ElavonResult::Error(error_payload) => {
+                // Only a processor decline (ssl_result=1, no errorMessage) is a failed void.
+                // Gateway errors (4- or 5-digit errorCode) leave the payment as it was.
+                let declined = error_payload.error_code.as_deref() == Some("1");
+                let status = if declined {
+                    AttemptStatus::VoidFailed
+                } else {
+                    router_data.resource_common_data.status
+                };
+                (
+                    status,
+                    Err(ErrorResponse {
+                        status_code: http_code,
+                        code: error_payload
+                            .error_code
+                            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                        message: error_payload.error_message,
+                        reason: error_payload.error_name,
+                        attempt_status: declined
+                            .then_some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
+                        connector_transaction_id: error_payload.ssl_txn_id,
+                        ..Default::default()
+                    }),
+                )
+            }
         };
 
         Ok(Self {
@@ -2187,7 +2202,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => {
                 return Err(report!(IntegrationError::NotImplemented(
                     "Only card payments are supported for Elavon SetupMandate".to_string(),
-                    Default::default()
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Elavon SetupMandate (ccgettoken) verifies and saves a raw card; \
+                             other payment methods cannot be saved this way"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    }
                 )))
             }
         };
@@ -2301,14 +2323,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (status, response_data) = match response.result {
             ElavonResult::Success(payment_response) => {
-                let token = if payment_response.ssl_token_response.as_deref() == Some("SUCCESS") {
-                    payment_response
-                        .ssl_token
-                        .as_ref()
-                        .map(|t| t.peek().to_string())
-                } else {
-                    None
-                };
+                let token = get_saved_card_token(&payment_response);
                 match token {
                     Some(token) => (
                         AttemptStatus::Charged,

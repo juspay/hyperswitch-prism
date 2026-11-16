@@ -5259,7 +5259,8 @@ message ElavonConfig {
   SecretString ssl_user_id = 2;
   SecretString ssl_pin = 3;
   optional string base_url = 50;
-  // Elavon-assigned vendor ID, required for Converge certification
+  // Optional Elavon-assigned vendor ID, from the merchant's connector account; sent on
+  // every request when set (Elavon uses it for Converge certification)
   optional SecretString ssl_vendor_id = 51;
 }
 
