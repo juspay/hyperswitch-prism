@@ -19,6 +19,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.16.2
+
+### Features
+
+- **connector:**
+  - Add Payhound crypto connector (Authorize, PSync, Incoming Webhooks) ([#2173](https://github.com/juspay/connector-service/pull/2173)) ([`683a939`](https://github.com/juspay/connector-service/commit/683a9393b5a7613c5d4e09f0ed668d5deb16c1d2))
+  - Add commerce hub applepay setupmandate flow ([#2756](https://github.com/juspay/connector-service/pull/2756)) ([`18197a8`](https://github.com/juspay/connector-service/commit/18197a888e4ee4187334261c81deaf840c4b544e))
+
+### Bug Fixes
+
+- **connector:**
+  - [Stripe] pass billing zip and country in tokenization request- ([#2750](https://github.com/juspay/connector-service/pull/2750)) ([`fb878c9`](https://github.com/juspay/connector-service/commit/fb878c9512527e86377c1b9f20b62dadf73800df))
+  - [Rapyd] forward client details and billing data ([#2747](https://github.com/juspay/connector-service/pull/2747)) ([`9bd2651`](https://github.com/juspay/connector-service/commit/9bd265181a04f7f33b88859030e347dbd6a2acd7))
+- **webhooks:** Preserve Worldpay attempt context ([#2745](https://github.com/juspay/connector-service/pull/2745)) ([`a73f81d`](https://github.com/juspay/connector-service/commit/a73f81d69705aa04d900e4c8d87c6618c697226a))
+- Harden verification and error handling ([#2746](https://github.com/juspay/connector-service/pull/2746)) ([`5b8b70b`](https://github.com/juspay/connector-service/commit/5b8b70b67b6dd324ec347812d63160f0a3e04d5d))
+
+### Refactors
+
+- Organize internal tooling by ownership ([#2735](https://github.com/juspay/connector-service/pull/2735)) ([`a859bd8`](https://github.com/juspay/connector-service/commit/a859bd87b6ff52278cdcdc767f477cbc4f675b90))
+
+**Full Changelog:** [`2026.11.16.1...2026.11.16.2`](https://github.com/juspay/connector-service/compare/2026.11.16.1...2026.11.16.2)
+
+- - -
+
 ## 2026.11.16.1
 
 ### Bug Fixes
