@@ -5138,7 +5138,7 @@ pub struct AirlineData {
     pub passengers: Vec<AirlinePassenger>,
 }
 
-/// Journey endpoints supplied by Txns from MTI.
+/// Airline journey endpoints and optional UTC departure timestamp.
 #[derive(Debug, Clone, Default)]
 pub struct AirlineJourneyDetails {
     pub journey_no: Option<u32>,

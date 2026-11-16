@@ -1667,17 +1667,28 @@ pub(super) fn get_nuvei_airline_addendums(
                 });
                 let first_segment = segments.next();
                 let has_connection = segments.next().is_some();
+                let (carrier, number) = match first_segment {
+                    Some(segment) if segment.marketing_carrier_code.is_some() => (
+                        segment.marketing_carrier_code.as_deref(),
+                        segment.flight_number.as_deref(),
+                    ),
+                    Some(segment) if segment.operating_carrier_code.is_some() => (
+                        segment.operating_carrier_code.as_deref(),
+                        segment
+                            .operating_flight_number
+                            .as_deref()
+                            .or(segment.flight_number.as_deref()),
+                    ),
+                    segment => (
+                        data.airline_code.as_deref(),
+                        segment.and_then(|segment| segment.flight_number.as_deref()),
+                    ),
+                };
                 make_leg(
                     journey.departure.as_ref(),
                     journey.arrival.as_ref(),
-                    first_segment.and_then(|segment| {
-                        segment
-                            .marketing_carrier_code
-                            .as_ref()
-                            .or(segment.operating_carrier_code.as_ref())
-                            .map(String::as_str)
-                    }),
-                    first_segment.and_then(|segment| segment.flight_number.as_deref()),
+                    carrier,
+                    number,
                     if has_connection { "X" } else { "O" }.to_owned(),
                 )
             })
@@ -1748,7 +1759,7 @@ fn nuvei_airline_date(value: &str) -> String {
             .ok()
         })
         .or_else(|| {
-            // MTI local departure/arrival timestamps may omit the timezone.
+            // Local departure/arrival timestamps may omit the timezone.
             // Format their wall-clock time without assuming or converting a timezone.
             time::PrimitiveDateTime::parse(
                 value,
@@ -1811,7 +1822,7 @@ fn merge_nuvei_capture_ticket(
     {
         reservation_details.ticket_number = Some(ticket);
     }
-    // Capture requests use the current timestamp for issueDate.
+    // Capture requests use the current timestamp for issueDate. - https://docs.nuvei.com/documentation/features/addendums/airline/
     reservation_details.issue_date = Some(
         common_utils::date_time::now()
             .format(time::macros::format_description!(
