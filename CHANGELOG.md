@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.16.3
+
+### Bug Fixes
+
+- **core:** Move runtime image to distroless debian13 and drop curl/li… ([#2757](https://github.com/juspay/connector-service/pull/2757)) ([`ca0fc8b`](https://github.com/juspay/connector-service/commit/ca0fc8bcb9d2463230ea3c0fbe47c74b0b7d5845))
+
+**Full Changelog:** [`2026.11.16.2...2026.11.16.3`](https://github.com/juspay/connector-service/compare/2026.11.16.2...2026.11.16.3)
+
+- - -
+
 ## 2026.11.16.2
 
 ### Features
