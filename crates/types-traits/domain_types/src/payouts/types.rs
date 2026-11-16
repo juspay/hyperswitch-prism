@@ -1028,6 +1028,99 @@ impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payouts::GooglePayDecrypt>
+    for payouts::payout_method_data::GooglePayDecrypt
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        google: grpc_api_types::payouts::GooglePayDecrypt,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let card_network = google
+            .card_network
+            .map(|n| {
+                let network = grpc_api_types::payments::CardNetwork::try_from(n).change_context(
+                    IntegrationError::InvalidDataFormat {
+                        field_name: "card_network",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid card network".to_owned()),
+                            ..Default::default()
+                        },
+                    },
+                )?;
+                common_enums::CardNetwork::foreign_try_from(network)
+            })
+            .transpose()?;
+        Ok(payouts::payout_method_data::GooglePayDecrypt {
+            application_primary_account_number: std::str::FromStr::from_str(
+                &google
+                    .application_primary_account_number
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "application_primary_account_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Application primary account number (DPAN) is required for Google Pay decrypt"
+                                        .to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
+                    })?
+                    .peek()
+                    .clone(),
+            )
+            .map_err(|e| {
+                error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "application_primary_account_number",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Invalid application primary account number".to_owned()
+                        ),
+                        ..Default::default()
+                    },
+                })
+                .attach_printable(format!("{e:?}"))
+            })?,
+            expiry_month: ::hyperswitch_masking::Secret::new(
+                google
+                    .expiry_month
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_exp_month",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Card expiry month is required".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
+                    })?
+                    .peek()
+                    .to_string(),
+            ),
+            expiry_year: ::hyperswitch_masking::Secret::new(
+                google
+                    .expiry_year
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_exp_year",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Card expiry year is required".to_owned()),
+                                ..Default::default()
+                            },
+                        })
+                    })?
+                    .peek()
+                    .to_string(),
+            ),
+            card_holder_name: google
+                .card_holder_name
+                .map(|n| ::hyperswitch_masking::Secret::new(n.peek().to_string())),
+            card_network,
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payouts::Paypal> for payouts::payout_method_data::Paypal {
     type Error = IntegrationError;
     fn foreign_try_from(
@@ -1378,6 +1471,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     )?,
                 ),
             )),
+            grpc_api_types::payouts::payout_method::PayoutMethodData::GooglePayDecrypt(
+                google_pay_decrypt,
+            ) => Ok(Self::Wallet(
+                payouts::payout_method_data::Wallet::GooglePayDecrypt(
+                    payouts::payout_method_data::GooglePayDecrypt::foreign_try_from(
+                        google_pay_decrypt,
+                    )?,
+                ),
+            )),
             grpc_api_types::payouts::payout_method::PayoutMethodData::Paypal(paypal) => {
                 Ok(Self::Wallet(payouts::payout_method_data::Wallet::Paypal(
                     payouts::payout_method_data::Paypal::foreign_try_from(paypal)?,
@@ -1602,6 +1704,16 @@ where
                 })
                 .map(payouts::payouts_types::PayoutFundsTransferType::foreign_try_from)
                 .transpose()?,
+            purpose: value
+                .purpose
+                .filter(|value| {
+                    *value
+                        != i32::from(
+                            grpc_api_types::payouts::payout_enums::PayoutPurpose::Unspecified,
+                        )
+                })
+                .map(payouts::payouts_types::PayoutPurpose::foreign_try_from)
+                .transpose()?,
             vendor_account_details: value
                 .vendor_account_details
                 .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
@@ -1677,6 +1789,45 @@ impl ForeignTryFrom<i32> for payouts::payouts_types::PayoutFundsTransferType {
             Ftt::MastercardBusinessToBusiness => Ok(Self::MastercardBusinessToBusiness),
             Ftt::MastercardGamingRepay => Ok(Self::MastercardGamingRepay),
             Ftt::Unspecified => Err(invalid().into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<i32> for payouts::payouts_types::PayoutPurpose {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payouts::payout_enums::PayoutPurpose as ProtoPurpose;
+
+        let invalid = || IntegrationError::InvalidDataFormat {
+            field_name: "purpose",
+            context: crate::errors::IntegrationErrorContext {
+                additional_context: Some(format!("Unknown PayoutPurpose enum value: {value}")),
+                ..Default::default()
+            },
+        };
+
+        match ProtoPurpose::try_from(value).change_context(invalid())? {
+            ProtoPurpose::FamilySupport => Ok(Self::FamilySupport),
+            ProtoPurpose::Expatriation => Ok(Self::Expatriation),
+            ProtoPurpose::TravelAndTourism => Ok(Self::TravelAndTourism),
+            ProtoPurpose::Education => Ok(Self::Education),
+            ProtoPurpose::MedicalTreatment => Ok(Self::MedicalTreatment),
+            ProtoPurpose::EmergencyNeed => Ok(Self::EmergencyNeed),
+            ProtoPurpose::Leisure => Ok(Self::Leisure),
+            ProtoPurpose::Savings => Ok(Self::Savings),
+            ProtoPurpose::Gifts => Ok(Self::Gifts),
+            ProtoPurpose::Donations => Ok(Self::Donations),
+            ProtoPurpose::FinancialServices => Ok(Self::FinancialServices),
+            ProtoPurpose::ItServices => Ok(Self::ItServices),
+            ProtoPurpose::Investment => Ok(Self::Investment),
+            ProtoPurpose::Insurance => Ok(Self::Insurance),
+            ProtoPurpose::LoanPayment => Ok(Self::LoanPayment),
+            ProtoPurpose::Pension => Ok(Self::Pension),
+            ProtoPurpose::Royalties => Ok(Self::Royalties),
+            ProtoPurpose::Other => Ok(Self::Other),
+            ProtoPurpose::Income => Ok(Self::Income),
+            ProtoPurpose::Unspecified => Err(invalid().into()),
         }
     }
 }
