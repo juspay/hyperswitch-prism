@@ -12,7 +12,7 @@ use common_enums::{
 };
 use common_utils::{
     consts,
-    crypto::{self, SignMessage},
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -865,21 +865,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to decode hex webhook secret for Adyen")?;
 
-        // Compute HMAC-SHA256 signature
-        let computed_signature = algorithm
-            .sign_message(&raw_key, &message)
+        // Adyen sends the HMAC-SHA256 signature as Base64. Decode it and use the
+        // shared constant-time verifier rather than comparing encoded strings.
+        let received_signature = consts::BASE64_ENGINE
+            .decode(signature)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to compute HMAC signature for Adyen")?;
+            .attach_printable("Failed to decode Adyen webhook signature")?;
 
-        // Base64 encode the computed signature
-        let computed_signature_b64 = consts::BASE64_ENGINE.encode(&computed_signature);
-
-        // Adyen sends base64-encoded signature as string, compare base64 strings
-        let received_signature_str = std::str::from_utf8(&signature)
+        algorithm
+            .verify_signature(&raw_key, &received_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to parse received signature as UTF-8")?;
-
-        Ok(computed_signature_b64 == received_signature_str)
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {

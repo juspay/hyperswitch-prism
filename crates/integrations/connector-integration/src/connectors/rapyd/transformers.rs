@@ -24,7 +24,7 @@ use domain_types::{
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
-    router_request_types::AuthenticationData,
+    router_request_types::{AuthenticationData, BrowserInformation},
     router_response_types::RedirectForm,
     utils::{get_card_issuer, CardIssuer},
 };
@@ -706,6 +706,12 @@ pub struct RapydPaymentsRequest<
     pub description: Option<String>,
     pub complete_payment_url: Option<String>,
     pub error_payment_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_details: Option<RapydClientDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<Address>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt_email: Option<Email>,
     /// Inline customer used when saving a payment method.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<RapydInlineCustomer>,
@@ -732,6 +738,44 @@ pub struct RapydPaymentsRequest<
 pub struct RapydInlineCustomer {
     pub name: Secret<String>,
     pub email: Email,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RapydClientDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    accept_header: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ip_address: Option<Secret<String, common_utils::pii::IpAddress>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    java_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    java_script_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    screen_color_depth: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    screen_height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    screen_width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    time_zone_offset: Option<i32>,
+}
+
+impl From<&BrowserInformation> for RapydClientDetails {
+    fn from(browser: &BrowserInformation) -> Self {
+        Self {
+            accept_header: browser.accept_header.clone(),
+            ip_address: browser.ip_address.map(|ip| Secret::new(ip.to_string())),
+            java_enabled: browser.java_enabled,
+            java_script_enabled: browser.java_script_enabled,
+            language: browser.language.clone(),
+            screen_color_depth: browser.color_depth,
+            screen_height: browser.screen_height,
+            screen_width: browser.screen_width,
+            time_zone_offset: browser.time_zone,
+        }
+    }
 }
 
 /// Rapyd payment_method field can be either a token string (for saved/tokenized
@@ -923,15 +967,41 @@ pub fn is_recurring_wallet_intent(
 
 #[derive(Default, Debug, Serialize)]
 pub struct Address {
-    name: Secret<String>,
-    line_1: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line_1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     line_2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     line_3: Option<Secret<String>>,
-    city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<Secret<String>>,
-    country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     phone_number: Option<Secret<String>>,
+}
+
+impl From<&domain_types::payment_address::Address> for Address {
+    fn from(billing: &domain_types::payment_address::Address) -> Self {
+        let details = billing.address.as_ref();
+        Self {
+            name: billing.get_optional_full_name(),
+            line_1: details.and_then(|address| address.get_optional_line1()),
+            line_2: details.and_then(|address| address.get_optional_line2()),
+            line_3: details.and_then(|address| address.line3.clone()),
+            city: details.and_then(|address| address.get_optional_city()),
+            state: details.and_then(|address| address.get_optional_state()),
+            country: billing.get_optional_country(),
+            zip: details.and_then(|address| address.get_optional_zip()),
+            phone_number: billing.get_e123_phone_number(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1476,6 +1546,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             description: None,
             error_payment_url: Some(return_url.clone()),
             complete_payment_url: Some(return_url),
+            client_details: item
+                .router_data
+                .request
+                .browser_info
+                .as_ref()
+                .map(RapydClientDetails::from),
+            address: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing()
+                .map(Address::from),
+            receipt_email: item.router_data.request.email.clone(),
             customer,
             save_payment_method,
             initiation_type,
@@ -2334,6 +2416,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             complete_payment_url: Some(return_url.clone()),
             error_payment_url: Some(return_url),
             customer: Some(inline_customer),
+            client_details: request.browser_info.as_ref().map(RapydClientDetails::from),
+            address: router_data
+                .resource_common_data
+                .get_optional_billing()
+                .map(Address::from),
+            receipt_email: request.email.clone(),
             save_payment_method: Some(true),
             initiation_type: None,
         })
@@ -2508,6 +2596,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             customer: None,
             save_payment_method: None,
             initiation_type: Some(RapydInitiationType::Recurring),
+            client_details: request.browser_info.as_ref().map(RapydClientDetails::from),
+            address: router_data
+                .resource_common_data
+                .get_optional_billing()
+                .map(Address::from),
+            receipt_email: request.email.clone(),
         })
     }
 }
