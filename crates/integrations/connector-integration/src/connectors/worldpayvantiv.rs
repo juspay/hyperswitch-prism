@@ -11,14 +11,15 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, Void,
+        VoidPC,
     },
     connector_types::{
         ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RequestDetails, WebhookDetailsResponse,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -33,8 +34,8 @@ use interfaces::{
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
         ConnectorServiceTrait, IncomingWebhook, PaymentAuthorizeV2, PaymentCapture, PaymentSyncV2,
-        PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2, ValidationTrait,
-        VerifyRedirectResponse,
+        PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2, RepeatPaymentV2,
+        ValidationTrait, VerifyRedirectResponse,
     },
     decode::BodyDecoding,
     verification::SourceVerification,
@@ -274,6 +275,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    RepeatPaymentV2<T> for Worldpayvantiv<T>
+{
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> PaymentSyncV2
     for Worldpayvantiv<T>
 {
@@ -455,6 +461,105 @@ macros::create_all_prerequisites!(
 );
 
 // Implement the specific flows
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        RepeatPayment,
+        PaymentFlowData,
+        RepeatPaymentData<T>,
+        PaymentsResponseData,
+    > for Worldpayvantiv<T>
+{
+    fn get_headers(
+        &self,
+        _req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        Ok(vec![(
+            "Content-Type".into(),
+            self.common_get_content_type().into(),
+        )])
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Ok(self.connector_base_url_payments(req))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
+        let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
+            router_data: req.clone(),
+            connector: self.clone(),
+        })?;
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &request.cnp_request,
+            "typed_connector_request",
+        );
+        let xml =
+            utils::serialize_to_xml_string_with_root("cnpOnlineRequest", &request.cnp_request)?;
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::RawBytes(xml.into_bytes()),
+            typed,
+        )))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            RepeatPayment,
+            PaymentFlowData,
+            RepeatPaymentData<T>,
+            PaymentsResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ConnectorError,
+    > {
+        let xml = unwrap_json_wrapped_xml(&res.response, res.status_code)?;
+        let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml).change_context(
+            utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
+        )?;
+        finalize_connector_response!(event_builder, response, data, res.status_code)
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder, connector_config)
+    }
+
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Post
+    }
+}
+
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Worldpayvantiv,
@@ -912,7 +1017,6 @@ macros::macro_connector_flow_status_impls!(
         Authenticate,
         PostAuthenticate,
         SetupMandate,
-        RepeatPayment,
         Accept,
         SubmitEvidence,
         DefendDispute,
