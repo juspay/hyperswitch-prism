@@ -240,7 +240,7 @@ Used by: Bluesnap, Trustpay, Revolut, Noon, Novalnet
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for {ConnectorName}<T>
+    interfaces::webhooks::IncomingWebhook for {ConnectorName}<T>
 {
     fn verify_webhook_source(
         &self,
@@ -311,7 +311,7 @@ Used by: Fiuu
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for {ConnectorName}<T>
+    interfaces::webhooks::IncomingWebhook for {ConnectorName}<T>
 {
     fn verify_webhook_source(
         &self,
@@ -751,7 +751,7 @@ fn get_webhook_resource_object(
 ```rust
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Bluesnap<T>
+    interfaces::webhooks::IncomingWebhook for Bluesnap<T>
 {
     fn verify_webhook_source(
         &self,
@@ -839,7 +839,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for {ConnectorName}<T>
+    interfaces::webhooks::IncomingWebhook for {ConnectorName}<T>
 {
     // Uses default verify_webhook_source (returns false - falls back to psync)
 

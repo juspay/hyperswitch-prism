@@ -8,6 +8,7 @@ pub mod flow_status;
 pub mod frm;
 pub mod mandates;
 pub mod merchant_authentication_flow_data;
+pub(crate) mod money;
 pub mod payment_address;
 pub mod payment_method_data;
 pub mod payouts;

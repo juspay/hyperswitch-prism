@@ -17,7 +17,10 @@ fn legs(data: AirlineData) -> Value {
         .expect("airline mapping succeeds")
         .expect("airline addendums exist");
     let value = serde_json::to_value(addendums.expose()).expect("addendums serialize");
-    value["airlines"]["reservationDetails"]["flightLegDetails"].clone()
+    value
+        .pointer("/airlines/reservationDetails/flightLegDetails")
+        .expect("flight leg details exist")
+        .clone()
 }
 
 fn segment(journey_no: Option<u32>, number: &str) -> AirlineSegment {
@@ -50,10 +53,34 @@ fn journeys_group_connections_and_preserve_return_flight() {
         ..Default::default()
     });
     assert_eq!(result.as_array().expect("legs are an array").len(), 2);
-    assert_eq!(result[0]["stopOverCode"], "X");
-    assert_eq!(result[0]["flightNumber"], "AI 101");
-    assert_eq!(result[1]["stopOverCode"], "O");
-    assert_eq!(result[1]["flightNumber"], "AI 201");
+    assert_eq!(
+        result
+            .pointer("/0/stopOverCode")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "X"
+    );
+    assert_eq!(
+        result
+            .pointer("/0/flightNumber")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "AI 101"
+    );
+    assert_eq!(
+        result
+            .pointer("/1/stopOverCode")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "O"
+    );
+    assert_eq!(
+        result
+            .pointer("/1/flightNumber")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "AI 201"
+    );
 }
 
 #[test]
@@ -65,9 +92,27 @@ fn no_journeys_preserves_segments_and_explicit_stopover() {
         ..Default::default()
     });
     assert_eq!(result.as_array().expect("legs are an array").len(), 3);
-    assert_eq!(result[0]["stopOverCode"], "X");
-    assert_eq!(result[1]["stopOverCode"], "O");
-    assert_eq!(result[2]["stopOverCode"], "X");
+    assert_eq!(
+        result
+            .pointer("/0/stopOverCode")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "X"
+    );
+    assert_eq!(
+        result
+            .pointer("/1/stopOverCode")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "O"
+    );
+    assert_eq!(
+        result
+            .pointer("/2/stopOverCode")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "X"
+    );
 }
 
 #[test]
@@ -76,8 +121,20 @@ fn missing_journey_numbers_do_not_group_unrelated_segments() {
         flight_segments: vec![segment(None, "101"), segment(None, "201")],
         ..Default::default()
     });
-    assert_eq!(result[0]["stopOverCode"], "O");
-    assert_eq!(result[1]["stopOverCode"], "O");
+    assert_eq!(
+        result
+            .pointer("/0/stopOverCode")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "O"
+    );
+    assert_eq!(
+        result
+            .pointer("/1/stopOverCode")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "O"
+    );
 }
 
 #[test]
@@ -97,11 +154,37 @@ fn journey_without_segments_retains_endpoints_and_omits_missing_flight_fields() 
         }],
         ..Default::default()
     });
-    assert_eq!(result[0]["departureAirport"], "DEL");
-    assert_eq!(result[0]["destinationAirport"], "BLR");
-    assert_eq!(result[0]["stopOverCode"], "O");
-    assert!(result[0].get("airlineCode").is_none());
-    assert!(result[0].get("flightNumber").is_none());
+    assert_eq!(
+        result
+            .pointer("/0/departureAirport")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "DEL"
+    );
+    assert_eq!(
+        result
+            .pointer("/0/destinationAirport")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "BLR"
+    );
+    assert_eq!(
+        result
+            .pointer("/0/stopOverCode")
+            .expect("expected flight leg field exists")
+            .clone(),
+        "O"
+    );
+    assert!(result
+        .get(0)
+        .expect("expected flight leg exists")
+        .get("airlineCode")
+        .is_none());
+    assert!(result
+        .get(0)
+        .expect("expected flight leg exists")
+        .get("flightNumber")
+        .is_none());
 }
 
 #[test]
@@ -117,6 +200,12 @@ fn offsetless_dates_preserve_wall_clock_and_drop_fractional_seconds() {
             }],
             ..Default::default()
         });
-        assert_eq!(result[0]["departureDate"], json!("2026-12-01 10:30:45"));
+        assert_eq!(
+            result
+                .pointer("/0/departureDate")
+                .expect("expected flight leg field exists")
+                .clone(),
+            json!("2026-12-01 10:30:45")
+        );
     }
 }

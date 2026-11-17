@@ -59,7 +59,7 @@ grpcurl -plaintext 127.0.0.1:$PORT list types.PaymentService  # methods on one
 
 ## Step 0: Prefer the first-class test harness
 
-A real integration-test harness exists (`crates/internal/integration-tests`, bin
+A real integration-test harness exists (`tests/regression`, bin
 `test_ucs`). It owns the server lifecycle, credential loading and assertions.
 Hand-rolled grpcurl is the **fallback for debugging a single request**, not the
 default way to test a connector.
@@ -68,11 +68,11 @@ default way to test a connector.
 make test-connector connector={connector_name}                  # all suites
 make test-scenario connector={connector_name} suite=authorize \
      scenario=no3ds_auto_capture_credit_card                    # one scenario
-./scripts/run-tests --connector {connector_name} --suite authorize
+./tests/regression/scripts/run-tests --connector {connector_name} --suite authorize
 ```
 
-`./scripts/run-tests` is installed on PATH as `test-prism` by
-`scripts/setup-connector-tests.sh`; run `test-prism --help` for the full flag list
+`./tests/regression/scripts/run-tests` is installed on PATH as `test-prism` by
+`tests/regression/scripts/setup-connector-tests.sh`; run `test-prism --help` for the full flag list
 (`--interface grpc|sdk`, `--endpoint`, `--report`, `--no-server`, `--interactive`).
 
 **Running off the default port:** `test-connector` and `test-scenario` both start the
@@ -81,7 +81,7 @@ one override moves both: `make test-connector connector={connector_name} GRPC_PO
 What they do *not* move is the metrics port — neither recipe exports
 `CS__METRICS__PORT`, so a second concurrent run still tries to bind the 8080 default
 and dies on the failed bind (see Step 1). Export `CS__METRICS__PORT` into the
-environment `make` inherits, or use `./scripts/run-tests --endpoint localhost:$PORT`
+environment `make` inherits, or use `./tests/regression/scripts/run-tests --endpoint localhost:$PORT`
 (`$PORT` is exported in Step 1).
 
 ---
@@ -236,7 +236,7 @@ grpcurl -plaintext \
 
 ## Step 2: Load Credentials
 
-Credentials resolve in this order (`crates/internal/integration-tests/src/harness/credentials.rs`):
+Credentials resolve in this order (`tests/regression/src/harness/credentials.rs`):
 
 1. `$CONNECTOR_AUTH_FILE_PATH`
 2. `$UCS_CREDS_PATH`
@@ -556,7 +556,7 @@ Test the {ConnectorName} connector's {FlowName} flow.
 ## Instructions
 1. Read the testing guide at .skills/_shared/references/grpc-testing-guide.md
 2. Try the first-class harness first: make test-connector connector={connector_name}
-   (or ./scripts/run-tests --connector {connector_name} --endpoint localhost:$PORT).
+   (or ./tests/regression/scripts/run-tests --connector {connector_name} --endpoint localhost:$PORT).
    Only drop to raw grpcurl to debug a single failing request.
 3. Start the gRPC server if not running (make start-grpc GRPC_PORT=$PORT); wait on
    the TCP probe + grpc.health.v1.Health/Check — there is no /health HTTP endpoint

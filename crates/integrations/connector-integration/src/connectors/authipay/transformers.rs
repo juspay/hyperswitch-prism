@@ -198,7 +198,7 @@ impl<T: PaymentMethodDataTypes>
     ) -> Result<Self, Self::Error> {
         // Use FloatMajorUnitForConnector to properly convert minor to major unit
         let converter = FloatMajorUnitForConnector;
-        let amount_major = converter.convert(&item.request.amount).change_context(
+        let amount_major = converter.convert(&item.request.money).change_context(
             IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             },
@@ -295,16 +295,10 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
         // The get_connector_transaction_id() method will validate this in get_url()
         // No validation needed here
 
-        // Get capture amount from minor_amount_to_capture
-        let capture_amount = item.request.amount_to_capture.amount;
-
         // Convert amount to FloatMajorUnit format
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
-            .convert(&common_utils::types::Money {
-                amount: capture_amount,
-                currency: item.request.currency,
-            })
+            .convert(&item.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -808,7 +802,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         // Convert refund amount to major unit format
         let converter = FloatMajorUnitForConnector;
         let amount_major = converter
-            .convert(&item.request.refund_amount)
+            .convert(&item.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1144,7 +1138,7 @@ impl
         // VoidTransaction voids the full original amount unless transactionAmount is sent.
         let transaction_amount = item
             .request
-            .amount
+            .money
             .as_ref()
             .map(|amount| {
                 FloatMajorUnitForConnector
@@ -1154,7 +1148,7 @@ impl
                     })
                     .map(|total| TransactionAmount {
                         total,
-                        currency: amount.currency,
+                        currency: amount.currency(),
                     })
             })
             .transpose()?;

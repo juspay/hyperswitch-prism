@@ -548,7 +548,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Juspay<T>
+    interfaces::webhooks::IncomingWebhook for Juspay<T>
 {
 }
 

@@ -506,7 +506,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Webhooks are out of scope for this integration — see the comment on
 // `notification_url` in transformers.rs.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for D24<T>
+    interfaces::webhooks::IncomingWebhook for D24<T>
 {
 }
 

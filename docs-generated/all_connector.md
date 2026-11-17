@@ -201,7 +201,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Etisalat](connectors/etisalat.md) | ⚠ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | x | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Finix](connectors/finix.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | ✓ | ? | x | ✓ | ✓ | x | ✓ | x | ✓ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Fiserv](connectors/fiserv.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Fiservcommercehub](connectors/fiservcommercehub.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ? | ⚠ | ⚠ | ? | ? | ✓ | x | ✓ | x | x | x | x | x | x | x | x | x | ✓ | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [Fiservcommercehub](connectors/fiservcommercehub.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ✓ | ⚠ | ? | ⚠ | ⚠ | ? | ? | ✓ | x | ✓ | x | x | x | x | x | x | x | x | x | ✓ | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Fiservemea](connectors/fiservemea.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Fiuu](connectors/fiuu.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Flywire](connectors/flywire.md) | ✓ | ⚠ | x | ⚠ | x | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
@@ -233,7 +233,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Merchante](connectors/merchante.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [MiFinity](connectors/mifinity.md) | ✓ | x | x | x | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Mollie](connectors/mollie.md) | ✓ | ✓ | ⚠ | ? | ⚠ | ✓ | x | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Moneris](connectors/moneris.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | ✓ | x | x | x | x | x | x | x | x | x | ✓ | x | x | ✓ | x | ✓ | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [Moneris](connectors/moneris.md) | ✓ | ✓ | x | ✓ | x | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | ✓ | x | x | x | x | x | x | x | x | x | ✓ | x | x | ✓ | x | ✓ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Multisafepay](connectors/multisafepay.md) | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Netcetera](connectors/netcetera.md) | x | x | x | x | x | x | x | ⚠ | x | ⚠ | x | ⚠ | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | x | x | x | ? | ? | ? | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Nexinets](connectors/nexinets.md) | ✓ | ? | x | ? | ⚠ | ✓ | ⚠ | ⚠ | x | ⚠ | x | ✓ | x | ✓ | ⚠ | ? | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
@@ -261,7 +261,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Powertranz](connectors/powertranz.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | x | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Ppro](connectors/ppro.md) | ✓ | ? | x | ✓ | ⚠ | ✓ | x | ✓ | x | ? | ? | x | x | ✓ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Qwikcilver](connectors/qwikcilver.md) | ⚠ | x | x | x | x | ? | x | ⚠ | x | ? | x | ? | x | x | x | ⚠ | x | x | x | x | x | x | x | x | ? | ✓ | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Rapyd](connectors/rapyd.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
+| [Rapyd](connectors/rapyd.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Razorpay](connectors/razorpay.md) | ✓ | x | x | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | x | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Razorpay V2](connectors/razorpay_v2.md) | ✓ | x | x | ⚠ | ✓ | ✓ | x | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Razorpay V2](connectors/razorpayv2.md) | ✓ | x | x | ⚠ | ✓ | ✓ | x | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
@@ -291,7 +291,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Worldpay](connectors/worldpay.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ✓ | ⚠ | ⚠ | ? | ⚠ | ✓ | ⚠ | ✓ | x | ✓ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ? | ⚠ | ? | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Worldpayraft](connectors/worldpayraft.md) | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Worldpayvantiv](connectors/worldpayvantiv.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ✓ | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [Worldpayxml](connectors/worldpayxml.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x |
+| [Worldpayxml](connectors/worldpayxml.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ✓ | ✓ | x |
 | [Xendit](connectors/xendit.md) | ✓ | ⚠ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Zift](connectors/zift.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 

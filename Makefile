@@ -107,7 +107,7 @@ ci:
 ## Run this once before running any connector tests.
 setup-connector-tests:
 	@echo "▶ Setting up connector integration tests…"
-	@bash scripts/setup-connector-tests.sh
+	@bash tests/regression/scripts/setup-connector-tests.sh
 
 # ── grace-workspace bootstrap ─────────────────────────────────────────────────
 
@@ -190,7 +190,7 @@ endef
 ## For full flag support use test-prism directly (installed by setup):
 ##   test-prism --help
 test-prism:
-	@./scripts/run-tests
+	@./tests/regression/scripts/run-tests
 
 ## Backwards-compatible alias for test-prism.
 test-ucs: test-prism

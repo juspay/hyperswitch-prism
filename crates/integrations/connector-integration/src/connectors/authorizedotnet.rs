@@ -38,12 +38,13 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        self, ConnectorServiceTrait, IncomingWebhook, PaymentAuthorizeV2, PaymentCapture,
-        PaymentSyncV2, PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2,
-        RepeatPaymentV2, ServerSessionAuthentication, SetupMandateV2, ValidationTrait,
+        self, ConnectorServiceTrait, PaymentAuthorizeV2, PaymentCapture, PaymentSyncV2,
+        PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2, RepeatPaymentV2,
+        ServerSessionAuthentication, SetupMandateV2, ValidationTrait,
     },
     decode::BodyDecoding,
     verification::SourceVerification,
+    webhooks::IncomingWebhook,
 };
 use serde::Serialize;
 
@@ -358,7 +359,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,

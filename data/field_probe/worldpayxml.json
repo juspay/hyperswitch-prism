@@ -756,7 +756,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>"
+        }
       }
     },
     "incremental_authorization": {
@@ -767,7 +782,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>"
+        }
       }
     },
     "payment_method_eligibility": {

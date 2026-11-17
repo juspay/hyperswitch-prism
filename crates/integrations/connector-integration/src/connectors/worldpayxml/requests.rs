@@ -389,7 +389,8 @@ pub struct WorldpayxmlFundingAddress {
     pub address1: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address2: Option<Secret<String>>,
-    pub postal_code: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
     pub city: String,
     pub state: Secret<String>,
     pub country_code: common_enums::CountryAlpha2,

@@ -32,12 +32,13 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        ConnectorServiceTrait, IncomingWebhook, PaymentAuthorizeV2, PaymentCapture, PaymentSyncV2,
+        ConnectorServiceTrait, PaymentAuthorizeV2, PaymentCapture, PaymentSyncV2,
         PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2, ValidationTrait,
         VerifyRedirectResponse,
     },
     decode::BodyDecoding,
     verification::SourceVerification,
+    webhooks::IncomingWebhook,
 };
 use serde::Serialize;
 

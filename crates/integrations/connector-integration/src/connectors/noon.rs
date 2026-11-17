@@ -198,7 +198,7 @@ fn get_noon_webhook_event_type(
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Noon<T>
+    interfaces::webhooks::IncomingWebhook for Noon<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -378,7 +378,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             response_headers: None,
             mandate_reference: None,
-            amount_captured: None,
+            captured_money: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,

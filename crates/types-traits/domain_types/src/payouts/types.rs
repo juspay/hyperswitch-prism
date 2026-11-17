@@ -85,17 +85,17 @@ where
             }
         };
 
-        let source_currency = {
-            let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid currency".to_owned()),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(curr)?
-        };
+        // Preserve raw-enum validation: from_proto_money uses the defaulting accessor.
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid currency".to_owned()),
+                    ..Default::default()
+                },
+            },
+        )?;
+        let money = crate::money::from_proto_money(amount)?;
 
         let destination_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(value.destination_currency)
@@ -118,8 +118,7 @@ where
             merchant_payout_id: value.merchant_payout_id.clone(),
             connector_quote_id: value.connector_quote_id.clone(),
             connector_payout_id: value.connector_payout_id.clone(),
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            source_currency,
+            money,
             destination_currency,
             priority: value
                 .priority
@@ -1512,17 +1511,16 @@ where
             }
         };
 
-        let source_currency = {
-            let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid currency".to_owned()),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(curr)?
-        };
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid currency".to_owned()),
+                    ..Default::default()
+                },
+            },
+        )?;
+        let money = crate::money::from_proto_money(amount)?;
 
         let destination_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(value.destination_currency)
@@ -1571,8 +1569,7 @@ where
             merchant_payout_id: value.merchant_payout_id.clone(),
             connector_quote_id: value.connector_quote_id.clone(),
             connector_payout_id: value.connector_payout_id.clone(),
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            source_currency,
+            money,
             destination_currency,
             priority,
             connector_payout_method_id: value.connector_payout_method_id,
@@ -1597,7 +1594,90 @@ where
             billing_descriptor: value.billing_descriptor.as_ref().map(|descriptor| {
                 crate::connector_types::BillingDescriptor::from((descriptor, None, None))
             }),
+            funds_transfer_type: value
+                .funds_transfer_type
+                .filter(|value| {
+                    *value
+                        != i32::from(grpc_api_types::payouts::PayoutFundsTransferType::Unspecified)
+                })
+                .map(payouts::payouts_types::PayoutFundsTransferType::foreign_try_from)
+                .transpose()?,
+            vendor_account_details: value
+                .vendor_account_details
+                .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
+                .transpose()?,
         })
+    }
+}
+
+fn payout_source_of_funds_from_proto(
+    value: Option<i32>,
+) -> Result<
+    Option<payouts::payouts_types::PayoutSourceOfFunds>,
+    error_stack::Report<IntegrationError>,
+> {
+    use grpc_api_types::payouts::PayoutSourceOfFunds as Grpc;
+    use payouts::payouts_types::PayoutSourceOfFunds as Domain;
+    value
+        .map(|value| {
+            let invalid = || {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "vendor_account_details.source_of_funds",
+                    context: crate::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Unknown PayoutSourceOfFunds enum value: {value}"
+                        )),
+                        ..Default::default()
+                    },
+                })
+            };
+            Ok(match Grpc::try_from(value).map_err(|_| invalid())? {
+                Grpc::Credit => Some(Domain::Credit),
+                Grpc::Debit => Some(Domain::Debit),
+                Grpc::Prepaid => Some(Domain::Prepaid),
+                Grpc::DepositAccount => Some(Domain::DepositAccount),
+                Grpc::MobileMoneyAccount => Some(Domain::MobileMoneyAccount),
+                Grpc::Cash => Some(Domain::Cash),
+                Grpc::Unspecified => None,
+            })
+        })
+        .transpose()
+        .map(Option::flatten)
+}
+
+impl ForeignTryFrom<i32> for payouts::payouts_types::PayoutFundsTransferType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payouts::PayoutFundsTransferType as Ftt;
+
+        let invalid = || IntegrationError::InvalidDataFormat {
+            field_name: "funds_transfer_type",
+            context: crate::errors::IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Unknown PayoutFundsTransferType enum value: {value}"
+                )),
+                ..Default::default()
+            },
+        };
+
+        match Ftt::try_from(value).change_context(invalid())? {
+            Ftt::AccountToAccount => Ok(Self::AccountToAccount),
+            Ftt::FundsTransfer => Ok(Self::FundsTransfer),
+            Ftt::CrossBorderMoneyTransfer => Ok(Self::CrossBorderMoneyTransfer),
+            Ftt::PeerToPeer => Ok(Self::PeerToPeer),
+            Ftt::StagedDigitalWalletTransfer => Ok(Self::StagedDigitalWalletTransfer),
+            Ftt::FundsDisbursement => Ok(Self::FundsDisbursement),
+            Ftt::LoyaltyPayments => Ok(Self::LoyaltyPayments),
+            Ftt::PayrollAndPensionDisbursements => Ok(Self::PayrollAndPensionDisbursements),
+            Ftt::OnlineGambling => Ok(Self::OnlineGambling),
+            Ftt::MastercardPersonToPerson => Ok(Self::MastercardPersonToPerson),
+            Ftt::MastercardTransferToOwnAccount => Ok(Self::MastercardTransferToOwnAccount),
+            Ftt::MastercardBusinessDisbursement => Ok(Self::MastercardBusinessDisbursement),
+            Ftt::MastercardBusinessToBusiness => Ok(Self::MastercardBusinessToBusiness),
+            Ftt::MastercardGamingRepay => Ok(Self::MastercardGamingRepay),
+            Ftt::Unspecified => Err(invalid().into()),
+        }
     }
 }
 
@@ -1681,6 +1761,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                             owners_provided: vd.owners_provided,
                             card_payments_enabled: vd.card_payments_enabled,
                             transfers_enabled: vd.transfers_enabled,
+                            company_tax_id: vd.company_tax_id,
+                            address: vd
+                                .address
+                                .map(crate::payment_address::Address::foreign_try_from)
+                                .transpose()?,
+                            merchant_sender_reference_id: vd.merchant_sender_reference_id,
+                            source_of_funds: payout_source_of_funds_from_proto(vd.source_of_funds)?,
                         },
                     )
                 })
@@ -1702,6 +1789,12 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutVendorAccountDetails>
                                 id.external_account_account_holder_type,
                                 "external_account_account_holder_type",
                             )?,
+                            address: id
+                                .address
+                                .map(crate::payment_address::Address::foreign_try_from)
+                                .transpose()?,
+                            merchant_sender_reference_id: id.merchant_sender_reference_id,
+                            source_of_funds: payout_source_of_funds_from_proto(id.source_of_funds)?,
                         },
                     )
                 })
@@ -2971,7 +3064,8 @@ where
             }
         };
 
-        let source_currency = {
+        // Validate the source currency even though eligibility uses destination currency.
+        let _source_currency = {
             let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
@@ -3012,10 +3106,7 @@ where
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
-            amount: common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: source_currency,
-            },
+            money: crate::money::from_proto_money(amount)?,
             destination_currency,
             payout_method_data,
             source_bank_data: value

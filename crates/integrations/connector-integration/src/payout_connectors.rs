@@ -39,3 +39,5 @@ pub use self::gotyme_sanlam::GotymeSanlamPayouts;
 
 pub mod mifinity;
 pub use self::mifinity::MifinityPayouts;
+pub mod checkout;
+pub use checkout::CheckoutPayouts;
