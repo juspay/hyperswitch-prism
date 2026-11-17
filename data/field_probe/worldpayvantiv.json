@@ -681,8 +681,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for worldpayvantiv"
+        "status": "error",
+        "error": "Stuck on field: additional_payment_data.card — Missing required field: additional_payment_data.card"
       }
     },
     "recurring_revoke": {
