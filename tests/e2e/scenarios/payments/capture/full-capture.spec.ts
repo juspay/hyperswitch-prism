@@ -1,10 +1,3 @@
-/**
- * Explicit full capture after a separate manual card authorization.
- * POST /payments with confirm=true and manual capture, then POST /payments/{id}/capture for the full amount.
- * Check checkout fields and authorization first, then the exact capture response and recorded attempt.
- * The shared capture result is succeeded/charged. Adyen explicitly overrides it to processing/pending.
- * For Adyen this proves submission acceptance; webhook completion and settlement are not exercised.
- */
 import { expect } from "@playwright/test";
 import { test } from "../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../catalog.js";
@@ -18,207 +11,264 @@ import {
   testReturnUrl,
 } from "../../../test-data.js";
 
-const scenario = scenarioFromFile(import.meta.url);
+const scenario = scenarioFromFile(import.meta.url, {
+  title: "Full capture of an authorized No3DS card payment",
+  description:
+    "Authorize a richly populated card payment, request full capture and verify its immediate API and recorded outcome. Asynchronous webhook completion and settlement are separate coverage.",
+  verifies:
+    "Verify authorization, capture identity, exact status, received/capturable amounts and active attempt state. Connector overrides explicitly document asynchronous acceptance when applicable.",
+  requirements: {
+    connectorAccount: {
+      paymentMethodsEnabled: [
+        {
+          payment_method: "card",
+          payment_method_types: [
+            {
+              payment_method_type: "credit",
+            },
+          ],
+        },
+      ],
+    },
+  },
+});
 
 test.use({ scenario });
-test(scenario.title, async ({
-  connector,
-  merchant,
-  payments,
-  report,
-  expected,
-}) => {
-  const billingAddress = createAddress();
-  const shippingAddress = createAddress({ line1: "2" });
-  const customer = createCustomer();
-  const email = customer.email;
-  const returnUrl = testReturnUrl;
-  const phone = {
-    number: customer.phone,
-    country_code: customer.phone_country_code,
-  };
-  const metadata = { order_type: "one_time", fulfillment: "delivery" };
-  const description = "Test order";
-  const orderReference = createReference("order");
-  const orderDetails = [createOrderItem({ quantity: 2, amount: 3000 })];
-  const browserInfo = createBrowserInfo();
-  // Setup provides an isolated merchant, API key, connector account, and routing.
-  // The spec owns creation, confirmation and their exact expected outcomes.
-  const payment = await report.step("Create and confirm payment", async () => {
-    const response = await payments.createPayment("initial-payment", {
-      profile_id: merchant.profileId,
-      amount: 6000,
-      currency: "USD",
-      confirm: true,
-      authentication_type: "no_three_ds",
-      capture_method: "manual",
-      payment_method: "card",
-      payment_method_type: "credit",
-      payment_method_data: { card: createCard(connector.card) },
-      billing: {
-        address: billingAddress,
-        phone,
-        email,
-      },
-      shipping: { address: shippingAddress, phone, email },
-      browser_info: browserInfo,
-      customer,
-      description,
-      metadata,
-      merchant_order_reference_id: orderReference,
-      order_details: orderDetails,
-      return_url: returnUrl,
-    });
-
-    const expectedConfirmation = expected("confirmation-fields", {
-      status: "requires_capture",
-      error_code: null,
-      error_message: null,
-      error_details: null,
-      issuer_error_code: null,
-      issuer_error_message: null,
-      merchant_id: merchant.merchantId,
-      profile_id: merchant.profileId,
-      connector: connector.id,
-      merchant_connector_id: merchant.merchantConnectorId,
-      capture_method: "manual",
-      payment_method: "card",
-      payment_method_type: "credit",
-      authentication_type: "no_three_ds",
-      amount: 6000,
-      net_amount: 6000,
-      amount_capturable: 6000,
-      currency: "USD",
-      amount_received: null,
-      setup_future_usage: null,
-      next_action: null,
-      mandate_id: null,
-      mandate_data: null,
-      connector_mandate_id: null,
-      attempt_count: 1,
-      email,
-      customer_id: customer.id,
-      name: customer.name,
-      phone: customer.phone,
-      description,
-      metadata,
-      merchant_order_reference_id: orderReference,
-    });
-    // Report only the selected fields, never the complete payment response.
-    await report.check(
-      "Confirmation fields",
-      {
-        actual: Object.fromEntries(
-          Object.keys(expectedConfirmation).map((field) => [field, response[field]]),
-        ),
-        expected: expectedConfirmation,
-      },
-      ({ actual, expected }) => expect(actual).toMatchObject(expected),
-    );
-    await report.check(
-      "Customer, addresses, browser and order details",
-      {
-        actual: {
-          billing: response.billing,
-          shipping: response.shipping,
-          customer: response.customer,
-          browser_info: response.browser_info,
-          order_details: response.order_details,
-        },
-        expected: expected("customer-and-order-details", {
-          billing: { address: billingAddress, phone, email },
-          shipping: { address: shippingAddress, phone, email },
-          customer,
+test(
+  scenario.title,
+  async ({ connector, merchant, payments, report, expected }) => {
+    const billingAddress = createAddress();
+    const shippingAddress = createAddress({ line1: "2" });
+    const customer = createCustomer();
+    const phone = {
+      number: customer.phone,
+      country_code: customer.phone_country_code,
+    };
+    const metadata = { order_type: "one_time", fulfillment: "delivery" };
+    const description = "Test order";
+    const orderReference = createReference("order");
+    const orderDetails = [createOrderItem({ quantity: 2, amount: 3000 })];
+    const browserInfo = createBrowserInfo();
+    const payment = await report.step(
+      "Create and authorize without capture",
+      async () => {
+        const response = await payments.createPayment("initial-payment", {
+          profile_id: merchant.profileId,
+          amount: 6000,
+          currency: "USD",
+          confirm: true,
+          authentication_type: "no_three_ds",
+          capture_method: "manual",
+          payment_method: "card",
+          payment_method_type: "credit",
+          payment_method_data: { card: createCard(connector.card) },
+          billing: {
+            address: billingAddress,
+            phone,
+            email: customer.email,
+          },
+          shipping: { address: shippingAddress, phone, email: customer.email },
           browser_info: browserInfo,
+          customer,
+          description,
+          metadata,
+          merchant_order_reference_id: orderReference,
           order_details: orderDetails,
-        }),
+          return_url: testReturnUrl,
+        });
+
+        const expectedConfirmation = expected("confirmation-fields", {
+          status: "requires_capture",
+          error_code: null,
+          error_message: null,
+          error_details: null,
+          issuer_error_code: null,
+          issuer_error_message: null,
+          merchant_id: merchant.merchantId,
+          profile_id: merchant.profileId,
+          connector: connector.id,
+          merchant_connector_id: merchant.merchantConnectorId,
+          capture_method: "manual",
+          payment_method: "card",
+          payment_method_type: "credit",
+          authentication_type: "no_three_ds",
+          amount: 6000,
+          net_amount: 6000,
+          amount_capturable: 6000,
+          currency: "USD",
+          amount_received: null,
+          setup_future_usage: null,
+          next_action: null,
+          mandate_id: null,
+          mandate_data: null,
+          connector_mandate_id: null,
+          attempt_count: 1,
+          email: customer.email,
+          customer_id: customer.id,
+          name: customer.name,
+          phone: customer.phone,
+          description,
+          metadata,
+          merchant_order_reference_id: orderReference,
+        });
+        // Report only the selected fields, never the complete payment response.
+        await report.check(
+          "Confirmation fields",
+          {
+            actual: Object.fromEntries(
+              Object.keys(expectedConfirmation).map((field) => [
+                field,
+                response[field],
+              ]),
+            ),
+            expected: expectedConfirmation,
+          },
+          ({ actual, expected }) => expect(actual).toMatchObject(expected),
+        );
+        await report.check(
+          "Customer, addresses, browser and order details",
+          {
+            actual: {
+              billing: response.billing,
+              shipping: response.shipping,
+              customer: response.customer,
+              browser_info: response.browser_info,
+              order_details: response.order_details,
+            },
+            expected: expected("customer-and-order-details", {
+              billing: {
+                address: billingAddress,
+                phone,
+                email: customer.email,
+              },
+              shipping: {
+                address: shippingAddress,
+                phone,
+                email: customer.email,
+              },
+              customer,
+              browser_info: browserInfo,
+              order_details: orderDetails,
+            }),
+          },
+          ({ actual, expected }) => expect(actual).toMatchObject(expected),
+        );
+
+        // Compare URL values after standard URL normalization.
+        const actualReturnUrl = response.return_url;
+        await report.check(
+          "Return URL",
+          {
+            actual:
+              typeof actualReturnUrl === "string"
+                ? new URL(actualReturnUrl).href
+                : null,
+            expected: new URL(testReturnUrl).href,
+          },
+          ({ actual, expected }) => expect(actual).toBe(expected),
+        );
+
+        // Report presence and validity rather than exposing generated references.
+        await report.check(
+          "Generated payment references",
+          {
+            actual: {
+              paymentIdPresent:
+                typeof response.payment_id === "string" &&
+                response.payment_id.trim().length > 0,
+              connectorTransactionIdPresent:
+                typeof response.connector_transaction_id === "string" &&
+                response.connector_transaction_id.trim().length > 0,
+            },
+            expected: {
+              paymentIdPresent: true,
+              connectorTransactionIdPresent: true,
+            },
+          },
+          ({ actual, expected }) => expect(actual).toEqual(expected),
+        );
+        return response;
       },
-      ({ actual, expected }) => expect(actual).toMatchObject(expected),
     );
 
-    // Compare URL values after standard URL normalization.
-    const actualReturnUrl = response.return_url;
-    await report.check(
-      "Return URL",
-      {
-        actual: typeof actualReturnUrl === "string"
-          ? new URL(actualReturnUrl).href
-          : null,
-        expected: new URL(returnUrl).href,
-      },
-      ({ actual, expected }) => expect(actual).toBe(expected),
-    );
-
-    // Report presence and validity rather than exposing generated references.
-    await report.check(
-      "Generated payment references",
-      {
-        actual: {
-          paymentIdPresent: typeof response.payment_id === "string"
-            && response.payment_id.trim().length > 0,
-          connectorTransactionIdPresent:
-            typeof response.connector_transaction_id === "string"
-            && response.connector_transaction_id.trim().length > 0,
+    // Read stored facts without triggering connector synchronization.
+    await report.step("Verify recorded authorization", async () => {
+      const recorded = await payments.readRecordedPayment(payment.payment_id);
+      await report.check(
+        "Recorded payment outcome",
+        {
+          actual: recorded,
+          expected: {
+            gateway: "unified_connector_service",
+            attemptStatus: "authorized",
+            connectorTransactionIdPresent: true,
+            customerRecordExists: true,
+          },
         },
-        expected: { paymentIdPresent: true, connectorTransactionIdPresent: true },
-      },
-      ({ actual, expected }) => expect(actual).toEqual(expected),
-    );
-    return response;
-  });
+        ({ actual, expected }) => expect(actual).toEqual(expected),
+      );
+    });
 
-  // Read the recorded payment and active attempt without triggering connector sync.
-  // This does not trigger or prove a fresh processor PSync call.
-  await report.step("Verify recorded payment outcome", async () => {
-    const recorded = await payments.readRecordedPayment(payment.payment_id);
-    await report.check(
-      "Recorded payment outcome",
-      {
-        actual: recorded,
-        expected: {
-          gateway: "unified_connector_service",
-          attemptStatus: "authorized",
-          connectorTransactionIdPresent: true,
-          customerRecordExists: true,
+    // Verify the immediate capture response. Asynchronous settlement is a separate journey.
+    await report.step("Capture the full authorized amount", async () => {
+      const response = await payments.capturePayment(
+        "full-capture",
+        payment.payment_id,
+        {
+          amount_to_capture: 6000,
+          statement_descriptor_prefix: "SYNTHETIC",
+          statement_descriptor_suffix: "E2E",
         },
-      },
-      ({ actual, expected }) => expect(actual).toEqual(expected),
-    );
-  });
-
-  // Verify the immediate capture response. Asynchronous settlement is a separate journey.
-  await report.step("Capture the full authorized amount", async () => {
-    const response = await payments.capturePayment("full-capture", payment.payment_id, {
-      amount_to_capture: 6000,
-      statement_descriptor_prefix: "SYNTHETIC",
-      statement_descriptor_suffix: "E2E",
+      );
+      const expectedCapture = expected("capture-fields", {
+        status: "succeeded",
+        amount: 6000,
+        currency: "USD",
+        amount_capturable: 0,
+        amount_received: 6000,
+        error_code: null,
+        error_message: null,
+        connector: connector.id,
+        capture_method: "manual",
+      });
+      await report.check(
+        "Capture response",
+        {
+          actual: Object.fromEntries(
+            Object.keys(expectedCapture).map((field) => [
+              field,
+              response[field],
+            ]),
+          ),
+          expected: expectedCapture,
+        },
+        ({ actual, expected }) => expect(actual).toMatchObject(expected),
+      );
+      await report.check(
+        "Capture identity",
+        {
+          actual: response.payment_id === payment.payment_id,
+          expected: true,
+        },
+        ({ actual, expected }) => expect(actual).toBe(expected),
+      );
     });
-    const expectedCapture = expected("capture-fields", {
-      status: "succeeded",
-      amount: 6000,
-      currency: "USD",
-      amount_capturable: 0,
-      amount_received: 6000,
-      error_code: null,
-      error_message: null,
-      connector: connector.id,
-      capture_method: "manual",
-    });
-    await report.check("Capture response", {
-      actual: Object.fromEntries(Object.keys(expectedCapture).map((field) => [field, response[field]])),
-      expected: expectedCapture,
-    }, ({ actual, expected }) => expect(actual).toMatchObject(expected));
-    await report.check("Capture identity", {
-      actual: response.payment_id === payment.payment_id, expected: true,
-    }, ({ actual, expected }) => expect(actual).toBe(expected));
-  });
 
-  await report.step("Verify recorded capture response", async () => {
-    const recorded = await payments.readRecordedPayment(payment.payment_id);
-    await report.check("Captured attempt", {
-      actual: recorded, expected: expected("capture-recorded-outcome", {
-        gateway: "unified_connector_service", attemptStatus: "charged",
-        connectorTransactionIdPresent: true, customerRecordExists: true }),
-    }, ({ actual, expected }) => expect(actual).toEqual(expected));
-  });
-});
+    await report.step("Verify recorded capture response", async () => {
+      const recorded = await payments.readRecordedPayment(payment.payment_id);
+      await report.check(
+        "Captured attempt",
+        {
+          actual: recorded,
+          expected: expected("capture-recorded-outcome", {
+            gateway: "unified_connector_service",
+            attemptStatus: "charged",
+            connectorTransactionIdPresent: true,
+            customerRecordExists: true,
+          }),
+        },
+        ({ actual, expected }) => expect(actual).toEqual(expected),
+      );
+    });
+  },
+);

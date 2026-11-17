@@ -114,7 +114,7 @@ Use native Playwright `expect` for equality, partial nested objects, arrays, ran
 
 Choose `toMatchObject` for partial nested objects and `toEqual` for exact object/array equality. A range can use `report.check("Amount received > 0", { actual: response.amount_received, expected: 0 }, ({ actual, expected }) => expect(actual).toBeGreaterThan(expected))`. Expected/actual values are explicitly selected for the report: do not attach entire payment responses, credentials or card data. Use boolean presence checks for sensitive references. The scenario still owns all matching logic.
 
-Only `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts` is implemented. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The current sequence is:
+Seven shared specs are implemented: inline/separate automatic and manual confirmation, guest automatic/manual confirmation, and full capture submission. Adyen runs these cases; other connectors explicitly defer the new cases pending sandbox validation. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The comprehensive create-confirm sequence is:
 
 ```text
 POST /payments with confirm:true
@@ -182,14 +182,14 @@ Payment retrieval and forced synchronization share `payments/retrieve/`, followi
 
 SDK-driven journeys can share these same payment groupings. Make SDK execution explicit in the filename, for example `automatic-capture-create-then-confirm-with-sdk.spec.ts`, and exercise the actual browser checkout. Reuse shared setup, API operations and checks; keep browser interactions and the journey visible in the spec. SDK setup and implementation will be introduced with the first such scenario.
 
-Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it and add its metadata and setup requirements under the identical path key in `scenarios/catalog.ts`. The spec imports the catalog-bound resolver and calls `scenarioFromFile(import.meta.url)`; the framework derives its ID from the file path and fails discovery when the catalog key is absent or different.
+Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it and add its canonical path to `scenarioIds` in `scenarios/catalog.ts`. The spec declares its own metadata and connector-account requirements using `scenarioFromFile(import.meta.url, { title, description, verifies, requirements })`. The framework derives its ID from the file path and fails discovery when the catalog entry is absent or different; blank metadata also fails registration.
 
 The planned inventory also reserves guest card payments, saved-card repeat CIT, standalone mandate-setup CIT, later payment operations, refunds, network-token recurring, and webhook verification. The implemented one-time create-confirm spec already covers an automatic-capture payment with a customer; its existing manual-capture and full-refund placeholders are not duplicated. The zero-amount/manual-capture combination and the meaning of partial void and reversal must be checked against the HS API and connector behavior before implementing their placeholders. Their presence does not assert API support.
 
 
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `expected`, and `report`.
 
-Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario metadata only. Playwright runs every scenario for each discovered synthetic merchant variant. Each variant must list the scenario in `run` or exclude it with a reason; a newly added scenario fails discovery until every variant makes that choice. Keep merchant differences in `connectors/`; do not copy scenarios into connector directories. A variant name such as `merchant_01` is only a synthetic configuration label: setup creates a fresh merchant for every test.
+Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario IDs only; each spec owns the metadata displayed in reports. Playwright runs every scenario for each discovered synthetic merchant variant. Each variant must list the scenario in `run` or exclude it with a reason; a newly added scenario fails discovery until every variant makes that choice. Keep merchant differences in `connectors/`; do not copy scenarios into connector directories. A variant name such as `merchant_01` is only a synthetic configuration label: setup creates a fresh merchant for every test.
 
 - Add one default-exported synthetic merchant definition under `connectors/<connector-id>/merchant_01.ts`; the folder becomes the connector ID and the file becomes the variant name. Add `merchant_02.ts` only for a distinct synthetic behavior. Never document a mapping to a real merchant.
 - List each implemented scenario in `run` or `exclude` with a nonempty reason. Override only selected runnable scenarios.
@@ -234,7 +234,7 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | File | Responsibility |
 | --- | --- |
 | `test-data.ts` | Reusable test-data factories and a default sandbox card; no API calls or shared mutable response state. |
-| `scenarios/catalog.ts` | Define metadata and connector-account setup requirements for implemented scenarios; planned scenarios are absent. |
+| `scenarios/catalog.ts` | List canonical IDs for typed overrides/exclusions; metadata and setup requirements live in specs. |
 | `scenarios/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
 | `scenarios/**/*.planned.ts` | Reserve an agreed scenario name and location without registering executable coverage. |
 | `connectors/<id>/merchant_XX.ts` | Define one automatically discovered synthetic merchant variant using `connectorFromFile`, explicit runnable scenarios, optional overrides and reasoned exclusions. |

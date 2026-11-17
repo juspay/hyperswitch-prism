@@ -1,43 +1,47 @@
 import { fileURLToPath } from "node:url";
 import type { Scenario, ScenarioDefinition } from "./types.js";
 
-type ScenarioCatalog = Record<string, ScenarioDefinition>;
-
-/** Defines implemented scenario metadata keyed by canonical scenario path. */
-export function defineScenarios<const T extends ScenarioCatalog>(catalog: T): T {
-  return catalog;
-}
-
 /** Binds scenario construction to the one catalog supplied by its catalog module. */
-export function createScenarioResolver<const T extends ScenarioCatalog>(
+export function createScenarioResolver<const T extends readonly string[]>(
   catalog: T,
-): (moduleUrl: string) => Scenario<Extract<keyof T, string>> {
-  return (moduleUrl) => resolveScenarioFromFile(moduleUrl, catalog);
+): (moduleUrl: string, definition: ScenarioDefinition) => Scenario<T[number]> {
+  return (moduleUrl, definition) =>
+    resolveScenarioFromFile(moduleUrl, catalog, definition);
 }
 
-function resolveScenarioFromFile<const T extends ScenarioCatalog>(
+function resolveScenarioFromFile<const T extends readonly string[]>(
   moduleUrl: string,
   catalog: T,
-): Scenario<Extract<keyof T, string>> {
+  definition: ScenarioDefinition,
+): Scenario<T[number]> {
   const file = fileURLToPath(moduleUrl).replaceAll("\\", "/");
   const marker = "/scenarios/";
   const markerAt = file.lastIndexOf(marker);
   if (markerAt < 0) {
-    throw new Error("Scenario spec must be located under the scenarios directory");
+    throw new Error(
+      "Scenario spec must be located under the scenarios directory",
+    );
   }
 
   const relativeFile = file.slice(markerAt + marker.length);
   const suffix = [".spec.ts", ".spec.js"].find((item) =>
-    relativeFile.endsWith(item)
+    relativeFile.endsWith(item),
   );
   if (!suffix) {
-    throw new Error(`Scenario file must end in .spec.ts or .spec.js: ${relativeFile}`);
+    throw new Error(
+      `Scenario file must end in .spec.ts or .spec.js: ${relativeFile}`,
+    );
   }
 
   const id = relativeFile.slice(0, -suffix.length);
-  if (!Object.hasOwn(catalog, id)) {
+  if (!catalog.includes(id)) {
     throw new Error(`No catalog entry for scenario: ${id}`);
   }
 
-  return { id, ...catalog[id] } as Scenario<Extract<keyof T, string>>;
+  for (const field of ["title", "description", "verifies"] as const) {
+    if (!definition[field].trim()) {
+      throw new Error(`Scenario ${id} requires a nonempty ${field}`);
+    }
+  }
+  return { ...definition, id } as Scenario<T[number]>;
 }

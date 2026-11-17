@@ -6,10 +6,10 @@ Start with `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm
 
 ## One supported contribution pattern
 
-1. Rename the agreed `.planned.ts` placeholder to `.spec.ts`, or add one shared spec under resource/operation/payment-method and the relevant variation. Add its title, descriptions, and connector-account requirements to `scenarios/catalog.ts` under the exact relative spec path without `.spec.ts`; planned scenarios do not belong in the catalog.
-2. Import `test` and the catalog-bound `scenarioFromFile` export. Construct the scenario with `scenarioFromFile(import.meta.url)`, then call `test.use({ scenario })`. The resolver derives the ID from the spec path and fails discovery if its catalog entry is absent. Do not construct scenarios inline, import or loop over connectors: Playwright projects run every discovered spec once for every synthetic merchant variant under `connectors/<id>/`.
+1. Rename the agreed `.planned.ts` placeholder to `.spec.ts`, or add one shared spec under resource/operation/payment-method and the relevant variation. Add only its exact relative spec path without `.spec.ts` to `scenarioIds` in `scenarios/catalog.ts`; planned scenarios do not belong in the catalog.
+2. Import `test` and the catalog-bound `scenarioFromFile` export. Declare the title, description, verification intent and connector-account requirements in the spec with `scenarioFromFile(import.meta.url, { title, description, verifies, requirements })`, then call `test.use({ scenario })`. The resolver derives the ID from the spec path and fails discovery if its catalog entry is absent. Do not construct unregistered scenario objects, import or loop over connectors: Playwright projects run every discovered spec once for every synthetic merchant variant under `connectors/<id>/`.
 3. Write the calls in execution order using the `payments` fixture. Group each call and its checks in `report.step(...)`; it attaches audit evidence afterward, including on failure. Keep request fields, use of returned values, and expected outcomes visible in the spec.
-   Start every executable spec with a concise comment explaining its distinctive behavior, the API sequence, the expected outcome, and any coverage limit. Keep the corresponding catalog description and verification intent specific so reports explain the same journey.
+   Start every executable spec with its scenario declaration after the imports. Its metadata must explain the distinctive behavior, API sequence, expected outcome and coverage limits; reports consume those same values. Add a comment only for information the declaration and executable code do not already explain.
 4. Import native `expect` from `@playwright/test`. Use `report.check(name, { actual, expected }, ({ actual, expected }) => expect(actual).toMatchObject(expected))` for reported assertions, choosing the native matcher appropriate to the check. Select only report-safe values; never pass the complete payment response or card/authentication data. The helper attaches the same comparison on pass or failure and does not choose a matcher.
 5. For an asynchronous scenario, use native Playwright `expect.poll` with an explicit timeout and read-only retrieval inside the spec. `retrievePayment` makes one GET. Do not retry mutations. Keep the final selected values in the reported comparison; the current immediate-success scenario does not poll.
 6. Run `npm run check`, `npm run list`, and the new spec against the sandbox. An empty placeholder does not count as coverage.
@@ -27,7 +27,7 @@ Use a new variable for each response and pass fields directly to the next operat
 | A genuinely new HS endpoint | Add one small method to its resource's `*-operations.ts` module (`payment-operations.ts` for `/payments`). It forwards API fields, validates the response shape, and returns the full response. It does not call other mutating operations. |
 | A new resource family | Add its resource module and fixture, reusing the HTTP client and assertions: for example, `/refunds` uses `refund-operations.ts` and the `refunds` fixture. Keep its journey in the spec. |
 
-New endpoints necessarily need an operation implementation; adding an ordinary scenario must not require editing a dispatcher or connector execution code. Its catalog entry is metadata and setup, not a hidden journey or execution callback. Do not add an unimplemented operation in anticipation of future coverage.
+New endpoints necessarily need an operation implementation; adding an ordinary scenario must not require editing a dispatcher or connector execution code. Its catalog entry is only the canonical ID; the spec owns metadata, setup requirements and the journey. Do not add an unimplemented operation in anticipation of future coverage.
 
 ## Connector differences
 
@@ -51,6 +51,8 @@ A scenario ID is the spec's relative path below `scenarios/`, without `.spec.ts`
 Contributors can deliberately bypass a TypeScript API by importing unrelated modules. Types, the reference spec, and review define the supported approach; source-scanning scripts are not used to police arbitrary code.
 
 ## Review before and after pushing
+
+Use factories for neutral data, and only create the entities the journey needs: guest specs use `createContact()`, while customer journeys use `createCustomer()`. Refer to `customer.email` and `testReturnUrl` directly instead of introducing identical aliases. Give each API operation its own descriptive `report.step`, with its response checks inside that step, followed by recorded-state verification. TypeScript rejects unused locals and parameters through `npm run check`. Keep scenario-specific values and assertions visible; do not hide the journey in a shared runner.
 
 Read the final diff as a contributor seeing the framework for the first time:
 
