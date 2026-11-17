@@ -3,6 +3,24 @@ import type { CardData } from "./framework/types.js";
 
 export const testReturnUrl = "https://example.com";
 
+/** Fresh synthetic references for isolated resources; never derived from production data. */
+export function createReference(prefix: string): string {
+  return `${prefix}_${randomUUID().replaceAll("-", "")}`;
+}
+
+const orderItem = {
+  product_name: "Test product",
+  product_id: "test-product",
+  quantity: 1,
+  amount: 1000,
+  requires_shipping: true,
+};
+
+/** Amount and quantity can be supplied explicitly to match the scenario's payment. */
+export function createOrderItem(overrides: Partial<typeof orderItem> = {}) {
+  return { ...orderItem, ...overrides };
+}
+
 const address = {
   first_name: "Test",
   last_name: "Customer",
@@ -31,7 +49,7 @@ export function createCustomer(
   overrides: Partial<ReturnType<typeof createContact>> = {},
 ) {
   return {
-    id: `cus_${randomUUID().replaceAll("-", "")}`,
+    id: createReference("cus"),
     ...createContact(),
     ...overrides,
   };

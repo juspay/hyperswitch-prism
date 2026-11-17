@@ -30,7 +30,7 @@ New endpoints necessarily need an operation implementation; adding an ordinary s
 
 ## Connector differences
 
-Use the factories in `test-data.ts` for reusable address, contact, customer, browser and card values. Call them inside each test to obtain fresh objects and customer IDs. Keep the payment request assembly, amount, currency, capture mode, order items, metadata and expected results visible in the spec. `createCard(connector.card)` selects the shared sandbox card plus optional connector-specific field overrides. Do not create a factory that silently builds an entire payment request.
+Use the factories in `test-data.ts` for reusable address, contact, customer, browser, card and order-item values. Call them inside each test to obtain fresh objects and customer IDs. Use `createReference("order")` for an isolated synthetic order reference and `createOrderItem({ quantity: 2, amount: 3000 })` for an order item whose amount and quantity remain explicit. Keep the payment request assembly, amount, currency, capture mode, metadata and expected results visible in the spec. `createCard(connector.card)` selects the shared sandbox card plus optional connector-specific field overrides. Do not create a factory that silently builds an entire payment request.
 
 Connector definitions contain data only. Every overridable operation call and exact-value check has a stable ID. Request overrides are applied by the corresponding operation: omit paths first, then recursive object patching, with arrays, scalars and `null` replaced. Specs resolve expectation patches through the `expected` fixture. Unused or ambiguous configuration fails at runtime. Follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md); specs do not implement their own merging.
 

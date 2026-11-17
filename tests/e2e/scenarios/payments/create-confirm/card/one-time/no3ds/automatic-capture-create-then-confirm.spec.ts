@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../../../../catalog.js";
@@ -7,6 +6,8 @@ import {
   createBrowserInfo,
   createCard,
   createCustomer,
+  createOrderItem,
+  createReference,
   testReturnUrl,
 } from "../../../../../../test-data.js";
 
@@ -31,16 +32,8 @@ test(scenario.title, async ({
   };
   const metadata = { order_type: "one_time", fulfillment: "delivery" };
   const description = "Test order";
-  const orderReference = `order_${randomUUID().replaceAll("-", "")}`;
-  const orderDetails = [
-    {
-      product_name: "Test product",
-      product_id: "test-product",
-      quantity: 2,
-      amount: 3000,
-      requires_shipping: true,
-    },
-  ];
+  const orderReference = createReference("order");
+  const orderDetails = [createOrderItem({ quantity: 2, amount: 3000 })];
   const browserInfo = createBrowserInfo();
   // Setup provides an isolated merchant, API key, connector account, and routing.
   // The spec owns creation, confirmation and their exact expected outcomes.
