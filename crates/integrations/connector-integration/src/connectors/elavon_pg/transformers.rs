@@ -1224,17 +1224,19 @@ fn wallet_eci(eci: Option<&str>) -> Result<String, error_stack::Report<Integrati
 /// The wallet half of an Authorize: the DPAN card, `cryptogramSecurity` and the
 /// `paymentMethodOrigin` EPG requires beside it. Only already-decrypted tokens are
 /// accepted; EPG's encrypted-token route is a separate two-call flow.
+///
+/// A Google Pay `PAN_ONLY` token decrypts to the card's own number with no cryptogram.
+/// EPG requires `cryptogramSecurity` whenever `paymentMethodOrigin` is set and refuses
+/// `threeDSecure` beside the two, so such a token gets neither and is sold as a card,
+/// authenticated by the caller's 3DS results instead.
+/// The cryptogram and the origin EPG requires beside it; absent for a `PAN_ONLY` token.
+type ElavonPgWalletCryptogram = Option<(ElavonPgCryptogramSecurity, ElavonPgPaymentMethodOrigin)>;
+
 fn build_wallet_payment<T: PaymentMethodDataTypes>(
     wallet: &WalletData,
     bill_to: Option<ElavonPgContact>,
-) -> Result<
-    (
-        ElavonPgSaleCard<T>,
-        ElavonPgCryptogramSecurity,
-        ElavonPgPaymentMethodOrigin,
-    ),
-    error_stack::Report<IntegrationError>,
-> {
+) -> Result<(ElavonPgSaleCard<T>, ElavonPgWalletCryptogram), error_stack::Report<IntegrationError>>
+{
     let encrypted = |wallet: &'static str| {
         error_stack::report!(IntegrationError::NotSupported {
             message: format!("Encrypted {wallet} token"),
@@ -1248,20 +1250,6 @@ fn build_wallet_payment<T: PaymentMethodDataTypes>(
             },
         })
     };
-    let missing_cryptogram = || {
-        error_stack::report!(IntegrationError::MissingRequiredField {
-            field_name: "wallet.cryptogram",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "Elavon Payment Gateway needs the wallet cryptogram; a PAN-only token cannot \
-                     be sent"
-                        .to_string(),
-                ),
-                ..Default::default()
-            },
-        })
-    };
-
     match wallet {
         WalletData::ApplePay(apple_pay) => {
             let ApplePayPaymentData::Decrypted(decrypted) = &apple_pay.payment_data else {
@@ -1278,13 +1266,15 @@ fn build_wallet_payment<T: PaymentMethodDataTypes>(
                     expiration_year: Secret::new(expiration_year),
                     bill_to,
                 }),
-                ElavonPgCryptogramSecurity {
-                    cryptogram: decrypted.payment_data.online_payment_cryptogram.clone(),
-                    electronic_commerce_indicator: wallet_eci(
-                        decrypted.payment_data.eci_indicator.as_deref(),
-                    )?,
-                },
-                ElavonPgPaymentMethodOrigin::ApplePay,
+                Some((
+                    ElavonPgCryptogramSecurity {
+                        cryptogram: decrypted.payment_data.online_payment_cryptogram.clone(),
+                        electronic_commerce_indicator: wallet_eci(
+                            decrypted.payment_data.eci_indicator.as_deref(),
+                        )?,
+                    },
+                    ElavonPgPaymentMethodOrigin::ApplePay,
+                )),
             ))
         }
         WalletData::GooglePay(google_pay) => {
@@ -1300,14 +1290,21 @@ fn build_wallet_payment<T: PaymentMethodDataTypes>(
                     expiration_year: Secret::new(expiration_year),
                     bill_to,
                 }),
-                ElavonPgCryptogramSecurity {
-                    cryptogram: decrypted
-                        .cryptogram
-                        .clone()
-                        .ok_or_else(missing_cryptogram)?,
-                    electronic_commerce_indicator: wallet_eci(decrypted.eci_indicator.as_deref())?,
-                },
-                ElavonPgPaymentMethodOrigin::GooglePay,
+                decrypted
+                    .cryptogram
+                    .clone()
+                    .map(|cryptogram| {
+                        Ok::<_, error_stack::Report<IntegrationError>>((
+                            ElavonPgCryptogramSecurity {
+                                cryptogram,
+                                electronic_commerce_indicator: wallet_eci(
+                                    decrypted.eci_indicator.as_deref(),
+                                )?,
+                            },
+                            ElavonPgPaymentMethodOrigin::GooglePay,
+                        ))
+                    })
+                    .transpose()?,
             ))
         }
         other => Err(error_stack::report!(IntegrationError::NotSupported {
@@ -2119,12 +2116,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (sale_card, cryptogram_security, payment_method_origin, three_d_secure) =
             match &request.payment_method_data {
-                PaymentMethodData::Wallet(wallet) => {
-                    let (card, cryptogram, origin) = build_wallet_payment(wallet, bill_to)?;
+                PaymentMethodData::Wallet(wallet) => match build_wallet_payment(wallet, bill_to)? {
                     // The wallet cryptogram is the authentication; EPG's 3DS object
                     // does not apply.
-                    (Some(card), Some(cryptogram), Some(origin), None)
-                }
+                    (card, Some((cryptogram, origin))) => {
+                        (Some(card), Some(cryptogram), Some(origin), None)
+                    }
+                    // Google Pay PAN_ONLY: a card sale that carries the 3DS results.
+                    (card, None) => (
+                        Some(card),
+                        None,
+                        None,
+                        build_three_d_secure(
+                            request.authentication_data.as_ref(),
+                            router_data.resource_common_data.is_three_ds(),
+                        )?,
+                    ),
+                },
                 // EPG holds the card; a stored card still takes the 3DS results.
                 _ if stored_card.is_some() => (
                     None,
