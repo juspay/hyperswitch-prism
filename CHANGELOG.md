@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.17.0
+
+### Features
+
+- **connector:** [NMI] send billing descriptor ([#2741](https://github.com/juspay/connector-service/pull/2741)) ([`1d22795`](https://github.com/juspay/connector-service/commit/1d22795e1278437f57c29b37da8dd600e2c30598))
+
+**Full Changelog:** [`2026.11.16.4...2026.11.17.0`](https://github.com/juspay/connector-service/compare/2026.11.16.4...2026.11.17.0)
+
+- - -
+
 
 ## 2026.11.16.3
 
