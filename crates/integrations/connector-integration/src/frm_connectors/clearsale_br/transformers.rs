@@ -1864,7 +1864,7 @@ pub struct ClearSaleOrderInfoMetadata {
 
 /// Lenient numeric decoder shared by `product`, `billing_phone_type` and
 /// `shipping_phone_type`. Accepts a native JSON number or its decimal string.
-/// Anything unparseable is logged and dropped (`None`) rather than failing the
+/// Anything unparsable is logged and dropped (`None`) rather than failing the
 /// whole request: phone types fall back to home, product to the default.
 fn deserialize_optional_int_or_default<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where

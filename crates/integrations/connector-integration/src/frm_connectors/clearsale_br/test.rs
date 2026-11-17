@@ -667,7 +667,7 @@ mod tests {
             let parsed = ClearSaleConnectorFeatureData::parse(Some(&Secret::new(raw)))
                 .unwrap_or_else(|err| {
                     panic!(
-                        "value {value}: unparseable phone type must be dropped, not fail decoding: {err}"
+                        "value {value}: unparsable phone type must be dropped, not fail decoding: {err}"
                     )
                 });
             assert_eq!(parsed.order_info_metadata.billing_phone_type, None);
