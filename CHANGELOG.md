@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.17.1
+
+### Features
+
+- **payouts:** Add Checkout Google Pay and purpose support ([#2753](https://github.com/juspay/connector-service/pull/2753)) ([`4a3a59b`](https://github.com/juspay/connector-service/commit/4a3a59bca18f4691e81953f40deee6a4e51f3145))
+
+**Full Changelog:** [`2026.11.17.0...2026.11.17.1`](https://github.com/juspay/connector-service/compare/2026.11.17.0...2026.11.17.1)
+
+- - -
+
 ## 2026.11.17.0
 
 ### Features
