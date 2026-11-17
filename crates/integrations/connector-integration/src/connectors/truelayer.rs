@@ -756,7 +756,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Truelayer<T>
+    interfaces::webhooks::IncomingWebhook for Truelayer<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"type":"payment_executed","payment_id":"probe_payment_001"}"#

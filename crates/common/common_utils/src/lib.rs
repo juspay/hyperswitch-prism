@@ -154,6 +154,14 @@ pub mod date_time {
         i64::try_from(now().assume_utc().unix_timestamp_nanos() / 1_000_000).unwrap_or(i64::MAX)
     }
 
+    /// Return the UNIX timestamp of the current date and time in UTC, in microseconds.
+    ///
+    /// Derived from [`now`] like [`now_unix_millis`]. Returned unsaturated so a caller that
+    /// needs a narrower integer decides how an out-of-range value fails.
+    pub fn now_unix_micros() -> i128 {
+        now().assume_utc().unix_timestamp_nanos() / 1_000
+    }
+
     /// Calculate execution time for a async block in milliseconds
     #[cfg(feature = "async_ext")]
     pub async fn time_it<T, Fut: futures::Future<Output = T>, F: FnOnce() -> Fut>(

@@ -150,17 +150,15 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod unit {
-    use common_utils::{config_patch::Patch, consts, metadata::MaskedMetadata};
+    use common_utils::{config_patch::Patch, consts};
     use config_patch_derive::Patch as PatchDerive;
     use grpc_server::utils::merge_config_with_override;
     use serde::{Deserialize, Serialize};
     use serde_json::json;
     use std::fmt::Debug;
     use std::sync::Arc;
-    use tonic::metadata::MetadataMap;
     use ucs_env::configs;
     use ucs_env::configs::Config;
-    use ucs_env::logger::config::{LogFormat, LogKafka};
 
     fn base_config() -> Config {
         Config::new().expect("default config should load")
@@ -228,30 +226,14 @@ mod unit {
     }
 
     #[test]
-    fn test_log_console_override() {
-        let override_json = json!({
-            "log": {
-                "console": {
-                    "enabled": true,
-                    "level": "ERROR",
-                    "log_format": "default",
-                    "filtering_directive": "debug"
-                },
-            },
-        });
-        let new_config = apply_override(override_json);
-        assert!(new_config.log.console.enabled);
-        assert_eq!(
-            new_config.log.console.level.into_level(),
-            tracing::Level::ERROR
+    fn test_log_console_override_rejected() {
+        let result = merge_config_with_override(
+            json!({"log": {"console": {"enabled": true, "level": "DEBUG"}}}).to_string(),
+            base_config(),
         );
-        assert!(matches!(
-            new_config.log.console.log_format,
-            LogFormat::Default
-        ));
-        assert_eq!(
-            new_config.log.console.filtering_directive.as_deref(),
-            Some("debug")
+        assert!(
+            result.is_err(),
+            "operator-controlled settings must be rejected"
         );
     }
 
@@ -271,35 +253,15 @@ mod unit {
     }
 
     #[test]
-    fn test_log_kafka_partial_override() {
-        let mut base_config = base_config();
-        base_config.log.kafka = Some(LogKafka {
-            enabled: true,
-            level: serde_json::from_value(json!("INFO")).expect("level should parse"),
-            filtering_directive: Some("info".to_string()),
-            brokers: vec!["localhost:9092".to_string()],
-            topic: "base-topic".to_string(),
-            ..Default::default()
-        });
-
-        let override_json = json!({
-            "log": {
-                "kafka": {
-                    "level": "ERROR"
-                }
-            }
-        });
-        let new_config = apply_override_with_base(override_json, base_config);
-        let kafka_config = new_config
-            .log
-            .kafka
-            .as_ref()
-            .expect("kafka config should be present");
-        assert_eq!(kafka_config.level.into_level(), tracing::Level::ERROR);
-        assert!(kafka_config.enabled);
-        assert_eq!(kafka_config.brokers, vec!["localhost:9092".to_string()]);
-        assert_eq!(kafka_config.topic.as_str(), "base-topic");
-        assert_eq!(kafka_config.filtering_directive.as_deref(), Some("info"));
+    fn test_log_kafka_partial_override_rejected() {
+        let result = merge_config_with_override(
+            json!({"log": {"kafka": {"level": "ERROR"}}}).to_string(),
+            base_config(),
+        );
+        assert!(
+            result.is_err(),
+            "operator-controlled settings must be rejected"
+        );
     }
 
     #[test]
@@ -442,95 +404,28 @@ mod unit {
     }
 
     #[test]
-    fn test_events_override() {
-        let override_json = json!({
-            "events": {
-                "enabled": true,
-                "brokers": ["broker1:9092", "broker2:9092"],
-                // connector_events overrides both fields; api_events overrides only the topic,
-                // so its partition_key_field must be preserved from the base config.
-                "connector_events": { "topic": "connector-override", "partition_key_field": "merchant_id" },
-                "api_events": { "topic": "api-override" },
-                "transformations": { "order_id": "payment_id" },
-                "static_values": { "app": "grpc" },
-                "extractions": { "path": "metadata.path" }
-            },
-        });
-        let new_config = apply_override(override_json);
-        assert!(new_config.events.enabled);
-        // Each topic carries its own topic name and partition key.
-        assert_eq!(
-            new_config.events.connector_events.topic.as_str(),
-            "connector-override"
+    fn test_events_override_rejected() {
+        let result = merge_config_with_override(
+            json!({"events": {"enabled": true, "connector_events": {"topic": "another-topic"}}})
+                .to_string(),
+            base_config(),
         );
-        assert_eq!(
-            new_config
-                .events
-                .connector_events
-                .partition_key_field
-                .as_str(),
-            "merchant_id"
-        );
-        assert_eq!(new_config.events.api_events.topic.as_str(), "api-override");
-        // Untouched by the override, so it keeps the base config's partition key.
-        assert_eq!(
-            new_config.events.api_events.partition_key_field.as_str(),
-            "request_id"
-        );
-        assert_eq!(
-            new_config.events.brokers,
-            vec!["broker1:9092".to_string(), "broker2:9092".to_string()]
-        );
-        assert_eq!(
-            new_config
-                .events
-                .transformations
-                .get("order_id")
-                .map(String::as_str),
-            Some("payment_id")
-        );
-        assert_eq!(
-            new_config
-                .events
-                .static_values
-                .get("app")
-                .map(String::as_str),
-            Some("grpc")
-        );
-        assert_eq!(
-            new_config
-                .events
-                .extractions
-                .get("path")
-                .map(String::as_str),
-            Some("metadata.path")
+        assert!(
+            result.is_err(),
+            "operator-controlled settings must be rejected"
         );
     }
 
     #[test]
-    fn test_events_transformations_replace() {
-        let mut base_config = base_config();
-        base_config
-            .events
-            .transformations
-            .insert("old_key".to_string(), "old_value".to_string());
-
-        let override_json = json!({
-            "events": {
-                "transformations": { "new_key": "new_value" }
-            },
-        });
-        let new_config = apply_override_with_base(override_json, base_config);
-
-        assert_eq!(
-            new_config
-                .events
-                .transformations
-                .get("new_key")
-                .map(String::as_str),
-            Some("new_value")
+    fn test_events_transformations_override_rejected() {
+        let result = merge_config_with_override(
+            json!({"events": {"transformations": {"new_key": "new_value"}}}).to_string(),
+            base_config(),
         );
-        assert!(!new_config.events.transformations.contains_key("old_key"));
+        assert!(
+            result.is_err(),
+            "operator-controlled settings must be rejected"
+        );
     }
 
     #[test]
@@ -549,29 +444,16 @@ mod unit {
     }
 
     #[test]
-    fn test_unmasked_headers_override_keeps_masking() {
-        let base_config = base_config();
-        let override_json = json!({
-            "unmasked_headers": {
-                "keys": ["x-request-id"]
-            }
-        });
-        let new_config = apply_override_with_base(override_json, base_config);
-
-        let mut metadata = MetadataMap::new();
-        metadata.insert("x-request-id", "req_123".parse().expect("valid header"));
-        metadata.insert("authorization", "secret".parse().expect("valid header"));
-
-        let masked_metadata = MaskedMetadata::new(metadata, new_config.unmasked_headers.clone());
-        let request_id = masked_metadata
-            .get_maskable("x-request-id")
-            .expect("request id should be present");
-        let auth = masked_metadata
-            .get_maskable("authorization")
-            .expect("authorization should be present");
-
-        assert!(request_id.is_normal(), "unmasked header should be normal");
-        assert!(auth.is_masked(), "masked header should remain masked");
+    fn test_unmasked_headers_override_rejected() {
+        let result = merge_config_with_override(
+            json!({"unmasked_headers": {"keys": ["authorization", "x-connector-config"]}})
+                .to_string(),
+            base_config(),
+        );
+        assert!(
+            result.is_err(),
+            "operator-controlled settings must be rejected"
+        );
     }
 
     #[test]
@@ -607,48 +489,22 @@ mod unit {
     #[test]
     fn test_optional_field_null_clears() {
         let mut base_config = base_config();
-        base_config.log.kafka = Some(LogKafka {
-            enabled: true,
-            level: serde_json::from_value(json!("INFO")).expect("level should parse"),
-            filtering_directive: Some("info".to_string()),
-            brokers: vec!["localhost:9092".to_string()],
-            topic: "base-topic".to_string(),
-            ..Default::default()
-        });
-
-        let override_json = json!({
-            "log": {
-                "kafka": {
-                    "filtering_directive": null
-                }
-            }
-        });
-
-        let new_config = apply_override_with_base(override_json, base_config);
-        let kafka_config = new_config
-            .log
-            .kafka
-            .as_ref()
-            .expect("kafka config should be present");
-        assert_eq!(kafka_config.filtering_directive, None);
+        base_config.proxy.connector_request_timeout = Some(30);
+        let new_config = apply_override_with_base(
+            json!({"proxy": {"connector_request_timeout": null}}),
+            base_config,
+        );
+        assert_eq!(new_config.proxy.connector_request_timeout, None);
     }
 
     #[test]
-    fn test_optional_nested_null_clears() {
-        let mut base_config = base_config();
-        base_config.log.kafka = Some(LogKafka {
-            enabled: true,
-            ..Default::default()
-        });
-
-        let override_json = json!({
-            "log": {
-                "kafka": null
-            }
-        });
-
-        let new_config = apply_override_with_base(override_json, base_config);
-        assert!(new_config.log.kafka.is_none());
+    fn test_log_kafka_null_override_rejected() {
+        let result =
+            merge_config_with_override(json!({"log": {"kafka": null}}).to_string(), base_config());
+        assert!(
+            result.is_err(),
+            "operator-controlled settings must be rejected"
+        );
     }
 
     #[test]

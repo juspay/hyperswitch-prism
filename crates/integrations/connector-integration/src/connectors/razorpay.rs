@@ -933,7 +933,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Razorpay<T>
+    interfaces::webhooks::IncomingWebhook for Razorpay<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"account_id":"probe_acct","contains":["payment"],"entity":"event","event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_probe001","entity":"payment","amount":1000,"currency":"USD","status":"captured","order_id":"order_probe001"}}}}"#

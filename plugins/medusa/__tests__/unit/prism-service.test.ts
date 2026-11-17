@@ -680,7 +680,7 @@ describe("PrismService — remaining methods (unit)", () => {
 
     it("returns REQUIRES_MORE for PAYMENT_ACTION_REQUIRED", async () => {
       const service = buildWebhookService()
-      eventClientMock.handleEvent.mockResolvedValue({ eventType: 4 } as any)
+      eventClientMock.handleEvent.mockResolvedValue({ eventType: 4, sourceVerified: true } as any)
 
       const result = await service.handleWebhook({
         rawData: "{}",
@@ -692,7 +692,7 @@ describe("PrismService — remaining methods (unit)", () => {
 
     it("returns PENDING for PAYMENT_INTENT_PROCESSING", async () => {
       const service = buildWebhookService()
-      eventClientMock.handleEvent.mockResolvedValue({ eventType: 5 } as any)
+      eventClientMock.handleEvent.mockResolvedValue({ eventType: 5, sourceVerified: true } as any)
 
       const result = await service.handleWebhook({
         rawData: "{}",
@@ -704,7 +704,7 @@ describe("PrismService — remaining methods (unit)", () => {
 
     it("returns CANCELED for PAYMENT_INTENT_CANCELLED", async () => {
       const service = buildWebhookService()
-      eventClientMock.handleEvent.mockResolvedValue({ eventType: 6 } as any)
+      eventClientMock.handleEvent.mockResolvedValue({ eventType: 6, sourceVerified: true } as any)
 
       const result = await service.handleWebhook({
         rawData: "{}",
@@ -716,7 +716,7 @@ describe("PrismService — remaining methods (unit)", () => {
 
     it("returns FAILED for PAYMENT_INTENT_FAILURE", async () => {
       const service = buildWebhookService()
-      eventClientMock.handleEvent.mockResolvedValue({ eventType: 7 } as any)
+      eventClientMock.handleEvent.mockResolvedValue({ eventType: 7, sourceVerified: true } as any)
 
       const result = await service.handleWebhook({
         rawData: "{}",

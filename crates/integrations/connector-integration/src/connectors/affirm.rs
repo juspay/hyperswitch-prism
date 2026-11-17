@@ -109,7 +109,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Affirm<T>
+    interfaces::webhooks::IncomingWebhook for Affirm<T>
 {
 }
 

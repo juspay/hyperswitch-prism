@@ -17,7 +17,7 @@ use domain_types::{
     utils::ForeignTryFrom,
 };
 use hyperswitch_masking::Secret;
-use interfaces::{api::ConnectorCommon, connector_types::IncomingWebhook};
+use interfaces::{api::ConnectorCommon, webhooks::IncomingWebhook};
 use serde_json::json;
 
 use super::{transformers::*, Betterpayment};

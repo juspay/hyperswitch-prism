@@ -258,7 +258,7 @@ crate::connectors::macros::macro_connector_payout_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Maya<T>
+    interfaces::webhooks::IncomingWebhook for Maya<T>
 {
     fn verify_webhook_source(
         &self,
