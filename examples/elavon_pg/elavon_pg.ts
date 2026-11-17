@@ -5,9 +5,9 @@
 // Elavon_Pg — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx elavon_pg.ts checkout_autocapture
 
-import { PaymentClient, CustomerClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "customer_create", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void"];
+import { PaymentClient, CustomerClient, EventClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "customer_create", "get", "parse_event", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -86,6 +86,31 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,
             "currency": Currency.USD
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -396,6 +421,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
 async function preAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
@@ -462,7 +505,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, customerCreate, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, customerCreate, get, handleEvent, parseEvent, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner
