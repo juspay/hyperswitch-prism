@@ -956,13 +956,11 @@ fn check_common_guards<T: PaymentMethodDataTypes>(
     }
     // payment.amount is 1..10^13 minor units; zero and negative are refused on
     // the payment leg only.
-    let minor_amount = common_utils::types::ConnectorMinorUnitForConnector
-        .convert(&request.money)
-        .get_amount_as_i64();
-    if !is_three_ds_completion(request) && minor_amount <= 0 {
+    let minor_amount = common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money);
+    if !is_three_ds_completion(request) && !minor_amount.is_greater_than(0) {
         return Err(invalid_format(
             "amount",
-            format!("payment.amount must be a positive integer in minor units, got {minor_amount}"),
+            "payment.amount must be a positive integer in minor units".to_string(),
         ));
     }
     // A merchant-initiated payment goes through RepeatPayment.
@@ -2201,15 +2199,11 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         // payment.amount must be 0 on account verification (AccountVerificationPaymentInfo:
         // min 0, max 0). A requested non-zero amount cannot be charged on this route, so it is
         // refused rather than quietly replaced with 0 and reported as a success.
-        if let Some(requested) = request
+        if request
             .money
             .as_ref()
-            .map(|money| {
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(money)
-                    .get_amount_as_i64()
-            })
-            .filter(|minor_amount| *minor_amount != 0)
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+            .is_some_and(|minor_amount| minor_amount != ConnectorMinorUnit::zero())
         {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "A non-zero amount on SetupMandate".to_string(),
@@ -2220,10 +2214,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                          the mandate with RepeatPayment.",
                     ),
                     ACCOUNT_VERIFICATION_DOC_URL,
-                    format!(
+                    String::from(
                         "Ecommpay account verification is always zero-amount \
                          (AccountVerificationPaymentInfo.amount: min 0, max 0); the requested \
-                         {requested} minor units cannot be charged on this route"
+                         non-zero amount cannot be charged on this route"
                     ),
                 ),
             }));
@@ -2621,15 +2615,12 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         let operation = repeat_payment_operation(request)?;
 
         // PaymentInfoRecurring amount >= 1 minor unit.
-        let minor_amount = common_utils::types::ConnectorMinorUnitForConnector
-            .convert(&request.money)
-            .get_amount_as_i64();
-        if minor_amount <= 0 {
+        let minor_amount =
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money);
+        if !minor_amount.is_greater_than(0) {
             return Err(invalid_format(
                 "amount",
-                format!(
-                    "payment.amount must be a positive integer in minor units, got {minor_amount}"
-                ),
+                "payment.amount must be a positive integer in minor units".to_string(),
             ));
         }
 
@@ -2866,10 +2857,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 context: context(
                     Some("Send a positive amount_to_capture in minor units."),
                     CAPTURE_DOC_URL,
-                    format!(
-                        "Ecommpay payment.amount must be a positive integer in minor units; \
-                         received {}",
-                        amount_to_capture.get_amount_as_i64()
+                    String::from(
+                        "Ecommpay payment.amount must be a positive integer in minor units"
                     ),
                 ),
             }));
@@ -3137,10 +3126,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 context: context(
                     Some("Send a positive refund_amount in minor units."),
                     REFUND_DOC_URL,
-                    format!(
-                        "Ecommpay payment.amount must be a positive integer in minor units; \
-                         received {}",
-                        refund_amount.get_amount_as_i64()
+                    String::from(
+                        "Ecommpay payment.amount must be a positive integer in minor units"
                     ),
                 ),
             }));

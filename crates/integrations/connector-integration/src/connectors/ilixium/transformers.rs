@@ -739,11 +739,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount {} {} into Ilixium's \
+                        "Failed to convert minor_amount in {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&request.money)
-                            .get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -842,11 +839,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert amount {} {} into Ilixium's transaction.amount \
+                        "Failed to convert amount in {} into Ilixium's transaction.amount \
                          (minor units, digits only, sent as a JSON string).",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&request.money)
-                            .get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1062,11 +1056,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount_to_capture {} {} into Ilixium's \
+                        "Failed to convert minor_amount_to_capture in {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&request.capture_money)
-                            .get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -1202,11 +1193,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert void amount {} {} into Ilixium's \
+                        "Failed to convert void amount in {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(minor_amount)
-                            .get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1419,11 +1407,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_refund_amount {} {} into Ilixium's \
+                        "Failed to convert minor_refund_amount in {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&request.refund_money)
-                            .get_amount_as_i64(),
                         request.currency
                     )),
                 },

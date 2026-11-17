@@ -307,33 +307,27 @@ fn validate_currency(
 fn build_amount(
     money: &common_utils::types::Money,
 ) -> Result<StringTwoDecimalUnit, error_stack::Report<IntegrationError>> {
-    let minor = common_utils::types::ConnectorMinorUnitForConnector
-        .convert(money)
-        .get_amount_as_i64();
     let currency = money.currency();
     let amount = StringTwoDecimalUnitForConnector
         .convert(money)
         .map_err(|_| {
             invalid_amount(format!(
-                "{currency} has more than two decimal places, so {minor} minor units cannot be \
+                "{currency} has more than two decimal places, so the amount cannot be \
                  expressed in the two decimals order.amount implies"
             ))
         })?;
     let amount = amount.validate_unsigned("order.amount").map_err(|_| {
         invalid_amount(format!(
-            "order.amount is unsigned at Orbital, but {minor} minor units of {currency} is \
+            "order.amount is unsigned at Orbital, but the requested amount in {currency} is \
              negative"
         ))
     })?;
-    // `validate_max_len` consumes the amount, so keep the encoded form for the message.
-    let encoded = amount.to_string();
     amount
         .validate_max_len(MAX_AMOUNT_LEN, "order.amount")
         .map_err(|_| {
             invalid_amount(format!(
-                "order.amount holds at most {MAX_AMOUNT_LEN} characters, but {minor} minor \
-                 units of {currency} encodes to `{encoded}` ({} characters)",
-                encoded.len()
+                "order.amount in {currency} exceeds the maximum encoded length of \
+                 {MAX_AMOUNT_LEN} characters"
             ))
         })
 }

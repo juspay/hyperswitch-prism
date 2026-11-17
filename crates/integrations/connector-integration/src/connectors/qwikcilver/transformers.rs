@@ -285,11 +285,8 @@ where
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
-                        "Failed to convert Redeem amount {} {} to FloatMajorUnit. \
+                        "Failed to convert Redeem amount in {} to FloatMajorUnit. \
                          Qwikcilver expects major-unit decimals (e.g. 0.20 AED).",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&item.router_data.request.money)
-                            .get_amount_as_i64(),
                         item.router_data.request.currency,
                     ),
                     "Verify `amount.amount.amount` is a non-negative integer and \
@@ -600,10 +597,7 @@ where
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
-                        "Failed to convert Recharge amount {} {} to FloatMajorUnit.",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&req.money)
-                            .get_amount_as_i64(),
+                        "Failed to convert Recharge amount in {} to FloatMajorUnit.",
                         req.currency,
                     ),
                     "Verify `amount.amount.amount` is a non-negative integer and \
