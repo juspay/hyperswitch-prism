@@ -274,7 +274,7 @@ scenarios:
     path_triggers:
       - "sdk/**"
       - "crates/ffi/ffi/**"
-      - "crates/internal/uniffi-bindgen/**"
+      - "sdk/codegen/uniffi-bindgen/**"
     diff_signals:
       - "generated flow files changed"
       - "ffi transformers changed"
@@ -293,7 +293,7 @@ scenarios:
     description: Changes test harnesses, connector specs, docs, or generated docs.
     path_triggers:
       - "crates/internal/ucs-connector-tests/**"
-      - "crates/internal/field-probe/**"
+      - "tools/field-probe/**"
       - "data/field_probe/**"
       - "docs/**"
       - "docs-generated/**"
