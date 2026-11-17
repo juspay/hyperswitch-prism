@@ -788,6 +788,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "base64-serde"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1416,12 +1422,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "combine"
+version = "4.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4356eba6976435498d05a311ee9fc486da3bc81c200d3f0d7dd9703b41913f92"
+dependencies = [
+ "bytes",
+ "memchr",
+]
+
+[[package]]
 name = "common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.10.20.0#daf6f02425b592be0406d14f80666094871aef9b"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.11.13.1#c962d8bc87c0a220e91bbeb14b687b65b3b79220"
 dependencies = [
  "hyperswitch_masking",
- "router_derive 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2026.10.20.0)",
+ "router_derive 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2026.11.13.1)",
  "serde",
  "serde_json",
  "smithy",
@@ -1434,7 +1450,7 @@ dependencies = [
 [[package]]
 name = "common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.10.20.0#daf6f02425b592be0406d14f80666094871aef9b"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.11.13.1#c962d8bc87c0a220e91bbeb14b687b65b3b79220"
 dependencies = [
  "ammonia",
  "base64 0.22.1",
@@ -1449,6 +1465,7 @@ dependencies = [
  "hyperswitch_masking",
  "ip_network",
  "md5",
+ "mime",
  "nanoid",
  "nutype",
  "once_cell",
@@ -1457,7 +1474,7 @@ dependencies = [
  "quick-xml 0.31.0",
  "rand 0.8.8",
  "regex",
- "reqwest 0.11.27",
+ "reqwest 0.13.5",
  "ring",
  "rsa",
  "rust_decimal",
@@ -4324,7 +4341,7 @@ dependencies = [
 [[package]]
 name = "injector"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.10.20.0#daf6f02425b592be0406d14f80666094871aef9b"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.11.13.1#c962d8bc87c0a220e91bbeb14b687b65b3b79220"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4332,7 +4349,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hyperswitch_masking",
  "nom 7.1.3",
- "reqwest 0.12.28",
+ "reqwest 0.13.5",
  "router_env",
  "serde",
  "serde_json",
@@ -4425,12 +4442,9 @@ dependencies = [
 name = "interfaces"
 version = "0.1.0"
 dependencies = [
- "actix-web",
- "async-trait",
  "bytes",
  "domain_types",
  "error-stack 0.4.1",
- "http 1.4.0",
  "hyperswitch_masking",
  "mime",
  "reqwest 0.12.28",
@@ -4568,6 +4582,55 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "875a5a69ac2bab1a891711cf5eccbec1ce0341ea805560dcd90b7a2e925132e8"
 dependencies = [
  "jiff-tzdb",
+]
+
+[[package]]
+name = "jni"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5efd9a482cf3a427f00d6b35f14332adc7902ce91efb778580e180ff90fa3498"
+dependencies = [
+ "cfg-if",
+ "combine",
+ "jni-macros",
+ "jni-sys",
+ "log",
+ "simd_cesu8",
+ "thiserror 2.0.18",
+ "walkdir",
+ "windows-link",
+]
+
+[[package]]
+name = "jni-macros"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a00109accc170f0bdb141fed3e393c565b6f5e072365c3bd58f5b062591560a3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "simd_cesu8",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "jni-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6377a88cb3910bee9b0fa88d4f42e1d2da8e79915598f65fb0c7ee14c878af2"
+dependencies = [
+ "jni-sys-macros",
+]
+
+[[package]]
+name = "jni-sys-macros"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264"
+dependencies = [
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -6215,6 +6278,7 @@ version = "0.11.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fcb935c5bec503c2f0e306bdd3e58bb9029dcb14fa8d9ac76e3a5256ac0763e"
 dependencies = [
+ "aws-lc-rs",
  "bytes",
  "getrandom 0.3.4",
  "lru-slab",
@@ -6504,7 +6568,6 @@ version = "0.11.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd67538700a17451e7cba03ac727fb961abb7607553461627b97de0b89cf4a62"
 dependencies = [
- "async-compression",
  "base64 0.21.7",
  "bytes",
  "encoding_rs",
@@ -6519,7 +6582,6 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
- "mime_guess",
  "native-tls",
  "once_cell",
  "percent-encoding",
@@ -6532,7 +6594,6 @@ dependencies = [
  "system-configuration 0.5.1",
  "tokio",
  "tokio-native-tls",
- "tokio-util",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -6578,6 +6639,53 @@ dependencies = [
  "tokio",
  "tokio-native-tls",
  "tokio-rustls",
+ "tower 0.5.3",
+ "tower-http",
+ "tower-service",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "webpki-roots",
+]
+
+[[package]]
+name = "reqwest"
+version = "0.13.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16a1cfa75cc186dd73d5818e510e042e40927bccc9c236b061cea97e1eb08029"
+dependencies = [
+ "base64 0.23.1",
+ "bytes",
+ "encoding_rs",
+ "futures-core",
+ "futures-util",
+ "h2 0.4.13",
+ "http 1.4.0",
+ "http-body 1.0.1",
+ "http-body-util",
+ "hyper 1.8.1",
+ "hyper-rustls",
+ "hyper-tls 0.6.0",
+ "hyper-util",
+ "js-sys",
+ "log",
+ "mime",
+ "mime_guess",
+ "native-tls",
+ "percent-encoding",
+ "pin-project-lite",
+ "quinn",
+ "rustls",
+ "rustls-pki-types",
+ "rustls-platform-verifier",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "sync_wrapper 1.0.2",
+ "tokio",
+ "tokio-native-tls",
+ "tokio-rustls",
  "tokio-util",
  "tower 0.5.3",
  "tower-http",
@@ -6587,7 +6695,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
- "webpki-roots",
 ]
 
 [[package]]
@@ -6661,7 +6768,7 @@ dependencies = [
 [[package]]
 name = "router_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.10.20.0#daf6f02425b592be0406d14f80666094871aef9b"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.11.13.1#c962d8bc87c0a220e91bbeb14b687b65b3b79220"
 dependencies = [
  "indexmap 2.13.0",
  "proc-macro2",
@@ -6674,7 +6781,7 @@ dependencies = [
 [[package]]
 name = "router_env"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.10.20.0#daf6f02425b592be0406d14f80666094871aef9b"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.11.13.1#c962d8bc87c0a220e91bbeb14b687b65b3b79220"
 dependencies = [
  "actix-web",
  "cargo_metadata 0.18.1",
@@ -6847,6 +6954,33 @@ dependencies = [
  "web-time",
  "zeroize",
 ]
+
+[[package]]
+name = "rustls-platform-verifier"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1167586491e2b18b8bfbb293e8180ec17c201c4f076d7cb3070ca964e7598f98"
+dependencies = [
+ "core-foundation 0.10.1",
+ "core-foundation-sys",
+ "jni",
+ "log",
+ "once_cell",
+ "rustls",
+ "rustls-native-certs",
+ "rustls-platform-verifier-android",
+ "rustls-webpki",
+ "security-framework",
+ "security-framework-sys",
+ "webpki-root-certs",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "rustls-platform-verifier-android"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eec689c0bc40ff2458a5977b6619cb718087084a18e02a131c599b62d05e1a5f"
 
 [[package]]
 name = "rustls-webpki"
@@ -7321,6 +7455,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
+name = "simd_cesu8"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11031e251abf8611c80f460e19dbdeb54a66db918e49c65a7065b46ac7aec520"
+dependencies = [
+ "rustc_version",
+ "simdutf8",
+]
+
+[[package]]
 name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7371,7 +7515,7 @@ checksum = "b7c388c1b5e93756d0c740965c41e8822f866621d41acbdf6336a6a168f8840c"
 [[package]]
 name = "smithy"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.10.20.0#daf6f02425b592be0406d14f80666094871aef9b"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.11.13.1#c962d8bc87c0a220e91bbeb14b687b65b3b79220"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7382,7 +7526,7 @@ dependencies = [
 [[package]]
 name = "smithy-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2026.10.20.0#daf6f02425b592be0406d14f80666094871aef9b"
+source = "git+https://github.com/juspay/hyperswitch?tag=2026.11.13.1#c962d8bc87c0a220e91bbeb14b687b65b3b79220"
 dependencies = [
  "proc-macro2",
  "serde",
@@ -8545,6 +8689,7 @@ dependencies = [
  "bytes",
  "chrono",
  "config_patch_derive",
+ "constant_time_eq",
  "deja",
  "error-stack 0.4.1",
  "futures",
@@ -9170,9 +9315,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-streams"
-version = "0.4.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
+checksum = "9d1ec4f6517c9e11ae630e200b2b65d193279042e28edd4a2cda233e46670bbb"
 dependencies = [
  "futures-util",
  "js-sys",
@@ -9211,6 +9356,15 @@ checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "webpki-root-certs"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "293198dcebfb821155b5092ab94b5a82ff180eddd7241df3bd6e66a4ffd1a585"
+dependencies = [
+ "rustls-pki-types",
 ]
 
 [[package]]

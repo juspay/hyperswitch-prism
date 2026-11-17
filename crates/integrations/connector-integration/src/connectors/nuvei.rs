@@ -42,6 +42,9 @@ use serde::Serialize;
 use std::fmt::Debug;
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use transformers::{
     NuveiAuthenticateRequest, NuveiAuthenticateResponse, NuveiCaptureRequest, NuveiCaptureResponse,
     NuveiClientAuthRequest, NuveiClientAuthResponse, NuveiErrorResponse, NuveiInitPaymentRequest,
@@ -202,7 +205,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Nuvei<T>
+    interfaces::webhooks::IncomingWebhook for Nuvei<T>
 {
     fn verify_webhook_source(
         &self,

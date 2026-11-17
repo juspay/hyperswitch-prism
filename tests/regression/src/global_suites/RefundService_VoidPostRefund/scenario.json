@@ -1,0 +1,51 @@
+{
+  "refund_reversal_before_settlement": {
+    "grpc_req": {
+      "merchant_refund_id": "auto_generate",
+      "connector_refund_id": "auto_generate",
+      "connector_order_id": "auto_generate",
+      "payment_method": {
+        "card": {
+          "card_number": {
+            "value": "4445222299990007"
+          },
+          "card_exp_month": {
+            "value": "01"
+          },
+          "card_exp_year": {
+            "value": "27"
+          },
+          "card_cvc": {
+            "value": "382"
+          },
+          "card_holder_name": {
+            "value": "Test User"
+          },
+          "card_type": "credit"
+        }
+      },
+      "refund_amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "REFUND_SUCCESS",
+          "PENDING",
+          "REFUND_PENDING"
+        ]
+      },
+      "connector_refund_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Refund Reversal | Before Settlement"
+  }
+}

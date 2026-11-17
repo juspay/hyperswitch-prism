@@ -937,93 +937,133 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayshapProxyBankTransferPayout>
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
-    for payouts::payout_method_data::ApplePayDecrypt
-{
-    type Error = IntegrationError;
-    fn foreign_try_from(
-        apple: grpc_api_types::payouts::ApplePayDecrypt,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let card_network = apple
-            .card_network
-            .map(|n| {
-                let network = grpc_api_types::payments::CardNetwork::try_from(n).change_context(
-                    IntegrationError::InvalidDataFormat {
+struct DecryptedWalletData {
+    pan: cards::CardNumber,
+    expiry_month: hyperswitch_masking::Secret<String>,
+    expiry_year: hyperswitch_masking::Secret<String>,
+    card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    card_network: Option<common_enums::CardNetwork>,
+}
+
+impl DecryptedWalletData {
+    fn try_from_fields(
+        pan: Option<cards::CardNumber>,
+        expiry_month: Option<hyperswitch_masking::Secret<String>>,
+        expiry_year: Option<hyperswitch_masking::Secret<String>>,
+        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        card_network: Option<i32>,
+        pan_field: &'static str,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let card_network = card_network
+            .map(|network| {
+                let network = grpc_api_types::payments::CardNetwork::try_from(network)
+                    .change_context(IntegrationError::InvalidDataFormat {
                         field_name: "card_network",
                         context: IntegrationErrorContext {
                             additional_context: Some("Invalid card network".to_owned()),
                             ..Default::default()
                         },
-                    },
-                )?;
+                    })?;
                 common_enums::CardNetwork::foreign_try_from(network)
             })
             .transpose()?;
-        Ok(payouts::payout_method_data::ApplePayDecrypt {
-            dpan: std::str::FromStr::from_str(
-                &apple
-                    .dpan
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "dpan",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "DPAN (device primary account number) is required for Apple Pay decrypt"
-                                        .to_owned()
-                                ),
-                                ..Default::default()
-                            },
-                        })
-                    })?
-                    .peek()
-                    .clone(),
-            )
-            .map_err(|e| {
-                error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                    field_name: "dpan",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid dpan".to_owned()),
-                        ..Default::default()
-                    },
-                })
-                .attach_printable(format!("{e:?}"))
-            })?,
-            expiry_month: ::hyperswitch_masking::Secret::new(
-                apple
-                    .expiry_month
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "card_exp_month",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "Card expiry month is required".to_owned()
-                                ),
-                                ..Default::default()
-                            },
-                        })
-                    })?
-                    .peek()
-                    .to_string(),
-            ),
-            expiry_year: ::hyperswitch_masking::Secret::new(
-                apple
-                    .expiry_year
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "card_exp_year",
-                            context: IntegrationErrorContext {
-                                additional_context: Some("Card expiry year is required".to_owned()),
-                                ..Default::default()
-                            },
-                        })
-                    })?
-                    .peek()
-                    .to_string(),
-            ),
-            card_holder_name: apple
-                .card_holder_name
-                .map(|n| ::hyperswitch_masking::Secret::new(n.peek().to_string())),
+        let pan = pan.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: pan_field,
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "DPAN is required for decrypted wallet payouts".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let pan = std::str::FromStr::from_str(pan.peek()).map_err(|error| {
+            error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                field_name: pan_field,
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid {pan_field}")),
+                    ..Default::default()
+                },
+            })
+            .attach_printable(format!("{error:?}"))
+        })?;
+        let expiry_month = expiry_month.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "expiry_month",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Card expiry month is required".to_owned()),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let expiry_year = expiry_year.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "expiry_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Card expiry year is required".to_owned()),
+                    ..Default::default()
+                },
+            })
+        })?;
+        Ok(Self {
+            pan,
+            expiry_month,
+            expiry_year,
+            card_holder_name,
             card_network,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
+    for payouts::payout_method_data::ApplePayDecrypt
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        apple: grpc_api_types::payouts::ApplePayDecrypt,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let data = DecryptedWalletData::try_from_fields(
+            apple.dpan,
+            apple.expiry_month,
+            apple.expiry_year,
+            apple.card_holder_name,
+            apple.card_network,
+            "dpan",
+        )?;
+        Ok(Self {
+            dpan: data.pan,
+            expiry_month: data.expiry_month,
+            expiry_year: data.expiry_year,
+            card_holder_name: data.card_holder_name,
+            card_network: data.card_network,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::GooglePayDecrypt>
+    for payouts::payout_method_data::GooglePayDecrypt
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        google: grpc_api_types::payouts::GooglePayDecrypt,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let data = DecryptedWalletData::try_from_fields(
+            google.application_primary_account_number,
+            google.expiry_month,
+            google.expiry_year,
+            google.card_holder_name,
+            google.card_network,
+            "application_primary_account_number",
+        )?;
+        Ok(Self {
+            application_primary_account_number: data.pan,
+            expiry_month: data.expiry_month,
+            expiry_year: data.expiry_year,
+            card_holder_name: data.card_holder_name,
+            card_network: data.card_network,
         })
     }
 }
@@ -1378,6 +1418,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     )?,
                 ),
             )),
+            grpc_api_types::payouts::payout_method::PayoutMethodData::GooglePayDecrypt(
+                google_pay_decrypt,
+            ) => Ok(Self::Wallet(
+                payouts::payout_method_data::Wallet::GooglePayDecrypt(
+                    payouts::payout_method_data::GooglePayDecrypt::foreign_try_from(
+                        google_pay_decrypt,
+                    )?,
+                ),
+            )),
             grpc_api_types::payouts::payout_method::PayoutMethodData::Paypal(paypal) => {
                 Ok(Self::Wallet(payouts::payout_method_data::Wallet::Paypal(
                     payouts::payout_method_data::Paypal::foreign_try_from(paypal)?,
@@ -1602,6 +1651,16 @@ where
                 })
                 .map(payouts::payouts_types::PayoutFundsTransferType::foreign_try_from)
                 .transpose()?,
+            purpose: value
+                .purpose
+                .filter(|value| {
+                    *value
+                        != i32::from(
+                            grpc_api_types::payouts::payout_enums::PayoutPurpose::Unspecified,
+                        )
+                })
+                .map(payouts::payouts_types::PayoutPurpose::foreign_try_from)
+                .transpose()?,
             vendor_account_details: value
                 .vendor_account_details
                 .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
@@ -1677,6 +1736,45 @@ impl ForeignTryFrom<i32> for payouts::payouts_types::PayoutFundsTransferType {
             Ftt::MastercardBusinessToBusiness => Ok(Self::MastercardBusinessToBusiness),
             Ftt::MastercardGamingRepay => Ok(Self::MastercardGamingRepay),
             Ftt::Unspecified => Err(invalid().into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<i32> for payouts::payouts_types::PayoutPurpose {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payouts::payout_enums::PayoutPurpose as ProtoPurpose;
+
+        let invalid = || IntegrationError::InvalidDataFormat {
+            field_name: "purpose",
+            context: crate::errors::IntegrationErrorContext {
+                additional_context: Some(format!("Unknown PayoutPurpose enum value: {value}")),
+                ..Default::default()
+            },
+        };
+
+        match ProtoPurpose::try_from(value).change_context(invalid())? {
+            ProtoPurpose::FamilySupport => Ok(Self::FamilySupport),
+            ProtoPurpose::Expatriation => Ok(Self::Expatriation),
+            ProtoPurpose::TravelAndTourism => Ok(Self::TravelAndTourism),
+            ProtoPurpose::Education => Ok(Self::Education),
+            ProtoPurpose::MedicalTreatment => Ok(Self::MedicalTreatment),
+            ProtoPurpose::EmergencyNeed => Ok(Self::EmergencyNeed),
+            ProtoPurpose::Leisure => Ok(Self::Leisure),
+            ProtoPurpose::Savings => Ok(Self::Savings),
+            ProtoPurpose::Gifts => Ok(Self::Gifts),
+            ProtoPurpose::Donations => Ok(Self::Donations),
+            ProtoPurpose::FinancialServices => Ok(Self::FinancialServices),
+            ProtoPurpose::ItServices => Ok(Self::ItServices),
+            ProtoPurpose::Investment => Ok(Self::Investment),
+            ProtoPurpose::Insurance => Ok(Self::Insurance),
+            ProtoPurpose::LoanPayment => Ok(Self::LoanPayment),
+            ProtoPurpose::Pension => Ok(Self::Pension),
+            ProtoPurpose::Royalties => Ok(Self::Royalties),
+            ProtoPurpose::Other => Ok(Self::Other),
+            ProtoPurpose::Income => Ok(Self::Income),
+            ProtoPurpose::Unspecified => Err(invalid().into()),
         }
     }
 }

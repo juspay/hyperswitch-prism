@@ -4,7 +4,7 @@ pub mod transformers;
 
 use std::{self, fmt::Debug};
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
@@ -55,6 +55,11 @@ pub(crate) mod headers {
 
 const CONTENT_TYPE_JOSE: &str = "application/jose";
 const CONTENT_TYPE_JSON: &str = "application/json";
+
+fn set_paco_refund_error_status(error: &mut ErrorResponse) {
+    error.attempt_status =
+        twoc_twop_paco::classify_refund_response_code(Some(&error.code)).map(FlowStatus::Refund);
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for TwocTwopPaco<T>
@@ -508,14 +513,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             }
         };
 
-        let refund_status = twoc_twop_paco::classify_refund_response_code(Some(&code));
-
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,
             message: message.clone(),
             reason: Some(message),
-            attempt_status: refund_status.map(FlowStatus::Refund),
+            attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
@@ -570,7 +573,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_error_response_v2],
+    connector_default_implementations: [],
     connector: TwocTwopPaco,
     curl_response: TwocTwopPacoRSyncInquiryResponse,
     flow_name: RSync,
@@ -581,6 +584,17 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            set_paco_refund_error_status(&mut error);
+            Ok(error)
+        }
+
         fn get_headers(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
@@ -778,7 +792,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_error_response_v2],
+    connector_default_implementations: [],
     connector: TwocTwopPaco,
     curl_request: Json(TwocTwopPacoRefundRequest),
     curl_response: TwocTwopPacoRefundResponse,
@@ -792,6 +806,17 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            set_paco_refund_error_status(&mut error);
+            Ok(error)
+        }
+
         fn get_headers(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
@@ -815,6 +840,6 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for TwocTwopPaco<T>
+    interfaces::webhooks::IncomingWebhook for TwocTwopPaco<T>
 {
 }

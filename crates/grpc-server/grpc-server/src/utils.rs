@@ -109,6 +109,15 @@ pub fn validate_environment(environment: &str) -> Result<Env, String> {
 /// This is the **single entry point** for connector URL resolution. All flows must call this
 /// instead of `connectors_with_connector_config_overrides` directly so that both override
 /// sources are always applied consistently.
+///
+/// # Design notes
+///
+/// - **Behaviour:** caller-supplied URL fields in `connector_config` (`base_url`,
+///   `dispute_base_url`, `endpoint_prefix`, …) take precedence over the configured URLs.
+/// - **Intentional:** needed for per-merchant and per-region endpoints and for test or
+///   mock hosts.
+/// - **Invariant:** the caller already provides the connector credentials and payment data
+///   in the same request, so the override exposes nothing the caller does not already hold.
 pub async fn apply_url_overrides(
     config: &configs::Config,
     connector: &connector_types::ConnectorVariant,

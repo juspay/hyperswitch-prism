@@ -48,7 +48,7 @@ install-codegen-deps:
 # ---------------------------------------------------------------------------
 # generate-bindings
 # Builds the uniffi-bindgen binary then runs uniffi-bindgen generate.
-# uniffi-bindgen lives in its own crate (crates/internal/uniffi-bindgen) so the ffi
+# uniffi-bindgen lives in its own crate (sdk/codegen/uniffi-bindgen) so the ffi
 # library never pulls in the uniffi/cli codegen deps. The output binary lands
 # in the same target/<PLATFORM>/release/ directory as before.
 # ---------------------------------------------------------------------------

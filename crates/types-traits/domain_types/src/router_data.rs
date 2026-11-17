@@ -1186,6 +1186,13 @@ pub enum ConnectorSpecificConfig {
         secret_key: Secret<String>,
         base_url: Option<String>,
     },
+    /// Payhound — hosted crypto invoice gateway. HMAC-SHA512 signed requests, so the
+    /// credentials are an API key plus the signing secret; there is no third credential.
+    Payhound {
+        api_key: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 /// Config-patch key for a `ConnectorSpecificConfig` variant.
@@ -1645,6 +1652,10 @@ impl ConnectorSpecificConfig {
             Ecommpay {
                 project_id,
                 secret_key
+            },
+            Payhound {
+                api_key,
+                api_secret
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -2200,6 +2211,10 @@ impl ConnectorSpecificConfig {
                 Ecommpay {
                     project_id,
                     secret_key
+                },
+                Payhound {
+                    api_key,
+                    api_secret
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -3005,6 +3020,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 project_id: ecommpay.project_id.ok_or_else(err)?,
                 secret_key: ecommpay.secret_key.ok_or_else(err)?,
                 base_url: ecommpay.base_url,
+            }),
+            AuthType::Payhound(payhound) => Ok(Self::Payhound {
+                api_key: payhound.api_key.ok_or_else(err)?,
+                api_secret: payhound.api_secret.ok_or_else(err)?,
+                base_url: payhound.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -4466,6 +4486,25 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
                         secret_key: api_key.clone(),
                         project_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // Payhound signs every request with an HMAC-SHA512 secret, so it is configured as
+                // a SignatureKey pair; `key1` is unused because Payhound has no third credential.
+                ConnectorEnum::Payhound => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1: _,
+                        api_secret,
+                    } => Ok(Self::Payhound {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payhound {
+                        api_key: api_key.clone(),
+                        api_secret: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

@@ -17,6 +17,7 @@ import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
+import payments.CountryAlpha2
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -365,11 +366,13 @@ fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
                 cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
             }
         }
-        customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"
-        }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
+                line1Builder.value = "123 Main St"
+                cityBuilder.value = "Seattle"
+                zipCodeBuilder.value = "98101"
+                countryAlpha2Code = CountryAlpha2.US
+                stateCodeIsoBuilder.value = "WA"
             }
         }
         enrolledFor3Ds = false  // Authentication Details.

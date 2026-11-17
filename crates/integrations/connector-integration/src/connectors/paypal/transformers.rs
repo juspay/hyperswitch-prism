@@ -3883,6 +3883,29 @@ fn webhook_headers_lowercase(
 impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationRequest {
     type Error = Report<IntegrationError>;
     fn try_from(req: &VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
+        // PayPal requires the configured webhook ID, not a shared signing key.
+        // Validate it before constructing or sending a verification request.
+        let secrets =
+            req.merchant_secret
+                .as_ref()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "webhook_secrets.secret",
+                    context: Default::default(),
+                })?;
+        let webhook_id = std::str::from_utf8(&secrets.secret).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "webhook_secrets.secret",
+                context: Default::default(),
+            },
+        )?;
+        if webhook_id.trim().is_empty() {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "webhook_secrets.secret",
+                context: Default::default(),
+            }
+            .into());
+        }
+
         // Parse the webhook body into serde_json::Value
         // With preserve_order feature enabled, this preserves field order (uses IndexMap, not BTreeMap)
         let webhook_event = serde_json::from_slice(&req.webhook_body)
@@ -3930,12 +3953,7 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
                     context: Default::default(),
                 })?
                 .clone(),
-            webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
-                .change_context(IntegrationError::NotImplemented(
-                    "webhook verification secret not found".to_string(),
-                    Default::default(),
-                ))
-                .attach_printable("Could not convert secret to UTF-8")?,
+            webhook_id: webhook_id.to_string(),
             webhook_event,
         })
     }
