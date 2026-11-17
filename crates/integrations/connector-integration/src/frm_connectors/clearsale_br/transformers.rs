@@ -80,7 +80,7 @@ pub const CLEARSALE_DOC_URL: &str =
 ///
 /// Merchants on a different ClearSale product override it per request
 /// (`connector_feature_data.product`) or account-wide on the connector config.
-pub const DEFAULT_CLEARSALE_PRODUCT_TOTAL_GARANTIDO: u32 = 4;
+pub const DEFAULT_CLEARSALE_PRODUCT_TOTAL_GARANTIDO: i32 = 4;
 
 // ──────────────────────────────────────────────────────────────────────────
 // Auth
@@ -141,7 +141,7 @@ pub struct ClearSaleAuthType {
     pub username: Secret<String>,
     pub password: Secret<String>,
     pub b2b_b2c: Option<CustomerType>,
-    pub product: Option<u32>,
+    pub product: Option<i32>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for ClearSaleAuthType {
@@ -159,25 +159,7 @@ impl TryFrom<&ConnectorSpecificConfig> for ClearSaleAuthType {
                 username: username.clone(),
                 password: password.clone(),
                 b2b_b2c: customer_type_from_config(b2b_b2c.as_deref())?,
-                product: product
-                    .map(|code| u32::try_from(code).map_err(|_| {
-                        error_stack::report!(
-                            errors::IntegrationError::FailedToObtainAuthType {
-                                context: errors::IntegrationErrorContext {
-                                    additional_context: Some(format!(
-                                        "ClearSale product id must be a non-negative code, got {code}"
-                                    )),
-                                    suggested_action: Some(
-                                        "Set clearsale_br.product to a valid ClearSale product id \
-                                         (e.g. 4 = Total Garantido)"
-                                            .to_owned(),
-                                    ),
-                                    doc_url: Some(CLEARSALE_DOC_URL.to_owned()),
-                                },
-                            }
-                        )
-                    }))
-                    .transpose()?,
+                product: *product,
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
@@ -555,7 +537,7 @@ pub struct ClearSaleOrderRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nationality: Option<String>,
     /// `4` = Total Garantido.
-    pub product: u32,
+    pub product: i32,
     /// Custom SLA in seconds for the analysis decision.
     #[serde(rename = "customSla", skip_serializing_if = "Option::is_none")]
     pub custom_sla: Option<u32>,
@@ -927,9 +909,9 @@ pub(crate) struct OrderInputs<'a> {
     code: String,
     session_id: String,
     order_info_metadata: ClearSaleOrderInfoMetadata,
-    product: Option<u32>,
+    product: Option<i32>,
     installments: Option<u32>,
-    config_product: Option<u32>,
+    config_product: Option<i32>,
     b2b_b2c: Option<CustomerType>,
     email: Email,
     money: common_utils::types::Money,
@@ -949,7 +931,7 @@ impl<'a> OrderInputs<'a> {
     pub(crate) fn from_pre_risk_check(
         req: &'a PreRiskCheckRequest,
         b2b_b2c: Option<CustomerType>,
-        config_product: Option<u32>,
+        config_product: Option<i32>,
     ) -> Result<Self, Error> {
         let connector_feature_data =
             ClearSaleConnectorFeatureData::parse(req.connector_feature_data.as_ref())?;
@@ -995,7 +977,7 @@ impl<'a> OrderInputs<'a> {
     pub(crate) fn from_post_risk_check(
         req: &'a PostRiskCheckRequest,
         b2b_b2c: Option<CustomerType>,
-        config_product: Option<u32>,
+        config_product: Option<i32>,
     ) -> Result<Self, Error> {
         let connector_feature_data =
             ClearSaleConnectorFeatureData::parse(req.connector_feature_data.as_ref())?;
@@ -1741,7 +1723,7 @@ pub(crate) struct OrderRequestParts {
     origin: Option<String>,
     channel_id: Option<String>,
     b2b_b2c: Option<CustomerType>,
-    product: u32,
+    product: i32,
     country: Option<String>,
 }
 
@@ -1863,13 +1845,81 @@ pub struct ClearSaleOrderInfoMetadata {
     /// Compre e Confie opt-in block, merchant-supplied.
     #[serde(default)]
     pub social_network: Option<ClearSaleSocialNetworkFeature>,
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "billing_phone_type",
+        deserialize_with = "deserialize_optional_u32_from_number_or_string"
+    )]
     pub billing_phone_type: Option<u32>,
     /// Same, for `shipping.phones[].type`.
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "shipping_phone_type",
+        deserialize_with = "deserialize_optional_u32_from_number_or_string"
+    )]
     pub shipping_phone_type: Option<u32>,
     #[serde(default)]
     pub nationality: Option<String>,
+}
+
+/// Lenient numeric decoder shared by `product`, `billing_phone_type` and
+/// `shipping_phone_type`. Accepts a native JSON number or its decimal string.
+/// Anything unparseable is logged and dropped (`None`) rather than failing the
+/// whole request: phone types fall back to home, product to the default.
+fn deserialize_optional_int_or_default<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: std::str::FromStr,
+{
+    let raw = Option::<serde_json::Value>::deserialize(deserializer)?;
+    let type_name = std::any::type_name::<T>()
+        .rsplit("::")
+        .next()
+        .unwrap_or("value");
+
+    let text = match raw {
+        None => return Ok(None),
+        Some(serde_json::Value::Number(n)) => n.to_string(),
+        Some(serde_json::Value::String(s)) => s,
+        Some(other) => {
+            tracing::warn!(
+                type_name,
+                value = %other,
+                "unsupported JSON shape for numeric metadata value; dropping to default"
+            );
+            return Ok(None);
+        }
+    };
+
+    match text.parse::<T>() {
+        Ok(value) => Ok(Some(value)),
+        Err(_) => {
+            tracing::warn!(
+                type_name,
+                raw = %text,
+                "failed to decode numeric metadata value; dropping to default"
+            );
+            Ok(None)
+        }
+    }
+}
+
+fn deserialize_optional_i32_from_number_or_string<'de, D>(
+    deserializer: D,
+) -> Result<Option<i32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_int_or_default(deserializer)
+}
+
+fn deserialize_optional_u32_from_number_or_string<'de, D>(
+    deserializer: D,
+) -> Result<Option<u32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_int_or_default(deserializer)
 }
 
 impl ClearSaleOrderInfoMetadata {
@@ -1893,8 +1943,11 @@ impl ClearSaleOrderInfoMetadata {
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearSaleConnectorFeatureData {
-    #[serde(default)]
-    pub product: Option<u32>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_i32_from_number_or_string"
+    )]
+    pub product: Option<i32>,
     #[serde(flatten)]
     legacy_order_info_metadata: ClearSaleOrderInfoMetadata,
     #[serde(default)]
