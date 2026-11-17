@@ -208,10 +208,7 @@ message AirlineLocation {
   optional string city_name = 3;                // City name
   optional string country_code = 4;             // ISO 3166-1 alpha-2 country code (connectors convert to numeric/alpha-3 as needed)
   optional string country_name = 5;             // Country name
-  // Local scheduled date/time at the airport. RFC 3339 with an explicit offset
-  // is preferred; Nuvei also accepts YYYY-MM-DDTHH:MM:SS[.fraction] without
-  // an offset and preserves the local wall-clock time without timezone conversion.
-  optional string date_time = 6;
+  optional string date_time = 6;                // Local scheduled time (RFC 3339)
 }
 
 message AirlinePassenger {
