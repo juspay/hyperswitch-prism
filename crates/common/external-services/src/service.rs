@@ -1081,7 +1081,9 @@ where
                             && !request
                                 .headers
                                 .iter()
-                                .any(|(key, _)| key.eq_ignore_ascii_case("content-type"));
+                                .any(|(key, _)| {
+                                    key.eq_ignore_ascii_case(reqwest::header::CONTENT_TYPE.as_str())
+                                });
 
                         // Collect connector request headers (excluding vault metadata)
                         let headers: HashMap<String, Secret<String>> = request
@@ -1098,8 +1100,8 @@ where
                             })
                             .chain(default_xml_content_type.then(|| {
                                 (
-                                    "Content-Type".to_owned(),
-                                    Secret::new("text/xml".to_owned()),
+                                    reqwest::header::CONTENT_TYPE.to_string(),
+                                    Secret::new(mime::TEXT_XML.to_string()),
                                 )
                             }))
                             .collect();
