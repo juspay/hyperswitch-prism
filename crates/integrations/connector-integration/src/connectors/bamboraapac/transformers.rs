@@ -24,7 +24,7 @@ use crate::types::ResponseRouterData;
 // Inner Transaction XML structure (inside CDATA)
 #[derive(Debug, Serialize)]
 #[serde(rename = "Transaction")]
-struct TransactionXml {
+struct TransactionXml<C> {
     #[serde(rename = "CustRef")]
     cust_ref: String,
     #[serde(rename = "Amount")]
@@ -34,7 +34,7 @@ struct TransactionXml {
     #[serde(rename = "AccountNumber")]
     account_number: String,
     #[serde(rename = "CreditCard")]
-    credit_card: CreditCardXml,
+    credit_card: C,
     #[serde(rename = "Security")]
     security: SecurityXml,
 }
@@ -53,6 +53,14 @@ struct CreditCardXml {
     cvn: String,
     #[serde(rename = "CardHolderName")]
     card_holder_name: String,
+}
+
+#[derive(Debug, Serialize)]
+struct TokenCreditCardXml {
+    #[serde(rename = "TokeniseAlgorithmID")]
+    tokenise_algorithm_id: u8,
+    #[serde(rename = "CardNumber")]
+    card_number: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -1752,6 +1760,23 @@ impl GetSoapXml for BamboraapacSetupMandateRequest {
 
 impl GetSoapXml for BamboraapacRepeatPaymentRequest {
     fn to_soap_xml(&self) -> String {
+        let transaction_xml = TransactionXml {
+            cust_ref: self.cust_ref.clone(),
+            amount: self.amount,
+            trn_type: i32::from(self.trn_type),
+            account_number: self.account_number.peek().to_string(),
+            credit_card: TokenCreditCardXml {
+                tokenise_algorithm_id: 2,
+                card_number: self.card_token.clone(),
+            },
+            security: SecurityXml {
+                username: self.username.peek().to_string(),
+                password: self.password.peek().to_string(),
+            },
+        };
+        let transaction_xml_string = quick_xml::se::to_string(&transaction_xml)
+            .unwrap_or_else(|_| String::from("<Transaction/>"));
+
         format!(
             r#"
             <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
@@ -1760,33 +1785,13 @@ impl GetSoapXml for BamboraapacRepeatPaymentRequest {
                     <dts:SubmitSinglePayment>
                         <dts:trnXML>
                             <![CDATA[
-        <Transaction>
-            <CustRef>{}</CustRef>
-            <Amount>{}</Amount>
-            <TrnType>{}</TrnType>
-            <AccountNumber>{}</AccountNumber>
-            <CreditCard>
-                <TokeniseAlgorithmID>2</TokeniseAlgorithmID>
-                <CardNumber>{}</CardNumber>
-            </CreditCard>
-            <Security>
-                    <UserName>{}</UserName>
-                    <Password>{}</Password>
-            </Security>
-        </Transaction>
+        {transaction_xml_string}
                             ]]>
                         </dts:trnXML>
                     </dts:SubmitSinglePayment>
                 </soapenv:Body>
             </soapenv:Envelope>
         "#,
-            self.cust_ref,
-            self.amount.get_amount_as_i64(),
-            i32::from(self.trn_type),
-            self.account_number.peek(),
-            self.card_token,
-            self.username.peek(),
-            self.password.peek()
         )
     }
 }
