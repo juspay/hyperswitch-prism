@@ -1124,12 +1124,12 @@ pub struct KountRecurring {
         rename = "initialBillingAmount",
         skip_serializing_if = "Option::is_none"
     )]
-    pub initial_billing_amount: Option<String>,
+    pub initial_billing_amount: Option<StringMinorUnit>,
     #[serde(
         rename = "periodBillingAmount",
         skip_serializing_if = "Option::is_none"
     )]
-    pub period_billing_amount: Option<String>,
+    pub period_billing_amount: Option<StringMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub period: Option<String>,
     #[serde(
@@ -1253,15 +1253,8 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
 
     fn try_from(mandate: &MandateAmountData) -> Result<Self, Self::Error> {
         // Kount's RecurringDetails amounts are smallest-currency-unit strings
-        // (`string <uint64>`) — i.e. raw minor units, per the recurring schema and
-        // independent of the connector's main amount converter. Omit a 0 value so
+        // (`string <uint64>`). Keep the converter's typed output and omit zero so
         // we never emit a bogus "0" to Kount.
-        let minor_unit_amount = |money: &common_utils::types::Money| {
-            let amount = common_utils::types::ConnectorMinorUnitForConnector
-                .convert(money)
-                .get_amount_as_i64();
-            (amount != 0).then(|| amount.to_string())
-        };
         // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
         // recurring block wants RFC 3339 (UTC) strings.
         Ok(Self {
@@ -1270,8 +1263,11 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
             initial_billing_amount: mandate
                 .initial_billing_money
                 .as_ref()
-                .and_then(minor_unit_amount),
-            period_billing_amount: minor_unit_amount(&mandate.money),
+                .map(super::KountAmountConvertor::convert)
+                .transpose()?
+                .filter(|amount| !amount.is_zero()),
+            period_billing_amount: Some(super::KountAmountConvertor::convert(&mandate.money)?)
+                .filter(|amount| !amount.is_zero()),
             period: mandate.frequency.clone(),
             external_subscription_id: mandate.external_subscription_id.clone(),
             status: mandate.status.as_ref().map(kount_recurring_status),

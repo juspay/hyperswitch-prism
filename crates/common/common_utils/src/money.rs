@@ -373,6 +373,11 @@ impl Sum for ConnectorMinorUnit {
 pub struct StringMinorUnit(String);
 
 impl StringMinorUnit {
+    /// Checks whether the converted amount is the canonical minor-unit zero.
+    pub fn is_zero(&self) -> bool {
+        self.0 == "0"
+    }
+
     /// forms a new minor unit in string from amount
     fn new(value: String) -> Self {
         Self(value)
