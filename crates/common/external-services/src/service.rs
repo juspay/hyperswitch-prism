@@ -1078,12 +1078,9 @@ where
                         // The direct HTTP path sends XML bodies as `text/xml`; the vault needs the
                         // same Content-Type to treat the template as XML.
                         let default_xml_content_type = matches!(body, RequestContent::Xml(_))
-                            && !request
-                                .headers
-                                .iter()
-                                .any(|(key, _)| {
-                                    key.eq_ignore_ascii_case(reqwest::header::CONTENT_TYPE.as_str())
-                                });
+                            && !request.headers.iter().any(|(key, _)| {
+                                key.eq_ignore_ascii_case(reqwest::header::CONTENT_TYPE.as_str())
+                            });
 
                         // Collect connector request headers (excluding vault metadata)
                         let headers: HashMap<String, Secret<String>> = request
