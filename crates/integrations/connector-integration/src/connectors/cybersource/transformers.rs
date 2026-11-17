@@ -7412,6 +7412,7 @@ mod tests {
     fn sequential_automatic_authorization_is_not_a_sale() {
         let context = domain_types::connector_types::EventContext {
             capture_method: Some(common_enums::CaptureMethod::SequentialAutomatic),
+            previous_status: None,
         };
 
         assert_eq!(
