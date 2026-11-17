@@ -1,3 +1,9 @@
+/**
+ * Separate server confirmation reserves funds without capturing them.
+ * POST /payments with confirm=false and manual capture, then POST /payments/{id}/confirm.
+ * Check requires_confirmation followed by requires_capture and an authorized UCS attempt.
+ * This combines deferred confirmation with manual authorization; it does not send a capture request.
+ */
 import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../../../../catalog.js";

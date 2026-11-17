@@ -1,3 +1,9 @@
+/**
+ * Inline confirmation reserves funds for a new customer without capturing them.
+ * POST /payments with confirm=true and capture_method=manual.
+ * Check requires_capture, the full amount capturable, no received amount and an authorized UCS attempt.
+ * This tests authorization only. The full-capture spec performs the later capture operation.
+ */
 import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../../../../catalog.js";

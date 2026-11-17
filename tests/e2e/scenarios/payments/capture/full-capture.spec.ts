@@ -1,3 +1,10 @@
+/**
+ * Explicit full capture after a separate manual card authorization.
+ * POST /payments with confirm=true and manual capture, then POST /payments/{id}/capture for the full amount.
+ * Check checkout fields and authorization first, then the exact capture response and recorded attempt.
+ * The shared capture result is succeeded/charged. Adyen explicitly overrides it to processing/pending.
+ * For Adyen this proves submission acceptance; webhook completion and settlement are not exercised.
+ */
 import { expect } from "@playwright/test";
 import { test } from "../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../catalog.js";

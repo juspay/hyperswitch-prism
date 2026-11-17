@@ -1,3 +1,9 @@
+/**
+ * Inline automatic-capture payment without creating or associating a customer.
+ * POST /payments with confirm=true, checkout addresses and order details, omitting customer.
+ * Check succeeded and a charged UCS attempt, while customer fields and customer record remain absent.
+ * Unlike the customer variant, address contact details must not implicitly create a customer.
+ */
 import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../../../../catalog.js";

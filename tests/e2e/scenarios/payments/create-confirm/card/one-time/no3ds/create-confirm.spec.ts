@@ -1,3 +1,9 @@
+/**
+ * Inline confirmation with automatic capture and a new customer.
+ * POST /payments with confirm=true, rich checkout details and online acceptance.
+ * Check succeeded, the full received amount, preserved checkout fields and a charged UCS attempt.
+ * Acceptance alone must not create a mandate. No separate confirm or capture call is made.
+ */
 import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../../../../catalog.js";

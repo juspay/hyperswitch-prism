@@ -1,3 +1,9 @@
+/**
+ * Inline manual authorization without creating or associating a customer.
+ * POST /payments with confirm=true and capture_method=manual, omitting customer.
+ * Check requires_capture, an authorized UCS attempt and no customer association or customer record.
+ * Unlike guest automatic capture, the full amount stays capturable and no capture call is made.
+ */
 import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../../../../catalog.js";

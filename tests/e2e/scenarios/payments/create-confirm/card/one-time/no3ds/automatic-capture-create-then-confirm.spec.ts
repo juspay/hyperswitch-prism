@@ -1,3 +1,9 @@
+/**
+ * Separate server confirmation with automatic capture and a new customer.
+ * POST /payments with confirm=false, then POST /payments/{id}/confirm using the server key.
+ * Check requires_confirmation before confirmation, then succeeded and a charged UCS attempt.
+ * This exercises deferred confirmation; the inline variant sends only one payment request.
+ */
 import { expect } from "@playwright/test";
 import { test } from "../../../../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../../../../catalog.js";

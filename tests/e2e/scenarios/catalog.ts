@@ -14,40 +14,40 @@ export const scenarios = defineScenarios({
   },
   "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-then-confirm": {
     title: "One-time No3DS card — automatic capture, create then confirm",
-    description: "Create a synthetic No3DS payment and verify the requested capture mode and confirmation sequence through HS and UCS.",
-    verifies: "Check the immediate response, customer and order fields, ownership, errors, amounts, and the recorded active attempt without forcing synchronization.",
+    description: "Separate server confirmation with automatic capture and a new customer. POST /payments with confirm=false, then POST /payments/{id}/confirm using the server key.",
+    verifies: "Check requires_confirmation before confirmation, then succeeded and a charged UCS attempt. Also verify ownership, error fields, amounts, preserved checkout details and no mandate setup.",
     requirements: { connectorAccount: { paymentMethodsEnabled: [
       { payment_method: "card", payment_method_types: [{ payment_method_type: "credit" }] },
     ] } },
   },
   "payments/create-confirm/card/one-time/no3ds/manual-capture-create-confirm": {
     title: "One-time No3DS card — manual capture, inline confirmation",
-    description: "Create a synthetic No3DS payment and verify the requested capture mode and confirmation sequence through HS and UCS.",
-    verifies: "Check the immediate response, customer and order fields, ownership, errors, amounts, and the recorded active attempt without forcing synchronization.",
+    description: "Inline confirmation reserves funds for a new customer without capturing them. POST /payments with confirm=true and capture_method=manual.",
+    verifies: "Check requires_capture, the full amount capturable, no received amount and an authorized UCS attempt. Also verify ownership, error fields, amounts, preserved checkout details and no mandate setup.",
     requirements: { connectorAccount: { paymentMethodsEnabled: [
       { payment_method: "card", payment_method_types: [{ payment_method_type: "credit" }] },
     ] } },
   },
   "payments/create-confirm/card/one-time/no3ds/manual-capture-create-then-confirm": {
     title: "One-time No3DS card — manual capture, create then confirm",
-    description: "Create a synthetic No3DS payment and verify the requested capture mode and confirmation sequence through HS and UCS.",
-    verifies: "Check the immediate response, customer and order fields, ownership, errors, amounts, and the recorded active attempt without forcing synchronization.",
+    description: "Separate server confirmation reserves funds without capturing them. POST /payments with confirm=false and manual capture, then POST /payments/{id}/confirm.",
+    verifies: "Check requires_confirmation followed by requires_capture and an authorized UCS attempt. Also verify ownership, error fields, amounts, preserved checkout details and no mandate setup.",
     requirements: { connectorAccount: { paymentMethodsEnabled: [
       { payment_method: "card", payment_method_types: [{ payment_method_type: "credit" }] },
     ] } },
   },
   "payments/create-confirm/card/one-time/no3ds/guest-automatic-capture-create-confirm": {
     title: "Guest No3DS card — automatic capture, inline confirmation",
-    description: "Create a synthetic No3DS payment and verify the requested capture mode and confirmation sequence through HS and UCS.",
-    verifies: "Check the immediate response, customer and order fields, ownership, errors, amounts, and the recorded active attempt without forcing synchronization.",
+    description: "Inline automatic-capture payment without creating or associating a customer. POST /payments with confirm=true, checkout addresses and order details, omitting customer.",
+    verifies: "Check succeeded and a charged UCS attempt, while customer fields and customer record remain absent. Also verify ownership, error fields, amounts, preserved checkout details and no mandate setup.",
     requirements: { connectorAccount: { paymentMethodsEnabled: [
       { payment_method: "card", payment_method_types: [{ payment_method_type: "credit" }] },
     ] } },
   },
   "payments/create-confirm/card/one-time/no3ds/guest-manual-capture-create-confirm": {
     title: "Guest No3DS card — manual capture, inline confirmation",
-    description: "Create a synthetic No3DS payment and verify the requested capture mode and confirmation sequence through HS and UCS.",
-    verifies: "Check the immediate response, customer and order fields, ownership, errors, amounts, and the recorded active attempt without forcing synchronization.",
+    description: "Inline manual authorization without creating or associating a customer. POST /payments with confirm=true and capture_method=manual, omitting customer.",
+    verifies: "Check requires_capture, an authorized UCS attempt and no customer association or customer record. Also verify ownership, error fields, amounts, preserved checkout details and no mandate setup.",
     requirements: { connectorAccount: { paymentMethodsEnabled: [
       { payment_method: "card", payment_method_types: [{ payment_method_type: "credit" }] },
     ] } },
