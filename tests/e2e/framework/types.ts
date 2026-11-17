@@ -26,6 +26,8 @@ export type ExpectationOverride = {
 export type ScenarioOverrides = {
   requests?: {
     createPayment?: Record<string, RequestOverride>;
+    confirmPayment?: Record<string, RequestOverride>;
+    capturePayment?: Record<string, RequestOverride>;
   };
   expectations?: Record<string, ExpectationOverride>;
 };

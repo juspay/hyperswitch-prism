@@ -42,6 +42,16 @@ export class PaymentOperations {
     );
   }
 
+  async confirmPayment(callId: string, paymentId: string, request: JsonObject): Promise<PaymentResponse> {
+    return paymentResponse(await this.hs.call("POST", `/payments/${encodeURIComponent(paymentId)}/confirm`,
+      this.merchant.apiKey, this.overrides.request("confirmPayment", callId, request)));
+  }
+
+  async capturePayment(callId: string, paymentId: string, request: JsonObject): Promise<PaymentResponse> {
+    return paymentResponse(await this.hs.call("POST", `/payments/${encodeURIComponent(paymentId)}/capture`,
+      this.merchant.apiKey, this.overrides.request("capturePayment", callId, request)));
+  }
+
   async readRecordedPayment(paymentId: string) {
     return test.step("Read recorded payment and active attempt from HS database", () =>
       readRecordedPayment(this.merchant.merchantId, paymentId));

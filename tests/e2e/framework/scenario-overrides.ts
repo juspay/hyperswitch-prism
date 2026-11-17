@@ -6,7 +6,7 @@ import type {
   ScenarioOverrides,
 } from "./types.js";
 
-type RequestOperation = "createPayment";
+type RequestOperation = "createPayment" | "confirmPayment" | "capturePayment";
 
 export class ScenarioOverrideResolver {
   private readonly consumed = new Set<string>();

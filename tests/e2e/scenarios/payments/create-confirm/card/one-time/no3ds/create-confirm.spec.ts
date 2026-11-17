@@ -63,6 +63,11 @@ test(scenario.title, async ({
       shipping: { address: shippingAddress, phone, email },
       browser_info: browserInfo,
       customer,
+      customer_acceptance: {
+        acceptance_type: "online",
+        online: { ip_address: "192.0.2.1", user_agent: "Synthetic E2E browser" },
+      },
+      setup_future_usage: null,
       description,
       metadata,
       merchant_order_reference_id: orderReference,
