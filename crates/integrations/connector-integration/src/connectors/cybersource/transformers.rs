@@ -1692,8 +1692,7 @@ fn build_l2_l3_order_data<
     let taxable = order_tax_amount.as_ref().map(|tax| {
         common_utils::types::ConnectorMinorUnitForConnector
             .convert(tax)
-            .get_amount_as_i64()
-            > 0
+            .is_greater_than(0)
     });
     let invoice_details =
         (purchase_order_number.is_some() || taxable.is_some()).then_some(InvoiceDetails {

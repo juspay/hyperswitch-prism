@@ -898,7 +898,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .money
             .as_ref()
             .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
-            .is_some_and(|amount| amount.get_amount_as_i64() != 0)
+            .is_some_and(|amount| amount != common_utils::types::ConnectorMinorUnit::zero())
         {
             return Err(not_supported("SetupMandate with a non-zero amount"));
         }

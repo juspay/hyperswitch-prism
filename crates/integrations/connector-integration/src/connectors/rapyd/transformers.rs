@@ -2156,10 +2156,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let request = &router_data.request;
 
-        let amount = if common_utils::types::ConnectorMinorUnitForConnector
-            .convert(&request.money)
-            .get_amount_as_i64()
-            == 0
+        let amount = if common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)
+            == ConnectorMinorUnit::zero()
         {
             StringMajorUnit::zero()
         } else {

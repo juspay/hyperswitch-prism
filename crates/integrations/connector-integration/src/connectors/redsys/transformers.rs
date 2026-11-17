@@ -1215,10 +1215,9 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     {
         return Ok(map_exemption_indicator(
             indicator,
-            common_utils::types::ConnectorMinorUnitForConnector
+            !common_utils::types::ConnectorMinorUnitForConnector
                 .convert(&request.money)
-                .get_amount_as_i64()
-                <= LWV_THRESHOLD,
+                .is_greater_than(LWV_THRESHOLD),
         ));
     }
     // 2. Auto-detect: MIT for stored credential payments
@@ -1234,10 +1233,9 @@ fn determine_exemption<T: PaymentMethodDataTypes>(
     }
     // 4. Default: amount-based
     // For Redsys, both LWV and TRA are capped at €30
-    if common_utils::types::ConnectorMinorUnitForConnector
+    if !common_utils::types::ConnectorMinorUnitForConnector
         .convert(&request.money)
-        .get_amount_as_i64()
-        <= LWV_THRESHOLD
+        .is_greater_than(LWV_THRESHOLD)
     {
         Ok(requests::RedsysStrongCustomerAuthenticationException::Lwv)
     } else {

@@ -1220,8 +1220,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // For partial refunds, include baseamount; for full refunds, omit it
         let base_amount = if common_utils::types::ConnectorMinorUnitForConnector
             .convert(&router_data.request.refund_money)
-            .get_amount_as_i64()
-            > 0
+            .is_greater_than(0)
         {
             // Partial refund - include the amount
             let amount = item

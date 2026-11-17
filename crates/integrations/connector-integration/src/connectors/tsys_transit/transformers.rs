@@ -1346,8 +1346,7 @@ fn build_tsys_product_details(
             .map(|money| {
                 common_utils::types::ConnectorMinorUnitForConnector
                     .convert(money)
-                    .get_amount_as_i64()
-                    > 0
+                    .is_greater_than(0)
             })
             .unwrap_or(false);
         let stackable = if has_discount {

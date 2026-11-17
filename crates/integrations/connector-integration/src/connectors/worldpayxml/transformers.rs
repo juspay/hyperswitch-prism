@@ -1605,7 +1605,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .money
             .as_ref()
             .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
-            .is_some_and(|amount| amount.get_amount_as_i64() > 0)
+            .is_some_and(|amount| amount.is_greater_than(0))
         {
             return Err(IntegrationError::FlowNotSupported {
                 flow: "SetupMandate with a non-zero amount".to_string(),

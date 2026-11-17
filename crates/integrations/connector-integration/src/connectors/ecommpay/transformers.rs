@@ -1831,7 +1831,7 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
         .or_else(|| request.get_order_tax_money())
         .as_ref()
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
-        .filter(|amount| amount.get_amount_as_i64() > 0);
+        .filter(|amount| amount.is_greater_than(0));
     if positions.is_empty() && total_tax_amount.is_none() {
         return Ok(None);
     }

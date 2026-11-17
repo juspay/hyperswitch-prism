@@ -28,7 +28,7 @@ struct TransactionXml {
     #[serde(rename = "CustRef")]
     cust_ref: String,
     #[serde(rename = "Amount")]
-    amount: i64,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "TrnType")]
     trn_type: i32,
     #[serde(rename = "AccountNumber")]
@@ -70,7 +70,7 @@ struct CaptureXml {
     #[serde(rename = "Receipt")]
     receipt: String,
     #[serde(rename = "Amount")]
-    amount: i64,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "Security")]
     security: SecurityXml,
 }
@@ -84,7 +84,7 @@ struct RefundXml {
     #[serde(rename = "Receipt")]
     receipt: String,
     #[serde(rename = "Amount")]
-    amount: i64,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "Security")]
     security: SecurityXml,
 }
@@ -195,7 +195,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Build the inner Transaction XML using quick-xml
         let transaction_xml = TransactionXml {
             cust_ref: self.cust_ref.clone(),
-            amount: self.amount.get_amount_as_i64(),
+            amount: self.amount,
             trn_type: i32::from(self.trn_type),
             account_number: self.account_number.peek().to_string(),
             credit_card: CreditCardXml {
@@ -1618,7 +1618,7 @@ impl GetSoapXml for BamboraapacCaptureRequest {
         // Build the inner Capture XML using quick-xml
         let capture_xml = CaptureXml {
             receipt: self.receipt.clone(),
-            amount: self.amount.get_amount_as_i64(),
+            amount: self.amount,
             security: SecurityXml {
                 username: self.username.peek().to_string(),
                 password: self.password.peek().to_string(),
@@ -1648,7 +1648,7 @@ impl GetSoapXml for BamboraapacRefundRequest {
         let refund_xml = RefundXml {
             cust_ref: self.cust_ref.clone(),
             receipt: self.receipt.clone(),
-            amount: self.amount.get_amount_as_i64(),
+            amount: self.amount,
             security: SecurityXml {
                 username: self.username.peek().to_string(),
                 password: self.password.peek().to_string(),

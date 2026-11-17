@@ -859,7 +859,7 @@ pub struct NoonPaymentsOrderResponse {
     error_message: Option<String>,
     reference: Option<String>,
     /// Major-unit total Noon has captured on the order (absent on some responses).
-    total_captured_amount: Option<f64>,
+    total_captured_amount: Option<FloatMajorUnit>,
     currency: Option<enums::Currency>,
 }
 
@@ -1085,13 +1085,15 @@ fn noon_amount_captured(
     flow_data: &PaymentFlowData,
     http_code: u16,
 ) -> Option<Money> {
-    let total = order.total_captured_amount.filter(|total| *total > 0.0)?;
+    let total = order
+        .total_captured_amount
+        .filter(FloatMajorUnit::is_positive)?;
     let currency = order
         .currency
         .or_else(|| flow_data.money.as_ref().map(Money::currency))?;
     utils::response_amount_to_money(
         &FloatMajorUnitForConnector,
-        FloatMajorUnit(total),
+        total,
         currency,
         http_code,
         ConnectorEnum::Noon,

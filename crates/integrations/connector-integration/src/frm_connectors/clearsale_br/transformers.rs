@@ -1707,12 +1707,11 @@ fn items_subtotal(items: &[ClearSaleItem]) -> Option<FloatMajorUnit> {
     if items.is_empty() {
         return None;
     }
-    let mut subtotal = 0.0;
+    let mut subtotal = FloatMajorUnit::zero();
     for item in items {
-        let unit_value = item.value?.0;
-        subtotal += unit_value * f64::from(item.amount.unwrap_or(1));
+        subtotal = subtotal + item.value? * item.amount.unwrap_or(1);
     }
-    Some(FloatMajorUnit(subtotal))
+    Some(subtotal)
 }
 
 pub(crate) fn build_order_request(

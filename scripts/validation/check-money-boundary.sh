@@ -53,6 +53,10 @@ inferred_domain_minor_unit = []
 money_amount = []
 string_major_getter = []
 string_two_decimal_getter = []
+inferred_minor_field_read = []
+inferred_minor_field_write = []
+inferred_minor_to_string = []
+inferred_minor_display = []
 EOF
 
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/target}"
@@ -117,3 +121,7 @@ check inferred_domain_minor_unit clippy::disallowed_methods
 check money_amount clippy::disallowed_methods
 check string_major_getter E0599
 check string_two_decimal_getter E0599
+check inferred_minor_field_read E0616
+check inferred_minor_field_write E0616
+check inferred_minor_to_string E0599
+check inferred_minor_display E0277

@@ -79,7 +79,10 @@ pub enum PercentageError {
     InvalidPercentageValue,
 
     /// Error occurred while calculating percentage
-    #[error("Failed apply percentage of {percentage} on {amount}")]
+    #[error(
+        "Failed apply percentage of {percentage} on {amount}",
+        amount = amount.get_amount_as_i64()
+    )]
     UnableToApplyPercentage {
         /// percentage value
         percentage: f32,

@@ -166,7 +166,7 @@ impl AmountConvertor for ConnectorMinorUnitForConnector {
     PartialOrd,
 )]
 
-pub struct MinorUnit(pub i64);
+pub struct MinorUnit(i64);
 
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
@@ -247,12 +247,6 @@ impl MinorUnit {
     ///Convert minor unit to string minor unit
     fn to_minor_unit_as_string(self) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
         Ok(StringMinorUnit::new(self.0.to_string()))
-    }
-}
-
-impl Display for MinorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
     }
 }
 
@@ -420,6 +414,11 @@ impl FloatMajorUnit {
         Self(0.0)
     }
 
+    /// Checks whether the converted amount is positive.
+    pub fn is_positive(&self) -> bool {
+        self.0 > 0.0
+    }
+
     /// converts to minor unit as i64 from FloatMajorUnit
     fn to_minor_unit_as_i64(
         self,
@@ -440,6 +439,22 @@ impl FloatMajorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+}
+
+impl Add for FloatMajorUnit {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl Mul<u16> for FloatMajorUnit {
+    type Output = Self;
+
+    fn mul(self, quantity: u16) -> Self::Output {
+        Self(self.0 * f64::from(quantity))
     }
 }
 

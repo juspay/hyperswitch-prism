@@ -417,7 +417,7 @@ where
 {
     let amount = Option::<ConnectorMinorUnit>::deserialize(deserializer)?;
     match amount {
-        Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
+        Some(value) if value == ConnectorMinorUnit::zero() => Ok(None),
         _ => Ok(amount),
     }
 }

@@ -120,8 +120,8 @@ impl AmountTolerance {
         if requested != reported && !permitted {
             mismatched_fields.push(format_mismatch(
                 field,
-                &requested.to_string(),
-                &reported.to_string(),
+                &requested.get_amount_as_i64().to_string(),
+                &reported.get_amount_as_i64().to_string(),
             ));
         }
     }

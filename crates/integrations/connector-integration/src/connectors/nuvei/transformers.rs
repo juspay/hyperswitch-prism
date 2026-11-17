@@ -1046,7 +1046,7 @@ impl From<&NuveiPaymentStatus> for AttemptStatus {
 /// Single attempt-status mapping for Nuvei payment responses
 /// (port of hyperswitch `get_payment_status`). Every arm is explicit.
 pub(super) fn get_nuvei_payment_status(
-    amount: Option<i64>,
+    amount: Option<common_utils::types::ConnectorMinorUnit>,
     transaction_type: Option<&NuveiTransactionType>,
     transaction_status: Option<&NuveiTransactionStatus>,
     status: &NuveiPaymentStatus,
@@ -1061,7 +1061,9 @@ pub(super) fn get_nuvei_payment_status(
     }
 
     // Zero-amount authorization (card verification)
-    if amount == Some(0) && transaction_type == Some(&NuveiTransactionType::Auth) {
+    if amount == Some(common_utils::types::ConnectorMinorUnit::zero())
+        && transaction_type == Some(&NuveiTransactionType::Auth)
+    {
         return match transaction_status {
             Some(NuveiTransactionStatus::Approved) => AttemptStatus::Charged,
             Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
@@ -1247,7 +1249,7 @@ fn nuvei_raw_connector_status(
 
 fn nuvei_payment_response_status(
     response: &NuveiPaymentsResponse,
-    amount: Option<i64>,
+    amount: Option<common_utils::types::ConnectorMinorUnit>,
 ) -> AttemptStatus {
     let status = get_nuvei_payment_status(
         amount,
@@ -3475,11 +3477,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let status = nuvei_payment_response_status(
             response,
-            Some(
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(&request.money)
-                    .get_amount_as_i64(),
-            ),
+            Some(common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)),
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -4732,11 +4730,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // AuthenticationFailed
         let status = nuvei_payment_response_status(
             response,
-            Some(
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(&request.money)
-                    .get_amount_as_i64(),
-            ),
+            Some(common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)),
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -5075,11 +5069,7 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
 
         let status = nuvei_payment_response_status(
             &response,
-            Some(
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(&request.money)
-                    .get_amount_as_i64(),
-            ),
+            Some(common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)),
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -5149,11 +5139,7 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
                 .resource_common_data
                 .capturable_money
                 .as_ref()
-                .map(|money| {
-                    common_utils::types::ConnectorMinorUnitForConnector
-                        .convert(money)
-                        .get_amount_as_i64()
-                }),
+                .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money)),
         );
 
         // status ERROR, or a 2xx DECLINED/ERROR settle, is a failure
@@ -5586,14 +5572,13 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
 
         // APPROVED+Void -> Voided; APPROVED without transactionType -> Pending;
         // DECLINED/ERROR+Void -> VoidFailed
-        let status = nuvei_payment_response_status(
-            response,
-            router_data.request.money.as_ref().map(|money| {
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(money)
-                    .get_amount_as_i64()
-            }),
-        );
+        let status =
+            nuvei_payment_response_status(
+                response,
+                router_data.request.money.as_ref().map(|money| {
+                    common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                }),
+            );
 
         // status ERROR, or a 2xx DECLINED/ERROR void, is a failure;
         // a failed void is VoidFailed
@@ -6289,12 +6274,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 request
                     .money
                     .as_ref()
-                    .map(|money| {
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(money)
-                            .get_amount_as_i64()
-                    })
-                    .unwrap_or(0),
+                    .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+                    .unwrap_or_else(common_utils::types::ConnectorMinorUnit::zero),
             ),
         );
 
@@ -6720,11 +6701,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let status = nuvei_payment_response_status(
             response,
-            Some(
-                common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(&request.money)
-                    .get_amount_as_i64(),
-            ),
+            Some(common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)),
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -7551,7 +7528,7 @@ pub fn build_payment_webhook_details(
         .parse::<f64>()
         .ok()
         .filter(|amount| *amount == 0.0)
-        .map(|_| 0);
+        .map(|_| common_utils::types::ConnectorMinorUnit::zero());
     let status = nuvei_payment_response_status(&response, amount);
     let error = build_nuvei_error_response(&response, 200, None);
     let connector_transaction_id = notification

@@ -192,3 +192,31 @@ pub fn inferred_domain_minor_unit(
 pub fn money_amount(money: &Money) {
     let _ = money.amount();
 }
+
+#[cfg(feature = "inferred_minor_field_read")]
+pub fn inferred_minor_field_read(
+    item: &domain_types::payment_address::OrderDetailsWithAmount,
+) -> i64 {
+    item.amount.0
+}
+
+#[cfg(feature = "inferred_minor_field_write")]
+pub fn inferred_minor_field_write(
+    item: &mut domain_types::payment_address::OrderDetailsWithAmount,
+) {
+    item.amount.0 = 1;
+}
+
+#[cfg(feature = "inferred_minor_to_string")]
+pub fn inferred_minor_to_string(
+    item: &domain_types::payment_address::OrderDetailsWithAmount,
+) -> String {
+    item.amount.to_string()
+}
+
+#[cfg(feature = "inferred_minor_display")]
+pub fn inferred_minor_display(
+    item: &domain_types::payment_address::OrderDetailsWithAmount,
+) -> String {
+    format!("{}", item.amount)
+}

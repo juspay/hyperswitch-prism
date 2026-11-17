@@ -80,7 +80,7 @@ fn build_line_item(
                 .convert(unit_discount)
                 .checked_mul(detail.quantity)
         })
-        .filter(|discount| discount.get_amount_as_i64() > 0);
+        .filter(|discount| discount.is_greater_than(0));
 
     let line_item_taxes = detail
         .get_total_tax_money(payment)
@@ -88,8 +88,7 @@ fn build_line_item(
         .filter(|tax| {
             common_utils::types::ConnectorMinorUnitForConnector
                 .convert(tax)
-                .get_amount_as_i64()
-                > 0
+                .is_greater_than(0)
         })
         .map(|tax| requests::JpmorganLineItemTax {
             line_item_tax_amount: Some(
@@ -240,7 +239,7 @@ fn build_retail_addenda(
         .get_order_tax_amount(payment)
         .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(&money))
         .or(fallback_order_tax_amount)
-        .filter(|tax_amount| tax_amount.get_amount_as_i64() > 0);
+        .filter(|tax_amount| tax_amount.is_greater_than(0));
 
     let tax_status = l2_l3_data.get_tax_status();
     let is_taxable =
