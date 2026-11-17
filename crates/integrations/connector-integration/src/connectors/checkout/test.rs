@@ -119,15 +119,7 @@ fn customer(date_of_birth: Option<time::Date>) -> CustomerInfo {
 }
 
 fn individual(date_of_birth: Option<time::Date>) -> SenderDetails {
-    SenderDetails::Individual(IndividualSenderDetails {
-        first_name: Some(secret("John")),
-        last_name: Some(secret("Smith")),
-        date_of_birth: date_of_birth.map(Secret::new),
-        address: Some(sender_address()),
-        email: None,
-        phone_number: None,
-        phone_country_code: None,
-    })
+    SenderDetails::Individual(individual_details(date_of_birth))
 }
 
 fn build(
@@ -319,8 +311,13 @@ fn aft_individual_sender_requires_both_names() {
 }
 
 fn individual_details(date_of_birth: Option<time::Date>) -> IndividualSenderDetails {
-    match individual(date_of_birth) {
-        SenderDetails::Individual(details) => details,
-        SenderDetails::Corporate(_) => unreachable!(),
+    IndividualSenderDetails {
+        first_name: Some(secret("John")),
+        last_name: Some(secret("Smith")),
+        date_of_birth: date_of_birth.map(Secret::new),
+        address: Some(sender_address()),
+        email: None,
+        phone_number: None,
+        phone_country_code: None,
     }
 }
