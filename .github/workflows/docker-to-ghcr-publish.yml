@@ -120,6 +120,8 @@ jobs:
         with:
           context: .
           file: Dockerfile
+          # Refresh builder and distroless runtime base images on every build.
+          pull: true
           platforms: ${{ matrix.platform }}
           tags: ghcr.io/${{ github.repository }}:${{ env.VERSION }}-${{ matrix.tag }}
           labels: ${{ steps.meta.outputs.labels }}

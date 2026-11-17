@@ -11,7 +11,8 @@ FROM public.ecr.aws/docker/library/rust:slim-bookworm AS base
 # deja Kafka sink needs for compression.type=zstd) generates its bindings with
 # bindgen, which loads libclang at build time.
 RUN apt-get update \
-    && apt-get install -y \
+    && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
        pkg-config \
        libssl-dev \
        g++ \
