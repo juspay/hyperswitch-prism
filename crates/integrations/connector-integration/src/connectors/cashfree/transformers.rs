@@ -72,7 +72,7 @@ pub struct CashfreeErrorResponse {
 #[derive(Debug, Serialize)]
 pub struct CashfreeOrderCreateRequest {
     pub order_id: String,
-    pub order_amount: f64,
+    pub order_amount: common_utils::types::FloatMajorUnit,
     pub order_currency: String,
     pub customer_details: CashfreeCustomerDetails,
     pub order_meta: CashfreeOrderMeta,
@@ -572,7 +572,7 @@ impl
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(), // FIXED: Use payment_id not connector_request_reference_id
-            order_amount: converted_amount.0,
+            order_amount: converted_amount,
             order_currency: item.request.currency.to_string(),
             customer_details,
             order_meta,
@@ -898,7 +898,7 @@ impl From<CashfreePaymentStatus> for common_enums::AttemptStatus {
 pub struct CashfreeCaptureRequest {
     pub action: String, // "CAPTURE"
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<f64>, // optional partial capture amount
+    pub amount: Option<common_utils::types::FloatMajorUnit>, // optional partial capture amount
 }
 
 /// Cashfree V3 pre-auth response — `CashfreeAuthorizeResponse` (AuthorizationInPayments)
@@ -957,7 +957,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             action: "CAPTURE".to_string(),
-            amount: Some(amount.0),
+            amount: Some(amount),
         })
     }
 }
