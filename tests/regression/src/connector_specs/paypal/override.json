@@ -325,5 +325,54 @@
         "is_overcapture_enabled": true
       }
     }
+  },
+  "PaymentService/IncrementalAuthorization": {
+    "paypal_incremental_auth_too_soon": {
+      "extends": "incremental_auth_basic",
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZATION_FAILURE"
+          ]
+        },
+        "connector_authorization_id": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.code": {
+          "equals": "REAUTHORIZATION_TOO_SOON"
+        }
+      }
+    }
+  },
+  "PaymentMethodService/Tokenize": {
+    "paypal_tokenize_apple_pay_encrypted": {
+      "extends": "tokenize_credit_card",
+      "grpc_req": {
+        "payment_method": {
+          "card": null,
+          "apple_pay_sdk": {
+            "payment_data": {
+              "encrypted_data": "eyJ2ZXJzaW9uIjogIkVDX3YxIiwgImRhdGEiOiAiQUFBQSIsICJzaWduYXR1cmUiOiAiQUFBQSIsICJoZWFkZXIiOiB7ImVwaGVtZXJhbFB1YmxpY0tleSI6ICJBQUFBIiwgInB1YmxpY0tleUhhc2giOiAiQUFBQSIsICJ0cmFuc2FjdGlvbklkIjogIjAwIn19"
+            },
+            "payment_method": {
+              "display_name": "Visa 0326",
+              "network": "Visa",
+              "type": "debit"
+            },
+            "transaction_identifier": "paypal-shape-check"
+          }
+        }
+      },
+      "assert": {
+        "payment_method_token": null,
+        "error": {
+          "must_exist": true
+        },
+        "error.connector_details.code": {
+          "equals": "INVALID_APPLE_PAY_TOKEN"
+        }
+      }
+    }
   }
 }
