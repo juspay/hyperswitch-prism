@@ -347,6 +347,13 @@ pub struct IntentCharges {
     pub destination_account_id: Option<Secret<String>>,
 }
 
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum StripeLineItemValue {
+    Text(String),
+    Amount(ConnectorMinorUnit),
+}
+
 /// Level 2 / Level 3 purchase data, flattened onto the payment intent body.
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeLineItemsData {
@@ -386,7 +393,7 @@ pub struct StripeLineItemsData {
     )]
     pub discount_amount: Option<ConnectorMinorUnit>,
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub line_items: Option<HashMap<String, String>>,
+    pub line_items: Option<HashMap<String, StripeLineItemValue>>,
 }
 
 fn create_stripe_line_items_data(
@@ -407,45 +414,45 @@ fn create_stripe_line_items_data(
                 for (index, order_item) in order_details.iter().enumerate() {
                     items_map.insert(
                         format!("amount_details[line_items][{index}][product_name]"),
-                        order_item.product_name.clone(),
+                        StripeLineItemValue::Text(order_item.product_name.clone()),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][unit_cost]"),
-                        common_utils::types::ConnectorMinorUnitForConnector.convert(&order_item.get_unit_money(payment)).get_amount_as_i64().to_string(),
+                        StripeLineItemValue::Amount(common_utils::types::ConnectorMinorUnitForConnector.convert(&order_item.get_unit_money(payment))),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{index}][quantity]"),
-                        order_item.quantity.to_string(),
+                        StripeLineItemValue::Text(order_item.quantity.to_string()),
                     );
                     if let Some(product_code) = order_item.product_id.as_ref() {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][product_code]"),
-                            product_code.clone(),
+                            StripeLineItemValue::Text(product_code.clone()),
                         );
                     }
                     if let Some(tax_amount) = order_item.get_total_tax_money(payment) {
                         has_line_item_tax = true;
                         items_map.insert(
                             format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
-                            common_utils::types::ConnectorMinorUnitForConnector.convert(&tax_amount).get_amount_as_i64().to_string(),
+                            StripeLineItemValue::Amount(common_utils::types::ConnectorMinorUnitForConnector.convert(&tax_amount)),
                         );
                     }
                     if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][unit_of_measure]"),
-                            unit_of_measure.clone(),
+                            StripeLineItemValue::Text(unit_of_measure.clone()),
                         );
                     }
                     if let Some(line_discount) = order_item.get_unit_discount_money(payment) {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][discount_amount]"),
-                            common_utils::types::ConnectorMinorUnitForConnector.convert(&line_discount).get_amount_as_i64().to_string(),
+                            StripeLineItemValue::Amount(common_utils::types::ConnectorMinorUnitForConnector.convert(&line_discount)),
                         );
                     }
                     if let Some(commodity_code) = order_item.commodity_code.as_ref() {
                         items_map.insert(
                             format!("amount_details[line_items][{index}][payment_method_options][card][commodity_code]"),
-                            commodity_code.clone(),
+                            StripeLineItemValue::Text(commodity_code.clone()),
                         );
                     }
                 }
