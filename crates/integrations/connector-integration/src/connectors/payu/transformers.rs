@@ -891,7 +891,7 @@ fn generate_payu_hash(
     let hash_fields = vec![
         request.key.clone(),                                // key
         request.txnid.clone(),                              // txnid
-        request.amount.get_amount_as_string(),              // amount
+        request.amount.to_string(),                         // amount
         request.productinfo.clone(),                        // productinfo
         request.firstname.peek().clone(),                   // firstname
         request.email.peek().clone(),                       // email
@@ -1310,7 +1310,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             key: auth.api_key.peek().to_string(),
             command: command.clone(),
             var1: connector_transaction_id,
-            var2: amount.get_amount_as_string(),
+            var2: amount.to_string(),
             hash: String::new(), // Computed below
         };
 
@@ -1702,7 +1702,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             key: auth.api_key.peek().to_string(),
             command,
             var1: connector_transaction_id,
-            var2: amount.get_amount_as_string(),
+            var2: amount.to_string(),
             var3: txnid,
             hash: String::new(),
         };

@@ -51,6 +51,8 @@ minor_unit_constructor_pointer = []
 domain_minor_converter = []
 inferred_domain_minor_unit = []
 money_amount = []
+string_major_getter = []
+string_two_decimal_getter = []
 EOF
 
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/target}"
@@ -113,3 +115,5 @@ check minor_unit_constructor_pointer clippy::disallowed_methods
 check domain_minor_converter E0425
 check inferred_domain_minor_unit clippy::disallowed_methods
 check money_amount clippy::disallowed_methods
+check string_major_getter E0599
+check string_two_decimal_getter E0599

@@ -325,7 +325,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             token.peek(),
             order_id,
             currency,
-            amount.get_amount_as_string(),
+            amount,
             billing_name.peek(),
             email.peek(),
             check_sum.peek()
@@ -346,7 +346,7 @@ pub fn calculate_check_sum(
         req.token.peek(),
         req.order_id,
         req.currency,
-        req.amount.get_amount_as_string(),
+        req.amount,
         req.verify_key.peek()
     );
     Ok(Secret::new(hex::encode(
@@ -543,7 +543,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let verify_key = auth.verify_key.peek().to_string();
         let signature = calculate_signature(format!(
             "{}{merchant_id}{reference_no}{verify_key}",
-            txn_amount.get_amount_as_string()
+            txn_amount
         ))?;
         let txn_type = match item.router_data.request.is_auto_capture() {
             true => TxnType::Sals,
@@ -765,7 +765,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let verify_key = auth.verify_key.peek().to_string();
         let signature = calculate_signature(format!(
             "{}{merchant_id}{reference_no}{verify_key}",
-            txn_amount.get_amount_as_string()
+            txn_amount
         ))?;
         let txn_type = match item.router_data.request.is_auto_capture() {
             true => TxnType::Sals,
@@ -893,7 +893,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let verify_key = auth.verify_key.peek().to_string();
         let signature = calculate_signature(format!(
             "{}{merchant_id}{reference_no}{verify_key}",
-            txn_amount.get_amount_as_string()
+            txn_amount
         ))?;
         // SetupMandate is auth-only by intent (we just want to register the
         // mandate, not move funds). `Auts` is Fiuu's auth-only txn type and
@@ -1687,7 +1687,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             signature: calculate_signature(format!(
                 "{}{merchant_id}{reference_no}{txn_id}{}{secret_key}",
                 RefundType::Partial,
-                txn_amount.get_amount_as_string()
+                txn_amount
             ))?,
             notify_url: Some(
                 Url::parse(&item.router_data.request.get_webhook_url()?).change_context(
@@ -1902,10 +1902,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: amount.clone(),
             tx_id: txn_id.clone(),
             domain: merchant_id.clone(),
-            skey: calculate_signature(format!(
-                "{txn_id}{merchant_id}{verify_key}{}",
-                amount.get_amount_as_string()
-            ))?,
+            skey: calculate_signature(format!("{txn_id}{merchant_id}{verify_key}{}", amount))?,
         })
     }
 }
@@ -2225,10 +2222,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
         let verify_key = auth.verify_key.peek().to_string();
-        let signature = calculate_signature(format!(
-            "{txn_id}{}{merchant_id}{verify_key}",
-            amount.get_amount_as_string()
-        ))?;
+        let signature =
+            calculate_signature(format!("{txn_id}{}{merchant_id}{verify_key}", amount))?;
         Ok(Self {
             domain: merchant_id,
             tran_id: txn_id,

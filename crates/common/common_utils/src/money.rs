@@ -480,9 +480,11 @@ impl StringMajorUnit {
     pub fn zero() -> Self {
         Self("0".to_string())
     }
-    /// Get string amount from struct to be removed in future
-    pub fn get_amount_as_string(&self) -> String {
-        self.0.clone()
+}
+
+impl Display for StringMajorUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
@@ -520,11 +522,6 @@ impl StringTwoDecimalUnit {
     /// forms a new implied-decimal unit from amount
     fn new(value: String) -> Self {
         Self(value)
-    }
-
-    /// Get the wire string.
-    pub fn get_amount_as_string(&self) -> &str {
-        &self.0
     }
 
     /// Reject a negative amount, for gateways whose amount field is unsigned.
@@ -583,6 +580,12 @@ impl StringTwoDecimalUnit {
         let minor = i64::try_from(scaled / divisor)
             .map_err(|_| ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(minor))
+    }
+}
+
+impl Display for StringTwoDecimalUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 

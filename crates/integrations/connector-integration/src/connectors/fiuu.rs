@@ -771,7 +771,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     webhooks_payment_response.order_id,
                     webhooks_payment_response.status,
                     webhooks_payment_response.domain.clone().peek(),
-                    webhooks_payment_response.amount.get_amount_as_string(),
+                    webhooks_payment_response.amount,
                     webhooks_payment_response.currency
                 );
                 let md5_key0 = hex::encode(
@@ -799,7 +799,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     webhooks_refunds_response.ref_id,
                     webhooks_refunds_response.refund_id,
                     webhooks_refunds_response.txn_id,
-                    webhooks_refunds_response.amount.get_amount_as_string(),
+                    webhooks_refunds_response.amount,
                     webhooks_refunds_response.status,
                     String::from_utf8_lossy(&connector_webhook_secrets.secret)
                 )

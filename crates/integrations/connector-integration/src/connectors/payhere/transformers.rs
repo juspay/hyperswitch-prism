@@ -252,7 +252,7 @@ impl PayherePaymentsRequest {
             router_data
                 .resource_common_data
                 .connector_request_reference_id,
-            amount.get_amount_as_string(),
+            amount,
             router_data.request.currency,
             hash_secret_upper
         );

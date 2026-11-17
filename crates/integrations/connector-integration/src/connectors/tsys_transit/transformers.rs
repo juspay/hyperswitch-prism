@@ -2508,7 +2508,7 @@ fn derive_amount_captured(
                     context: ResponseTransformationErrorContext {
                         additional_context: Some(format!(
                             "tsysTransit: failed to parse captured amount: {}",
-                            amount.get_amount_as_string()
+                            amount
                         )),
                         http_status_code: Some(http_status_code),
                     },
@@ -2540,7 +2540,7 @@ fn derive_amount_capturable(
                     context: ResponseTransformationErrorContext {
                         additional_context: Some(format!(
                             "tsysTransit: failed to parse capturable amount: {}",
-                            amount.get_amount_as_string()
+                            amount
                         )),
                         http_status_code: Some(http_status_code),
                     },

@@ -32,6 +32,24 @@ pub fn connector_pass(money: &Money) {
     let _restored = ConnectorMinorUnitForConnector
         .convert_back(amount, money.currency())
         .unwrap();
+    let _major_wire = common_utils::types::StringMajorUnitForConnector
+        .convert(money)
+        .unwrap()
+        .to_string();
+    let _two_decimal_wire = common_utils::types::StringTwoDecimalUnitForConnector
+        .convert(money)
+        .unwrap()
+        .to_string();
+}
+
+#[cfg(feature = "string_major_getter")]
+pub fn string_major_getter(amount: common_utils::types::StringMajorUnit) -> String {
+    amount.get_amount_as_string()
+}
+
+#[cfg(feature = "string_two_decimal_getter")]
+pub fn string_two_decimal_getter(amount: &common_utils::types::StringTwoDecimalUnit) -> &str {
+    amount.get_amount_as_string()
 }
 
 #[cfg(feature = "boundary_expect")]

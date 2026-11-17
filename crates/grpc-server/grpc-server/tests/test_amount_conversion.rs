@@ -19,7 +19,7 @@ mod tests {
         ));
         assert!(result.is_ok(), "JPY conversion should succeed");
         let converted = result.unwrap();
-        assert_eq!(converted.get_amount_as_string(), "12345");
+        assert_eq!(converted.to_string(), "12345");
 
         // Test two decimal currency (USD)
         let result = converter.convert(&common_utils::types::Money::from_minor_unit(
@@ -28,7 +28,7 @@ mod tests {
         ));
         assert!(result.is_ok(), "USD conversion should succeed");
         let converted = result.unwrap();
-        assert_eq!(converted.get_amount_as_string(), "123.45");
+        assert_eq!(converted.to_string(), "123.45");
 
         // Test three decimal currency (BHD)
         let result = converter.convert(&common_utils::types::Money::from_minor_unit(
@@ -37,7 +37,7 @@ mod tests {
         ));
         assert!(result.is_ok(), "BHD conversion should succeed");
         let converted = result.unwrap();
-        assert_eq!(converted.get_amount_as_string(), "12.345");
+        assert_eq!(converted.to_string(), "12.345");
 
         // Test four decimal currency (CLF)
         let result = converter.convert(&common_utils::types::Money::from_minor_unit(
@@ -46,7 +46,7 @@ mod tests {
         ));
         assert!(result.is_ok(), "CLF conversion should succeed");
         let converted = result.unwrap();
-        assert_eq!(converted.get_amount_as_string(), "1.2345");
+        assert_eq!(converted.to_string(), "1.2345");
     }
 
     #[test]
@@ -113,7 +113,7 @@ mod tests {
             ));
             match result {
                 Ok(converted) => {
-                    let actual = converted.get_amount_as_string();
+                    let actual = converted.to_string();
                     if actual != expected {
                         failed_test_cases.push((amount, currency, expected, actual));
                     }

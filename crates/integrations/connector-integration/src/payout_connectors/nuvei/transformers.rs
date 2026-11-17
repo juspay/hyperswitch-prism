@@ -202,7 +202,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             merchant_id.peek(),
             merchant_site_id.peek(),
             reference,
-            &amount.get_amount_as_string(),
+            &amount.to_string(),
             &currency,
             &time_stamp.to_string(),
         ]);
@@ -370,7 +370,7 @@ mod tests {
         assert_eq!(
             convert_payout_amount(&request.money, request.destination_currency,)
                 .expect("JPY amount should convert")
-                .get_amount_as_string(),
+                .to_string(),
             "1234"
         );
     }

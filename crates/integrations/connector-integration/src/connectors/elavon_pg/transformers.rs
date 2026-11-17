@@ -664,8 +664,7 @@ impl ElavonPgCaptureRoute {
                 message: format!(
                     "a capture of {} against an authorization of {}: partial capture on an \
                      account whose EPG transactions report isPartiallyCapturable = false",
-                    requested_total.get_amount_as_string(),
-                    metadata.authorized_total.get_amount_as_string(),
+                    requested_total, metadata.authorized_total,
                 ),
                 connector: ELAVON_PG_CONNECTOR_ID,
                 context: IntegrationErrorContext {

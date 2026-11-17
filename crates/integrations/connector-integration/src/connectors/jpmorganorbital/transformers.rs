@@ -326,7 +326,7 @@ fn build_amount(
         ))
     })?;
     // `validate_max_len` consumes the amount, so keep the encoded form for the message.
-    let encoded = amount.get_amount_as_string().to_string();
+    let encoded = amount.to_string();
     amount
         .validate_max_len(MAX_AMOUNT_LEN, "order.amount")
         .map_err(|_| {

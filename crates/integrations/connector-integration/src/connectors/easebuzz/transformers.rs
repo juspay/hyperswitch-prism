@@ -24,11 +24,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{connectors::easebuzz::EasebuzzRouterData, types::ResponseRouterData};
 
-/// Extract the inner string from a `StringMajorUnit` for use in hash computation.
-fn string_major_unit_to_string(amount: &StringMajorUnit) -> String {
-    amount.get_amount_as_string()
-}
-
 pub trait ForeignTryFrom<F>: Sized {
     type Error;
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
@@ -234,7 +229,7 @@ impl
             .unwrap_or_else(|| "https://example.com/return".to_string());
 
         let key_str = auth.api_key.peek().to_string();
-        let amount_for_hash = string_major_unit_to_string(&amount_str);
+        let amount_for_hash = amount_str.to_string();
 
         let hash = compute_initiate_link_hash(
             &key_str,
@@ -714,7 +709,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                 },
             })?;
-        let amount_for_hash = string_major_unit_to_string(&amount);
+        let amount_for_hash = amount.to_string();
 
         let key_str = auth.api_key.peek().to_string();
 
@@ -979,7 +974,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                 },
             })?;
-        let refund_amount_str = string_major_unit_to_string(&refund_amount);
+        let refund_amount_str = refund_amount.to_string();
 
         let key_str = auth.api_key.peek().to_string();
 
@@ -1215,7 +1210,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                 },
             })?;
-        let amount_str = string_major_unit_to_string(&amount);
+        let amount_str = amount.to_string();
 
         // Email/phone from billing address, with defaults matching initiateLink
         let email = router_data

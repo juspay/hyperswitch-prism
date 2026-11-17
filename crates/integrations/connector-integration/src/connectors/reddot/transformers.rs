@@ -498,7 +498,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let exp_month = card_data.get_card_expiry_month_2_digit()?;
                 let exp_year = card_data.get_expiry_year_4_digit();
                 let exp_date = Secret::new(format!("{}{}", exp_month.peek(), exp_year.peek()));
-                let amount_str = amount.get_amount_as_string();
+                let amount_str = amount.to_string();
 
                 let signature = compute_payment_signature(PaymentSignatureInput {
                     mid: auth.mid.peek(),
@@ -1194,7 +1194,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let amount_str = amount.get_amount_as_string();
+        let amount_str = amount.to_string();
         let ccy = router_data.request.refund_money.currency().to_string();
         // RDP `order_number` must equal the exact order_id RDP recorded at
         // authorize. It is persisted in connector_metadata["reddot_order_id"]
