@@ -10,7 +10,6 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
     "payments/create-confirm/card/one-time/no3ds/guest-automatic-capture-create-confirm": { reason: "Sandbox certification for this connector is deferred to its follow-up coverage change." },
     "payments/create-confirm/card/one-time/no3ds/guest-manual-capture-create-confirm": { reason: "Sandbox certification for this connector is deferred to its follow-up coverage change." },
   },
-  run: ["payments/create-confirm/card/one-time/no3ds/create-confirm"],
   card: {
     card_number: "4242424242424242",
     card_exp_month: "06",

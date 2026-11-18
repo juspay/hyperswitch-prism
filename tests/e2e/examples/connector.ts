@@ -1,10 +1,9 @@
 import type { ConnectorDefinition } from "../framework/types.js";
 import type { ScenarioId } from "../scenarios/catalog.js";
 
-/** Compile-checked, non-runnable reference for connector configuration. */
+/** Compile-checked reference for connector configuration; never auto-discovered. */
 export const exampleConnector = {
   id: "example",
-  run: ["payments/create-confirm/card/one-time/no3ds/create-confirm"],
   credentialKey: "example-credentials-key",
   credentialEntry: "connector_1",
   card: {
@@ -55,7 +54,6 @@ export const exampleConnector = {
 /** Separate because one connector cannot override and exclude the same scenario. */
 export const exampleExcludedConnector = {
   id: "example-excluded",
-  run: [],
   exclude: {
     "payments/create-confirm/card/one-time/no3ds/create-confirm": {
       reason: "Example connector does not support this documented behavior",

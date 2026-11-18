@@ -189,10 +189,11 @@ The planned inventory also reserves guest card payments, saved-card repeat CIT, 
 
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `expected`, and `report`.
 
-Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario IDs only; each spec owns the metadata displayed in reports. Playwright runs every scenario for each discovered synthetic merchant variant. Each variant must list the scenario in `run` or exclude it with a reason; a newly added scenario fails discovery until every variant makes that choice. Keep merchant differences in `connectors/`; do not copy scenarios into connector directories. A variant name such as `merchant_01` is only a synthetic configuration label: setup creates a fresh merchant for every test.
+Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario IDs only; each spec owns the metadata displayed in reports. Playwright runs every implemented scenario for each discovered synthetic merchant variant by default. A variant may exclude a scenario only with a nonempty reason. Keep merchant differences in `connectors/`; do not copy scenarios into connector directories. A variant name such as `merchant_01` is only a synthetic configuration label: setup creates a fresh merchant for every test.
 
 - Add one default-exported synthetic merchant definition under `connectors/<connector-id>/merchant_01.ts`; the folder becomes the connector ID and the file becomes the variant name. Add `merchant_02.ts` only for a distinct synthetic behavior. Never document a mapping to a real merchant.
-- List each implemented scenario in `run` or `exclude` with a nonempty reason. Override only selected runnable scenarios.
+- Do not maintain a scenario allowlist. Newly implemented catalog scenarios run for every variant automatically; exclude only a scenario the variant cannot run, with a nonempty reason.
+- Override only the scenarios with genuine request or exact-expectation differences. A scenario cannot be both overridden and excluded.
 - Use the shared sandbox card by default; supply optional `card` field overrides only when required by the connector's sandbox.
 - Exclude an unsupported scenario explicitly with a nonempty reason. Exclusions appear as skipped tests.
 - Add a new shared scenario for a new payment journey. Its function owns the ordered calls and expected results.
@@ -237,7 +238,7 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | `scenarios/catalog.ts` | List canonical IDs for typed overrides/exclusions; metadata and setup requirements live in specs. |
 | `scenarios/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
 | `scenarios/**/*.planned.ts` | Reserve an agreed scenario name and location without registering executable coverage. |
-| `connectors/<id>/merchant_XX.ts` | Define one automatically discovered synthetic merchant variant using `connectorFromFile`, explicit runnable scenarios, optional overrides and reasoned exclusions. |
+| `connectors/<id>/merchant_XX.ts` | Define one automatically discovered synthetic merchant variant using `connectorFromFile`, with optional overrides and reasoned exclusions. All other implemented scenarios run automatically. |
 | `examples/connector.ts` | Compile-checked reference for all supported connector configuration forms; never discovered or executed. |
 | `framework/connector-registry.ts` | Discover connector modules and validate duplicate IDs, scenario references, overrides and exclusions. |
 | `framework/connector.ts` | Derive and brand connector and synthetic merchant variant IDs from the module path. |

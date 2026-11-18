@@ -37,7 +37,7 @@ Connector definitions contain data only. Every overridable operation call and ex
 
 Shared assertions are the scenario's contract. Connector configuration cannot replace expected outcomes or relax routing checks. If behavior differs materially, model a distinct shared scenario or record an unsupported scenario with a reason. Do not accept a failure status merely to obtain a green test.
 
-A scenario ID is the spec's relative path below `scenarios/`, without `.spec.ts`. It is derived rather than written in the spec. Use the typed catalog key in each synthetic merchant configuration. Every catalog scenario must appear in that variant's `run` list or be excluded with a reason. An override requires a runnable scenario. Never record a mapping from a synthetic variant to a real merchant.
+A scenario ID is the spec's relative path below `scenarios/`, without `.spec.ts`. It is derived rather than written in the spec. Use the typed catalog key in each synthetic merchant configuration. Every implemented catalog scenario runs for every synthetic merchant variant by default. Exclude only a scenario the variant cannot run, with a nonempty reason; an override and exclusion cannot target the same scenario. Never record a mapping from a synthetic variant to a real merchant.
 
 ## Boundaries
 

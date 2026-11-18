@@ -81,26 +81,6 @@ function validateConnectorScenarios(
 
     const overridden = Object.keys(connector.overrides ?? {}) as ScenarioId[];
     const excluded = Object.keys(connector.exclude ?? {}) as ScenarioId[];
-    const runnable = connector.run;
-    for (const scenarioId of runnable) {
-      if (!knownScenarios.has(scenarioId))
-        throw new Error(
-          `${variantId} references unknown scenario ${scenarioId}`,
-        );
-      if (connector.exclude?.[scenarioId])
-        throw new Error(
-          `${variantId}/${scenarioId} cannot run and be excluded`,
-        );
-    }
-    if (new Set(runnable).size !== runnable.length)
-      throw new Error(`${variantId} repeats a scenario`);
-    for (const scenarioId of knownScenarios) {
-      if (!runnable.includes(scenarioId) && !connector.exclude?.[scenarioId]) {
-        throw new Error(
-          `${variantId}/${scenarioId} must run or be excluded with a reason`,
-        );
-      }
-    }
 
     for (const scenarioId of [...overridden, ...excluded]) {
       if (!knownScenarios.has(scenarioId)) {
@@ -111,8 +91,6 @@ function validateConnectorScenarios(
     }
 
     for (const scenarioId of overridden) {
-      if (!runnable.includes(scenarioId))
-        throw new Error(`${variantId}/${scenarioId} override requires run`);
       if (connector.exclude?.[scenarioId]) {
         throw new Error(
           `${connector.id}/${scenarioId} cannot be both overridden and excluded`,
