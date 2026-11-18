@@ -344,35 +344,5 @@
         }
       }
     }
-  },
-  "PaymentMethodService/Tokenize": {
-    "paypal_tokenize_apple_pay_encrypted": {
-      "extends": "tokenize_credit_card",
-      "grpc_req": {
-        "payment_method": {
-          "card": null,
-          "apple_pay_sdk": {
-            "payment_data": {
-              "encrypted_data": "eyJ2ZXJzaW9uIjogIkVDX3YxIiwgImRhdGEiOiAiQUFBQSIsICJzaWduYXR1cmUiOiAiQUFBQSIsICJoZWFkZXIiOiB7ImVwaGVtZXJhbFB1YmxpY0tleSI6ICJBQUFBIiwgInB1YmxpY0tleUhhc2giOiAiQUFBQSIsICJ0cmFuc2FjdGlvbklkIjogIjAwIn19"
-            },
-            "payment_method": {
-              "display_name": "Visa 0326",
-              "network": "Visa",
-              "type": "debit"
-            },
-            "transaction_identifier": "paypal-shape-check"
-          }
-        }
-      },
-      "assert": {
-        "payment_method_token": null,
-        "error": {
-          "must_exist": true
-        },
-        "error.connector_details.code": {
-          "equals": "INVALID_APPLE_PAY_TOKEN"
-        }
-      }
-    }
   }
 }

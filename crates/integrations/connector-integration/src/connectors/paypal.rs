@@ -20,13 +20,12 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, EventContext, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
-        VerifyWebhookSourceFlowData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData, VerifyWebhookSourceFlowData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -54,8 +53,8 @@ use crate::{
         PaypalIncrementalAuthResponse, PaypalOrderCreateRequest, PaypalOrderCreateResponse,
         PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest, PaypalPaymentsRequest,
         PaypalRefundRequest, PaypalRepeatPaymentRequest, PaypalRepeatPaymentResponse,
-        PaypalSetupMandatesResponse, PaypalSetupTokenRequest, PaypalSetupTokenResponse,
-        PaypalSyncResponse, PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
+        PaypalSetupMandatesResponse, PaypalSyncResponse, PaypalZeroMandateRequest, RefundResponse,
+        RefundSyncResponse,
     },
     finalize_connector_response,
     types::ResponseRouterData,
@@ -127,22 +126,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
-
-    // An encrypted Apple Pay token can only be saved through a Vault v3 setup token.
-    fn should_do_payment_method_token(
-        &self,
-        payment_method: common_enums::PaymentMethod,
-        payment_method_type: Option<common_enums::PaymentMethodType>,
-        is_wallet_decrypted_network_token: bool,
-    ) -> bool {
-        payment_method == common_enums::PaymentMethod::Wallet
-            && payment_method_type == Some(common_enums::PaymentMethodType::ApplePay)
-            && !is_wallet_decrypted_network_token
-    }
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Paypal<T>
-{
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Paypal<T>
@@ -519,12 +502,6 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: RefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ),
-        (
-            flow: PaymentMethodToken,
-            request_body: PaypalSetupTokenRequest,
-            response_body: PaypalSetupTokenResponse,
-            router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ),
         (
             flow: SetupMandate,
@@ -1270,55 +1247,6 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Paypal,
-    curl_request: Json(PaypalSetupTokenRequest),
-    curl_response: PaypalSetupTokenResponse,
-    flow_name: PaymentMethodToken,
-    resource_common_data: PaymentFlowData,
-    flow_request: PaymentMethodTokenizationData<T>,
-    flow_response: PaymentMethodTokenResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
-            let connector_metadata = req.resource_common_data.connector_feature_data
-                .as_ref()
-                .map(|secret| secret.clone().expose());
-            // Tokenize has no reference id unless merchant_payment_method_id is sent, and PayPal
-            // rejects an empty PayPal-Request-Id (INVALID_STRING_LENGTH).
-            let request_id = match req.resource_common_data.connector_request_reference_id.as_str() {
-                "" => common_utils::fp_utils::generate_uuid_v4(),
-                id => id.to_string(),
-            };
-            self.build_headers(
-                &access_token.access_token.expose(),
-                &request_id,
-                &req.connector_config,
-                connector_metadata.as_ref(),
-            )
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}v3/vault/setup-tokens",
-                self.connector_base_url_payments(req)
-            ))
-        }
-    }
-);
-
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Paypal,
     curl_request: Json(PaypalRepeatPaymentRequest<T>),
     curl_response: PaypalRepeatPaymentResponse,
     flow_name: RepeatPayment,
@@ -1931,6 +1859,7 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         CreateConnectorCustomer,
         GetConnectorCustomer,
+        PaymentMethodToken,
         PreAuthenticate,
         Authenticate,
         MandateRevoke,

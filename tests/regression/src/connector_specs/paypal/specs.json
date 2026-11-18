@@ -15,22 +15,13 @@
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
     "PaymentMethodAuthenticationService/PostAuthenticate",
-    "PaymentService/IncrementalAuthorization",
-    "PaymentMethodService/Tokenize"
+    "PaymentService/IncrementalAuthorization"
   ],
   "unsupported_scenarios": {
     "PaymentService/IncrementalAuthorization": {
       "incremental_auth_basic": "PayPal reauthorize is only allowed once from day 4 to day 29 of the authorization (REAUTHORIZATION_TOO_SOON before that), so a same-run sandbox increase cannot succeed; see paypal_incremental_auth_too_soon.",
       "incremental_auth_with_tip": "PayPal reauthorize is only allowed once from day 4 to day 29 of the authorization (REAUTHORIZATION_TOO_SOON before that), so a same-run sandbox increase cannot succeed; see paypal_incremental_auth_too_soon.",
       "incremental_auth_multiple_increase": "PayPal reauthorize is only allowed once from day 4 to day 29 of the authorization (REAUTHORIZATION_TOO_SOON before that), so a same-run sandbox increase cannot succeed; see paypal_incremental_auth_too_soon."
-    },
-    "PaymentMethodService/Tokenize": {
-      "tokenize_credit_card": "PayPal tokenization is only the Vault v3 setup token for encrypted Apple Pay; cards are saved through SetupRecurring.",
-      "tokenize_debit_card": "PayPal tokenization is only the Vault v3 setup token for encrypted Apple Pay; cards are saved through SetupRecurring.",
-      "tokenize_with_metadata": "PayPal tokenization is only the Vault v3 setup token for encrypted Apple Pay; cards are saved through SetupRecurring.",
-      "tokenize_fail_invalid_card_number": "PayPal tokenization is only the Vault v3 setup token for encrypted Apple Pay; cards are saved through SetupRecurring.",
-      "tokenize_fail_expired_card": "PayPal tokenization is only the Vault v3 setup token for encrypted Apple Pay; cards are saved through SetupRecurring.",
-      "tokenize_google_pay_encrypted": "PayPal has no server-side Google Pay vault or encrypted-token API."
     }
   },
   "suite_dependencies": {
@@ -40,17 +31,6 @@
         {
           "suite": "PaymentService/Authorize",
           "scenario": "no3ds_manual_capture_incremental_auth"
-        }
-      ]
-    },
-    "PaymentMethodService/Tokenize": {
-      "replace": [
-        {
-          "suite": "MerchantAuthenticationService/CreateServerAuthenticationToken",
-          "scenario": "server_authentication_token",
-          "context_map": {
-            "state.access_token.token.value": "res.access_token.value"
-          }
         }
       ]
     }

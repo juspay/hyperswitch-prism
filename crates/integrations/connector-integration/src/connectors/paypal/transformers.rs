@@ -14,14 +14,13 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, IncrementalAuthorization,
-        PSync, PaymentMethodToken, PostAuthenticate, RepeatPayment, VerifyWebhookSource,
+        PSync, PostAuthenticate, RepeatPayment, VerifyWebhookSource,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, MandateReference,
         MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsResponseData, PaymentsSyncData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
         PaypalClientAuthenticationResponse as PaypalClientAuthenticationResponseDomain,
         PaypalFlow as PaypalFlowDomain, PaypalTransactionInfo as PaypalTransactionInfoDomain,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
@@ -751,13 +750,6 @@ pub struct GooglePayRequest {
     pub decrypted_token: GooglePayDecryptedToken,
 }
 
-/// Charge on an Apple Pay token saved through Vault v3 (see `PaypalSetupTokenRequest`).
-#[derive(Debug, Serialize)]
-pub struct ApplePayVaultRequest {
-    vault_id: Secret<String>,
-    stored_credential: PaypalCardStoredCredential,
-}
-
 #[derive(Debug, Serialize)]
 pub struct ApplePayRequest {
     pub id: String,
@@ -915,8 +907,6 @@ pub enum PaymentSourceItem<
     GooglePay(GooglePayRequest),
     #[serde(rename = "apple_pay")]
     ApplePay(ApplePayRequest),
-    #[serde(rename = "apple_pay")]
-    ApplePayVault(ApplePayVaultRequest),
     IDeal(RedirectRequest),
     Eps(RedirectRequest),
     Giropay(RedirectRequest),
@@ -1113,44 +1103,6 @@ pub struct PaypalZeroMandateRequest {
 pub enum ZeroMandateSourceItem {
     Card(CardMandateRequest),
     Paypal(PaypalMandateStruct),
-    Token(SetupTokenSource),
-}
-
-/// Exchanges an approved Vault v3 setup token for a payment token.
-#[derive(Debug, Deserialize, Serialize)]
-pub struct SetupTokenSource {
-    id: Secret<String>,
-    #[serde(rename = "type")]
-    token_type: SetupTokenType,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum SetupTokenType {
-    SetupToken,
-}
-
-/// `POST v3/vault/setup-tokens` for an encrypted Apple Pay token. Orders v2 has no
-/// encrypted Apple Pay field, so this is the only way PayPal decrypts the token itself.
-#[derive(Debug, Serialize)]
-pub struct PaypalSetupTokenRequest {
-    payment_source: SetupTokenPaymentSource,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SetupTokenPaymentSource {
-    apple_pay: SetupTokenApplePay,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SetupTokenApplePay {
-    /// Base64 PKPaymentToken payment data, as Apple returns it.
-    token: Secret<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct PaypalSetupTokenResponse {
-    id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1171,8 +1123,7 @@ pub struct CardMandateRequest {
 pub struct PaypalSetupMandatesResponse {
     id: String,
     customer: Customer,
-    // Card, PayPal or Apple Pay details; nothing here is read.
-    payment_source: serde_json::Value,
+    payment_source: ZeroMandateSourceItem,
     links: Vec<PaypalLinks>,
 }
 
@@ -3534,14 +3485,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ),
             }),
 
-            // The only PayPal tokenization is the Apple Pay setup token (PaymentMethodToken flow).
-            PaymentMethodData::PaymentMethodToken(token) => {
-                ZeroMandateSourceItem::Token(SetupTokenSource {
-                    id: token.token,
-                    token_type: SetupTokenType::SetupToken,
-                })
-            }
-
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -3555,6 +3498,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
@@ -3570,81 +3514,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self { payment_source })
-    }
-}
-
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        PaypalRouterData<
-            RouterDataV2<
-                PaymentMethodToken,
-                PaymentFlowData,
-                PaymentMethodTokenizationData<T>,
-                PaymentMethodTokenResponse,
-            >,
-            T,
-        >,
-    > for PaypalSetupTokenRequest
-{
-    type Error = Report<IntegrationError>;
-    fn try_from(
-        item: PaypalRouterData<
-            RouterDataV2<
-                PaymentMethodToken,
-                PaymentFlowData,
-                PaymentMethodTokenizationData<T>,
-                PaymentMethodTokenResponse,
-            >,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
-        match &item.router_data.request.payment_method_data {
-            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
-                let token = apple_pay
-                    .payment_data
-                    .get_encrypted_apple_pay_payment_data_mandatory()
-                    .change_context(IntegrationError::MissingRequiredField {
-                        field_name: "apple_pay encrypted payment_data",
-                        context: Default::default(),
-                    })?;
-                Ok(Self {
-                    payment_source: SetupTokenPaymentSource {
-                        apple_pay: SetupTokenApplePay {
-                            token: Secret::new(token.clone()),
-                        },
-                    },
-                })
-            }
-            _ => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: "PayPal tokenization is only used for encrypted Apple Pay".to_string(),
-                connector: "paypal",
-                context: Default::default(),
-            })),
-        }
-    }
-}
-
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<PaypalSetupTokenResponse, Self>>
-    for RouterDataV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    >
-{
-    type Error = Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<PaypalSetupTokenResponse, Self>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(PaymentMethodTokenResponse {
-                token: item.response.id,
-                connector_payment_method_id: None,
-                status_code: item.http_code,
-            }),
-            ..item.router_data
-        })
     }
 }
 
@@ -4056,16 +3925,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                         }),
                     ),
-                    // Merchant-initiated only: Apple's guidelines bar returning-buyer charges.
-                    common_enums::PaymentMethodType::ApplePay if !is_customer_initiated => {
-                        PaymentSourceItem::ApplePayVault(ApplePayVaultRequest {
-                            vault_id,
-                            stored_credential: PaypalCardStoredCredential::merchant_initiated(
-                                request.mit_category.clone(),
-                                None,
-                            ),
-                        })
-                    }
                     _ => {
                         return Err(error_stack::report!(IntegrationError::NotSupported {
                             message: format!(
