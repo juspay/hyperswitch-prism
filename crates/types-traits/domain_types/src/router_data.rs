@@ -4851,6 +4851,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 WebhookConnectorEnum::Adyen => {
                     Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Adyen)))
                 }
+                WebhookConnectorEnum::Rapyd => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Rapyd)))
+                }
             },
         }
     }

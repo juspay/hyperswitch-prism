@@ -291,6 +291,7 @@ pub enum PayoutConnectorEnum {
 #[strum(serialize_all = "snake_case")]
 pub enum WebhookConnectorEnum {
     Adyen,
+    Rapyd,
 }
 
 /// Each webhook connector maps to the payment connector of the same name, whose
@@ -299,6 +300,7 @@ impl From<WebhookConnectorEnum> for ConnectorEnum {
     fn from(connector: WebhookConnectorEnum) -> Self {
         match connector {
             WebhookConnectorEnum::Adyen => Self::Adyen,
+            WebhookConnectorEnum::Rapyd => Self::Rapyd,
         }
     }
 }
@@ -309,6 +311,7 @@ impl TryFrom<ConnectorEnum> for WebhookConnectorEnum {
     fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
         match value {
             ConnectorEnum::Adyen => Ok(Self::Adyen),
+            ConnectorEnum::Rapyd => Ok(Self::Rapyd),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),

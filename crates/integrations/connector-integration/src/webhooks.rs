@@ -1,2 +1,3 @@
 pub mod adyen;
-pub use self::adyen::Adyen;
+pub mod rapyd;
+pub use self::{adyen::Adyen, rapyd::Rapyd};

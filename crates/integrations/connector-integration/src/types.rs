@@ -395,11 +395,6 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
     ) -> Option<Self> {
         variant
             .as_webhook()
-            .or_else(|| {
-                variant
-                    .as_webhook()
-                    .and_then(|c| WebhookConnectorEnum::try_from(c).ok())
-            })
             .map(|c| Self::get_connector_by_name(&c))
     }
 }
@@ -418,6 +413,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
     pub fn convert_connector(connector_name: WebhookConnectorEnum) -> BoxedWebhookConnector<T> {
         match connector_name {
             WebhookConnectorEnum::Adyen => Box::new(webhooks::Adyen::<T>::new()),
+            WebhookConnectorEnum::Rapyd => Box::new(webhooks::Rapyd::<T>::new()),
         }
     }
 }
