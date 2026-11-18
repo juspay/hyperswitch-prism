@@ -58,6 +58,7 @@ use error_stack::report;
 
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const CONTENT_TYPE: &str = "Content-Type";
 }
 
 /// Helper function to unwrap JSON-wrapped XML responses
@@ -489,7 +490,7 @@ macros::macro_connector_implementation!(
             &self,
             _req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            Ok(vec![("Content-Type".into(), self.common_get_content_type().into())])
+            Ok(vec![(headers::CONTENT_TYPE.into(), self.common_get_content_type().into())])
         }
 
         fn get_url(
@@ -519,7 +520,7 @@ macros::macro_connector_implementation!(
             &self,
             _req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            Ok(vec![("Content-Type".into(), self.common_get_content_type().into())])
+            Ok(vec![(headers::CONTENT_TYPE.into(), self.common_get_content_type().into())])
         }
 
         fn get_url(
