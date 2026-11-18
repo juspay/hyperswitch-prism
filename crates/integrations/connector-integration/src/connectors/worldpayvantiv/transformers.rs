@@ -173,7 +173,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(IntegrationError::NotSupported {
                     message: "Payment method".to_string(),
                     connector: "worldpayvantiv",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Worldpay Vantiv authorization supports card payment data only."
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
                 }
                 .into());
             }
@@ -249,7 +255,10 @@ fn get_repeat_payment_info<T: PaymentMethodDataTypes>(
         MandateReferenceId::ConnectorMandateId(mandate) => {
             let cnp_token = mandate.get_connector_mandate_id().ok_or(
                 IntegrationError::MissingConnectorMandateID {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Connector mandate payments require the Worldpay Vantiv cnpToken as the connector mandate ID.".to_owned()),
+                        ..Default::default()
+                    },
                 },
             )?;
             let card = match request.additional_payment_data.as_ref() {
@@ -336,7 +345,10 @@ fn get_repeat_payment_info<T: PaymentMethodDataTypes>(
         MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotSupported {
             message: "Network token mandate payments".into(),
             connector: "worldpayvantiv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some("Worldpay Vantiv repeat payments do not support network tokens with a network transaction ID.".to_owned()),
+                ..Default::default()
+            },
         }
         .into()),
     }
@@ -523,7 +535,10 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayvantivAuthType {
                 })
             }
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Expected Worldpay Vantiv connector configuration containing user, password, and merchant ID settings.".to_owned()),
+                    ..Default::default()
+                },
             }
             .into()),
         }
@@ -801,7 +816,10 @@ impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
             _ => Err(IntegrationError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "worldpayvantiv",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Supported card networks are Visa, Mastercard, American Express, Discover, Diners Club, JCB, and UnionPay.".to_owned()),
+                    ..Default::default()
+                },
             }
             .into()),
         }
@@ -821,7 +839,10 @@ impl TryFrom<&domain_types::utils::CardIssuer> for WorldpayvativCardType {
             _ => Err(IntegrationError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "worldpayvantiv",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Supported card issuers for automatic detection are Visa, Mastercard, American Express, Discover, Diners Club, and JCB.".to_owned()),
+                    ..Default::default()
+                },
             }
             .into()),
         }
@@ -2750,7 +2771,10 @@ where
                         }
                         None => Err(IntegrationError::MissingRequiredField {
                             field_name: "apple_pay_decrypted_data",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Apple Pay card conversion requires decrypted payment data containing the account number and expiry.".to_owned()),
+                                ..Default::default()
+                            },
                         }
                         .into()),
                     }
@@ -2766,13 +2790,19 @@ where
                                 .get_expiry_month()
                                 .change_context(IntegrationError::InvalidDataFormat {
                                     field_name: "google_pay_decrypted_data.card_exp_month",
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some("The expiry month in the decrypted Google Pay payment data could not be formatted.".to_owned()),
+                                        ..Default::default()
+                                    },
                                 })?;
                             let expiry_year = google_pay_decrypted_data
                                 .get_four_digit_expiry_year()
                                 .change_context(IntegrationError::InvalidDataFormat {
                                     field_name: "google_pay_decrypted_data.card_exp_year",
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some("The expiry year in the decrypted Google Pay payment data could not be formatted as a four-digit year.".to_owned()),
+                                        ..Default::default()
+                                    },
                                 })?;
                             let formatted_year = &expiry_year.expose()[2..];
                             let exp_date = format!("{}{}", expiry_month.expose(), formatted_year);
@@ -2799,7 +2829,10 @@ where
                         domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
                             Err(IntegrationError::MissingRequiredField {
                                 field_name: "google_pay_decrypted_data",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("Google Pay card conversion requires decrypted payment data; an encrypted token cannot be converted to card details.".to_owned()),
+                                    ..Default::default()
+                                },
                             }
                             .into())
                         }
@@ -2808,7 +2841,10 @@ where
                 _ => Err(IntegrationError::NotSupported {
                     message: "Wallet type".to_string(),
                     connector: "worldpayvantiv",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Wallet card conversion supports Apple Pay and Google Pay with decrypted payment data only.".to_owned()),
+                        ..Default::default()
+                    },
                 }
                 .into()),
             }
@@ -2816,7 +2852,10 @@ where
         _ => Err(IntegrationError::NotSupported {
             message: "Payment method".to_string(),
             connector: "worldpayvantiv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some("Payment data conversion supports cards and decrypted Apple Pay or Google Pay data only.".to_owned()),
+                ..Default::default()
+            },
         }
         .into()),
     }
@@ -2834,7 +2873,10 @@ fn determine_apple_pay_card_type(
         _ => Err(IntegrationError::NotSupported {
             message: format!("Apple Pay network: {network}"),
             connector: "worldpayvantiv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some("Supported Apple Pay networks are Visa, Mastercard, American Express, and Discover.".to_owned()),
+                ..Default::default()
+            },
         }
         .into()),
     }
@@ -2852,7 +2894,10 @@ fn determine_google_pay_card_type(
         _ => Err(IntegrationError::NotSupported {
             message: format!("Google Pay network: {network}"),
             connector: "worldpayvantiv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some("Supported Google Pay networks are Visa, Mastercard, American Express, and Discover.".to_owned()),
+                ..Default::default()
+            },
         }
         .into()),
     }
@@ -2911,7 +2956,13 @@ fn get_valid_transaction_id(
     } else {
         Err(IntegrationError::InvalidConnectorConfig {
             config: "Transaction ID length exceeds maximum limit",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Transaction IDs must not exceed {} bytes.",
+                    worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
+                )),
+                ..Default::default()
+            },
         }
         .into())
     }
@@ -3003,7 +3054,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .get_connector_transaction_id()
             .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Capture requires the cnpTxnId returned by Worldpay Vantiv for the original authorization.".to_owned()),
+                    ..Default::default()
+                },
             })?;
         let merchant_txn_id = item
             .router_data
@@ -3365,7 +3419,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .get_connector_transaction_id()
             .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Capture requires the cnpTxnId returned by Worldpay Vantiv for the original authorization.".to_owned()),
+                    ..Default::default()
+                },
             })?;
         let merchant_txn_id = item
             .router_data
@@ -3811,7 +3868,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Incremental authorization requires the cnpTxnId returned by Worldpay Vantiv for the original authorization.".to_owned()),
+                    ..Default::default()
+                },
             })?;
 
         let merchant_txn_id = item

@@ -51,7 +51,9 @@ use self::transformers::{
 
 use super::macros::{self, GetSoapXml};
 use crate::{finalize_connector_response, types::ResponseRouterData, utils, with_response_body};
-use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
+use domain_types::errors::{
+    ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
+};
 use error_stack::report;
 
 pub(crate) mod headers {
@@ -553,7 +555,14 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let txn_id = req.request.get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Payment sync requires the cnpTxnId returned by Worldpay Vantiv.".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
             let secondary_base_url = req.resource_common_data.connectors.worldpayvantiv.secondary_base_url
                 .as_ref()
                 .unwrap_or(&req.resource_common_data.connectors.worldpayvantiv.base_url);
