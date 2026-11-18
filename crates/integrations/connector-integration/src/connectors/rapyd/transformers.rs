@@ -1485,6 +1485,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         ),
                     })?,
                 };
+                if item.router_data.request.setup_future_usage.is_some()
+                    && item.router_data.request.mandate_id.is_none()
+                    && matches!(
+                        &rapyd_wallet.details,
+                        RapydWalletDetails::GooglePayDecrypted(_)
+                            | RapydWalletDetails::ApplePayDecrypted(_)
+                    )
+                {
+                    initiation_type = Some(RapydInitiationType::CustomerPresent);
+                }
                 // Wallet saved-token recurring payments require the
                 // recurring purpose marker in `payment_method.fields` on the
                 // initial payment; one-time wallets keep `fields` absent.
