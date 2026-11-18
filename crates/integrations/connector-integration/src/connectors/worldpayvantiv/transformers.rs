@@ -26,7 +26,9 @@ use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{connectors::worldpayvantiv::WorldpayvantivRouterData, types::ResponseRouterData};
+use crate::{
+    connectors::worldpayvantiv::WorldpayvantivRouterData, types::ResponseRouterData, utils,
+};
 
 // Helper function to extract report group from connector config
 fn extract_report_group(connector_config: &ConnectorSpecificConfig) -> Option<String> {
@@ -54,6 +56,40 @@ pub struct WorldpayvantivPaymentsRequest<T: PaymentMethodDataTypes> {
     pub cnp_request: CnpOnlineRequest<T>,
 }
 
+// The macro's SoapXml path sends these pre-serialized bytes while logging the
+// structured request with secrets masked. Serializing here so failures propagate.
+#[derive(Debug, Serialize)]
+pub struct WorldpayvantivXmlRequest<T: PaymentMethodDataTypes> {
+    #[serde(flatten)]
+    cnp_request: CnpOnlineRequest<T>,
+    #[serde(skip)]
+    xml: Secret<String>,
+}
+
+impl<T: PaymentMethodDataTypes + Serialize> TryFrom<CnpOnlineRequest<T>>
+    for WorldpayvantivXmlRequest<T>
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(cnp_request: CnpOnlineRequest<T>) -> Result<Self, Self::Error> {
+        let xml = utils::serialize_to_xml_string_with_root("cnpOnlineRequest", &cnp_request)?;
+        Ok(Self {
+            cnp_request,
+            xml: Secret::new(xml),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> super::super::macros::GetSoapXml for WorldpayvantivXmlRequest<T> {
+    fn to_soap_xml(&self) -> String {
+        self.xml.peek().clone()
+    }
+}
+
+pub type WorldpayvantivAuthorizeRequest<T> = WorldpayvantivXmlRequest<T>;
+pub type WorldpayvantivRepeatPaymentRequest<T> = WorldpayvantivXmlRequest<T>;
+pub type WorldpayvantivRepeatPaymentResponse = CnpOnlineResponse;
+
 // Serialize implementation
 impl<T: PaymentMethodDataTypes + Serialize> Serialize for WorldpayvantivPaymentsRequest<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -61,7 +97,7 @@ impl<T: PaymentMethodDataTypes + Serialize> Serialize for WorldpayvantivPayments
         S: serde::Serializer,
     {
         let full_xml =
-            crate::utils::serialize_to_xml_string_with_root("cnpOnlineRequest", &self.cnp_request)
+            utils::serialize_to_xml_string_with_root("cnpOnlineRequest", &self.cnp_request)
                 .map_err(serde::ser::Error::custom)?;
 
         // Serialize the complete XML string
@@ -81,7 +117,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for WorldpayvantivPaymentsRequest<T>
+    > for WorldpayvantivAuthorizeRequest<T>
 {
     type Error = Report<IntegrationError>;
 
@@ -143,14 +179,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        build_payment_request(
+        let request = build_payment_request(
             &item.router_data,
             item.router_data.request.currency,
             item.router_data.request.money.amount(),
             item.router_data.request.is_auto_capture(),
             order_source,
             payment_info,
-        )
+        )?;
+        Self::try_from(request.cnp_request)
     }
 }
 
@@ -165,7 +202,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for WorldpayvantivPaymentsRequest<T>
+    > for WorldpayvantivRepeatPaymentRequest<T>
 {
     type Error = Report<IntegrationError>;
 
@@ -187,14 +224,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(common_enums::PaymentChannel::TelephoneOrder) => OrderSource::Telephone,
             _ => OrderSource::Ecommerce,
         };
-        build_payment_request(
+        let request = build_payment_request(
             &item.router_data,
             request.currency,
             request.money.amount(),
             request.is_auto_capture(),
             order_source,
             payment_info,
-        )
+        )?;
+        Self::try_from(request.cnp_request)
     }
 }
 
@@ -216,22 +254,18 @@ fn get_repeat_payment_info<T: PaymentMethodDataTypes>(
             )?;
             let card = match request.additional_payment_data.as_ref() {
                 Some(AdditionalPaymentData::Card(card)) => card,
-                _ => {
-                    return Err(crate::utils::missing_field_err(
-                        "additional_payment_data.card",
-                    )())
-                }
+                _ => return Err(utils::missing_field_err("additional_payment_data.card")()),
             };
-            let month =
-                card.card_exp_month
-                    .as_ref()
-                    .ok_or_else(crate::utils::missing_field_err(
-                        "additional_payment_data.card.card_exp_month",
-                    ))?;
+            let month = card
+                .card_exp_month
+                .as_ref()
+                .ok_or_else(utils::missing_field_err(
+                    "additional_payment_data.card.card_exp_month",
+                ))?;
             let year = card
                 .card_exp_year
                 .as_ref()
-                .ok_or_else(crate::utils::missing_field_err(
+                .ok_or_else(utils::missing_field_err(
                     "additional_payment_data.card.card_exp_year",
                 ))?;
             let exp_date = format_token_expiry(month, year)?;
@@ -271,7 +305,13 @@ fn get_repeat_payment_info<T: PaymentMethodDataTypes>(
                     return Err(IntegrationError::NotSupported {
                         message: "Network mandate payments require card details".into(),
                         connector: "worldpayvantiv",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the card number and expiry with the network transaction ID, or use a connector mandate ID with token expiry in additional_payment_data.card."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
                     }
                     .into())
                 }
@@ -1153,7 +1193,6 @@ pub struct FundingSource {
     pub available_balance: Option<String>,
 }
 
-// Keep wire codes and their display values aligned with Hyperswitch's Vantiv integration.
 #[derive(Debug, strum::Display, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum WorldpayvantivResponseCode {
     #[serde(rename = "001")]
@@ -2581,7 +2620,7 @@ fn handle_payment_response<F, Req>(
             });
         }
         (Some(_), Some(_)) => {
-            return Err(Report::from(crate::utils::unexpected_response_fail(
+            return Err(Report::from(utils::unexpected_response_fail(
                 item.http_code,
                 "worldpayvantiv: unexpected response for this operation; retry with idempotency keys and check connector status.",
             ))
@@ -2611,10 +2650,7 @@ fn handle_payment_response<F, Req>(
             resource_id: ResponseId::ConnectorTransactionId(payment_response.cnp_txn_id.clone()),
             redirection_data: None,
             mandate_reference: payment_response.mandate_reference().change_context(
-                crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "worldpayvantiv",
-                ),
+                utils::response_handling_fail_for_connector(item.http_code, "worldpayvantiv"),
             )?,
             connector_metadata: None,
             network_txn_id: payment_response

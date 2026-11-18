@@ -681,8 +681,47 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: additional_payment_data.card — Missing required field: additional_payment_data.card"
+        "status": "supported",
+        "proto_request": {
+          "merchant_charge_id": "probe_recurring_charge_001",
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "CREDIT",
+          "off_session": true,
+          "additional_payment_data": {
+            "payment_method_data": {
+              "card": {
+                "card_exp_month": "03",
+                "card_exp_year": "2030"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://transact.vantivprelive.com/vap/communicator/online",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><cnpOnlineRequest version=\"12.30\" xmlns=\"http://www.vantivcnp.com/schema\" merchantId=\"probe_merchant\"><authentication><user>probe_user</user><password>probe_pass</password></authentication><sale id=\"sale_probe_recurring_charge_001\" reportGroup=\"rtpGrp\"><orderId>probe_recurring_charge_001</orderId><amount>1000</amount><orderSource>ecommerce</orderSource><token><cnpToken>probe-mandate-123</cnpToken><expDate>0330</expDate></token></sale></cnpOnlineRequest>"
+        }
       }
     },
     "recurring_revoke": {
