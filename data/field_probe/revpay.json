@@ -10,111 +10,111 @@
     "authorize": {
       "Ach": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "AchBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Affirm": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Afterpay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Alfamart": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "AliPayRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "AmazonPayRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "ApplePay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "ApplePayDecrypted": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "ApplePayThirdPartySdk": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Bacs": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "BacsBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "BancontactCard": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "BcaBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Becs": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "BillDeskRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Bizum": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Blik": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Bluecode": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "BniVaBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Boleto": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "BriVaBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Card": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "CashappQr": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "CashfreeRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "CimbVaBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "ClassicReward": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -122,11 +122,11 @@
       },
       "Dana": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "DanamonVaBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -134,35 +134,35 @@
       },
       "EVoucher": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "EaseBuzzRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Efecty": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Eft": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Eps": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "FamilyMart": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "GCash": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Giropay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Givex": {
         "status": "not_implemented",
@@ -170,87 +170,87 @@
       },
       "GoPay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "GooglePay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "GooglePayDecrypted": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "GooglePayThirdPartySdk": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Ideal": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Indomaret": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "IndonesianBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "InstantBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "InstantBankTransferFinland": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "InstantBankTransferPoland": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Interac": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "KakaoPay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Klarna": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Lawson": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "LazyPayRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "LocalBankRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "LocalBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "MandiriVaBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "MbWay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Mifinity": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "MiniStop": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -258,43 +258,43 @@
       },
       "Momo": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "MultibancoBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Netbanking": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "OnlineBankingCzechRepublic": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "OnlineBankingFinland": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "OnlineBankingFpx": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "OnlineBankingPoland": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "OnlineBankingSlovakia": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "OnlineBankingThailand": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "OpenBanking": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -302,35 +302,35 @@
       },
       "OpenBankingUk": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Oxxo": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "PagoEfectivo": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "PayEasy": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "PaySafeCard": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "PayURedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "PaypalRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "PaypalSdk": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -342,115 +342,115 @@
       },
       "PermataBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "PhonePeRedirect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Pix": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Przelewy24": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Pse": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "RedCompra": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "RedPagos": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "RevolutPay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "SamsungPay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Satispay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Seicomart": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Sepa": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "SepaBankTransfer": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "SepaGuaranteedDebit": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "SevenEleven": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Skrill": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Sofort": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Swish": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "TouchNGo": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Trustly": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Twint": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "UpiCollect": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "UpiIntent": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "UpiQr": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Vipps": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "WeChatPayQr": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Webpay": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       },
       "Wero": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       }
     },
     "capture": {
@@ -527,7 +527,7 @@
     "get": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       }
     },
     "handle_event": {
@@ -595,7 +595,7 @@
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       }
     },
     "proxy_setup_recurring": {
@@ -624,13 +624,13 @@
     "refund": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       }
     },
     "refund_get": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       }
     },
     "reverse": {
@@ -648,7 +648,7 @@
     "token_authorize": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_config.api_secret (revPAY Key_Index). expected a decimal integer, e.g. \"1\""
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
       }
     },
     "token_setup_recurring": {
