@@ -2205,12 +2205,12 @@ where
     #[serde(untagged)]
     enum Repr {
         List(Vec<PacoInquiryData>),
-        Single(PacoInquiryData),
+        Single(Box<PacoInquiryData>),
         Null,
     }
     match Option::<Repr>::deserialize(deserializer)? {
         Some(Repr::List(mut v)) => Ok(v.drain(..).next()),
-        Some(Repr::Single(d)) => Ok(Some(d)),
+        Some(Repr::Single(d)) => Ok(Some(*d)),
         Some(Repr::Null) | None => Ok(None),
     }
 }
