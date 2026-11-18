@@ -2915,12 +2915,12 @@ impl IlixiumHistoryOperation {
             .filter(|value| !value.is_empty())
     }
 
-    /// `transaction.amount` parsed from its minor-unit digit string (`^[\d]{1,12}$`).
-    fn minor_amount(&self) -> Option<i64> {
+    /// Compare `transaction.amount` using the existing integer parsing rules.
+    fn matches_minor_amount(&self, amount: common_utils::types::ConnectorMinorUnit) -> bool {
         self.transaction
             .as_ref()
             .and_then(|transaction| transaction.amount.as_deref())
-            .and_then(|amount| amount.parse::<i64>().ok())
+            .is_some_and(|value| amount.matches_minor_unit_str(value))
     }
 }
 
@@ -3448,7 +3448,7 @@ impl IlixiumHistoryResponse {
         &self,
         merchant_ref: &str,
         connector_refund_id: &str,
-        minor_refund_amount: Option<i64>,
+        minor_refund_amount: Option<common_utils::types::ConnectorMinorUnit>,
     ) -> Option<RefundOperationMatch<'_>> {
         let candidates: Vec<(usize, &IlixiumHistoryOperation)> = self
             .operation
@@ -3484,7 +3484,7 @@ impl IlixiumHistoryResponse {
             Some(amount) => {
                 let matching: Vec<(usize, &IlixiumHistoryOperation)> = candidates
                     .iter()
-                    .filter(|(_, operation)| operation.minor_amount() == Some(amount))
+                    .filter(|(_, operation)| operation.matches_minor_amount(amount))
                     .copied()
                     .collect();
                 if matching.is_empty() {
@@ -3746,11 +3746,10 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
             });
         }
 
-        let refund_amount = request.refund_money.as_ref().map(|money| {
-            common_utils::types::ConnectorMinorUnitForConnector
-                .convert(money)
-                .get_amount_as_i64()
-        });
+        let refund_amount = request
+            .refund_money
+            .as_ref()
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money));
 
         let Some(matched) = response.match_refund_operation(
             &merchant_ref,

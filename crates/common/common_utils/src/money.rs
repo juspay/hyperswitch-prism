@@ -328,6 +328,12 @@ impl Sum for MinorUnit {
 pub struct ConnectorMinorUnit(i64);
 
 impl ConnectorMinorUnit {
+    /// Compares a response's integer minor-unit text without exposing the amount.
+    /// Uses Rust's i64 parsing rules, rejecting whitespace, decimals and overflow.
+    pub fn matches_minor_unit_str(&self, value: &str) -> bool {
+        value.parse::<i64>().is_ok_and(|value| self.0 == value)
+    }
+
     /// Returns the integer minor-unit value for a connector payload.
     pub fn get_amount_as_i64(self) -> i64 {
         self.0
