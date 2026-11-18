@@ -1293,8 +1293,43 @@ fn build_worldpayxml_sender_funding_address(
     })
 }
 
-/// Builds the sender `fundingParty` from `sender_details`. Without `sender_details`, the sender is
-/// the individual on the billing address, exactly as before sender details existed.
+/// Pre-`sender_details` behaviour, kept verbatim for backward compatibility: the sender is the
+/// individual on the billing address, with the date of birth taken from the customer.
+fn build_worldpayxml_sender_party_from_billing(
+    resource_common_data: &PaymentFlowData,
+    customer_date_of_birth: Option<Secret<time::Date>>,
+    card_number: Secret<String>,
+) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
+    Ok(requests::WorldpayxmlFundingParty {
+        party_type: requests::WorldpayxmlFundingPartyType::Sender,
+        account_reference: requests::WorldpayxmlAccountReference {
+            account_type: WORLDPAYXML_ACCOUNT_TYPE_CARD.to_string(),
+            value: card_number,
+        },
+        full_name: requests::WorldpayxmlFullName {
+            first: resource_common_data.get_billing_first_name()?,
+            middle: None,
+            last: resource_common_data.get_billing_last_name()?,
+        },
+        funding_address: requests::WorldpayxmlFundingAddress {
+            address1: resource_common_data.get_billing_line1()?,
+            address2: resource_common_data.get_optional_billing_line2(),
+            address3: resource_common_data.get_optional_billing_line3(),
+            postal_code: resource_common_data.get_optional_billing_zip(),
+            city: resource_common_data.get_billing_city()?.expose(),
+            state: Some(resource_common_data.get_billing_state()?),
+            country_code: resource_common_data.get_billing_country()?,
+        },
+        funding_data: Some(requests::WorldpayxmlFundingData {
+            birth_date: customer_date_of_birth.map(requests::WorldpayxmlBirthDate::from),
+            telephone_number: resource_common_data.get_optional_billing_phone_number(),
+        }),
+        tax_id: None,
+    })
+}
+
+/// Builds the sender `fundingParty` from `sender_details` when present. Without
+/// `sender_details`, falls back to the pre-existing billing-address path, unchanged.
 pub(super) fn build_worldpayxml_sender_party(
     resource_common_data: &PaymentFlowData,
     sender_details: Option<&SenderDetails>,
@@ -1303,35 +1338,30 @@ pub(super) fn build_worldpayxml_sender_party(
 ) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
     let customer_date_of_birth = customer.and_then(|customer| customer.date_of_birth.clone());
 
+    match sender_details {
+        // for backwards compatibility, if sender_details is not provided, we will use the billing address to build the sender party
+        None => build_worldpayxml_sender_party_from_billing(
+            resource_common_data,
+            customer_date_of_birth,
+            card_number,
+        ),
+        Some(sender_details) => build_worldpayxml_sender_party_from_sender_details(
+            resource_common_data,
+            sender_details,
+            customer_date_of_birth,
+            card_number,
+        ),
+    }
+}
+
+fn build_worldpayxml_sender_party_from_sender_details(
+    resource_common_data: &PaymentFlowData,
+    sender_details: &SenderDetails,
+    customer_date_of_birth: Option<Secret<time::Date>>,
+    card_number: Secret<String>,
+) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
     let (full_name, funding_address, funding_data) = match sender_details {
-        None => {
-            let country = resource_common_data.get_billing_country()?;
-            (
-                requests::WorldpayxmlFullName {
-                    first: resource_common_data.get_billing_first_name()?,
-                    middle: None,
-                    last: resource_common_data.get_billing_last_name()?,
-                },
-                requests::WorldpayxmlFundingAddress {
-                    address1: resource_common_data.get_billing_line1()?,
-                    address2: resource_common_data.get_optional_billing_line2(),
-                    address3: resource_common_data.get_optional_billing_line3(),
-                    postal_code: resource_common_data.get_optional_billing_zip(),
-                    city: resource_common_data.get_billing_city()?.expose(),
-                    state: get_worldpayxml_funding_state(
-                        resource_common_data.get_optional_billing_state(),
-                        country,
-                        "payment_method_data.billing.address.state",
-                    )?,
-                    country_code: country,
-                },
-                Some(requests::WorldpayxmlFundingData {
-                    birth_date: customer_date_of_birth.map(requests::WorldpayxmlBirthDate::from),
-                    telephone_number: resource_common_data.get_optional_billing_phone_number(),
-                }),
-            )
-        }
-        Some(SenderDetails::Individual(individual)) => (
+        SenderDetails::Individual(individual) => (
             requests::WorldpayxmlFullName {
                 first: individual
                     .first_name
@@ -1364,7 +1394,7 @@ pub(super) fn build_worldpayxml_sender_party(
                     .or_else(|| resource_common_data.get_optional_billing_phone_number()),
             }),
         ),
-        Some(SenderDetails::Corporate(corporate)) => (
+        SenderDetails::Corporate(corporate) => (
             get_worldpayxml_company_full_name(corporate.company_name.as_ref().ok_or_else(
                 utils::missing_field_err("sender_details.corporate.company_name"),
             )?)?,

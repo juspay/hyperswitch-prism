@@ -281,7 +281,7 @@ fn without_sender_details_the_request_is_unchanged() {
     );
 
     let error = build(None, None).expect_err("date of birth is required");
-    assert_eq!(missing_field(&error), "sender_details.date_of_birth");
+    assert_eq!(missing_field(&error), "customer.date_of_birth");
 }
 
 /// `sender_details` can reach an AFT without names (e.g. built from a nameless billing address);

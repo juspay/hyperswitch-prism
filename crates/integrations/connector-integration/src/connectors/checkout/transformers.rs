@@ -553,42 +553,52 @@ pub(super) fn build_checkout_sender_address(
     })
 }
 
-/// Builds the AFT sender from `sender_details`. Without `sender_details`, the sender is the
-/// individual named on the billing address, exactly as before sender details existed.
+/// Pre-`sender_details` behaviour, kept verbatim for backward compatibility: the sender is the
+/// individual named on the billing address, with the date of birth taken from the customer.
+fn build_checkout_sender_from_billing(
+    resource_common_data: &PaymentFlowData,
+    customer: Option<&CustomerInfo>,
+) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
+    let date_of_birth = customer
+        .and_then(|customer| customer.date_of_birth.clone())
+        .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
+    let country = resource_common_data.get_billing_country()?;
+    Ok(CheckoutSender::Individual {
+        first_name: resource_common_data.get_billing_first_name()?,
+        last_name: resource_common_data.get_billing_last_name()?,
+        date_of_birth,
+        address: CheckoutAddress {
+            address_line1: Some(resource_common_data.get_billing_line1()?),
+            address_line2: resource_common_data.get_optional_billing_line2(),
+            city: Some(resource_common_data.get_billing_city()?),
+            state: CheckoutAftStateParams {
+                state: resource_common_data.get_optional_billing_state(),
+                country,
+                field_name: "payment_method_data.billing.address.state",
+            }
+            .try_into()?,
+            zip: Some(resource_common_data.get_billing_zip()?),
+            country: Some(country),
+        },
+    })
+}
+
 pub(super) fn build_checkout_sender(
     resource_common_data: &PaymentFlowData,
     sender_details: Option<&SenderDetails>,
     customer: Option<&CustomerInfo>,
 ) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
-    let get_customer_date_of_birth = || {
-        customer
-            .and_then(|customer| customer.date_of_birth.clone())
-            .ok_or_else(utils::missing_field_err("sender_details.date_of_birth"))
-    };
+    match sender_details {
+        // for backwards compatibility, if sender_details is not provided, we will use the billing address to build the sender party
+        None => build_checkout_sender_from_billing(resource_common_data, customer),
+        Some(sender_details) => build_checkout_sender_from_sender_details(sender_details, customer),
+    }
+}
 
-    let Some(sender_details) = sender_details else {
-        let date_of_birth = get_customer_date_of_birth()?;
-        let country = resource_common_data.get_billing_country()?;
-        return Ok(CheckoutSender::Individual {
-            first_name: resource_common_data.get_billing_first_name()?,
-            last_name: resource_common_data.get_billing_last_name()?,
-            date_of_birth,
-            address: CheckoutAddress {
-                address_line1: Some(resource_common_data.get_billing_line1()?),
-                address_line2: resource_common_data.get_optional_billing_line2(),
-                city: Some(resource_common_data.get_billing_city()?),
-                state: CheckoutAftStateParams {
-                    state: resource_common_data.get_optional_billing_state(),
-                    country,
-                    field_name: "payment_method_data.billing.address.state",
-                }
-                .try_into()?,
-                zip: Some(resource_common_data.get_billing_zip()?),
-                country: Some(country),
-            },
-        });
-    };
-
+fn build_checkout_sender_from_sender_details(
+    sender_details: &SenderDetails,
+    customer: Option<&CustomerInfo>,
+) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
     let address = sender_details
         .get_address()
         .ok_or_else(utils::missing_field_err("sender_details.address"))
@@ -606,12 +616,13 @@ pub(super) fn build_checkout_sender(
                 .last_name
                 .clone()
                 .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
-            // For backward compatibility, fall back to the customer's date of birth, which was
-            // the only source of the sender's date of birth before sender details were added.
-            date_of_birth: match individual.date_of_birth.clone() {
-                Some(date_of_birth) => date_of_birth,
-                None => get_customer_date_of_birth()?,
-            },
+            // The customer's date of birth was the only source of the sender's date of birth
+            // before sender details were added, so it still fills in when the sender omits it.
+            date_of_birth: individual
+                .date_of_birth
+                .clone()
+                .or_else(|| customer.and_then(|customer| customer.date_of_birth.clone()))
+                .ok_or_else(utils::missing_field_err("sender_details.date_of_birth"))?,
             address,
         }),
         SenderDetails::Corporate(corporate) => {
