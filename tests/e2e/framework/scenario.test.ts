@@ -3,7 +3,7 @@ import test from "node:test";
 import { createScenarioResolver } from "./scenario.js";
 
 const catalog = [
-  "payments/create-confirm/card/one-time/no3ds/create-confirm",
+  "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm",
 ] as const;
 const metadata = {
   title: "Example",
@@ -17,13 +17,13 @@ const scenarioFromFile = createScenarioResolver(catalog);
 
 test("derives the canonical scenario ID from its spec path", () => {
   const scenario = scenarioFromFile(
-    "file:///repo/tests/e2e/scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts",
+    "file:///repo/tests/e2e/scenarios/payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm.spec.ts",
     metadata,
   );
 
   assert.equal(
     scenario.id,
-    "payments/create-confirm/card/one-time/no3ds/create-confirm",
+    "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm",
   );
   assert.equal(scenario.title, "Example");
 });
@@ -52,7 +52,7 @@ test("rejects non-spec scenario files", () => {
 
 test("metadata belongs to the calling spec and must describe its purpose", () => {
   const file =
-    "file:///repo/tests/e2e/scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts";
+    "file:///repo/tests/e2e/scenarios/payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm.spec.ts";
   const custom = scenarioFromFile(file, {
     ...metadata,
     title: "Caller-owned title",

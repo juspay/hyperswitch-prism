@@ -2,14 +2,11 @@ import { test as base, type TestType } from "@playwright/test";
 import { HyperswitchClient } from "./hyperswitch-client.js";
 import { setupMerchant, type TestMerchant } from "./merchant-setup.js";
 import { PaymentOperations } from "./payment-operations.js";
+import { RefundOperations } from "./refund-operations.js";
 import { UcsAudit } from "./ucs-audit.js";
 import { Report } from "./report.js";
 import { ScenarioOverrideResolver } from "./scenario-overrides.js";
-import type {
-  ConnectorDefinition,
-  JsonObject,
-  Scenario,
-} from "./types.js";
+import type { ConnectorDefinition, JsonObject, Scenario } from "./types.js";
 
 export type ScenarioFixtures = {
   connector: ConnectorDefinition;
@@ -19,6 +16,7 @@ export type ScenarioFixtures = {
     "merchantId" | "profileId" | "merchantConnectorId"
   >;
   payments: PaymentOperations;
+  refunds: RefundOperations;
   report: Pick<Report, "step" | "check">;
   expected: <T extends JsonObject>(checkId: string, base: T) => T;
 };
@@ -57,18 +55,24 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
         type: "Scenario",
         description: scenario.description,
       });
-      info.annotations.push({ type: "Verifies", description: scenario.verifies });
+      info.annotations.push({
+        type: "Verifies",
+        description: scenario.verifies,
+      });
       const overrides = connector.overrides?.[scenario.id] ?? {};
       if (
-        Object.keys(overrides.requests ?? {}).length
-        || Object.keys(overrides.expectations ?? {}).length
+        Object.keys(overrides.requests ?? {}).length ||
+        Object.keys(overrides.expectations ?? {}).length
       ) {
         info.annotations.push({
           type: "Connector overrides",
           description: [
-            ...Object.keys(overrides.requests ?? {}).map((name) => `request:${name}`),
-            ...Object.keys(overrides.expectations ?? {}).map((name) =>
-              `expectation:${name}`),
+            ...Object.keys(overrides.requests ?? {}).map(
+              (name) => `request:${name}`,
+            ),
+            ...Object.keys(overrides.expectations ?? {}).map(
+              (name) => `expectation:${name}`,
+            ),
           ].join(", "),
         });
       }
@@ -115,6 +119,9 @@ const fixtures = base.extend<ScenarioFixtures & InternalFixtures>({
   },
   payments: async ({ _hs, _merchant, _overrides }, use) => {
     await use(new PaymentOperations(_hs, _merchant, _overrides));
+  },
+  refunds: async ({ _hs, _merchant, _overrides }, use) => {
+    await use(new RefundOperations(_hs, _merchant, _overrides));
   },
   expected: async ({ _overrides }, use) => {
     await use((checkId, base) => _overrides.expected(checkId, base));

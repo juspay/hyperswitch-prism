@@ -28,6 +28,8 @@ export type ScenarioOverrides = {
     createPayment?: Record<string, RequestOverride>;
     confirmPayment?: Record<string, RequestOverride>;
     capturePayment?: Record<string, RequestOverride>;
+    cancelPayment?: Record<string, RequestOverride>;
+    createRefund?: Record<string, RequestOverride>;
   };
   expectations?: Record<string, ExpectationOverride>;
 };

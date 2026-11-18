@@ -14,9 +14,9 @@ import {
 const scenario = scenarioFromFile(import.meta.url, {
   title: "One-time No3DS card — manual capture, inline confirmation",
   description:
-    "Inline confirmation reserves funds for a new customer without capturing them. POST /payments with confirm=true and capture_method=manual.",
+    "Inline confirmation authorizes a new customer payment with capture_method=manual, then a full capture completes the payment.",
   verifies:
-    "Check requires_capture, the full amount capturable, no received amount and an authorized UCS attempt. Also verify ownership, error fields, amounts, preserved checkout details and no mandate setup.",
+    "Check the authorized intermediate state, perform full capture, and verify the exact capture response and recorded UCS outcome. Also verify ownership, errors, amounts, checkout details and no mandate setup.",
   requirements: {
     connectorAccount: {
       paymentMethodsEnabled: [
@@ -204,6 +204,67 @@ test(
             connectorTransactionIdPresent: true,
             customerRecordExists: true,
           },
+        },
+        ({ actual, expected }) => expect(actual).toEqual(expected),
+      );
+    });
+
+    await report.step("Capture the full authorized amount", async () => {
+      const response = await payments.capturePayment(
+        "full-capture",
+        payment.payment_id,
+        {
+          amount_to_capture: 6000,
+          statement_descriptor_prefix: "SYNTHETIC",
+          statement_descriptor_suffix: "E2E",
+        },
+      );
+      const expectedCapture = expected("capture-fields", {
+        status: "succeeded",
+        amount: 6000,
+        currency: "USD",
+        amount_capturable: 0,
+        amount_received: 6000,
+        error_code: null,
+        error_message: null,
+        connector: connector.id,
+        capture_method: "manual",
+      });
+      await report.check(
+        "Capture response",
+        {
+          actual: Object.fromEntries(
+            Object.keys(expectedCapture).map((field) => [
+              field,
+              response[field],
+            ]),
+          ),
+          expected: expectedCapture,
+        },
+        ({ actual, expected }) => expect(actual).toMatchObject(expected),
+      );
+      await report.check(
+        "Capture identity",
+        {
+          actual: response.payment_id === payment.payment_id,
+          expected: true,
+        },
+        ({ actual, expected }) => expect(actual).toBe(expected),
+      );
+    });
+
+    await report.step("Verify recorded capture response", async () => {
+      const recorded = await payments.readRecordedPayment(payment.payment_id);
+      await report.check(
+        "Captured attempt",
+        {
+          actual: recorded,
+          expected: expected("capture-recorded-outcome", {
+            gateway: "unified_connector_service",
+            attemptStatus: "charged",
+            connectorTransactionIdPresent: true,
+            customerRecordExists: true,
+          }),
         },
         ({ actual, expected }) => expect(actual).toEqual(expected),
       );

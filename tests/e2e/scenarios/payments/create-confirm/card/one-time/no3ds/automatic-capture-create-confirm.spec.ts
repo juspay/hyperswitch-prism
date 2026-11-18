@@ -12,8 +12,7 @@ import {
 } from "../../../../../../test-data.js";
 
 const scenario = scenarioFromFile(import.meta.url, {
-  title:
-    "One-time No3DS card payment — create and confirm with customer and order details",
+  title: "One-time No3DS card — automatic capture, inline confirmation",
   description:
     "Create and confirm a one-time No3DS card payment with a new customer, billing, shipping and order details in one API request. Verify succeeded status, the full amount received and the recorded charged attempt through UCS.",
   verifies:

@@ -2,7 +2,7 @@
 
 Read [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md) before adding connector-specific request or expected-value differences. It defines the stable per-call IDs and deterministic patch/omit semantics required for multi-call scenarios.
 
-Start with `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts`. It is the reference for new API scenarios. Use ordinary TypeScript variables and the exported Playwright fixtures; there is no step language or hidden payment sequence.
+Start with `scenarios/payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm.spec.ts`. It is the reference for new API scenarios. Use ordinary TypeScript variables and the exported Playwright fixtures; there is no step language or hidden payment sequence.
 
 ## One supported contribution pattern
 

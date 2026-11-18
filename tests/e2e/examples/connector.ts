@@ -10,44 +10,46 @@ export const exampleConnector = {
     card_number: "4111111111111111",
   },
   overrides: {
-    "payments/create-confirm/card/one-time/no3ds/create-confirm": {
-      requests: {
-        createPayment: {
-          "initial-payment": {
-            reason: "Example sandbox requires connector-specific request data",
-            omit: [["shipping", "phone"]],
+    "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm":
+      {
+        requests: {
+          createPayment: {
+            "initial-payment": {
+              reason:
+                "Example sandbox requires connector-specific request data",
+              omit: [["shipping", "phone"]],
+              patch: {
+                currency: "EUR",
+                description: null,
+                metadata: {
+                  test_case: "synthetic-example",
+                },
+                connector_metadata: {
+                  synthetic_program: "example-program",
+                },
+                order_details: [
+                  {
+                    product_name: "Synthetic product",
+                    product_id: "synthetic-product",
+                    quantity: 1,
+                    amount: 6000,
+                    requires_shipping: false,
+                  },
+                ],
+              },
+            },
+          },
+        },
+        expectations: {
+          "confirmation-fields": {
+            reason: "Example sandbox returns a documented exact value",
             patch: {
               currency: "EUR",
               description: null,
-              metadata: {
-                test_case: "synthetic-example",
-              },
-              connector_metadata: {
-                synthetic_program: "example-program",
-              },
-              order_details: [
-                {
-                  product_name: "Synthetic product",
-                  product_id: "synthetic-product",
-                  quantity: 1,
-                  amount: 6000,
-                  requires_shipping: false,
-                },
-              ],
             },
           },
         },
       },
-      expectations: {
-        "confirmation-fields": {
-          reason: "Example sandbox returns a documented exact value",
-          patch: {
-            currency: "EUR",
-            description: null,
-          },
-        },
-      },
-    },
   },
 } as const satisfies ConnectorDefinition<ScenarioId>;
 
@@ -55,8 +57,9 @@ export const exampleConnector = {
 export const exampleExcludedConnector = {
   id: "example-excluded",
   exclude: {
-    "payments/create-confirm/card/one-time/no3ds/create-confirm": {
-      reason: "Example connector does not support this documented behavior",
-    },
+    "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm":
+      {
+        reason: "Example connector does not support this documented behavior",
+      },
   },
 } as const satisfies ConnectorDefinition<ScenarioId>;
