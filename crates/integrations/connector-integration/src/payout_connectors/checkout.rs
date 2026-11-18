@@ -1,7 +1,7 @@
 mod test;
 pub mod transformers;
 
-use crate::connectors::checkout::{resolve_checkout_base_url, OPTIONAL_CLIENT_ID};
+use crate::connectors::checkout::get_checkout_base_url;
 use crate::{connectors::macros, types::ResponseRouterData};
 use common_enums::PayoutStatus;
 use common_utils::{errors::CustomResult, events, types::MinorUnit};
@@ -18,7 +18,7 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
-use hyperswitch_masking::{Mask, Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -30,51 +30,6 @@ use transformers::CheckoutPayoutResponse as CheckoutPayoutGetResponse;
 use transformers::{CheckoutPayoutRequest, CheckoutPayoutResponse};
 
 pub const CHECKOUT_IDEMPOTENCY_KEY_HEADER: &str = "Cko-Idempotency-Key";
-
-/// Resolves the Checkout payout-only hostname without changing the payment connector URL.
-/// An absent client ID removes the optional subdomain; a present client ID contributes its
-/// eight-character account prefix followed by a dot. A `base_url` override without the
-/// `{{optional_client_id}}` placeholder is taken literally, mirroring payment URL handling.
-/// https://www.checkout.com/docs/developer-resources/api/api-endpoints
-pub fn get_checkout_payout_base_url(
-    configured_base_url: &str,
-    client_id: Option<&Secret<String>>,
-) -> CustomResult<String, IntegrationError> {
-    if !configured_base_url.contains(OPTIONAL_CLIENT_ID) {
-        return Ok(configured_base_url.trim_end_matches('/').to_string());
-    }
-
-    let optional_client_id = client_id
-        .map(|client_id| {
-            client_id
-                .peek()
-                .strip_prefix("cli_")
-                .and_then(|value| value.get(..8))
-                .filter(|value| value.bytes().all(|byte| byte.is_ascii_alphanumeric()))
-                .map(|prefix| format!("{prefix}."))
-                .ok_or_else(|| {
-                    error_stack::report!(IntegrationError::InvalidDataFormat {
-                        field_name: "checkout.connector_config.connector_client_id",
-                        context: domain_types::errors::IntegrationErrorContext {
-                            additional_context: Some(
-                                "Client ID must look like `cli_<id>`; its eight-character \
-                                 account prefix forms the payout API subdomain"
-                                    .to_owned(),
-                            ),
-                            ..Default::default()
-                        },
-                    })
-                })
-        })
-        .transpose()?
-        .unwrap_or_default();
-
-    Ok(
-        resolve_checkout_base_url(configured_base_url, &optional_client_id)
-            .trim_end_matches('/')
-            .to_string(),
-    )
-}
 
 macros::create_all_prerequisites!(
     connector_name: CheckoutPayouts,
@@ -181,7 +136,11 @@ macros::macro_connector_implementation!(
         fn get_url(&self, req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>) -> CustomResult<String, IntegrationError> {
             let credentials = transformers::credentials(&req.connector_config)?;
             let configured_base_url = self.base_url(req.resource_common_data.connectors.as_ref());
-            Ok(format!("{}/payments", get_checkout_payout_base_url(configured_base_url, credentials.connector_client_id)?))
+            let base_url = get_checkout_base_url(
+                configured_base_url,
+                credentials.connector_client_id,
+            )?;
+            Ok(format!("{}/payments", base_url))
         }
     }
 );
@@ -212,7 +171,11 @@ macros::macro_connector_implementation!(
                 .ok_or_else(|| domain_types::utils::missing_field_err("connector_payout_id")())?;
             let credentials = transformers::credentials(&req.connector_config)?;
             let configured_base_url = self.base_url(req.resource_common_data.connectors.as_ref());
-            Ok(format!("{}/payments/{id}", get_checkout_payout_base_url(configured_base_url, credentials.connector_client_id)?))
+            let base_url = get_checkout_base_url(
+                configured_base_url,
+                credentials.connector_client_id,
+            )?;
+            Ok(format!("{}/payments/{id}", base_url))
         }
     }
 );

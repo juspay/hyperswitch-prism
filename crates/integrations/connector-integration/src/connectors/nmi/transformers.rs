@@ -280,6 +280,29 @@ pub struct NmiShippingDetails {
     shipping_email: Option<common_utils::pii::Email>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct NmiBillingDescriptor {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor_phone: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor_city: Option<Secret<String>>,
+}
+
+impl From<&domain_types::connector_types::BillingDescriptor> for NmiBillingDescriptor {
+    fn from(billing_descriptor: &domain_types::connector_types::BillingDescriptor) -> Self {
+        Self {
+            descriptor: billing_descriptor
+                .statement_descriptor
+                .clone()
+                .map(Secret::new),
+            descriptor_phone: billing_descriptor.phone.clone(),
+            descriptor_city: billing_descriptor.city.clone(),
+        }
+    }
+}
+
 // ===== PAYMENT REQUEST =====
 
 #[derive(Debug, Serialize)]
@@ -324,6 +347,9 @@ pub struct NmiPaymentsRequest<T: PaymentMethodDataTypes> {
     three_ds_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     directory_server_id: Option<Secret<String>>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 // Implementation for NmiRouterData wrapper (needed by macros)
@@ -451,6 +477,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cvv,
                 three_ds_version: three_ds_data.three_ds_version,
                 directory_server_id: three_ds_data.directory_server_id,
+                billing_descriptor: router_data
+                    .request
+                    .billing_descriptor
+                    .as_ref()
+                    .map(NmiBillingDescriptor::from),
             })
         } else {
             // Regular authorization flow
@@ -603,6 +634,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cvv: None,
                 three_ds_version: None,
                 directory_server_id: None,
+                billing_descriptor: router_data
+                    .request
+                    .billing_descriptor
+                    .as_ref()
+                    .map(NmiBillingDescriptor::from),
             })
         }
     }
@@ -1616,6 +1652,9 @@ pub struct NmiSetupMandateRequest<
     country: Option<common_enums::CountryAlpha2>,
     #[serde(flatten)]
     shipping_details: NmiShippingDetails,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 /// Payment method for SetupMandate - supports Card and ACH
@@ -1778,6 +1817,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 shipping_country: common_data.get_optional_shipping_country(),
                 shipping_email: common_data.get_optional_shipping_email(),
             },
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(NmiBillingDescriptor::from),
         })
     }
 }
@@ -1904,6 +1948,9 @@ pub struct NmiRepeatPaymentRequest {
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     shipping_details: Option<NmiShippingDetails>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse;
@@ -2002,6 +2049,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 shipping_country: common_data.get_optional_shipping_country(),
                 shipping_email: common_data.get_optional_shipping_email(),
             }),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(NmiBillingDescriptor::from),
         })
     }
 }

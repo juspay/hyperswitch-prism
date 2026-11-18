@@ -158,7 +158,7 @@ pub trait DecodeMessage {
 }
 
 /// Represents no cryptographic algorithm.
-/// Implements all crypto traits and acts like a Nop
+/// Passes messages through during encoding and decoding, but never verifies signatures.
 #[derive(Debug)]
 pub struct NoAlgorithm;
 
@@ -179,7 +179,7 @@ impl VerifySignature for NoAlgorithm {
         _signature: &[u8],
         _msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
-        Ok(true)
+        Ok(false)
     }
 }
 
@@ -319,7 +319,10 @@ impl VerifySignature for Blake3 {
     ) -> CustomResult<bool, errors::CryptoError> {
         let key = blake3::derive_key(&self.0, secret);
         let output = blake3::keyed_hash(&key, msg);
-        Ok(output.as_bytes() == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            output.as_bytes(),
+            signature,
+        ))
     }
 }
 
@@ -492,7 +495,10 @@ impl VerifySignature for Sha512 {
                 .change_context(errors::CryptoError::SignatureVerificationFailed)?,
         );
         let hashed_digest_into_bytes = hashed_digest.into_bytes();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            &hashed_digest_into_bytes,
+            signature,
+        ))
     }
 }
 /// MD5 hash function
@@ -516,7 +522,10 @@ impl VerifySignature for Md5 {
         let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        Ok(hashed_digest == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            &hashed_digest,
+            signature,
+        ))
     }
 }
 
@@ -538,7 +547,10 @@ impl VerifySignature for Sha256 {
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
         let hashed_digest_into_bytes = hashed_digest.as_slice();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            hashed_digest_into_bytes,
+            signature,
+        ))
     }
 }
 
@@ -833,6 +845,19 @@ mod crypto_tests {
     use super::{DecodeMessage, EncodeMessage, SignMessage, VerifySignature};
     use crate::{crypto::GenerateDigest, errors::CryptoError};
     use openssl::{ec::EcGroup, nid::Nid, pkey::PKey, rsa::Rsa};
+
+    #[test]
+    fn no_algorithm_never_verifies_signatures() {
+        let algorithm: Box<dyn VerifySignature> = Box::new(super::NoAlgorithm);
+        for (secret, signature, message) in [
+            (&b""[..], &b""[..], &b""[..]),
+            (&b"secret"[..], &b"signature"[..], &b"message"[..]),
+        ] {
+            assert!(!algorithm
+                .verify_signature(secret, signature, message)
+                .expect("unsupported verification should return false"));
+        }
+    }
 
     #[test]
     fn rsa_oaep_sha256_reports_plaintext_length_overflow() {
