@@ -1574,32 +1574,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         ),
                     })?,
                 };
-                if item.router_data.request.setup_future_usage.is_some()
-                    && item.router_data.request.mandate_id.is_none()
+                let is_initial_decrypted_wallet = item.router_data.request.mandate_id.is_none()
                     && matches!(
                         &rapyd_wallet.details,
                         RapydWalletDetails::GooglePayDecrypted(_)
                             | RapydWalletDetails::ApplePayDecrypted(_)
-                    )
+                    );
+                if is_initial_decrypted_wallet
+                    && item.router_data.request.setup_future_usage.is_some()
+                    && item.router_data.request.off_session == Some(true)
                 {
-                    if item.router_data.request.off_session == Some(true) {
-                        return Err(IntegrationError::NotSupported {
-                            message: "Off-session initial decrypted wallet save".to_owned(),
-                            connector: "rapyd",
-                            context: utils::integration_ctx(
-                                "An initial decrypted wallet save requires the customer to be present",
-                                "Use a customer-present initial save or RepeatPayment for an existing saved payment method.",
-                            ),
-                        }
-                        .into());
+                    return Err(IntegrationError::NotSupported {
+                        message: "Off-session initial decrypted wallet save".to_owned(),
+                        connector: "rapyd",
+                        context: utils::integration_ctx(
+                            "An initial decrypted wallet save requires the customer to be present",
+                            "Use a customer-present initial save or RepeatPayment for an existing saved payment method.",
+                        ),
                     }
-                    if item
-                        .router_data
-                        .request
-                        .is_customer_initiated_mandate_payment()
-                    {
-                        initiation_type = Some(RapydInitiationType::CustomerPresent);
-                    }
+                    .into());
+                }
+                if item
+                    .router_data
+                    .request
+                    .is_customer_initiated_mandate_payment()
+                    && is_initial_decrypted_wallet
+                {
+                    initiation_type = Some(RapydInitiationType::CustomerPresent);
                 }
                 // Wallet saved-token recurring payments require the
                 // recurring purpose marker in `payment_method.fields` on the
