@@ -346,21 +346,7 @@ fn format_token_expiry(
     month: &Secret<String>,
     year: &Secret<String>,
 ) -> Result<Secret<String>, Report<IntegrationError>> {
-    let year = year.peek();
-    let year = match year.len() {
-        2 => year.as_str(),
-        4 => year.get(2..).ok_or(IntegrationError::InvalidDataFormat {
-            field_name: "card_exp_year",
-            context: Default::default(),
-        })?,
-        _ => {
-            return Err(IntegrationError::InvalidDataFormat {
-                field_name: "card_exp_year",
-                context: Default::default(),
-            }
-            .into())
-        }
-    };
+    let year = utils::get_expiry_year_2_digit(year.peek(), "card_exp_year")?;
     Ok(Secret::new(format!("{:0>2}{year}", month.peek())))
 }
 
