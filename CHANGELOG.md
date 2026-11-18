@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.18.1
+
+### Features
+
+- **framework:** Add typed sender_details for AFT in checkout and worldpayXML ([#2590](https://github.com/juspay/connector-service/pull/2590)) ([`b211435`](https://github.com/juspay/connector-service/commit/b21143579f18d282856c486d7dd72ec83b3b79c0))
+
+### Bug Fixes
+
+- **connector:** [ClearSale] add Superposition environment routing and lenient metadata decoding ([#2760](https://github.com/juspay/connector-service/pull/2760)) ([`74286d7`](https://github.com/juspay/connector-service/commit/74286d720e1d99ceb5959ad7b05a397d3a1513ed))
+
+**Full Changelog:** [`2026.11.18.0...2026.11.18.1`](https://github.com/juspay/connector-service/compare/2026.11.18.0...2026.11.18.1)
+
+- - -
+
 ## 2026.11.18.0
 
 ### Features
