@@ -710,7 +710,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Fiuu<T>
+    interfaces::webhooks::IncomingWebhook for Fiuu<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -1013,6 +1013,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let error_code = webhook_payment.error_code.clone();
         let error_message = webhook_payment.error_desc.clone();
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
@@ -1043,7 +1045,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             })
                         })
                 }),
-            amount_captured: None,
+            captured_money: None,
             error_reason: error_message,
             network_txn_id: None,
             payment_method_update: None,

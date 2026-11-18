@@ -1014,6 +1014,25 @@ pub enum WalletData {
 }
 
 impl WalletData {
+    /// Reports authentication evidence present in supported decrypted wallet payloads.
+    /// Connectors decide whether that evidence permits skipping additional authentication.
+    pub fn is_authenticated(&self) -> bool {
+        match self {
+            Self::GooglePay(data) => {
+                matches!(&data.tokenization_data, GpayTokenizationData::Decrypted(token) if token.cryptogram.as_ref().is_some_and(|value| !value.peek().is_empty()))
+                    && data
+                        .info
+                        .assurance_details
+                        .as_ref()
+                        .is_some_and(|details| details.card_holder_authenticated)
+            }
+            Self::ApplePay(data) => {
+                matches!(&data.payment_data, ApplePayPaymentData::Decrypted(token) if !token.payment_data.online_payment_cryptogram.peek().is_empty())
+            }
+            _ => false,
+        }
+    }
+
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
             Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),
@@ -2182,8 +2201,10 @@ pub struct BankAccount {
     pub account_id: Secret<String>,
     pub bank_type: Option<common_enums::BankType>,
     pub bank_holder_type: Option<common_enums::BankHolderType>,
-    pub balance: Option<common_utils::types::Money>,
-    pub available_balance: Option<common_utils::types::Money>,
+    #[serde(rename = "balance")]
+    pub balance_money: Option<common_utils::types::Money>,
+    #[serde(rename = "available_balance")]
+    pub available_balance_money: Option<common_utils::types::Money>,
     pub account_details: Option<BankAccountRoutingDetails>,
     pub bank_name: Option<String>,
 }
@@ -2203,8 +2224,9 @@ pub struct WalletItem {
     pub product_id: String,
     /// Current status of this wallet item
     pub status: common_enums::WalletItemStatus,
+    #[serde(rename = "available_balance")]
     /// Available balance for this item (if applicable)
-    pub available_balance: Option<common_utils::types::Money>,
+    pub available_balance_money: Option<common_utils::types::Money>,
     /// Expiry date of this item (ISO 8601 format)
     pub expiry_date: Option<String>,
 }

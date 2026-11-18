@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -164,6 +165,7 @@ fn create_payment_authorize_request(
             line3: None,
             city: Some("Test City".to_string().into()),
             state: Some("NY".to_string().into()),
+            state_code_iso: None,
             zip_code: Some("10001".to_string().into()),
             country_alpha2_code: Some(i32::from(CountryAlpha2::My)),
             phone_number: None,
@@ -175,6 +177,7 @@ fn create_payment_authorize_request(
 
     // Set up browser information
     let browser_info = BrowserInformation {
+        challenge_window_size: None,
         color_depth: None,
         java_enabled: Some(false),
         screen_height: Some(1080),
@@ -237,6 +240,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
 // Helper function to create a payment capture request
 fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        domain_data: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),

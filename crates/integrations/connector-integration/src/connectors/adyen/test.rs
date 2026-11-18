@@ -8,7 +8,7 @@ mod tests {
     pub mod authorize {
         use std::{borrow::Cow, marker::PhantomData, str::FromStr};
 
-        use common_utils::{pii::Email, request::RequestContent, types::MinorUnit};
+        use common_utils::{pii::Email, request::RequestContent};
         use domain_types::{
             connector_flow::Authorize,
             connector_types::{
@@ -17,7 +17,8 @@ mod tests {
             payment_method_data::{DefaultPCIHolder, PaymentMethodData, RawCardNumber},
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, Connectors},
+            types::{AuthorizationRequest, ConnectorParams, Connectors},
+            utils::ForeignTryFrom,
         };
         use hyperswitch_masking::Secret;
         use interfaces::{
@@ -26,6 +27,30 @@ mod tests {
         use serde_json::json;
 
         use crate::{connectors::Adyen, types::ConnectorData};
+
+        fn authorization_data() -> PaymentsAuthorizeData<DefaultPCIHolder> {
+            PaymentsAuthorizeData::foreign_try_from((
+                AuthorizationRequest::from(
+                    grpc_api_types::payments::PaymentServiceAuthorizeRequest {
+                        amount: Some(grpc_api_types::payments::Money {
+                            minor_amount: 1000,
+                            currency: grpc_api_types::payments::Currency::Usd.into(),
+                        }),
+                        payment_method: Some(grpc_api_types::payments::PaymentMethod {
+                            payment_method: Some(
+                                grpc_api_types::payments::payment_method::PaymentMethod::Card(
+                                    Default::default(),
+                                ),
+                            ),
+                        }),
+                        ..Default::default()
+                    },
+                ),
+                PaymentMethodData::Card(Default::default()),
+            ))
+            .expect("valid authorization fixture")
+        }
+
         #[test]
         fn test_build_request_valid() {
             let api_key = "test_adyen_api_key".to_string(); // Hardcoded dummy value
@@ -37,7 +62,9 @@ mod tests {
                     line1: Some(Secret::new("10".to_string())),
                     line2: Some(Secret::new("Main Street".to_string())),
                     zip: Some(Secret::new("SW1A 1AA".to_string())),
-                    state: Some(Secret::new("A Region With A Long Name".to_string())),
+                    state: Some(domain_types::payment_address::StateDetails::from_name(
+                        Secret::new("A Region With A Long Name".to_string()),
+                    )),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -49,7 +76,9 @@ mod tests {
                     line1: Some(Secret::new("1".to_string())),
                     line2: Some(Secret::new("Main Street".to_string())),
                     zip: Some(Secret::new("8001".to_string())),
-                    state: Some(Secret::new("ZH".to_string())),
+                    state: Some(domain_types::payment_address::StateDetails::from_name(
+                        Secret::new("ZH".to_string()),
+                    )),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -82,8 +111,8 @@ mod tests {
                     ),
                     auth_type: common_enums::AuthenticationType::ThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: None,
@@ -107,8 +136,8 @@ mod tests {
                     vault_headers: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
-                    amount_capturable: None,
-                    amount: None,
+                    capturable_money: None,
+                    money: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     l2_l3_data: None,
@@ -147,9 +176,9 @@ mod tests {
                             ..Default::default()
                         },
                     ),
-                    amount: common_utils::types::Money { amount: MinorUnit::new(1000), currency: common_enums::Currency::USD },
+                    money: authorization_data().money,
                     order_tax_amount: None,
-                    surcharge_amount: None,
+                    surcharge_money: None,
                     email: Some(
                         Email::try_from("test@example.com".to_string())
                             .expect("Failed to parse email"),
@@ -168,6 +197,7 @@ mod tests {
                     is_stored_credential: None,
                     browser_info: Some(
                         domain_types::router_request_types::BrowserInformation {
+                            challenge_window_size: None,
                             color_depth: Some(24),
                             java_enabled: Some(false),
                             screen_height: Some(1080),
@@ -231,6 +261,7 @@ mod tests {
                     recipient_details: None,
                     business_country: None,
                     enable_avs_check: None,
+                    enable_account_name_verification: None,
                     additional_connector_details: None,
                     customer: None,
 },
@@ -314,8 +345,8 @@ mod tests {
                     ),
                     auth_type: common_enums::AuthenticationType::ThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: None,
@@ -339,8 +370,8 @@ mod tests {
                     vault_headers: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
-                    amount_capturable: None,
-                    amount: None,
+                    capturable_money: None,
+                    money: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     l2_l3_data: None,
@@ -368,9 +399,9 @@ mod tests {
                     connector_testing_data: None,
                     currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Default::default()),
-                    amount: common_utils::types::Money { amount: MinorUnit::new(1000), currency: common_enums::Currency::USD },
+                    money: authorization_data().money,
                     order_tax_amount: None,
-                    surcharge_amount: None,
+                    surcharge_money: None,
                     email: None,
                     customer_name: None,
                     currency: common_enums::Currency::USD,
@@ -421,6 +452,7 @@ mod tests {
                     recipient_details: None,
                     business_country: None,
                     enable_avs_check: None,
+                    enable_account_name_verification: None,
                     additional_connector_details: None,
                     customer: None,
 },

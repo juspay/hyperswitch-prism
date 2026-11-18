@@ -154,7 +154,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             "transaction_id",
         )?;
-        let amount = item.router_data.request.amount.amount;
+        let amount = item.router_data.request.money.amount();
 
         // Extract report group from metadata or use default
         let report_group = extract_report_group(&item.router_data.connector_config)
@@ -1940,7 +1940,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id,
-            amount: item.router_data.request.amount_to_capture.amount,
+            amount: item.router_data.request.capture_money.amount(),
             enhanced_data: None,
         };
 
@@ -2072,7 +2072,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Refund, merchant_txn_id),
             customer_id,
             cnp_txn_id,
-            amount: item.router_data.request.refund_amount.amount,
+            amount: item.router_data.request.refund_money.amount(),
         };
 
         let cnp_request = CnpOnlineRequest {
@@ -2125,9 +2125,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let merchant_id = auth.merchant_id_for_currency(
             item.router_data
                 .request
-                .amount
+                .money
                 .as_ref()
-                .map(|amount| amount.currency),
+                .map(|money| money.currency()),
         )?;
 
         let authentication = Authentication {
@@ -2306,7 +2306,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id,
-            amount: item.router_data.request.amount_to_capture.amount,
+            amount: item.router_data.request.capture_money.amount(),
             enhanced_data: None,
         };
 
@@ -2766,7 +2766,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             customer_id: None,
             cnp_txn_id: Some(connector_transaction_id),
             order_id: None,
-            amount: item.router_data.request.amount.amount,
+            amount: item.router_data.request.money.amount(),
             order_source: None,
             bill_to_address: None,
             ship_to_address: None,

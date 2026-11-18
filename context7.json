@@ -29,7 +29,7 @@
     ".skills",
     ".sisyphus",
     "artifacts",
-    "browser-automation-engine",
+    "tests/regression/browser-automation",
     "data",
     "nix",
     "scripts",

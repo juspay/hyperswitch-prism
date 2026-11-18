@@ -10,6 +10,28 @@ export function tenxgraceHome(): string {
   return path.join(os.homedir(), ".tenxgrace");
 }
 
+const SAFE_TASK_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+const isSafeTaskIdentifier = (v: unknown): boolean =>
+  typeof v === "string" && SAFE_TASK_IDENTIFIER.test(v);
+
+/**
+ * Connector and payment-method names end up in git refs and file paths, and
+ * reach us as untyped JSON from the dashboard socket.
+ */
+export function assertSafeTaskIdentifiers(task: {
+  targetConnectors?: unknown;
+  paymentMethod?: unknown;
+}): void {
+  const connectors = task.targetConnectors ?? [];
+  if (!Array.isArray(connectors) || !connectors.every(isSafeTaskIdentifier)) {
+    throw new Error(`Invalid targetConnectors: ${JSON.stringify(connectors)}`);
+  }
+  if (task.paymentMethod && !isSafeTaskIdentifier(task.paymentMethod)) {
+    throw new Error(`Invalid paymentMethod: ${JSON.stringify(task.paymentMethod)}`);
+  }
+}
+
 let cachedWorkspaceRoot: string | null | undefined;
 
 /**

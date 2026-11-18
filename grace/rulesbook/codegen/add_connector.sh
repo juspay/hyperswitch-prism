@@ -32,6 +32,7 @@ readonly TEMPLATE_DIR="$SCRIPT_DIR/template-generation"
 readonly CRATES_TRAITS="$ROOT_DIR/crates/types-traits"
 readonly CRATES_INTEGRATIONS="$ROOT_DIR/crates/integrations"
 readonly CRATES_INTERNAL="$ROOT_DIR/crates/internal"
+readonly TOOLS_DIR="$ROOT_DIR/tools"
 readonly CONFIG_DIR="$ROOT_DIR/config"
 
 # File paths
@@ -47,8 +48,8 @@ readonly CONFIG_FILE="$CONFIG_DIR/development.toml"
 readonly SANDBOX_CONFIG_FILE="$CONFIG_DIR/sandbox.toml"
 readonly PRODUCTION_CONFIG_FILE="$CONFIG_DIR/production.toml"
 readonly SUPERPOSITION_CONFIG_FILE="$CONFIG_DIR/superposition.toml"
-readonly FIELD_PROBE_FILE="$CRATES_INTERNAL/field-probe/src/auth.rs"
-readonly CONNECTOR_SPECS_ROOT="$CRATES_INTERNAL/integration-tests/src/connector_specs"
+readonly FIELD_PROBE_FILE="$TOOLS_DIR/field-probe/src/auth.rs"
+readonly CONNECTOR_SPECS_ROOT="$ROOT_DIR/tests/regression/src/connector_specs"
 
 # payment.proto path relative to the repo root. Used to read the UPSTREAM copy of
 # the file via `git show <ref>:<path>` when allocating proto numbers.
@@ -199,7 +200,7 @@ get_flow_name_for_trait() {
 # FLOW-TO-SUITE MAPPING (connector_specs/<connector>/specs.json)
 # =============================================================================
 # Mirrors `fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]>` in
-# crates/internal/integration-tests/src/bin/check_connector_specs.rs.
+# tests/regression/src/bin/check_connector_specs.rs.
 #
 # CI runs that binary (`cargo run --all-features --bin check_connector_specs`,
 # job "Compilation Check") and it calls std::process::exit(1) when a flow a
@@ -342,7 +343,7 @@ KIND_HAS_CHECKLIST=false        # print a manual-completion checklist at the end
 #     file in it. Creating a specs dir for a payout/surcharge/authenticator
 #     connector therefore BREAKS CI rather than satisfying it.
 #     Verify: grep -n 'let connectors_src' \
-#       crates/internal/integration-tests/src/bin/check_connector_specs.rs
+#       tests/regression/src/bin/check_connector_specs.rs
 #
 #   * superposition.toml - payout and surcharge connectors have no entry.
 #     FRM does not get one by default either: Kount is present because it needs
@@ -1855,7 +1856,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for ${NAME_PASCAL}<T>
+    interfaces::webhooks::IncomingWebhook for ${NAME_PASCAL}<T>
 {
 }
 
@@ -2873,7 +2874,7 @@ update_field_probe() {
     # field-probe's `dummy_auth` matches ConnectorEnum EXHAUSTIVELY (no `_` arm),
     # so it needs an arm for every payment connector and for none of the others -
     # payout/surcharge/authenticator connectors are not in ConnectorEnum at all.
-    #   Verify: grep -n 'fn dummy_auth' crates/internal/field-probe/src/auth.rs
+    #   Verify: grep -n 'fn dummy_auth' tools/field-probe/src/auth.rs
     if [[ "$KIND_NEEDS_FIELD_PROBE" != "true" ]]; then
         log_info "Skipping field-probe auth.rs - --kind $CONNECTOR_KIND is not in ConnectorEnum"
         return 0
@@ -2913,7 +2914,7 @@ PYEOF
 # CERTIFICATION MANIFEST
 # =============================================================================
 
-# Generate crates/internal/integration-tests/src/connector_specs/<name>/specs.json.
+# Generate tests/regression/src/connector_specs/<name>/specs.json.
 #
 # Why this is not optional: CI runs
 #   cargo run --all-features --bin check_connector_specs
@@ -2940,7 +2941,7 @@ generate_connector_specs() {
     # therefore BREAKS CI rather than satisfying it. FRM lives in
     # src/frm_connectors/ now, so only the payment kind gets a manifest.
     #   Verify: grep -n 'let connectors_src' \
-    #     crates/internal/integration-tests/src/bin/check_connector_specs.rs
+    #     tests/regression/src/bin/check_connector_specs.rs
     if [[ "$KIND_NEEDS_SPECS" != "true" ]]; then
         log_info "Skipping connector_specs/ - check_connector_specs only scans src/connectors/,"
         log_info "  and a specs dir with no matching connectors/*.rs file FAILS that check."
@@ -2987,7 +2988,7 @@ generate_connector_specs() {
         log_error "Unrecognised flow(s) in --flows: ${unknown_flows[*]}"
         log_error "  A flow that is in neither flow_to_suites nor OUT_OF_SCOPE_FLOWS fails"
         log_error "  check_connector_specs as \"unknown\". Fix the spelling, or triage the flow"
-        log_error "  in crates/internal/integration-tests/src/bin/check_connector_specs.rs first."
+        log_error "  in tests/regression/src/bin/check_connector_specs.rs first."
         log_error "  --flows takes check_connector_specs flow names (Authorize, PSync, Capture,"
         log_error "  Void, Refund, RSync, SetupMandate, RepeatPayment, ...), NOT the trait names"
         log_error "  '$0 --list-flows' prints - those are a different vocabulary."
@@ -3235,7 +3236,7 @@ show_implementation_plan() {
     echo "   ├── crates/integrations/connector-integration/src/$KIND_DIR/$NAME_SNAKE.rs"
     echo "   ├── crates/integrations/connector-integration/src/$KIND_DIR/$NAME_SNAKE/transformers.rs"
     if [[ "$KIND_NEEDS_SPECS" == "true" ]]; then
-        echo "   └── crates/internal/integration-tests/src/connector_specs/$NAME_SNAKE/specs.json"
+        echo "   └── tests/regression/src/connector_specs/$NAME_SNAKE/specs.json"
     else
         echo "   └── (no connector_specs/ manifest - check_connector_specs only scans src/connectors/)"
     fi
@@ -3248,7 +3249,7 @@ show_implementation_plan() {
     echo "   ├── crates/integrations/connector-integration/src/${KIND_DIR}.rs"
     echo "   ├── crates/integrations/connector-integration/src/types.rs    ($KIND_PROVIDER)"
     [[ "$KIND_NEEDS_DEFAULT_IMPLS" == "true" ]] && echo "   ├── crates/integrations/connector-integration/src/default_implementations.rs"
-    [[ "$KIND_NEEDS_FIELD_PROBE" == "true" ]] && echo "   ├── crates/internal/field-probe/src/auth.rs"
+    [[ "$KIND_NEEDS_FIELD_PROBE" == "true" ]] && echo "   ├── tools/field-probe/src/auth.rs"
     [[ "$KIND_NEEDS_SUPERPOSITION" == "true" ]] && echo "   ├── config/superposition.toml"
     echo "   └── config/development.toml, sandbox.toml, production.toml"
     echo
@@ -3414,7 +3415,7 @@ show_next_steps() {
     echo
     if [[ "$KIND_NEEDS_SPECS" == "true" ]]; then
         echo "3️⃣  Certification Manifest (MERGE-BLOCKING since 2026-08-31, commit 75079740f):"
-        echo "   📁 Edit: crates/internal/integration-tests/src/connector_specs/$NAME_SNAKE/specs.json"
+        echo "   📁 Edit: tests/regression/src/connector_specs/$NAME_SNAKE/specs.json"
         echo "      • Trim supported_suites to what the connector actually implements"
         echo "      • Add an alpha_connectors.json entry with a non-empty \"reason\" by hand"
         echo "        if there are no CI sandbox credentials for this connector"

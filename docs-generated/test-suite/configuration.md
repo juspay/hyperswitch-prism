@@ -3,7 +3,7 @@
 title: Test Configuration
 description: Test data, credentials, and environment setup
 last_updated: 2026-03-12
-generated_from: backend/integration-tests/src/harness/credentials.rs
+generated_from: tests/regression/src/harness/credentials.rs
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12

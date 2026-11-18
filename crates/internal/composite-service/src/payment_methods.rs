@@ -614,12 +614,12 @@ where
         &self,
         request: tonic::Request<CompositePaymentMethodEligibilityRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodEligibilityResponse>, tonic::Status> {
-        crate::utils::composite_grpc_logging_wrapper(
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
             request,
             "CompositePaymentMethodService",
             common_utils::events::FlowName::PaymentMethodEligibility,
-            |request| async move { self.process_eligibility(request).await },
-        )
+            |request| async move { Box::pin(self.process_eligibility(request)).await },
+        ))
         .await
     }
 }

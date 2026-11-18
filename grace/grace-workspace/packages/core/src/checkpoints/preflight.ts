@@ -1,7 +1,8 @@
 import type { Checkpoint } from "../types.js";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { assertSafeTaskIdentifiers } from "../utils.js";
 
 export const preflightCheckpoint: Checkpoint = {
   id: "preflight",
@@ -13,6 +14,14 @@ export const preflightCheckpoint: Checkpoint = {
     const task = ctx.artifacts.task;
     if (!task) {
       return { passed: false, errors: ["Missing task artifact"] };
+    }
+
+    // Also checked at session creation, but task:submit and runs persisted
+    // before that check arrive here without passing through it.
+    try {
+      assertSafeTaskIdentifiers(task);
+    } catch (err) {
+      return { passed: false, errors: [err instanceof Error ? err.message : String(err)] };
     }
 
     const connector = task.targetConnectors?.[0] || "unknown";
@@ -60,7 +69,7 @@ export const preflightCheckpoint: Checkpoint = {
         );
       }
       ctx.log(`[preflight] Creating branch ${branchName} from origin/main`, "info");
-      execSync(`git checkout -b ${branchName} origin/main`, {
+      execFileSync("git", ["checkout", "-b", branchName, "origin/main"], {
         cwd: projectRoot,
         stdio: "pipe",
       });

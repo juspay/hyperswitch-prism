@@ -647,7 +647,7 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Novalnet<T>
+    interfaces::webhooks::IncomingWebhook for Novalnet<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -915,11 +915,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(DisputeWebhookDetailsResponse {
             amount: utils::convert_amount_for_webhook(
                 self.amount_converter,
-                &common_utils::types::Money {
-                    amount: amount.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
-                    currency: currency
-                        .ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
-                },
+                &utils::convert_back_amount_to_money_for_webhook(
+                    &common_utils::types::MinorUnitForConnector,
+                    amount.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
+                    currency.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
+                )?,
             )?,
             currency: currency.ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
             stage: common_enums::DisputeStage::Dispute,

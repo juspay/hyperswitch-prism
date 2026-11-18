@@ -11,6 +11,7 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.CustomerClient
 import payments.PaymentMethodAuthenticationClient
 import payments.RefundClient
 import payments.AcceptanceType
@@ -26,7 +27,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.ElavonPgConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_order", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_order", "customer_create", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -245,6 +246,19 @@ fun createOrder(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Order: ${response.connectorOrderId}")
 }
 
+// Flow: CustomerService.Create
+fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = CustomerClient(config)
+    val request = CustomerServiceCreateRequest.newBuilder().apply {
+        merchantCustomerId = "cust_probe_123"  // Identification.
+        customerName = "John Doe"  // Name of the customer.
+        emailBuilder.value = "test@example.com"  // Email address of the customer.
+        phoneNumberBuilder.value = "4155552671"  // Phone number of the customer.
+    }.build()
+    val response = client.customer_create(request)
+    println("Customer: ${response.connectorCustomerId}")
+}
+
 // Flow: PaymentService.Get
 fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -328,6 +342,9 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
             cardNetwork = CardNetwork.VISA
         }
+        customerBuilder.apply {
+            connectorCustomerId = "probe_customer_001"
+        }
         addressBuilder.apply {
             billingAddressBuilder.apply {
             }
@@ -383,6 +400,9 @@ fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
                 cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
             }
         }
+        customerBuilder.apply {
+            connectorCustomerId = "cust_probe_123"
+        }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
             }
@@ -427,6 +447,7 @@ fun main(args: Array<String>) {
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "createOrder" -> createOrder(txnId)
+        "customerCreate" -> customerCreate(txnId)
         "get" -> get(txnId)
         "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
@@ -435,6 +456,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, customerCreate, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, void")
     }
 }

@@ -326,8 +326,7 @@ async fn test_payment_authorization_manual_capture() {
         add_stripe_metadata(&mut capture_grpc_request);
 
         // Send the capture request
-        let capture_response = client
-            .capture(capture_grpc_request)
+        let capture_response = Box::pin(client.capture(capture_grpc_request))
             .await
             .expect("gRPC payment_capture call failed")
             .into_inner();

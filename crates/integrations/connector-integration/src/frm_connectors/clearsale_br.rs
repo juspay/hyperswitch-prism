@@ -268,7 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // payload carries no status and no documented signature; the integrator must
 // follow up with `GET /v1/orders/{code}/status`.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for ClearSaleBr<T>
+    interfaces::webhooks::IncomingWebhook for ClearSaleBr<T>
 {
     // No webhook signature is documented by ClearSale (spec §11 open question
     // 2). `verify_webhook_source` therefore keeps the trait default (`Ok(false)`)
@@ -328,6 +328,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("ClearSaleWebhookPayload")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(ResponseId::EncodedData(payload.code.clone())),
             status: common_enums::AttemptStatus::Pending,
             connector_response_reference_id: None,
@@ -339,7 +341,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: String::from_utf8(request.body).ok(),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -563,15 +565,16 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<FrmPaymentOutcome, FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            // Order `code` is the merchant transaction id only — the PSP
-            // connector_transaction_id is not a ClearSale order key.
+            // This is the order code echoed by ClearSale during risk creation.
+            // Neither the Euler attempt ID nor the PSP transaction ID can be
+            // substituted when ClearSale was created with a business order ID.
             let order_code = req
                 .request
-                .merchant_transaction_id
+                .frm_transaction_id
                 .as_deref()
                 .ok_or_else(|| {
                     IntegrationError::MissingRequiredField {
-                        field_name: "merchant_transaction_id",
+                        field_name: "frm_transaction_id",
                         context: IntegrationErrorContext {
                             additional_context: Some(
                                 "ClearSale addresses the status push by the order `code`: \
@@ -579,7 +582,9 @@ macros::macro_connector_implementation!(
                                     .to_owned(),
                             ),
                             suggested_action: Some(
-                                "Send merchant_transaction_id on the FRM notification".to_owned(),
+                                "Retain the ClearSale order code returned by the risk check \
+                                 and send it as frm_transaction_id on the FRM notification"
+                                    .to_owned(),
                             ),
                             doc_url: Some(clearsale::CLEARSALE_DOC_URL.to_owned()),
                         },

@@ -5,9 +5,9 @@
 // Elavon_Pg — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx elavon_pg.ts checkout_autocapture
 
-import { PaymentClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, CustomerClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "customer_create", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -67,6 +67,15 @@ function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
             "minorAmount": 1000,
             "currency": Currency.USD
         }
+    };
+}
+
+function _buildCustomerCreateRequest(): types.ICustomerServiceCreateRequest {
+    return {
+        "merchantCustomerId": "cust_probe_123",  // Identification.
+        "customerName": "John Doe",  // Name of the customer.
+        "email": {"value": "test@example.com"},  // Email address of the customer.
+        "phoneNumber": {"value": "4155552671"}  // Phone number of the customer.
     };
 }
 
@@ -146,6 +155,9 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
             "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
             "cardNetwork": CardNetwork.VISA
         },
+        "customer": {
+            "connectorCustomerId": "probe_customer_001"
+        },
         "address": {
             "billingAddress": {
             }
@@ -195,6 +207,9 @@ function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringReque
                 "cardCvc": {"value": "737"},
                 "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
             }
+        },
+        "customer": {
+            "connectorCustomerId": "cust_probe_123"
         },
         "address": {  // Address Information.
             "billingAddress": {
@@ -363,6 +378,15 @@ async function createOrder(merchantTransactionId: string, config: types.IConnect
     return createResponse;
 }
 
+// Flow: CustomerService.Create
+async function customerCreate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const customerClient = new CustomerClient(config);
+
+    const customerResponse = await customerClient.customerCreate(_buildCustomerCreateRequest());
+
+    return customerResponse;
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -438,7 +462,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, customerCreate, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

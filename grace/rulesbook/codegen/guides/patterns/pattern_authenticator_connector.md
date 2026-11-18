@@ -237,7 +237,7 @@ No stub implementations of the three required markers exist in this category.
 **Not required:**
 
 - **`ConnectorEnum`** (the payment enum). `plaid` is **not** in it (`grep -n "pub enum ConnectorEnum" -A 200 crates/types-traits/domain_types/src/connector_types.rs | grep -i plaid` → the only hit is inside `AuthenticatorConnectorEnum`). It **is** in the proto `enum Connector` as `PLAID = 87;`, but that entry is not what routes authenticator flows.
-- **`connector_specs/<name>/specs.json`** — `check_connector_specs.rs` scans only `crates/integrations/connector-integration/src/connectors`, so nothing under `authenticator_connectors/` is seen. `ls crates/internal/integration-tests/src/connector_specs/ | grep plaid` → empty. No certification gate.
+- **`connector_specs/<name>/specs.json`** — `check_connector_specs.rs` scans only `crates/integrations/connector-integration/src/connectors`, so nothing under `authenticator_connectors/` is seen. `ls tests/regression/src/connector_specs/ | grep plaid` → empty. No certification gate.
 - **FFI registration** — `crates/ffi/ffi/src/macros.rs` has no `AuthenticatorConnectorData` dispatch at all.
 - **`ServerAuthentication` / `IncomingWebhook` / `VerifyRedirectResponse` / `SourceVerification` / `BodyDecoding`** — not supertraits of `AuthenticatorServiceTrait`.
 

@@ -237,6 +237,8 @@ impl GlomopayWebhookPayload {
             _ => (None, None),
         };
         WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(self.data.id.clone())),
             status,
@@ -249,7 +251,7 @@ impl GlomopayWebhookPayload {
             raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
             status_code: http_code,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -335,6 +337,7 @@ impl GlomopayRefundWebhookPayload {
             _ => (None, None),
         };
         RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(self.data.id.clone()),
             merchant_transaction_id: None,
             status: self.get_refund_status(),
@@ -592,7 +595,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = GlomopayAmountConvertor::convert(&router_data.request.amount)?;
+        let amount = GlomopayAmountConvertor::convert(&router_data.request.money)?;
 
         let customer_id = router_data
             .resource_common_data
@@ -996,7 +999,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     (
                         Some(amount.clone()),
                         Some(PaymentSynIntegrityObject {
-                            amount: amount.amount,
+                            amount: amount.amount(),
                             currency,
                         }),
                     )
@@ -1053,7 +1056,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount: response_amount,
+                money: response_amount,
                 ..item.router_data.resource_common_data
             },
             request: PaymentsSyncData {
@@ -1102,7 +1105,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = GlomopayAmountConvertor::convert(&router_data.request.refund_amount)?;
+        let amount = GlomopayAmountConvertor::convert(&router_data.request.refund_money)?;
 
         let reason = router_data
             .request
