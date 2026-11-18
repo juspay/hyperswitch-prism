@@ -23,7 +23,7 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, SetupMandateRequestData, WebhookResourceReference,
+        RequestDetails, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -51,6 +51,9 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::braintree::{
+    transformers as webhook_transformers, Braintree as BraintreeWebhook,
+};
 use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -265,7 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
         })?;
 
-        let notif = braintree::get_webhook_object_from_body(&request.body)
+        let notif = webhook_transformers::get_webhook_object_from_body(&request.body)
             .inspect_err(|error| {
                 tracing::warn!(
                     target: "braintree_webhook",
@@ -294,15 +297,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
             })?;
 
-        let extracted_signature =
-            braintree::get_matching_webhook_signature(&signature_pairs, public_key.peek())
-                .ok_or_else(|| {
-                    tracing::warn!(
-                        target: "braintree_webhook",
-                        "no bt_signature entry matched the merchant Braintree public key"
-                    );
-                    error_stack::report!(WebhookError::WebhookSignatureNotFound)
-                })?;
+        let extracted_signature = webhook_transformers::get_matching_webhook_signature(
+            &signature_pairs,
+            public_key.peek(),
+        )
+        .ok_or_else(|| {
+            tracing::warn!(
+                target: "braintree_webhook",
+                "no bt_signature entry matched the merchant Braintree public key"
+            );
+            error_stack::report!(WebhookError::WebhookSignatureNotFound)
+        })?;
 
         let message = notif.bt_payload.as_bytes();
 
@@ -329,16 +334,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        let notif = braintree::decode_from_request(&request)?;
-        Ok(braintree::get_status(notif.kind.as_str()))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        let notif = braintree::decode_from_request(&request)?;
-        braintree::get_webhook_reference(&notif)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            BraintreeWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_dispute_webhook(
@@ -347,15 +347,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
-        let notif = braintree::decode_from_request(&request)?;
-        braintree::build_webhook_dispute_response(&notif, &request.body)
+        let notif = webhook_transformers::decode_from_request(&request)?;
+        webhook_transformers::build_webhook_dispute_response(&notif, &request.body)
     }
 
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
-        let notif = braintree::decode_from_request(&request)?;
+        let notif = webhook_transformers::decode_from_request(&request)?;
         Ok(Box::new(notif))
     }
 
