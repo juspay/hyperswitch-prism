@@ -42,6 +42,25 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
       asynchronousCapture,
     "payments/create-confirm/card/one-time/no3ds/guest-manual-capture-create-confirm":
       asynchronousCapture,
+    "payments/retrieve/force-sync-processing-payment": {
+      expectations: {
+        ...asynchronousCapture.expectations,
+        "payment-sync-fields": {
+          reason:
+            "Adyen PSync reports processing while the asynchronous capture is still pending",
+          patch: {
+            status: "processing",
+            amount_capturable: 6000,
+            amount_received: null,
+          },
+        },
+        "payment-sync-recorded-outcome": {
+          reason:
+            "Adyen PSync preserves the pending attempt until asynchronous capture completion",
+          patch: { attemptStatus: "pending" },
+        },
+      },
+    },
     "refunds/create/full-refund-captured-payment": {
       expectations: {
         "refund-submission-fields": {

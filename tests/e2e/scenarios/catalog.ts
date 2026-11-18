@@ -9,7 +9,7 @@ export const scenarioIds = [
   "payments/create-confirm/card/one-time/no3ds/manual-capture-create-then-confirm",
   "payments/create-confirm/card/one-time/no3ds/guest-automatic-capture-create-confirm",
   "payments/create-confirm/card/one-time/no3ds/guest-manual-capture-create-confirm",
-  "payments/retrieve/force-sync-payment",
+  "payments/retrieve/force-sync-processing-payment",
   "refunds/create/full-refund-captured-payment",
 ] as const;
 

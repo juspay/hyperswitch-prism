@@ -7,7 +7,7 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
       reason:
         "Sandbox certification for this connector is deferred to its follow-up coverage change.",
     },
-    "payments/retrieve/force-sync-payment": {
+    "payments/retrieve/force-sync-processing-payment": {
       reason:
         "Sandbox certification for this connector is deferred to its follow-up coverage change.",
     },

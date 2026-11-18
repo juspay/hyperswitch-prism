@@ -156,7 +156,7 @@ scenarios/
 │   ├── incremental-authorization/
 │   │   └── increase-authorized-amount.planned.ts
 │   └── retrieve/
-│       └── force-sync-payment.spec.ts
+│       └── force-sync-processing-payment.spec.ts
 └── refunds/
     ├── create/
     │   ├── full-refund-captured-payment.spec.ts

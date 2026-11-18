@@ -12,11 +12,11 @@ import {
 } from "../../../test-data.js";
 
 const scenario = scenarioFromFile(import.meta.url, {
-  title: "Force-sync a successful No3DS card payment",
+  title: "Force-sync an in-progress No3DS card payment",
   description:
-    "Create an automatically captured payment, then retrieve it with force_sync=true so HS performs payment sync through UCS.",
+    "Authorize a manual-capture payment, submit an asynchronous capture so the payment is processing, then retrieve it with force_sync=true so HS performs PSync through UCS.",
   verifies:
-    "Verify the synchronized response keeps the exact payment identity, ownership, successful amount state and charged UCS attempt.",
+    "Verify the capture creates an eligible in-progress state before force sync, then check the exact synchronized payment identity, ownership, amount state and recorded UCS outcome.",
   requirements: {
     connectorAccount: {
       paymentMethodsEnabled: [
@@ -47,7 +47,7 @@ test(
     const browserInfo = createBrowserInfo();
 
     const payment = await report.step(
-      "Create an automatically captured payment",
+      "Authorize payment for asynchronous capture",
       async () => {
         const response = await payments.createPayment("initial-payment", {
           profile_id: merchant.profileId,
@@ -55,7 +55,7 @@ test(
           currency: "USD",
           confirm: true,
           authentication_type: "no_three_ds",
-          capture_method: "automatic",
+          capture_method: "manual",
           payment_method: "card",
           payment_method_type: "credit",
           payment_method_data: { card: createCard(connector.card) },
@@ -69,13 +69,13 @@ test(
           order_details: orderDetails,
           return_url: testReturnUrl,
         });
-        const expectedPayment = expected("payment-fields", {
-          status: "succeeded",
+        const expectedPayment = expected("authorization-fields", {
+          status: "requires_capture",
           amount: 6000,
           currency: "USD",
-          amount_capturable: 0,
-          amount_received: 6000,
-          capture_method: "automatic",
+          amount_capturable: 6000,
+          amount_received: null,
+          capture_method: "manual",
           connector: connector.id,
           merchant_id: merchant.merchantId,
           profile_id: merchant.profileId,
@@ -84,7 +84,7 @@ test(
           error_message: null,
         });
         await report.check(
-          "Payment response",
+          "Authorization response",
           {
             actual: Object.fromEntries(
               Object.keys(expectedPayment).map((field) => [
@@ -100,6 +100,58 @@ test(
       },
     );
 
+    await report.step("Submit full capture", async () => {
+      const response = await payments.capturePayment(
+        "full-capture",
+        payment.payment_id,
+        { amount_to_capture: 6000 },
+      );
+      const expectedCapture = expected("capture-fields", {
+        status: "succeeded",
+        amount: 6000,
+        currency: "USD",
+        amount_capturable: 0,
+        amount_received: 6000,
+        capture_method: "manual",
+        connector: connector.id,
+        merchant_id: merchant.merchantId,
+        profile_id: merchant.profileId,
+        merchant_connector_id: merchant.merchantConnectorId,
+        error_code: null,
+        error_message: null,
+      });
+      await report.check(
+        "Capture response",
+        {
+          actual: Object.fromEntries(
+            Object.keys(expectedCapture).map((field) => [
+              field,
+              response[field],
+            ]),
+          ),
+          expected: expectedCapture,
+        },
+        ({ actual, expected }) => expect(actual).toMatchObject(expected),
+      );
+    });
+
+    await report.step("Verify capture is eligible for PSync", async () => {
+      const recorded = await payments.readRecordedPayment(payment.payment_id);
+      await report.check(
+        "In-progress capture outcome",
+        {
+          actual: recorded,
+          expected: expected("capture-recorded-outcome", {
+            gateway: "unified_connector_service",
+            attemptStatus: "charged",
+            connectorTransactionIdPresent: true,
+            customerRecordExists: true,
+          }),
+        },
+        ({ actual, expected }) => expect(actual).toEqual(expected),
+      );
+    });
+
     await report.step("Force-sync the payment", async () => {
       const response = await payments.retrievePayment(payment.payment_id, {
         force_sync: true,
@@ -110,7 +162,7 @@ test(
         currency: "USD",
         amount_capturable: 0,
         amount_received: 6000,
-        capture_method: "automatic",
+        capture_method: "manual",
         payment_method: "card",
         payment_method_type: "credit",
         authentication_type: "no_three_ds",
@@ -151,12 +203,12 @@ test(
         "Recorded synchronized outcome",
         {
           actual: recorded,
-          expected: {
+          expected: expected("payment-sync-recorded-outcome", {
             gateway: "unified_connector_service",
             attemptStatus: "charged",
             connectorTransactionIdPresent: true,
             customerRecordExists: true,
-          },
+          }),
         },
         ({ actual, expected }) => expect(actual).toEqual(expected),
       );
