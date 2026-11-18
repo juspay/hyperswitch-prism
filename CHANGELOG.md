@@ -19,6 +19,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.18.1
+
+### Features
+
+- **framework:** Add typed sender_details for AFT in checkout and worldpayXML ([#2590](https://github.com/juspay/connector-service/pull/2590)) ([`b211435`](https://github.com/juspay/connector-service/commit/b21143579f18d282856c486d7dd72ec83b3b79c0))
+
+### Bug Fixes
+
+- **connector:** [ClearSale] add Superposition environment routing and lenient metadata decoding ([#2760](https://github.com/juspay/connector-service/pull/2760)) ([`74286d7`](https://github.com/juspay/connector-service/commit/74286d720e1d99ceb5959ad7b05a397d3a1513ed))
+
+**Full Changelog:** [`2026.11.18.0...2026.11.18.1`](https://github.com/juspay/connector-service/compare/2026.11.18.0...2026.11.18.1)
+
+- - -
+
+## 2026.11.18.0
+
+### Features
+
+- **nuvei:** Map airline journeys and format travel dates ([#2699](https://github.com/juspay/connector-service/pull/2699)) ([`5cea535`](https://github.com/juspay/connector-service/commit/5cea5359df1f8486bf6292eb7d6aaf108a5ba16d))
+
+### Bug Fixes
+
+- **vault:** [Proxy] xml vault proxy version bump changes ([#2751](https://github.com/juspay/connector-service/pull/2751)) ([`8d8309c`](https://github.com/juspay/connector-service/commit/8d8309cea3f6bb2a60924b00d0eb2fb37e7fac03))
+
+**Full Changelog:** [`2026.11.17.1...2026.11.18.0`](https://github.com/juspay/connector-service/compare/2026.11.17.1...2026.11.18.0)
+
+- - -
+
 ## 2026.11.17.1
 
 ### Features

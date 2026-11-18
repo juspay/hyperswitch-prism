@@ -1647,6 +1647,7 @@ mod satispay_request_tests {
                 currency_conversion_data: None,
                 is_account_funding_transaction: None,
                 recipient_details: None,
+                sender_details: None,
                 additional_connector_details: None,
                 customer: None,
                 business_country: None,
