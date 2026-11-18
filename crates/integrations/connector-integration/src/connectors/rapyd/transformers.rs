@@ -1593,7 +1593,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }
                         .into());
                     }
-                    initiation_type = Some(RapydInitiationType::CustomerPresent);
+                    if item
+                        .router_data
+                        .request
+                        .is_customer_initiated_mandate_payment()
+                    {
+                        initiation_type = Some(RapydInitiationType::CustomerPresent);
+                    }
                 }
                 // Wallet saved-token recurring payments require the
                 // recurring purpose marker in `payment_method.fields` on the
