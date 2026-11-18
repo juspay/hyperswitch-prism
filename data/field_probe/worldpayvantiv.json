@@ -124,9 +124,10 @@
           "url": "https://transact.vantivprelive.com/vap/communicator/online",
           "method": "Post",
           "headers": {
+            "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": ""
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><cnpOnlineRequest version=\"12.30\" xmlns=\"http://www.vantivcnp.com/schema\" merchantId=\"probe_merchant\"><authentication><user>probe_user</user><password>probe_pass</password></authentication><sale id=\"sale_probe_txn_001\" reportGroup=\"rtpGrp\"><orderId>probe_txn_001</orderId><amount>1000</amount><orderSource>ecommerce</orderSource><billToAddress><name/><companyName/><addressLine1/><addressLine2/><city/><state/><zip/><country/></billToAddress><card><type>VI</type><number>4111111111111111</number><expDate>0330</expDate><cardValidationNum>737</cardValidationNum></card></sale></cnpOnlineRequest>"
         }
       },
       "CashappQr": {
@@ -667,9 +668,10 @@
           "url": "https://transact.vantivprelive.com/vap/communicator/online",
           "method": "Post",
           "headers": {
+            "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": ""
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><cnpOnlineRequest version=\"12.30\" xmlns=\"http://www.vantivcnp.com/schema\" merchantId=\"probe_merchant\"><authentication><user>probe_user</user><password>probe_pass</password></authentication><sale id=\"sale_probe_proxy_txn_001\" reportGroup=\"rtpGrp\"><orderId>probe_proxy_txn_001</orderId><amount>1000</amount><orderSource>ecommerce</orderSource><billToAddress><name/><companyName/><addressLine1/><addressLine2/><city/><state/><zip/><country/></billToAddress><card><type>VI</type><number>{{$card_number}}</number><expDate>0330</expDate><cardValidationNum>{{$card_cvc}}</cardValidationNum></card></sale></cnpOnlineRequest>"
         }
       }
     },
