@@ -138,7 +138,6 @@ fn test_handle_event(client: &ConnectorClient) -> bool {
         event_context: Some(EventContext {
             event_context: Some(EventContextVariant::Payment(PaymentEventContext {
                 capture_method: Some(CAPTURE_METHOD_MANUAL),
-                previous_status: None,
             })),
         }),
         ..Default::default()
