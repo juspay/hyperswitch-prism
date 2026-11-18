@@ -73,6 +73,8 @@ pub const X_PAYOUT_CONNECTOR_NAME: &str = "x-payout-connector";
 pub const X_FRM_CONNECTOR_NAME: &str = "x-frm-connector";
 /// Header key for authenticator connector identification
 pub const X_AUTHENTICATOR_CONNECTOR_NAME: &str = "x-auth-connector";
+/// Header key for webhook connector identification
+pub const X_WEBHOOK_CONNECTOR_NAME: &str = "x-webhook-connector";
 /// Header key for merchant identification
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
 /// Header key for organization identification

@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L178) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L116) · [Rust](../../examples/tsys/tsys.rs#L229)
+**Examples:** [Python](../../examples/tsys/tsys.py#L189) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L118) · [Rust](../../examples/tsys/tsys.rs#L241)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L197) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L132) · [Rust](../../examples/tsys/tsys.rs#L245)
+**Examples:** [Python](../../examples/tsys/tsys.py#L208) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L134) · [Rust](../../examples/tsys/tsys.rs#L257)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L222) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L154) · [Rust](../../examples/tsys/tsys.rs#L268)
+**Examples:** [Python](../../examples/tsys/tsys.py#L233) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L156) · [Rust](../../examples/tsys/tsys.rs#L280)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L247) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L176) · [Rust](../../examples/tsys/tsys.rs#L291)
+**Examples:** [Python](../../examples/tsys/tsys.py#L258) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L178) · [Rust](../../examples/tsys/tsys.rs#L303)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/tsys/tsys.py#L269) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L195) · [Rust](../../examples/tsys/tsys.rs#L310)
+**Examples:** [Python](../../examples/tsys/tsys.py#L280) · [JavaScript](../../examples/tsys/tsys.js) · [Kotlin](../../examples/tsys/tsys.kt#L197) · [Rust](../../examples/tsys/tsys.rs#L322)
 
 ## API Reference
 
@@ -172,6 +172,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
@@ -312,7 +313,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L306) · [Kotlin](../../examples/tsys/tsys.kt#L213) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L318) · [Kotlin](../../examples/tsys/tsys.kt#L215) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.Capture
 
@@ -323,7 +324,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L315) · [Kotlin](../../examples/tsys/tsys.kt#L225) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L327) · [Kotlin](../../examples/tsys/tsys.kt#L227) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.Get
 
@@ -334,7 +335,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L324) · [Kotlin](../../examples/tsys/tsys.kt#L235) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L336) · [Kotlin](../../examples/tsys/tsys.kt#L237) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -345,7 +346,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L333) · [Kotlin](../../examples/tsys/tsys.kt#L243) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L354) · [Kotlin](../../examples/tsys/tsys.kt#L260) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -356,7 +357,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L342) · [Kotlin](../../examples/tsys/tsys.kt#L272) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L363) · [Kotlin](../../examples/tsys/tsys.kt#L289) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.Refund
 
@@ -367,7 +368,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L351) · [Kotlin](../../examples/tsys/tsys.kt#L304) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L372) · [Kotlin](../../examples/tsys/tsys.kt#L321) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -378,7 +379,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L369) · [Kotlin](../../examples/tsys/tsys.kt#L326) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L390) · [Kotlin](../../examples/tsys/tsys.kt#L343) · [Rust](../../examples/tsys/tsys.rs)
 
 #### PaymentService.Void
 
@@ -389,7 +390,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts) · [Kotlin](../../examples/tsys/tsys.kt#L365) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts) · [Kotlin](../../examples/tsys/tsys.kt#L382) · [Rust](../../examples/tsys/tsys.rs)
 
 ### Refunds
 
@@ -402,4 +403,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L360) · [Kotlin](../../examples/tsys/tsys.kt#L314) · [Rust](../../examples/tsys/tsys.rs)
+**Examples:** [Python](../../examples/tsys/tsys.py) · [TypeScript](../../examples/tsys/tsys.ts#L381) · [Kotlin](../../examples/tsys/tsys.kt#L331) · [Rust](../../examples/tsys/tsys.rs)

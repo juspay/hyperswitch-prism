@@ -132,13 +132,13 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py#L89) · [JavaScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.js) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L85) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs#L107)
+**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py#L100) · [JavaScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.js) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L87) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs#L119)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py#L108) · [JavaScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.js) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L101) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs#L123)
+**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py#L119) · [JavaScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.js) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L103) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs#L135)
 
 ## API Reference
 
@@ -146,6 +146,7 @@ Retrieve current payment status from the connector.
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 
 ### Payments
@@ -281,7 +282,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L136) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L119) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)
+**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L148) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L121) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)
 
 #### PaymentService.Get
 
@@ -292,7 +293,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L145) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L131) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)
+**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L157) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L133) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -303,4 +304,4 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L154) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L139) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)
+**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L175) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L156) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)

@@ -128,6 +128,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 
 ### Authentication
 
@@ -140,4 +141,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/itaubank/itaubank.py) · [TypeScript](../../examples/itaubank/itaubank.ts#L37) · [Kotlin](../../examples/itaubank/itaubank.kt#L41) · [Rust](../../examples/itaubank/itaubank.rs)
+**Examples:** [Python](../../examples/itaubank/itaubank.py) · [TypeScript](../../examples/itaubank/itaubank.ts#L49) · [Kotlin](../../examples/itaubank/itaubank.kt#L43) · [Rust](../../examples/itaubank/itaubank.rs)

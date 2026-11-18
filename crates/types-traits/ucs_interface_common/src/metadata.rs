@@ -123,8 +123,32 @@ pub fn extract_lineage_fields_from_metadata(
 pub fn connector_variant_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<connector_types::ConnectorVariant, IntegrationError> {
-    // Priority 1: Check x-connector header first
-    if let Some(value) = metadata.get(consts::X_CONNECTOR_NAME) {
+    // Priority 1: Check x-webhook-connector header first
+    if let Some(value) = metadata.get(consts::X_WEBHOOK_CONNECTOR_NAME) {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-webhook-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid x-webhook-connector header value: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::WebhookConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-webhook-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid webhook connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Webhook(connector))
+    } else if let Some(value) = metadata.get(consts::X_CONNECTOR_NAME) {
+        // Priority 2: Check x-connector header
         let connector_str = value.to_str().map_err(|e| {
             Report::new(IntegrationError::InvalidDataFormat {
                 field_name: "x-connector",
@@ -145,7 +169,7 @@ pub fn connector_variant_from_metadata(
         })?;
         Ok(connector_types::ConnectorVariant::Payment(connector))
     } else if let Some(value) = metadata.get(consts::X_SURCHARGE_CONNECTOR_NAME)
-    // Priority 2: Check x-surcharge-connector header
+    // Priority 3: Check x-surcharge-connector header
     {
         let connector_str = value.to_str().map_err(|e| {
             Report::new(IntegrationError::InvalidDataFormat {
@@ -170,7 +194,7 @@ pub fn connector_variant_from_metadata(
             })?;
         Ok(connector_types::ConnectorVariant::Surcharge(connector))
     } else if let Some(value) = metadata.get(consts::X_PAYOUT_CONNECTOR_NAME)
-    // Priority 3: Check x-payout-connector header
+    // Priority 4: Check x-payout-connector header
     {
         let connector_str = value.to_str().map_err(|e| {
             Report::new(IntegrationError::InvalidDataFormat {
@@ -195,6 +219,7 @@ pub fn connector_variant_from_metadata(
             })?;
         Ok(connector_types::ConnectorVariant::Payout(connector))
     } else if let Some(value) = metadata.get(consts::X_FRM_CONNECTOR_NAME) {
+        // Priority 5: Check x-frm-connector header
         let connector_str = value.to_str().map_err(|e| {
             Report::new(IntegrationError::InvalidDataFormat {
                 field_name: "x-frm-connector",
@@ -216,7 +241,7 @@ pub fn connector_variant_from_metadata(
             })?;
         Ok(connector_types::ConnectorVariant::Frm(connector))
     } else if let Some(value) = metadata.get(consts::X_AUTHENTICATOR_CONNECTOR_NAME) {
-        // Priority 5: Check x-auth-connector header
+        // Priority 6: Check x-auth-connector header
         let connector_str = value.to_str().map_err(|e| {
             Report::new(IntegrationError::InvalidDataFormat {
                 field_name: "x-auth-connector",
@@ -448,5 +473,38 @@ mod tests {
         metadata.insert(consts::X_CONNECTOR_NAME, "stripe".parse().unwrap());
         let connector = connector_from_metadata(&metadata).expect("should resolve");
         assert_eq!(connector, connector_types::ConnectorEnum::Stripe);
+    }
+
+    #[test]
+    fn webhook_connector_resolves_from_metadata() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(consts::X_WEBHOOK_CONNECTOR_NAME, "adyen".parse().unwrap());
+        let variant = connector_variant_from_metadata(&metadata).expect("should resolve");
+        assert_eq!(
+            variant.as_webhook(),
+            Some(connector_types::WebhookConnectorEnum::Adyen)
+        );
+    }
+
+    #[test]
+    fn unknown_webhook_connector_is_rejected() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(
+            consts::X_WEBHOOK_CONNECTOR_NAME,
+            "not_a_connector".parse().unwrap(),
+        );
+        assert!(connector_variant_from_metadata(&metadata).is_err());
+    }
+
+    #[test]
+    fn webhook_connector_takes_priority_over_connector() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(consts::X_CONNECTOR_NAME, "stripe".parse().unwrap());
+        metadata.insert(consts::X_WEBHOOK_CONNECTOR_NAME, "adyen".parse().unwrap());
+        let variant = connector_variant_from_metadata(&metadata).expect("should resolve");
+        assert_eq!(
+            variant.as_webhook(),
+            Some(connector_types::WebhookConnectorEnum::Adyen)
+        );
     }
 }

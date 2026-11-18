@@ -275,6 +275,53 @@ pub enum PayoutConnectorEnum {
     GotymeSanlam,
     Mifinity,
 }
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookConnectorEnum {
+    Adyen,
+    Braintree,
+    Rapyd,
+}
+
+/// Each webhook connector maps to the payment connector of the same name, whose
+/// config (auth, base URLs) it shares.
+impl From<WebhookConnectorEnum> for ConnectorEnum {
+    fn from(connector: WebhookConnectorEnum) -> Self {
+        match connector {
+            WebhookConnectorEnum::Adyen => Self::Adyen,
+            WebhookConnectorEnum::Braintree => Self::Braintree,
+            WebhookConnectorEnum::Rapyd => Self::Rapyd,
+        }
+    }
+}
+
+impl TryFrom<ConnectorEnum> for WebhookConnectorEnum {
+    type Error = IntegrationError;
+
+    fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
+        match value {
+            ConnectorEnum::Adyen => Ok(Self::Adyen),
+            ConnectorEnum::Braintree => Ok(Self::Braintree),
+            ConnectorEnum::Rapyd => Ok(Self::Rapyd),
+            _ => Err(IntegrationError::InvalidDataFormat {
+                field_name: "connector",
+                context: IntegrationErrorContext::default(),
+            }),
+        }
+    }
+}
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
     type Error = IntegrationError;
@@ -409,6 +456,7 @@ pub enum ConnectorVariant {
     Payout(PayoutConnectorEnum),
     Frm(FrmConnectorEnum),
     Authenticator(AuthenticatorConnectorEnum),
+    Webhook(WebhookConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -452,6 +500,13 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the webhook connector if this is an webhook connector variant
+    pub fn as_webhook(&self) -> Option<WebhookConnectorEnum> {
+        match self {
+            ConnectorVariant::Webhook(conn) => Some(*conn),
+            _ => None,
+        }
+    }
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
@@ -459,6 +514,7 @@ impl ConnectorVariant {
             ConnectorVariant::Payout(conn) => conn.to_string(),
             ConnectorVariant::Frm(conn) => conn.to_string(),
             ConnectorVariant::Authenticator(conn) => conn.to_string(),
+            ConnectorVariant::Webhook(conn) => conn.to_string(),
         }
     }
 }
@@ -591,16 +647,16 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
             grpc_api_types::payments::Connector::Payhound => Ok(Self::Payhound),
             grpc_api_types::payments::Connector::Unspecified => {
-                Err(IntegrationError::InvalidDataFormat {
+                Err((IntegrationError::InvalidDataFormat {
                     field_name: "connector",
                     context: IntegrationErrorContext::default(),
-                }
+                })
                 .into())
             }
-            _ => Err(IntegrationError::InvalidDataFormat {
+            _ => Err((IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
-            }
+            })
             .into()),
         }
     }
@@ -975,7 +1031,7 @@ impl PaymentFlowData {
                     Some(format!(
                         "status {:?} is not allowed in flow {}",
                         status,
-                        F::NAME,
+                        F::NAME
                     )),
                 ),
             )
@@ -2560,9 +2616,9 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(IntegrationError::CaptureMethodNotSupported {
+                Err((IntegrationError::CaptureMethodNotSupported {
                     context: Default::default(),
-                }
+                })
                 .into())
             }
         }
@@ -2659,9 +2715,9 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(IntegrationError::CaptureMethodNotSupported {
+                Err((IntegrationError::CaptureMethodNotSupported {
                     context: Default::default(),
-                }
+                })
                 .into())
             }
         }
@@ -2757,9 +2813,9 @@ impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(IntegrationError::CaptureMethodNotSupported {
+                Err((IntegrationError::CaptureMethodNotSupported {
                     context: Default::default(),
-                }
+                })
                 .into())
             }
         }
@@ -2771,10 +2827,10 @@ impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
             .as_ref()
             .and_then(|res| res.payload.to_owned())
             .ok_or(
-                IntegrationError::MissingRequiredField {
+                (IntegrationError::MissingRequiredField {
                     field_name: "request.redirect_response.payload",
                     context: Default::default(),
-                }
+                })
                 .into(),
             )
     }
@@ -5787,10 +5843,10 @@ impl CustomerInfo {
     /// Format a phone number in E.123 international notation (`+<country><number>`).
     /// `None` when the customer has no phone number.
     pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
-        PhoneDetails {
+        (PhoneDetails {
             number: self.customer_phone_number.clone(),
             country_code: self.customer_phone_country_code.clone(),
-        }
+        })
         .get_e123_phone_number()
     }
 }

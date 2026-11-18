@@ -117,7 +117,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L120) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L112) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L150)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L131) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L114) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L162)
 
 ### Card Payment (Authorize + Capture)
 
@@ -131,25 +131,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L139) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L128) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L166)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L150) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L130) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L178)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L164) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L150) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L189)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L175) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L152) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L201)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L189) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L172) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L212)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L200) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L174) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L224)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L211) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L191) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L231)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py#L222) · [JavaScript](../../examples/globalpayments_heartland/globalpayments_heartland.js) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L193) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs#L243)
 
 ## API Reference
 
@@ -158,6 +158,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -296,7 +297,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L244) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L209) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L256) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L211) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
 
 #### PaymentService.Capture
 
@@ -307,7 +308,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L253) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L221) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L265) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L223) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
 
 #### PaymentService.Get
 
@@ -318,7 +319,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L262) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L231) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L274) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L233) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -329,7 +330,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L271) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L239) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L292) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L256) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
 
 #### PaymentService.Refund
 
@@ -340,7 +341,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L280) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L268) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L301) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L285) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
 
 #### PaymentService.Void
 
@@ -351,7 +352,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L290) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L307) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
 
 ### Refunds
 
@@ -364,4 +365,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L289) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L278) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)
+**Examples:** [Python](../../examples/globalpayments_heartland/globalpayments_heartland.py) · [TypeScript](../../examples/globalpayments_heartland/globalpayments_heartland.ts#L310) · [Kotlin](../../examples/globalpayments_heartland/globalpayments_heartland.kt#L295) · [Rust](../../examples/globalpayments_heartland/globalpayments_heartland.rs)

@@ -17,6 +17,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "create_server_authentication_token",
     "get",
     "incremental_authorization",
+    "parse_event",
     "recurring_charge",
     "refund",
     "refund_get",
@@ -136,6 +137,18 @@ pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAut
             currency: Currency::Usd.into(),
         }),
         ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
     }
 }
 
@@ -320,6 +333,16 @@ pub async fn process_incremental_authorization(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: RecurringPaymentService.Charge
 #[allow(dead_code)]
 pub async fn process_recurring_charge(
@@ -408,13 +431,14 @@ async fn main() {
         "process_incremental_authorization" => {
             process_incremental_authorization(&client, "txn_001").await
         }
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_reverse" => process_reverse(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_create_server_authentication_token, process_get, process_incremental_authorization, process_recurring_charge, process_refund, process_refund_get, process_reverse, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_create_server_authentication_token, process_get, process_incremental_authorization, process_parse_event, process_recurring_charge, process_refund, process_refund_get, process_reverse, process_void", flow);
             return;
         }
     };

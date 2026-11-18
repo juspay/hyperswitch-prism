@@ -121,6 +121,7 @@ let config = ConnectorConfig {
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 
 ### Payments
 
@@ -250,4 +251,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts#L41) · [Kotlin](../../examples/mifinity/mifinity.kt#L52) · [Rust](../../examples/mifinity/mifinity.rs)
+**Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts#L53) · [Kotlin](../../examples/mifinity/mifinity.kt#L54) · [Rust](../../examples/mifinity/mifinity.rs)

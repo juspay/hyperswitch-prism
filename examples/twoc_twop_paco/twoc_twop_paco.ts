@@ -5,9 +5,9 @@
 // Twoc_Twop_Paco — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx twoc_twop_paco.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
-export const SUPPORTED_FLOWS = [];
+import { EventClient, PaymentClient, types } from 'hyperswitch-prism';
+const { Environment, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["parse_event"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -29,6 +29,18 @@ const _defaultConfig: types.IConnectorConfig = {
 };
 
 
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
 function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectResponseRequest {
     return {
     };
@@ -36,6 +48,15 @@ function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectRespo
 
 
 // ANCHOR: scenario_functions
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentService.VerifyRedirectResponse
 async function verifyRedirect(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -48,7 +69,7 @@ async function verifyRedirect(merchantTransactionId: string, config: types.IConn
 
 // Export all process* functions for the smoke test
 export {
-    verifyRedirect, _buildVerifyRedirectRequest
+    parseEvent, verifyRedirect, _buildParseEventRequest, _buildVerifyRedirectRequest
 };
 
 // CLI runner
