@@ -138,7 +138,7 @@ fn response_code_maps_to_refund_sync_status() {
     );
     assert_eq!(
         RevpayResponseCode::Unknown("30".to_string()).refund_sync_status(),
-        RefundStatus::Failure
+        RefundStatus::Pending
     );
 }
 
@@ -358,9 +358,15 @@ fn authorize_attempt_status_is_decided_by_code_and_redirect_url() {
 #[test]
 fn unionpay_explicit_network_maps_to_cnp_rail() {
     let (payment_id, card_type) =
-        card_payment_details(Some(&CardNetwork::UnionPay), "6250941234567890");
+        card_payment_details(Some(&CardNetwork::UnionPay), "6250941234567890")
+            .expect("UnionPay is supported");
     assert_eq!(payment_id, UNIONPAY_CNP_PAYMENT_ID);
     assert!(matches!(card_type, Some(RevpayCardType::UnionPay)));
+}
+
+#[test]
+fn unsupported_explicit_card_network_is_rejected() {
+    assert!(card_payment_details(Some(&CardNetwork::JCB), "3530111333300000").is_err());
 }
 
 #[test]
@@ -447,7 +453,7 @@ fn webhook_auth() -> RevpayAuthType {
     RevpayAuthType {
         merchant_id: Secret::new("MER00000000001".to_string()),
         merchant_key: Secret::new("1OoL87PmJQ".to_string()),
-        key_index: Secret::new("1".to_string()),
+        key_index: 1,
     }
 }
 
@@ -545,7 +551,7 @@ fn webhook_event_and_status_mapping_follows_response_code() {
     // Terminal failure carries the raw code + description.
     let body = parse("1A");
     assert_eq!(body.event_type(), EventType::PaymentIntentFailure);
-    assert_eq!(body.attempt_status(), AttemptStatus::Failure);
+    assert_eq!(body.attempt_status(), AttemptStatus::AuthorizationFailed);
     assert_eq!(
         body.failure_details(),
         Some(("1A".to_string(), "Declined".to_string()))
@@ -581,7 +587,7 @@ fn response_code_deserializes_known_and_unknown_codes() {
     );
     assert_eq!(
         RevpayResponseCode::Unknown("76".to_string()).psync_status(),
-        AttemptStatus::Failure
+        AttemptStatus::Pending
     );
     assert_eq!(
         serde_json::from_str::<RevpayResponseCode>("\"1A\"").expect("1A parses"),

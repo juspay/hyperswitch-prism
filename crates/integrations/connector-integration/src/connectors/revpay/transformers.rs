@@ -34,7 +34,7 @@ use domain_types::{
     utils::missing_field_err,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 
@@ -52,8 +52,8 @@ pub struct RevpayAuthType {
     pub merchant_id: Secret<String>,
     /// Merchant Key — signature secret only, never transmitted. Config `merchant_key`.
     pub merchant_key: Secret<String>,
-    /// `Key_Index` decimal string, sent in the body. Config `key_index`.
-    pub key_index: Secret<String>,
+    /// `Key_Index`, validated once when connector credentials are loaded.
+    pub key_index: u32,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for RevpayAuthType {
@@ -66,11 +66,28 @@ impl TryFrom<&ConnectorSpecificConfig> for RevpayAuthType {
                 merchant_key,
                 key_index,
                 ..
-            } => Ok(Self {
-                merchant_id: merchant_id.to_owned(),
-                merchant_key: merchant_key.to_owned(),
-                key_index: key_index.to_owned(),
-            }),
+            } => {
+                let key_index = key_index.peek().trim().parse::<u32>().map_err(|_| {
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "connector_config.key_index",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Configure key_index as a decimal integer, for example 1"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "revPAY sends Key_Index as Int(3)".to_string(),
+                            ),
+                        },
+                    })
+                })?;
+                Ok(Self {
+                    merchant_id: merchant_id.to_owned(),
+                    merchant_key: merchant_key.to_owned(),
+                    key_index,
+                })
+            }
             _ => Err(error_stack::report!(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -103,6 +120,36 @@ fn generate_revpay_signature(
     digest.update(merchant_key.as_bytes());
     common_utils::crypto::update_signature(fields, |bytes| digest.update(bytes));
     Secret::new(hex::encode(digest.finalize()))
+}
+
+fn echoed_currency(
+    echoed: Option<&str>,
+    fallback: Currency,
+    http_code: u16,
+) -> Result<Currency, error_stack::Report<ConnectorError>> {
+    echoed.map_or(Ok(fallback), |value| {
+        Ok(Currency::from_str(value).map_err(|_| {
+            crate::utils::response_deserialization_fail(
+                http_code,
+                &format!("revpay: echoed Currency `{value}` is not a valid ISO currency"),
+            )
+        })?)
+    })
+}
+
+fn amount_conversion_context(money: &Money, field_name: &str) -> IntegrationErrorContext {
+    IntegrationErrorContext {
+        suggested_action: Some(
+            "Provide a non-negative amount that can be represented with exactly two decimal places"
+                .to_string(),
+        ),
+        doc_url: None,
+        additional_context: Some(format!(
+            "revPAY {field_name} conversion failed for minor amount {} in {:?}; the converter rejects negative values and currencies whose precision cannot be represented by the required two-decimal wire format",
+            money.amount().get_amount_as_i64(),
+            money.currency()
+        )),
+    }
 }
 
 // =============================================================================
@@ -163,7 +210,7 @@ impl RevpayResponseCode {
         match self {
             Self::Success => AttemptStatus::Charged,
             Self::RedirectRequired | Self::PendingAuthorization => AttemptStatus::Pending,
-            Self::TransactionNotFound | Self::Unknown(_) => AttemptStatus::Failure,
+            Self::TransactionNotFound | Self::Unknown(_) => AttemptStatus::Pending,
         }
     }
 
@@ -201,7 +248,7 @@ impl RevpayResponseCode {
             Self::Success => RefundStatus::Success,
             Self::RedirectRequired | Self::PendingAuthorization => RefundStatus::Pending,
             Self::TransactionNotFound => RefundStatus::Pending,
-            Self::Unknown(_) => RefundStatus::Failure,
+            Self::Unknown(_) => RefundStatus::Pending,
         }
     }
 }
@@ -246,21 +293,6 @@ fn authorize_attempt_status(
         (RevpayResponseCode::PendingAuthorization, _) => AttemptStatus::Pending,
         (RevpayResponseCode::TransactionNotFound | RevpayResponseCode::Unknown(_), _) => {
             AttemptStatus::AuthorizationFailed
-        }
-    }
-}
-
-impl From<&RevpayResponseCode> for AttemptStatus {
-    fn from(code: &RevpayResponseCode) -> Self {
-        match code {
-            // The Payment API authorises and captures (sale) in one call.
-            RevpayResponseCode::Success => Self::Charged,
-            RevpayResponseCode::RedirectRequired => Self::AuthenticationPending,
-            // FPX B2B: the acquirer confirms the authorisation asynchronously.
-            RevpayResponseCode::PendingAuthorization => Self::Pending,
-            // "76": a payment revPAY cannot find is provably not chargeable.
-            RevpayResponseCode::TransactionNotFound => Self::Failure,
-            RevpayResponseCode::Unknown(_) => Self::Failure,
         }
     }
 }
@@ -321,23 +353,40 @@ fn unsupported_payment_method(
 
 /// Explicit networks choose the dedicated RevPay payment rail. MyDebit must
 /// be explicit: its co-badged BIN ranges cannot identify the intended network.
-fn card_payment_details(network: Option<&CardNetwork>, pan: &str) -> (u16, Option<RevpayCardType>) {
+fn card_payment_details(
+    network: Option<&CardNetwork>,
+    pan: &str,
+) -> Result<(u16, Option<RevpayCardType>), error_stack::Report<IntegrationError>> {
     match network {
-        Some(CardNetwork::AmericanExpress) => (AMEX_PAYMENT_ID, Some(RevpayCardType::Amex)),
-        Some(CardNetwork::DinersClub) => (DINERS_PAYMENT_ID, None),
-        Some(CardNetwork::Visa) => (CARD_PAYMENT_ID, Some(RevpayCardType::Visa)),
-        Some(CardNetwork::Mastercard) => (CARD_PAYMENT_ID, Some(RevpayCardType::Mastercard)),
-        Some(CardNetwork::MyDebit) => (MYDEBIT_PAYMENT_ID, Some(RevpayCardType::MyDebit)),
-        Some(CardNetwork::UnionPay) => (UNIONPAY_CNP_PAYMENT_ID, Some(RevpayCardType::UnionPay)),
-        _ => {
+        Some(CardNetwork::AmericanExpress) => Ok((AMEX_PAYMENT_ID, Some(RevpayCardType::Amex))),
+        Some(CardNetwork::DinersClub) => Ok((DINERS_PAYMENT_ID, None)),
+        Some(CardNetwork::Visa) => Ok((CARD_PAYMENT_ID, Some(RevpayCardType::Visa))),
+        Some(CardNetwork::Mastercard) => Ok((CARD_PAYMENT_ID, Some(RevpayCardType::Mastercard))),
+        Some(CardNetwork::MyDebit) => Ok((MYDEBIT_PAYMENT_ID, Some(RevpayCardType::MyDebit))),
+        Some(CardNetwork::UnionPay) => {
+            Ok((UNIONPAY_CNP_PAYMENT_ID, Some(RevpayCardType::UnionPay)))
+        }
+        None => {
             let card_type = card_type_from_pan(pan);
             let payment_id = if matches!(card_type, Some(RevpayCardType::UnionPay)) {
                 UNIONPAY_CNP_PAYMENT_ID
             } else {
                 CARD_PAYMENT_ID
             };
-            (payment_id, card_type)
+            card_type.map_or_else(
+                || {
+                    Err(unsupported_payment_method(
+                        "card network",
+                        "The card network could not be inferred from the PAN; provide Visa, Mastercard, American Express, Diners Club, MyDebit, or UnionPay explicitly",
+                    ))
+                },
+                |card_type| Ok((payment_id, Some(card_type))),
+            )
         }
+        Some(network) => Err(unsupported_payment_method(
+            "card network",
+            &format!("Card network {network:?} is not supported by revPAY"),
+        )),
     }
 }
 
@@ -605,16 +654,7 @@ impl<T: PaymentMethodDataTypes> RevpayPaymentsRequest<T> {
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let auth = RevpayAuthType::try_from(&item.connector_config)?;
 
-        // Key_Index is Int(3) on the wire; it is configured as a string.
-        let key_index = auth.key_index.peek().trim().parse::<u32>().map_err(|_| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "connector_config.api_secret (revPAY Key_Index)",
-                context: IntegrationErrorContext {
-                    additional_context: Some("expected a decimal integer, e.g. \"1\"".to_string()),
-                    ..Default::default()
-                },
-            })
-        })?;
+        let key_index = auth.key_index;
 
         let currency = item.request.money.currency();
         let currency_str = currency.to_string();
@@ -622,12 +662,12 @@ impl<T: PaymentMethodDataTypes> RevpayPaymentsRequest<T> {
             .convert(&item.request.money)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
-                context: IntegrationErrorContext::default(),
+                context: amount_conversion_context(&item.request.money, "Amount"),
             })?
             .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.amount",
-                context: IntegrationErrorContext::default(),
+                context: amount_conversion_context(&item.request.money, "Amount"),
             })?;
 
         let reference_number = item
@@ -695,7 +735,7 @@ impl<T: PaymentMethodDataTypes> RevpayPaymentsRequest<T> {
                 let (payment_id, card_type) = card_payment_details(
                     card_data.card_network.as_ref(),
                     card_data.card_number.peek(),
-                );
+                )?;
 
                 let customer_email = item
                     .request
@@ -877,6 +917,19 @@ impl RevpayAmount {
     }
 }
 
+impl common_utils::crypto::SignatureValue for RevpayAmount {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        match self {
+            Self::Text(amount) => amount.update_signature(update),
+            Self::Number(amount) => {
+                if let Ok(serialized) = serde_json::to_string(amount) {
+                    update(serialized.as_bytes());
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevpayPaymentsResponse {
     #[serde(rename = "Revpay_Merchant_ID", skip_serializing_if = "Option::is_none")]
@@ -899,12 +952,10 @@ pub struct RevpayPaymentsResponse {
     pub bank_redirect_url: Option<String>,
     #[serde(rename = "Key_Index", skip_serializing_if = "Option::is_none")]
     pub key_index: Option<i64>,
-    // revPAY echoes `Key_Index` + `Signature` on responses. Incoming
-    // notifications verify them in `IncomingWebhook::verify_webhook_source`
-    // using sha512(key + mid + Transaction_ID + Response_Code +
-    // Reference_Number + Amount + Currency). Verification is intentionally not
-    // duplicated for initial Payment responses here: a "09" redirect response
-    // can omit Transaction_ID, which is part of that response preimage.
+    // PSync verifies signed inquiry responses using sha512(key + mid +
+    // Transaction_ID + Response_Code + Reference_Number + Amount + Currency).
+    // Initial redirect responses can omit Transaction_ID, so Authorize cannot
+    // apply that complete preimage until the subsequent inquiry/webhook.
     #[serde(rename = "Signature", skip_serializing_if = "Option::is_none")]
     pub signature: Option<Secret<String>>,
     #[serde(
@@ -912,6 +963,71 @@ pub struct RevpayPaymentsResponse {
         skip_serializing_if = "Option::is_none"
     )]
     pub bank_reference_number: Option<String>,
+}
+
+fn verify_payment_response_signature(
+    response: &RevpayPaymentsResponse,
+    connector_config: &ConnectorSpecificConfig,
+    http_code: u16,
+) -> Result<(), error_stack::Report<ConnectorError>> {
+    let Some(received) = response.signature.as_ref() else {
+        return Ok(());
+    };
+    let auth = RevpayAuthType::try_from(connector_config).map_err(|error| {
+        error_stack::report!(crate::utils::unexpected_response_fail(
+            http_code,
+            format!("revpay: cannot verify signed response: {error:?}"),
+        ))
+    })?;
+    let required = || {
+        error_stack::report!(crate::utils::response_deserialization_fail(
+            http_code,
+            "revpay: signed payment/inquiry response omitted a signature preimage field",
+        ))
+    };
+    let merchant_id = response
+        .revpay_merchant_id
+        .as_deref()
+        .ok_or_else(required)?;
+    let transaction_id = response.transaction_id.as_deref().ok_or_else(required)?;
+    let reference_number = response.reference_number.as_deref().ok_or_else(required)?;
+    let amount = response.amount.as_ref().ok_or_else(required)?;
+    let currency = response.currency.as_deref().ok_or_else(required)?;
+    if response
+        .key_index
+        .and_then(|value| u32::try_from(value).ok())
+        != Some(auth.key_index)
+    {
+        return Err(error_stack::report!(
+            crate::utils::unexpected_response_fail(
+                http_code,
+                "revpay: response Key_Index does not match the configured merchant key",
+            )
+        ));
+    }
+    let expected = generate_revpay_signature(
+        auth.merchant_key.peek(),
+        &[
+            &merchant_id,
+            &transaction_id,
+            &response.response_code.as_str(),
+            &reference_number,
+            amount,
+            &currency,
+        ],
+    );
+    if !common_utils::crypto::signatures_match(
+        expected.peek().as_bytes(),
+        received.peek().trim().to_lowercase().as_bytes(),
+    ) {
+        return Err(error_stack::report!(
+            crate::utils::unexpected_response_fail(
+                http_code,
+                "revpay: payment/inquiry response signature verification failed",
+            )
+        ));
+    }
+    Ok(())
 }
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsResponse, Self>>
@@ -1005,11 +1121,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
                 .attach_printable("revpay: echoed Amount cannot be converted to domain money")?,
             None => router_data.request.money.clone(),
         };
-        let integrity_currency = response
-            .currency
-            .as_deref()
-            .and_then(|echoed| Currency::from_str(echoed).ok())
-            .unwrap_or(router_data.request.money.currency());
+        let integrity_currency = echoed_currency(
+            response.currency.as_deref(),
+            router_data.request.money.currency(),
+            item.http_code,
+        )?;
 
         // 09 → shopper must open Bank_Redirect_URL with a plain HTTP GET;
         // RedirectForm::Uri navigates callers directly to the URL as-is.
@@ -1025,7 +1141,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
             mandate_reference: None,
             network_txn_id: None,
             network_txn_link_id: None,
-            connector_response_reference_id: response.reference_number.clone(),
+            connector_response_reference_id: response.transaction_id.clone(),
             incremental_authorization_allowed: None,
             splits: None,
             status_code: item.http_code,
@@ -1104,16 +1220,7 @@ impl RevpayPSyncRequest {
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let auth = RevpayAuthType::try_from(&item.connector_config)?;
 
-        // Key_Index is Int(3) on the wire; it is configured as a string.
-        let key_index = auth.key_index.peek().trim().parse::<u32>().map_err(|_| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "connector_config.api_secret (revPAY Key_Index)",
-                context: IntegrationErrorContext {
-                    additional_context: Some("expected a decimal integer, e.g. \"1\"".to_string()),
-                    ..Default::default()
-                },
-            })
-        })?;
+        let key_index = auth.key_index;
 
         // The public connector transaction id carries the original merchant reference.
         let reference_number = match &item.request.connector_transaction_id {
@@ -1135,12 +1242,12 @@ impl RevpayPSyncRequest {
             .convert(&item.request.money)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
-                context: IntegrationErrorContext::default(),
+                context: amount_conversion_context(&item.request.money, "Amount"),
             })?
             .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.amount",
-                context: IntegrationErrorContext::default(),
+                context: amount_conversion_context(&item.request.money, "Amount"),
             })?;
 
         // Signature = sha512(MerchantKey + Revpay_Merchant_ID +
@@ -1197,38 +1304,32 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
     fn try_from(item: ResponseRouterData<RevpayPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
         let router_data = &item.router_data;
+        verify_payment_response_signature(response, &router_data.connector_config, item.http_code)?;
 
         // INQUIRY SEMANTICS: PSync is a status query and revPAY answers every
         // inquiry with HTTP 200, so the outcome is REPORTED through the
         // attempt status — never returned as `Err(ErrorResponse)`. "00" →
-        // Charged, "09"/"99" → Pending, every other code (including "76"
-        // Transaction not found) → Failure; the raw code and description ride
+        // Charged, "09"/"99" → Pending. Request-level validation failures and
+        // unknown codes also remain Pending so a failed inquiry cannot replace
+        // an already-charged payment with a terminal failure. The raw code rides
         // along on `raw_connector_status`, and non-2xx transport faults are
         // still handled by the shared `build_error_response`.
         let status = response.response_code.psync_status();
 
         // Keep the same merchant reference even when RevPay returns a gateway ID.
         let resource_id = router_data.request.connector_transaction_id.clone();
-        let connector_response_reference_id = response.reference_number.clone();
-
-        // Identifier carrier chain: re-publish whatever metadata arrived on
-        // the sync request so later flows keep access to it.
-        let connector_metadata = router_data
-            .request
-            .connector_feature_data
-            .clone()
-            .map(|meta| meta.expose());
+        let connector_response_reference_id = response.transaction_id.clone();
 
         // Integrity object: the inquiry echoes the AUTHORIZE-side Amount /
         // Currency, so prefer the echoed values (parsed back through the same
         // 2-decimal contract). The request-side figures are the fallback for
         // the one case revPAY genuinely omits the echo — an unresolved
         // reference ("76"), whose body carries no Amount/Currency.
-        let integrity_currency = response
-            .currency
-            .as_deref()
-            .and_then(|echoed| Currency::from_str(echoed).ok())
-            .unwrap_or(router_data.request.money.currency());
+        let integrity_currency = echoed_currency(
+            response.currency.as_deref(),
+            router_data.request.money.currency(),
+            item.http_code,
+        )?;
         let integrity_amount = match &response.amount {
             Some(amount) => amount
                 .to_money(integrity_currency)
@@ -1245,7 +1346,7 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id,
             redirection_data: None,
-            connector_metadata,
+            connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
             network_txn_link_id: None,
@@ -1356,16 +1457,7 @@ impl RevpayRefundRequest {
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let auth = RevpayAuthType::try_from(&item.connector_config)?;
 
-        // Key_Index is Int(3) on the wire; it is configured as a string.
-        let key_index = auth.key_index.peek().trim().parse::<u32>().map_err(|_| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "connector_config.api_secret (revPAY Key_Index)",
-                context: IntegrationErrorContext {
-                    additional_context: Some("expected a decimal integer, e.g. \"1\"".to_string()),
-                    ..Default::default()
-                },
-            })
-        })?;
+        let key_index = auth.key_index;
 
         // Reference_Number is a NEW reference identifying this refund —
         // revPAY rejects a refund that duplicates or blanks a previous
@@ -1385,12 +1477,12 @@ impl RevpayRefundRequest {
             .convert(&item.request.refund_money)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
-                context: IntegrationErrorContext::default(),
+                context: amount_conversion_context(&item.request.refund_money, "Refund_Amount"),
             })?
             .validate_unsigned("Refund_Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.refund_amount",
-                context: IntegrationErrorContext::default(),
+                context: amount_conversion_context(&item.request.refund_money, "Refund_Amount"),
             })?;
 
         // Signature = sha512(MerchantKey + Revpay_Merchant_ID + Reference_Number
@@ -1465,10 +1557,72 @@ pub struct RevpayRefundResponse {
     pub key_index: Option<i64>,
     // §3.11 synchronously signed responses use sha512(key + mid +
     // Transaction_ID + Response_Code + Reference_Number + Refund_Amount). Keep
-    // the signature in the wire model; this transformer only maps the refund
-    // outcome and does not perform synchronous-response signature verification.
+    // the signature in the wire model and verify it before mapping the refund.
     #[serde(rename = "Signature", skip_serializing_if = "Option::is_none")]
     pub signature: Option<Secret<String>>,
+}
+
+fn verify_refund_response_signature(
+    response: &RevpayRefundResponse,
+    connector_config: &ConnectorSpecificConfig,
+    http_code: u16,
+) -> Result<(), error_stack::Report<ConnectorError>> {
+    let Some(received) = response.signature.as_ref() else {
+        return Ok(());
+    };
+    let auth = RevpayAuthType::try_from(connector_config).map_err(|error| {
+        error_stack::report!(crate::utils::unexpected_response_fail(
+            http_code,
+            format!("revpay: cannot verify signed refund response: {error:?}"),
+        ))
+    })?;
+    let required = || {
+        error_stack::report!(crate::utils::response_deserialization_fail(
+            http_code,
+            "revpay: signed refund response omitted a signature preimage field",
+        ))
+    };
+    let merchant_id = response
+        .revpay_merchant_id
+        .as_deref()
+        .ok_or_else(required)?;
+    let transaction_id = response.transaction_id.as_deref().ok_or_else(required)?;
+    let reference_number = response.reference_number.as_deref().ok_or_else(required)?;
+    let refund_amount = response.refund_amount.as_ref().ok_or_else(required)?;
+    if response
+        .key_index
+        .and_then(|value| u32::try_from(value).ok())
+        != Some(auth.key_index)
+    {
+        return Err(error_stack::report!(
+            crate::utils::unexpected_response_fail(
+                http_code,
+                "revpay: refund response Key_Index does not match the configured merchant key",
+            )
+        ));
+    }
+    let expected = generate_revpay_signature(
+        auth.merchant_key.peek(),
+        &[
+            &merchant_id,
+            &transaction_id,
+            &response.response_code.as_str(),
+            &reference_number,
+            refund_amount,
+        ],
+    );
+    if !common_utils::crypto::signatures_match(
+        expected.peek().as_bytes(),
+        received.peek().trim().to_lowercase().as_bytes(),
+    ) {
+        return Err(error_stack::report!(
+            crate::utils::unexpected_response_fail(
+                http_code,
+                "revpay: refund response signature verification failed",
+            )
+        ));
+    }
+    Ok(())
 }
 
 impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
@@ -1479,6 +1633,7 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
     fn try_from(item: ResponseRouterData<RevpayRefundResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
         let router_data = &item.router_data;
+        verify_refund_response_signature(response, &router_data.connector_config, item.http_code)?;
 
         // IN-BAND 2xx FAILURE. revPAY answers EVERY refund (declines included)
         // with HTTP 200; only "00" is acceptance. Every other code must land in
@@ -1622,16 +1777,7 @@ impl RevpayRSyncRequest {
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let auth = RevpayAuthType::try_from(&item.connector_config)?;
 
-        // Key_Index is Int(3) on the wire; it is configured as a string.
-        let key_index = auth.key_index.peek().trim().parse::<u32>().map_err(|_| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "connector_config.api_secret (revPAY Key_Index)",
-                context: IntegrationErrorContext {
-                    additional_context: Some("expected a decimal integer, e.g. \"1\"".to_string()),
-                    ..Default::default()
-                },
-            })
-        })?;
+        let key_index = auth.key_index;
 
         // PRE-FLIGHT GATE: Reference_Number must be the refund's own merchant
         // reference, byte-identical to the one the Refund call signed —
@@ -1679,12 +1825,12 @@ impl RevpayRSyncRequest {
             .convert(refund_money)
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
-                context: IntegrationErrorContext::default(),
+                context: amount_conversion_context(refund_money, "Amount"),
             })?
             .validate_unsigned("Amount")
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "request.refund_money.amount",
-                context: IntegrationErrorContext::default(),
+                context: amount_conversion_context(refund_money, "Amount"),
             })?;
 
         // Signature = sha512(MerchantKey + Revpay_Merchant_ID +
@@ -1746,7 +1892,9 @@ impl TryFrom<ResponseRouterData<RevpayRSyncResponse, Self>>
         // and revPAY answers every inquiry with HTTP 200, so the refund
         // outcome is REPORTED through the refund status — never returned as
         // `Err(ErrorResponse)`. "00" → Success, "09"/"99" → Pending, every
-        // other code (including "76" reference not found) → Failure. The raw
+        // other code (including request-level validation failures and "76")
+        // remains Pending so an inquiry failure cannot invite a duplicate
+        // refund. The raw
         // code/description ride along on `raw_connector_status`; non-2xx
         // transport faults still go through the shared
         // `build_error_response`.
@@ -1869,7 +2017,7 @@ impl RevpayWebhookBody {
     /// unknown index can never verify. Returns `false` on ANY mismatch;
     /// never panics.
     pub fn verifies_against(&self, auth: &RevpayAuthType) -> bool {
-        if self.key_index.trim() != auth.key_index.peek().trim() {
+        if self.key_index.trim().parse::<u32>().ok() != Some(auth.key_index) {
             return false;
         }
         let currency = self.currency.to_string();
@@ -1884,7 +2032,10 @@ impl RevpayWebhookBody {
                 &currency,
             ],
         );
-        expected.peek() == &self.signature.peek().trim().to_lowercase()
+        common_utils::crypto::signatures_match(
+            expected.peek().as_bytes(),
+            self.signature.peek().trim().to_lowercase().as_bytes(),
+        )
     }
 
     /// Event interpretation: "00" — the sale settled → success;
@@ -1907,7 +2058,9 @@ impl RevpayWebhookBody {
     /// AttemptStatus`): "00" → Charged, "09" → AuthenticationPending,
     /// "99" → Pending, everything else → Failure.
     pub fn attempt_status(&self) -> AttemptStatus {
-        AttemptStatus::from(&self.response_code)
+        let redirect_marker =
+            matches!(self.response_code, RevpayResponseCode::RedirectRequired).then_some("webhook");
+        authorize_attempt_status(&self.response_code, redirect_marker)
     }
 
     /// `(code, message)` for a terminal failure webhook, or `None` for the

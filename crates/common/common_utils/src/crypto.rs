@@ -857,6 +857,11 @@ pub fn update_signature(fields: &[&dyn SignatureValue], mut update: impl FnMut(&
     }
 }
 
+/// Compares two signature byte strings without leaking the first differing position.
+pub fn signatures_match(expected: &[u8], received: &[u8]) -> bool {
+    constant_time_eq::constant_time_eq(expected, received)
+}
+
 #[cfg(test)]
 mod crypto_tests {
     #![allow(clippy::expect_used)]

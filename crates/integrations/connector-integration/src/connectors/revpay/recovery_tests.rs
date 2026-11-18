@@ -333,10 +333,12 @@ fn mydebit_and_unionpay_explicit_networks_use_dedicated_card_rails() {
 
 #[test]
 fn explicit_mydebit_overrides_unionpay_bin_inference() {
-    let (id, card_type) = card_payment_details(Some(&CardNetwork::MyDebit), "6250941234567890");
+    let (id, card_type) = card_payment_details(Some(&CardNetwork::MyDebit), "6250941234567890")
+        .expect("MyDebit is supported");
     assert_eq!(id, 31);
     assert!(matches!(card_type, Some(RevpayCardType::MyDebit)));
-    let (id, card_type) = card_payment_details(None, "6250941234567890");
+    let (id, card_type) =
+        card_payment_details(None, "6250941234567890").expect("UnionPay BIN is supported");
     assert_eq!(id, 38);
     assert!(matches!(card_type, Some(RevpayCardType::UnionPay)));
 }

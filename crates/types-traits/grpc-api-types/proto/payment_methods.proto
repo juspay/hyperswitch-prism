@@ -34,7 +34,7 @@ enum CardNetwork {
   EFTPOS_AUSTRALIA = 21;
   GE_CAPITAL = 22;
   UATP = 23;
-  MYDEBIT = 24;
+  MYDEBIT = 24; // Malaysian domestic debit card network.
 }
 
 // Paysafecard - Prepaid payment method

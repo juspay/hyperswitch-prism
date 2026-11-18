@@ -3052,13 +3052,33 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: revpay.merchant_id.ok_or_else(|| {
                     errors::IntegrationError::MissingRequiredField {
                         field_name: "Revpay.merchant_id (revPAY Revpay_Merchant_ID)",
-                        context: Default::default(),
+                        context: errors::IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Configure merchant_id in the revPAY connector credentials"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "Revpay_Merchant_ID is required for every revPAY request and signature"
+                                    .to_string(),
+                            ),
+                        },
                     }
                 })?,
                 merchant_key: revpay.merchant_key.ok_or_else(|| {
                     errors::IntegrationError::MissingRequiredField {
                         field_name: "Revpay.merchant_key (revPAY Merchant Key)",
-                        context: Default::default(),
+                        context: errors::IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Configure merchant_key in the revPAY connector credentials"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "The Merchant Key is required to sign requests and verify revPAY responses"
+                                    .to_string(),
+                            ),
+                        },
                     }
                 })?,
                 // Key_Index defaults to "1" when omitted: revPAY issues merchant
