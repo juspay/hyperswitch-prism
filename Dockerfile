@@ -11,7 +11,6 @@ FROM public.ecr.aws/docker/library/rust:slim-bookworm AS base
 # deja Kafka sink needs for compression.type=zstd) generates its bindings with
 # bindgen, which loads libclang at build time.
 RUN apt-get update \
-    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends \
        pkg-config \
        libssl-dev \
@@ -111,66 +110,48 @@ RUN ldd /app/dist/grpc-server
 RUN sccache --show-stats
 
 ########################################
-# 4a. Security patcher: latest Debian 13 security patches
+# 4. Minimal runtime dependencies
 ########################################
-# Fetches the latest patched versions of system libraries from Debian 13
-# (trixie) and stages them for overlay into the distroless runtime.
-# Addresses 60 CVEs identified in container scan REF: ECR-2026-49.
-FROM public.ecr.aws/docker/library/debian:trixie-slim AS security-patcher
+# Keep complete package payloads, licenses and version records for scanning.
+# Do not overlay glibc or OpenSSL from another image onto distroless.
+FROM public.ecr.aws/docker/library/debian:trixie-slim AS runtime-deps
+WORKDIR /packages
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       libc6 \
-       libssl3t64 \
-       libgcc-s1 \
-       libstdc++6 \
-       libgomp1 \
-       ca-certificates \
-    && apt-get upgrade -y \
+    && apt-get download libgcc-s1 gcc-14-base \
+    && mkdir -p /rootfs/var/lib/dpkg/status.d \
+    && for package in ./*.deb; do \
+         dpkg-deb --extract "$package" /rootfs; \
+         name="$(dpkg-deb --field "$package" Package)"; \
+         { dpkg-deb --field "$package"; printf 'Status: install ok installed\n'; } \
+           > "/rootfs/var/lib/dpkg/status.d/$name"; \
+       done \
     && rm -rf /var/lib/apt/lists/*
 
-# Stage only the specific shared libraries that the scan flagged into /patch
-# so we overlay the minimum set of files onto the distroless runtime.
-RUN set -eux; \
-    MA="$(ls -d /lib/*-linux-gnu | head -1 | xargs basename)"; \
-    mkdir -p /patch/lib/${MA} /patch/usr/lib/${MA} /patch/etc/ssl; \
-    # libc6: CVE-2026-5435, CVE-2026-84243, CVE-2026-19499, CVE-2026-6791, \
-    #   CVE-2019-1010022 (CVSS 9.8), CVE-2019-1010023 (CVSS 8.8), and others \
-    for f in libc.so.6 libm.so.6; do \
-      [ -f "/lib/${MA}/$f" ] && cp -a "/lib/${MA}/$f" "/patch/lib/${MA}/"; \
-    done; \
-    for f in /lib/${MA}/ld-linux-*; do [ -e "$f" ] && cp -a "$f" /patch/lib/${MA}/; done; \
-    # libssl3t64 (OpenSSL): CVE-2026-95691 (CVSS 8.1), CVE-2026-107493, \
-    #   CVE-2026-124709, CVE-2026-88823, CVE-2026-95692, CVE-2026-107496, etc. \
-    for f in /usr/lib/${MA}/libssl.so.3* /usr/lib/${MA}/libcrypto.so.3*; do \
-      [ -e "$f" ] && cp -a "$f" /patch/usr/lib/${MA}/; \
-    done; \
-    # libgcc-s1, libstdc++6, libgomp1: CVE-2026-95619 (CVSS 7.7), \
-    #   CVE-2026-102010, CVE-2026-114690, CVE-2026-114691, CVE-2026-115455, etc. \
-    for f in /usr/lib/${MA}/libgcc_s.so.1 /usr/lib/${MA}/libstdc++.so.6* /usr/lib/${MA}/libgomp.so.1*; do \
-      [ -e "$f" ] && cp -a "$f" /patch/usr/lib/${MA}/; \
-    done; \
-    # CA certificates \
-    cp -a /etc/ssl/certs /patch/etc/ssl/
+# The supplied release build needs glibc and libgcc, but no shared OpenSSL,
+# libstdc++ or libgomp. CA certificates and timezone data come from distroless.
+# Vendored OpenSSL remains part of the binary and must be audited separately.
+FROM gcr.io/distroless/base-nossl-debian13:nonroot AS runtime-rootfs
+COPY --from=runtime-deps /rootfs/ /
 
 ########################################
-# 4b. Runtime stage
+# 5. Check dependencies against the actual runtime filesystem
 ########################################
-# Distroless Debian 13 (glibc + OpenSSL + libgcc/libstdc++, no shell, no apt,
-# non-root uid 65532). The binary is built on bookworm (glibc 2.36) and runs on
-# trixie (glibc 2.41). Bookworm has no fixes for the curl/glibc/util-linux/krb5
-# CVEs, so the runtime ships none of those packages. curl and libpq-dev are
-# gone: nothing in the workspace links libpq, and the in-pod connector probe
-# should use `kubectl debug` with an ephemeral container instead of curl.
-FROM gcr.io/distroless/cc-debian13:nonroot AS runtime
+FROM builder AS runtime-validation
+COPY --from=runtime-rootfs / /runtime-root/
+COPY --from=builder /app/dist/grpc-server /runtime-root/app/bin/grpc-server
+# Use the target runtime loader, not the builder's ldd/library search path.
+# This fails the build if a new feature requires a missing shared library.
+RUN set -eu; \
+    loader="$(find /runtime-root -type f -name 'ld-linux-*.so.*' -print)"; \
+    test -n "$loader"; \
+    chroot /runtime-root "${loader#/runtime-root}" --list /app/bin/grpc-server
 
-# Overlay security-patched shared libraries from the patcher stage.
-# This addresses 60 CVEs (scan REF: ECR-2026-49) in libc6, libssl3t64,
-# libgcc-s1, libstdc++6, and libgomp1 without leaving the distroless base.
-COPY --from=security-patcher /patch/lib/ /lib/
-COPY --from=security-patcher /patch/usr/lib/ /usr/lib/
-COPY --from=security-patcher /patch/etc/ssl/certs/ /etc/ssl/certs/
+########################################
+# 6. Runtime stage
+########################################
+FROM runtime-rootfs AS runtime
 
-COPY --from=builder --chown=65532:65532 /app/dist/grpc-server /app/bin/grpc-server
+COPY --from=runtime-validation --chown=65532:65532 /runtime-root/app/bin/grpc-server /app/bin/grpc-server
 COPY --from=builder --chown=65532:65532 /app/config/development.toml /app/config/development.toml
 COPY --from=builder --chown=65532:65532 /app/config/production.toml /app/config/production.toml
 COPY --from=builder --chown=65532:65532 /app/config/sandbox.toml /app/config/sandbox.toml
