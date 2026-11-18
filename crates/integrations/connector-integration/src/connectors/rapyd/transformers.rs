@@ -945,17 +945,6 @@ impl TryFrom<Option<&common_enums::MitCategory>> for RapydRecurrenceType {
     }
 }
 
-// A saved-card charge uses its recurrence category as the initiation type.
-impl From<RapydRecurrenceType> for RapydInitiationType {
-    fn from(recurrence_type: RapydRecurrenceType) -> Self {
-        match recurrence_type {
-            RapydRecurrenceType::Recurring => Self::Recurring,
-            RapydRecurrenceType::Unscheduled => Self::Unscheduled,
-            RapydRecurrenceType::Installment => Self::Installment,
-        }
-    }
-}
-
 /// Rapyd `payment_method.fields.number_type` for externally provisioned
 /// network tokens: `TPAN` marks the token number as a tokenized PAN.
 ///
@@ -1245,6 +1234,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 let recurrence_type = if item.router_data.request.setup_future_usage.is_some()
                     && item.router_data.request.mandate_id.is_none()
                 {
+                    if item.router_data.request.off_session == Some(true) {
+                        return Err(IntegrationError::NotSupported {
+                            message: "Off-session initial card save".to_owned(),
+                            connector: "rapyd",
+                            context: utils::integration_ctx(
+                                "An initial card save requires the customer to be present",
+                                "Use a customer-present initial save or RepeatPayment for an existing saved payment method.",
+                            ),
+                        }
+                        .into());
+                    }
                     initiation_type = Some(RapydInitiationType::CustomerPresent);
                     Some(RapydRecurrenceType::try_from(
                         item.router_data.request.mit_category.as_ref(),
@@ -1512,6 +1512,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             | RapydWalletDetails::ApplePayDecrypted(_)
                     )
                 {
+                    if item.router_data.request.off_session == Some(true) {
+                        return Err(IntegrationError::NotSupported {
+                            message: "Off-session initial decrypted wallet save".to_owned(),
+                            connector: "rapyd",
+                            context: utils::integration_ctx(
+                                "An initial decrypted wallet save requires the customer to be present",
+                                "Use a customer-present initial save or RepeatPayment for an existing saved payment method.",
+                            ),
+                        }
+                        .into());
+                    }
                     initiation_type = Some(RapydInitiationType::CustomerPresent);
                 }
                 // Wallet saved-token recurring payments require the
@@ -2366,7 +2377,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Setup verifies future use; it does not perform a saved-card charge.
         let initiation_type = match recurrence_type {
             RapydRecurrenceType::Unscheduled => RapydInitiationType::CustomerPresent,
-            RapydRecurrenceType::Recurring => recurrence_type.into(),
+            RapydRecurrenceType::Recurring => RapydInitiationType::Recurring,
             RapydRecurrenceType::Installment => {
                 return Err(IntegrationError::NotSupported {
                     message: "Installment zero-amount setup".to_owned(),
@@ -2688,7 +2699,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             initiation_type: Some(match request.mit_category.as_ref() {
                 // Preserve the default for saved-card requests without a category.
                 None => RapydInitiationType::Recurring,
-                category => RapydRecurrenceType::try_from(category)?.into(),
+                category => match RapydRecurrenceType::try_from(category)? {
+                    RapydRecurrenceType::Recurring => RapydInitiationType::Recurring,
+                    RapydRecurrenceType::Unscheduled => RapydInitiationType::Unscheduled,
+                    RapydRecurrenceType::Installment => RapydInitiationType::Installment,
+                },
             }),
             client_details: request.browser_info.as_ref().map(RapydClientDetails::from),
             address: router_data
