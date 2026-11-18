@@ -111,7 +111,7 @@ pub struct Refund360Request {
     pub original_merchant_request_id: String,
     pub refund_request_id: String,
     pub refund_type: Refund360Type,
-    pub refund_amount: String,
+    pub refund_amount: common_utils::types::StringMajorUnit,
     pub remarks: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub adj_code: Option<AdjustmentCode>,

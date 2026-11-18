@@ -97,6 +97,19 @@ impl AmountConvertor for StringMajorUnitForConnector {
     }
 }
 
+/// Legacy fixed-hundredths text with a truncated whole-unit part and absolute remainder.
+/// Currency exponents are deliberately ignored. Values from -99 through -1 lose their sign.
+/// This encoding is one-way because those negative values cannot be recovered from the text.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct TruncatedTwoDecimalMajorUnitForConnector;
+
+impl TruncatedTwoDecimalMajorUnitForConnector {
+    pub fn convert(&self, money: &Money) -> StringMajorUnit {
+        let amount = money.amount.0;
+        StringMajorUnit::new(format!("{}.{:02}", amount / 100, (amount % 100).abs()))
+    }
+}
+
 /// Connector required amount type
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct FloatMajorUnitForConnector;

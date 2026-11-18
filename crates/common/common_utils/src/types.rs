@@ -16,7 +16,7 @@ pub use crate::money::{
     ConnectorMinorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, Money,
     Percentage, StringMajorUnit, StringMajorUnitForConnector, StringMajorUnitForCore,
     StringMinorUnit, StringMinorUnitForConnector, StringTwoDecimalUnit,
-    StringTwoDecimalUnitForConnector,
+    StringTwoDecimalUnitForConnector, TruncatedTwoDecimalMajorUnitForConnector,
 };
 
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.
