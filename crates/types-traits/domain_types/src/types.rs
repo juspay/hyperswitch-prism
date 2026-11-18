@@ -6562,7 +6562,14 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(|l2_l3| {
+                L2L3Data::foreign_try_from((
+                    l2_l3,
+                    &address,
+                    value.customer.as_ref(),
+                    value.shipping_cost.map(common_utils::MinorUnit::new),
+                ))
+            })
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
@@ -6686,7 +6693,14 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(|l2_l3| {
+                L2L3Data::foreign_try_from((
+                    l2_l3,
+                    &address,
+                    value.customer.as_ref(),
+                    value.shipping_cost,
+                ))
+            })
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
@@ -6793,7 +6807,9 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(|l2_l3| {
+                L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref(), None))
+            })
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
@@ -6907,7 +6923,9 @@ impl
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(|l2_l3| {
+                L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref(), None))
+            })
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
@@ -13752,7 +13770,9 @@ impl
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(|l2_l3| {
+                L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref(), None))
+            })
             .transpose()?;
 
         let test_mode = match environment {
@@ -14253,14 +14273,16 @@ impl
         &grpc_api_types::payments::L2l3Data,
         &PaymentAddress,
         Option<&grpc_api_types::payments::Customer>,
+        Option<common_utils::MinorUnit>,
     )> for L2L3Data
 {
     type Error = IntegrationError;
     fn foreign_try_from(
-        (l2l3_data, payment_address, customer): (
+        (l2l3_data, payment_address, customer, fallback_shipping_cost): (
             &grpc_api_types::payments::L2l3Data,
             &PaymentAddress,
             Option<&grpc_api_types::payments::Customer>,
+            Option<common_utils::MinorUnit>,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let order_info = l2l3_data
@@ -14269,11 +14291,24 @@ impl
             .map(OrderInfo::foreign_try_from)
             .transpose()?;
 
-        let tax_info = l2l3_data
+        let mut tax_info = l2l3_data
             .tax_info
             .as_ref()
             .map(TaxInfo::foreign_try_from)
             .transpose()?;
+
+        if let Some(tax_info) = tax_info.as_mut() {
+            let shipping_cost = order_info
+                .as_ref()
+                .and_then(|order| order.shipping_cost)
+                .or(fallback_shipping_cost);
+            tax_info.shipping_tax_percentage = tax_info
+                .shipping_amount_tax
+                .zip(shipping_cost)
+                .and_then(|(tax, shipping)| {
+                    common_utils::types::Percentage::from_minor_unit_ratio(tax, shipping)
+                });
+        }
 
         let customer_info = customer.map(CustomerInfo::foreign_try_from).transpose()?;
 
@@ -14350,6 +14385,7 @@ impl ForeignTryFrom<&grpc_api_types::payments::TaxInfo> for TaxInfo {
             shipping_amount_tax: value
                 .shipping_amount_tax
                 .map(common_utils::types::MinorUnit::new),
+            shipping_tax_percentage: None,
             order_tax_amount: value
                 .order_tax_amount
                 .map(common_utils::types::MinorUnit::new),
@@ -21089,7 +21125,9 @@ impl
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
-            .map(|l2_l3| L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref())))
+            .map(|l2_l3| {
+                L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref(), None))
+            })
             .transpose()?;
         let customer_id = Option::<CustomerId>::foreign_try_from(value.customer.clone())?;
 

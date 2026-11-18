@@ -13,6 +13,7 @@ disallowed-types = [
 ]
 
 disallowed-methods = [
+    { path = "ucs_common_utils::money::Percentage::from_minor_unit_ratio", reason = "Derive monetary ratios in the domain; L3 only encodes the resulting percentage" },
     { path = "ucs_common_utils::money::MinorUnit::new", reason = "Do not construct domain minor units in L3; pass domain Money through the connector amount converter" },
     { path = "ucs_common_utils::money::MinorUnit::get_amount_as_i64", reason = "Domain minor units must not be extracted in L3, including values inferred from legacy domain fields" },
     { path = "ucs_common_utils::money::Money::amount", reason = "Pass whole Money to the connector amount converter instead of extracting domain minor units" },

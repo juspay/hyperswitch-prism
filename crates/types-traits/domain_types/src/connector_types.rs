@@ -5649,6 +5649,8 @@ pub struct TaxInfo {
     pub merchant_tax_registration_id: Option<Secret<String>>,
     pub merchant_vat_registration_id: Option<Secret<String>>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    /// Derived from shipping tax and effective shipping cost at the domain boundary.
+    pub shipping_tax_percentage: Option<common_utils::types::Percentage>,
     pub order_tax_amount: Option<MinorUnit>,
     pub value_added_tax_amount: Option<MinorUnit>,
     /// A percentage between 0 and 100 — 2.5 means 2.5%.

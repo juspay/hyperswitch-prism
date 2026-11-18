@@ -15,6 +15,11 @@ use common_enums::Currency;
 use common_utils::types::MinorUnit;
 use common_utils::types::{AmountConvertor, ConnectorMinorUnitForConnector, Money};
 
+#[cfg(feature = "percentage_ratio")]
+pub fn percentage_ratio() -> Option<common_utils::types::Percentage> {
+    common_utils::types::Percentage::from_minor_unit_ratio(Default::default(), Default::default())
+}
+
 #[cfg(feature = "domain_boundary")]
 pub fn domain_boundary(amount: MinorUnit, currency: Currency) -> Money {
     let _created = MinorUnit::new(1);

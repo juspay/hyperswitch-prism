@@ -168,6 +168,35 @@ impl AmountConvertor for ConnectorMinorUnitForConnector {
 
 pub struct MinorUnit(i64);
 
+/// An opaque percentage with two decimal places: 2.50 represents 2.5%.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Percentage(Decimal);
+
+impl Percentage {
+    /// Derive a percentage in the domain, truncating to whole basis points.
+    pub fn from_minor_unit_ratio(numerator: MinorUnit, denominator: MinorUnit) -> Option<Self> {
+        if denominator.0 <= 0 {
+            return None;
+        }
+
+        // Preserve checked i64 scaling before division, including overflow omission.
+        let basis_points = numerator.0.checked_mul(10_000)? / denominator.0;
+        Some(Self(Decimal::new(basis_points, 2)))
+    }
+}
+
+/// Encode a domain percentage as a nonnegative, bounded basis-point string.
+pub struct BasisPointsPercentageForConnector;
+
+impl BasisPointsPercentageForConnector {
+    pub fn convert(&self, percentage: &Percentage, maximum_basis_points: u16) -> Option<String> {
+        let basis_points = percentage.0.checked_mul(Decimal::from(100))?.to_i64()?;
+        (0..=i64::from(maximum_basis_points))
+            .contains(&basis_points)
+            .then(|| basis_points.to_string())
+    }
+}
+
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
     pub fn get_amount_as_i64(self) -> i64 {

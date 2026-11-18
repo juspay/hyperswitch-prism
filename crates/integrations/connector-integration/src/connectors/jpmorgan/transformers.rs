@@ -51,7 +51,7 @@ const CIT_SUCCESS: &str = "SUCCESS";
 const JPMORGAN_PURCHASE_ORDER_NUMBER_MAX_LENGTH: usize = 17;
 
 const JPMORGAN_MAX_LINE_ITEMS: usize = 998;
-const JPMORGAN_MAX_VAT_PERCENT: i64 = 9999;
+const JPMORGAN_MAX_VAT_PERCENT: u16 = 9999;
 
 const MAX_ORDER_NUMBER_LENGTH: usize = 40;
 
@@ -176,13 +176,14 @@ fn build_level3(
             utils::scaled_percentage_to_string(percent, JPMORGAN_VAT_PERCENT_MULTIPLIER)
         });
 
-    let shipping_value_added_tax_percent = shipping_value_added_tax_amount
-        .zip(total_shipping_amount)
-        .map(|(tax, shipping)| (tax.get_amount_as_i64(), shipping.get_amount_as_i64()))
-        .filter(|(_, shipping)| *shipping > 0)
-        .and_then(|(tax, shipping)| tax.checked_mul(10_000).map(|scaled| scaled / shipping))
-        .filter(|scaled_percent| (0..=JPMORGAN_MAX_VAT_PERCENT).contains(scaled_percent))
-        .map(|scaled_percent| scaled_percent.to_string());
+    let shipping_value_added_tax_percent = l2_l3_data
+        .tax_info
+        .as_ref()
+        .and_then(|tax| tax.shipping_tax_percentage.as_ref())
+        .and_then(|percentage| {
+            common_utils::types::BasisPointsPercentageForConnector
+                .convert(percentage, JPMORGAN_MAX_VAT_PERCENT)
+        });
 
     Some(requests::JpmorganLevel3 {
         total_shipping_amount,
