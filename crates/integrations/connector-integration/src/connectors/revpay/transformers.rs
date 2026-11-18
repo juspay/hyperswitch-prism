@@ -131,7 +131,7 @@ fn echoed_currency(
         Ok(Currency::from_str(value).map_err(|_| {
             crate::utils::response_deserialization_fail(
                 http_code,
-                &format!("revpay: echoed Currency `{value}` is not a valid ISO currency"),
+                format!("revpay: echoed Currency `{value}` is not a valid ISO currency"),
             )
         })?)
     })
@@ -200,6 +200,14 @@ impl RevpayResponseCode {
         }
     }
 
+    fn is_inquiry_request_error(&self) -> bool {
+        match self {
+            Self::TransactionNotFound => true,
+            Self::Unknown(code) => code == "30" || code == "3A",
+            Self::Success | Self::RedirectRequired | Self::PendingAuthorization => false,
+        }
+    }
+
     /// Inquiry-side status mapping (§2.2). The redirect already happened on
     /// the Payment call, so on inquiry "09" is a shopper still in flight at
     /// the bank — Pending, not a fresh `AuthenticationPending`. "99" is
@@ -210,7 +218,8 @@ impl RevpayResponseCode {
         match self {
             Self::Success => AttemptStatus::Charged,
             Self::RedirectRequired | Self::PendingAuthorization => AttemptStatus::Pending,
-            Self::TransactionNotFound | Self::Unknown(_) => AttemptStatus::Pending,
+            code if code.is_inquiry_request_error() => AttemptStatus::Pending,
+            Self::TransactionNotFound | Self::Unknown(_) => AttemptStatus::Failure,
         }
     }
 
@@ -247,8 +256,8 @@ impl RevpayResponseCode {
         match self {
             Self::Success => RefundStatus::Success,
             Self::RedirectRequired | Self::PendingAuthorization => RefundStatus::Pending,
-            Self::TransactionNotFound => RefundStatus::Pending,
-            Self::Unknown(_) => RefundStatus::Pending,
+            code if code.is_inquiry_request_error() => RefundStatus::Pending,
+            Self::TransactionNotFound | Self::Unknown(_) => RefundStatus::Failure,
         }
     }
 }
@@ -921,11 +930,7 @@ impl common_utils::crypto::SignatureValue for RevpayAmount {
     fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
         match self {
             Self::Text(amount) => amount.update_signature(update),
-            Self::Number(amount) => {
-                if let Ok(serialized) = serde_json::to_string(amount) {
-                    update(serialized.as_bytes());
-                }
-            }
+            Self::Number(amount) => update(format!("{:.2}", amount.0).as_bytes()),
         }
     }
 }
@@ -971,7 +976,16 @@ fn verify_payment_response_signature(
     http_code: u16,
 ) -> Result<(), error_stack::Report<ConnectorError>> {
     let Some(received) = response.signature.as_ref() else {
-        return Ok(());
+        return if matches!(response.response_code, RevpayResponseCode::Success) {
+            Err(error_stack::report!(
+                crate::utils::response_deserialization_fail(
+                    http_code,
+                    "revpay: successful payment/inquiry response omitted Signature",
+                )
+            ))
+        } else {
+            Ok(())
+        };
     };
     let auth = RevpayAuthType::try_from(connector_config).map_err(|error| {
         error_stack::report!(crate::utils::unexpected_response_fail(
@@ -989,7 +1003,9 @@ fn verify_payment_response_signature(
         .revpay_merchant_id
         .as_deref()
         .ok_or_else(required)?;
-    let transaction_id = response.transaction_id.as_deref().ok_or_else(required)?;
+    // Redirect/in-flight inquiry responses can be signed before revPAY assigns
+    // a Transaction_ID. In that case the field contributes zero bytes.
+    let transaction_id = response.transaction_id.as_deref().unwrap_or_default();
     let reference_number = response.reference_number.as_deref().ok_or_else(required)?;
     let amount = response.amount.as_ref().ok_or_else(required)?;
     let currency = response.currency.as_deref().ok_or_else(required)?;
@@ -1568,7 +1584,16 @@ fn verify_refund_response_signature(
     http_code: u16,
 ) -> Result<(), error_stack::Report<ConnectorError>> {
     let Some(received) = response.signature.as_ref() else {
-        return Ok(());
+        return if matches!(response.response_code, RevpayResponseCode::Success) {
+            Err(error_stack::report!(
+                crate::utils::response_deserialization_fail(
+                    http_code,
+                    "revpay: successful refund response omitted Signature",
+                )
+            ))
+        } else {
+            Ok(())
+        };
     };
     let auth = RevpayAuthType::try_from(connector_config).map_err(|error| {
         error_stack::report!(crate::utils::unexpected_response_fail(

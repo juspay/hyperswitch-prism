@@ -72,6 +72,132 @@ fn payment_response_signature_matches_doc_vector() {
     );
 }
 
+fn signature_test_config() -> ConnectorSpecificConfig {
+    ConnectorSpecificConfig::Revpay {
+        merchant_id: Secret::new("MER_TEST_000001".to_string()),
+        merchant_key: Secret::new("test-merchant-key".to_string()),
+        key_index: Secret::new("1".to_string()),
+        base_url: None,
+    }
+}
+
+fn signed_payment_response() -> RevpayPaymentsResponse {
+    let mut response = RevpayPaymentsResponse {
+        revpay_merchant_id: Some("MER_TEST_000001".to_string()),
+        payment_id: Some(2),
+        transaction_id: Some("txn-test-0001".to_string()),
+        reference_number: Some("reference-test-0001".to_string()),
+        amount: Some(RevpayAmount::Number(FloatMajorUnit(52.4))),
+        currency: Some("MYR".to_string()),
+        response_code: RevpayResponseCode::Success,
+        error_description: None,
+        bank_redirect_url: None,
+        key_index: Some(1),
+        signature: None,
+        bank_reference_number: None,
+    };
+    response.signature = Some(generate_revpay_signature(
+        "test-merchant-key",
+        &[
+            &"MER_TEST_000001",
+            &"txn-test-0001",
+            &"00",
+            &"reference-test-0001",
+            &"52.40",
+            &"MYR",
+        ],
+    ));
+    response
+}
+
+#[test]
+fn payment_response_signature_verification_covers_valid_and_invalid_inputs() {
+    let config = signature_test_config();
+    let response = signed_payment_response();
+    assert!(verify_payment_response_signature(&response, &config, 200).is_ok());
+
+    let mut tampered = signed_payment_response();
+    tampered.reference_number = Some("tampered".to_string());
+    assert!(verify_payment_response_signature(&tampered, &config, 200).is_err());
+
+    let mut wrong_key_index = signed_payment_response();
+    wrong_key_index.key_index = Some(2);
+    assert!(verify_payment_response_signature(&wrong_key_index, &config, 200).is_err());
+
+    let mut missing_preimage = signed_payment_response();
+    missing_preimage.amount = None;
+    assert!(verify_payment_response_signature(&missing_preimage, &config, 200).is_err());
+
+    let mut unsigned_success = signed_payment_response();
+    unsigned_success.signature = None;
+    assert!(verify_payment_response_signature(&unsigned_success, &config, 200).is_err());
+
+    let mut signed_in_flight = signed_payment_response();
+    signed_in_flight.transaction_id = None;
+    signed_in_flight.response_code = RevpayResponseCode::RedirectRequired;
+    signed_in_flight.signature = Some(generate_revpay_signature(
+        "test-merchant-key",
+        &[
+            &"MER_TEST_000001",
+            &"",
+            &"09",
+            &"reference-test-0001",
+            &"52.40",
+            &"MYR",
+        ],
+    ));
+    assert!(verify_payment_response_signature(&signed_in_flight, &config, 200).is_ok());
+}
+
+fn signed_refund_response() -> RevpayRefundResponse {
+    let mut response = RevpayRefundResponse {
+        revpay_merchant_id: Some("MER_TEST_000001".to_string()),
+        transaction_id: Some("refund-txn-test-0001".to_string()),
+        reference_number: Some("refund-reference-test-0001".to_string()),
+        original_reference_number: Some("reference-test-0001".to_string()),
+        refund_amount: Some(RevpayAmount::Text(string_amount("10.00"))),
+        amount_balance: None,
+        response_code: RevpayResponseCode::Success,
+        error_description: None,
+        key_index: Some(1),
+        signature: None,
+    };
+    response.signature = Some(generate_revpay_signature(
+        "test-merchant-key",
+        &[
+            &"MER_TEST_000001",
+            &"refund-txn-test-0001",
+            &"00",
+            &"refund-reference-test-0001",
+            &"10.00",
+        ],
+    ));
+    response
+}
+
+#[test]
+fn refund_response_signature_verification_covers_valid_and_invalid_inputs() {
+    let config = signature_test_config();
+    let response = signed_refund_response();
+    assert!(verify_refund_response_signature(&response, &config, 200).is_ok());
+
+    let mut tampered = signed_refund_response();
+    tampered.refund_amount = Some(RevpayAmount::Text(string_amount("10.01")));
+    assert!(verify_refund_response_signature(&tampered, &config, 200).is_err());
+
+    let mut wrong_key_index = signed_refund_response();
+    wrong_key_index.key_index = Some(2);
+    assert!(verify_refund_response_signature(&wrong_key_index, &config, 200).is_err());
+
+    let mut missing_preimage = signed_refund_response();
+    missing_preimage.reference_number = None;
+    assert!(verify_refund_response_signature(&missing_preimage, &config, 200).is_err());
+
+    let mut unsigned_success = signed_refund_response();
+    unsigned_success.signature = None;
+    assert!(verify_refund_response_signature(&unsigned_success, &config, 200).is_err());
+}
+
 #[test]
 fn refund_request_signature_matches_offline_vector() {
     // Refund formula (§3.10): sha512(key + mid + Reference_Number +
@@ -140,6 +266,10 @@ fn response_code_maps_to_refund_sync_status() {
         RevpayResponseCode::Unknown("30".to_string()).refund_sync_status(),
         RefundStatus::Pending
     );
+    assert_eq!(
+        RevpayResponseCode::Unknown("1A".to_string()).refund_sync_status(),
+        RefundStatus::Failure
+    );
 }
 
 #[test]
@@ -166,7 +296,7 @@ fn payment_response_parses_uat_redirect_body_with_null_transaction_id() {
     // gateway's test card: the "09 Request in progress" redirect response
     // has `Transaction_ID: null` plus many optional null fields. Must
     // parse and surface the redirect URL.
-    let body = r#"{"Revpay_Merchant_ID":"MER00000006606","Payment_ID":2,"Bank_Code":null,"Transaction_ID":null,"Reference_Number":"azharamin-REVPAY1792669250-R1","Amount":"10.00","Currency":"MYR","Transaction_Description":"Payment azharamin-REVPAY1792669250-R1","Response_Code":"09","Error_Description":"Request in progress.","Key_Index":1,"Signature":"e4b159","Settlement_Amount":null,"Settlement_Currency":null,"Settlement_FX_Rate":null,"Request_Datetime":null,"Response_Datetime":null,"Ecomm_Marketplace":null,"Promo_Code":null,"Funding_Pan_Mask":null,"Funding_Bin":null,"Funding_Exp_Date":null,"Token_Pan":null,"Token_Exp_Date":null,"Fraud_Score":null,"Bank_Reference_Number":null,"Bank_Redirect_URL":"https://stg-mpg.revpay-sandbox.com.my/v1/payment/intents/3936cb80-bf75-4943-92c4-ff7620f70f36/abc"}"#;
+    let body = r#"{"Revpay_Merchant_ID":"MER_TEST_000001","Payment_ID":2,"Bank_Code":null,"Transaction_ID":null,"Reference_Number":"test-reference-0001","Amount":"10.00","Currency":"MYR","Transaction_Description":"Payment test-reference-0001","Response_Code":"09","Error_Description":"Request in progress.","Key_Index":1,"Signature":"e4b159","Settlement_Amount":null,"Settlement_Currency":null,"Settlement_FX_Rate":null,"Request_Datetime":null,"Response_Datetime":null,"Ecomm_Marketplace":null,"Promo_Code":null,"Funding_Pan_Mask":null,"Funding_Bin":null,"Funding_Exp_Date":null,"Token_Pan":null,"Token_Exp_Date":null,"Fraud_Score":null,"Bank_Reference_Number":null,"Bank_Redirect_URL":"https://sandbox.revpay.example/v1/payment/intents/test-intent/redirect"}"#;
     let parsed: RevpayPaymentsResponse =
         serde_json::from_str(body).expect("UAT redirect body must deserialize");
     assert_eq!(parsed.transaction_id, None);
@@ -176,7 +306,7 @@ fn payment_response_parses_uat_redirect_body_with_null_transaction_id() {
     ));
     assert_eq!(
         parsed.bank_redirect_url.as_deref(),
-        Some("https://stg-mpg.revpay-sandbox.com.my/v1/payment/intents/3936cb80-bf75-4943-92c4-ff7620f70f36/abc")
+        Some("https://sandbox.revpay.example/v1/payment/intents/test-intent/redirect")
     );
 }
 
@@ -586,8 +716,12 @@ fn response_code_deserializes_known_and_unknown_codes() {
         AttemptStatus::Pending
     );
     assert_eq!(
-        RevpayResponseCode::Unknown("76".to_string()).psync_status(),
+        RevpayResponseCode::TransactionNotFound.psync_status(),
         AttemptStatus::Pending
+    );
+    assert_eq!(
+        RevpayResponseCode::Unknown("1A".to_string()).psync_status(),
+        AttemptStatus::Failure
     );
     assert_eq!(
         serde_json::from_str::<RevpayResponseCode>("\"1A\"").expect("1A parses"),

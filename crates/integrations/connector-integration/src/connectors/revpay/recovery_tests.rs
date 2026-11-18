@@ -477,10 +477,26 @@ fn inquiry_preserves_merchant_reference_despite_gateway_transaction_id() {
     router.resource_common_data.connector_request_reference_id = "different-sync-reference".into();
     let request = RevpayPSyncRequest::try_from(&router).expect("inquiry request");
     assert_eq!(request.reference_number, "original-reference");
+    let signature = generate_revpay_signature(
+        "test-key",
+        &[
+            &"MER00000000001",
+            &"gateway-id",
+            &"00",
+            &"original-reference",
+            &"12.34",
+            &"MYR",
+        ],
+    );
     let response: RevpayPSyncResponse = serde_json::from_value(json!({
+        "Revpay_Merchant_ID": "MER00000000001",
         "Transaction_ID": "gateway-id",
         "Reference_Number": "original-reference",
-        "Response_Code": "00"
+        "Amount": "12.34",
+        "Currency": "MYR",
+        "Response_Code": "00",
+        "Key_Index": 1,
+        "Signature": signature.peek()
     }))
     .expect("inquiry response");
     let result = RouterDataV2::try_from(ResponseRouterData {
