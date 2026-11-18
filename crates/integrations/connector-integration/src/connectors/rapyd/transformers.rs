@@ -945,6 +945,17 @@ impl TryFrom<Option<&common_enums::MitCategory>> for RapydRecurrenceType {
     }
 }
 
+// A saved-card charge uses its recurrence category as the initiation type.
+impl From<RapydRecurrenceType> for RapydInitiationType {
+    fn from(recurrence_type: RapydRecurrenceType) -> Self {
+        match recurrence_type {
+            RapydRecurrenceType::Recurring => Self::Recurring,
+            RapydRecurrenceType::Unscheduled => Self::Unscheduled,
+            RapydRecurrenceType::Installment => Self::Installment,
+        }
+    }
+}
+
 /// Rapyd `payment_method.fields.number_type` for externally provisioned
 /// network tokens: `TPAN` marks the token number as a tokenized PAN.
 ///
@@ -1143,10 +1154,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.request.money.amount() == MinorUnit::zero() {
+            return Err(IntegrationError::NotSupported {
+                message: "Zero-amount authorization".to_owned(),
+                connector: "rapyd",
+                context: utils::integration_ctx(
+                    "Authorize requires a nonzero payment amount",
+                    "Use SetupMandate for zero-amount verification.",
+                ),
+            }
+            .into());
+        }
         let return_url = item.router_data.request.get_router_return_url()?;
-        // Authorize always sends the real transaction amount. Zero-amount card
-        // verification is the SetupMandate flow's responsibility (hyperswitch
-        // routes `amount == 0 && setup_future_usage` there), not Authorize.
         let amount = item
             .connector
             .amount_converter
@@ -2344,6 +2363,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
         let amount = StringMajorUnit::zero();
         let recurrence_type = RapydRecurrenceType::try_from(request.mit_category.as_ref())?;
+        // Setup verifies future use; it does not perform a saved-card charge.
+        let initiation_type = match recurrence_type {
+            RapydRecurrenceType::Unscheduled => RapydInitiationType::CustomerPresent,
+            RapydRecurrenceType::Recurring => recurrence_type.into(),
+            RapydRecurrenceType::Installment => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Installment zero-amount setup".to_owned(),
+                    connector: "rapyd",
+                    context: utils::integration_ctx(
+                        "Installment SetupMandate is not supported by this integration",
+                        "Use a supported unscheduled or recurring setup purpose.",
+                    ),
+                }
+                .into());
+            }
+        };
 
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
@@ -2470,12 +2505,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .map(Address::from),
             receipt_email: request.email.clone(),
             save_payment_method: Some(true),
-            initiation_type: Some(match recurrence_type {
-                RapydRecurrenceType::Recurring => RapydInitiationType::Recurring,
-                RapydRecurrenceType::Unscheduled | RapydRecurrenceType::Installment => {
-                    RapydInitiationType::CustomerPresent
-                }
-            }),
+            initiation_type: Some(initiation_type),
         })
     }
 }
@@ -2566,20 +2596,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let request = &router_data.request;
 
-        let amount = if request.money.amount().get_amount_as_i64() == 0 {
-            StringMajorUnit::zero()
-        } else {
-            item.connector
-                .amount_converter
-                .convert(&request.money)
-                .change_context(IntegrationError::AmountConversionFailed {
-                    context: utils::amount_conversion_ctx(
-                        "rapyd repeat payment",
-                        &request.money.amount(),
-                        &request.currency,
-                    ),
-                })?
-        };
+        if request.money.amount() == MinorUnit::zero() {
+            return Err(IntegrationError::NotSupported {
+                message: "Zero-amount repeat payment".to_owned(),
+                connector: "rapyd",
+                context: utils::integration_ctx(
+                    "RepeatPayment requires a nonzero payment amount",
+                    "Use SetupMandate for zero-amount verification.",
+                ),
+            }
+            .into());
+        }
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(&request.money)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: utils::amount_conversion_ctx(
+                    "rapyd repeat payment",
+                    &request.money.amount(),
+                    &request.currency,
+                ),
+            })?;
 
         // The saved card token stored at CIT/SetupMandate time is the mandate
         // reference. Rapyd charges it directly — no customer id needed.
@@ -2648,12 +2686,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             customer: None,
             save_payment_method: None,
             initiation_type: Some(match request.mit_category.as_ref() {
+                // Preserve the default for saved-card requests without a category.
                 None => RapydInitiationType::Recurring,
-                category => match RapydRecurrenceType::try_from(category)? {
-                    RapydRecurrenceType::Recurring => RapydInitiationType::Recurring,
-                    RapydRecurrenceType::Unscheduled => RapydInitiationType::Unscheduled,
-                    RapydRecurrenceType::Installment => RapydInitiationType::Installment,
-                },
+                category => RapydRecurrenceType::try_from(category)?.into(),
             }),
             client_details: request.browser_info.as_ref().map(RapydClientDetails::from),
             address: router_data
