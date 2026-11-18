@@ -15,7 +15,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "incremental_authorization", "parse_event", "post_authenticate", "proxy_authorize", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "incremental_authorization", "parse_event", "post_authenticate", "proxy_authorize", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -313,47 +313,6 @@ def _build_setup_recurring_request():
         ),
     )
 
-def _build_token_setup_recurring_request():
-    return payment_pb2.PaymentServiceTokenSetupRecurringRequest(
-        merchant_recurring_payment_id="probe_tokenized_mandate_001",
-        amount=common_types_pb2.Money(
-            minor_amount=0,
-            currency=common_types_pb2.Currency.Value("USD"),
-        ),
-        connector_token=payment_methods_pb2.SecretString(value="pm_1AbcXyzStripeTestToken"),
-        address=payment_pb2.PaymentAddress(
-            billing_address=common_types_pb2.Address(),
-        ),
-        state=payment_pb2.ConnectorState(
-            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
-                token=payment_methods_pb2.SecretString(value="probe_access_token"),  # The token string.
-                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
-                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
-            ),
-        ),
-        customer_acceptance=payment_pb2.CustomerAcceptance(
-            acceptance_type=payment_pb2.AcceptanceType.Value("ONLINE"),  # Type of acceptance (e.g., online, offline).
-            accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-            online_mandate_details=payment_pb2.OnlineMandate(  # Details if the acceptance was an online mandate.
-                ip_address="127.0.0.1",  # IP address from which the mandate was accepted.
-                user_agent="Mozilla/5.0",  # User agent string of the browser used for mandate acceptance.
-            ),
-        ),
-        setup_mandate_details=payment_pb2.SetupMandateDetails(
-            mandate_type=payment_pb2.MandateType(  # Type of mandate (single_use or multi_use) with amount details.
-                multi_use=payment_pb2.MandateAmountData(
-                    amount=0,  # Use amount_money instead (will be removed in a future release).
-                    currency=common_types_pb2.Currency.Value("USD"),  # Use amount_money.currency instead (will be removed in a future release).
-                    amount_money=common_types_pb2.Money(  # Amount in Money type.
-                        minor_amount=0,
-                        currency=common_types_pb2.Currency.Value("USD"),
-                    ),
-                ),
-            ),
-        ),
-        setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),
-    )
-
 def _build_void_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceVoidRequest(
         merchant_void_id="probe_void_001",  # Identification.
@@ -594,15 +553,6 @@ async def process_setup_recurring(merchant_transaction_id: str, config: sdk_conf
     setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
 
     return {"status": setup_response.status, "mandate_id": setup_response.connector_recurring_payment_id}
-
-
-async def process_token_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.TokenSetupRecurring"""
-    payment_client = PaymentClient(config)
-
-    token_response = await payment_client.token_setup_recurring(_build_token_setup_recurring_request())
-
-    return {"status": token_response.status}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

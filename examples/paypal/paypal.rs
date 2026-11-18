@@ -29,7 +29,6 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "refund",
     "refund_get",
     "setup_recurring",
-    "token_setup_recurring",
     "void",
 ];
 
@@ -457,58 +456,6 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
     }
 }
 
-pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurringRequest {
-    PaymentServiceTokenSetupRecurringRequest {
-        merchant_recurring_payment_id: "probe_tokenized_mandate_001".to_string(),
-        amount: Some(Money {
-            minor_amount: 0,
-            currency: Currency::Usd.into(),
-        }),
-        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())),
-        address: Some(PaymentAddress {
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        state: Some(ConnectorState {
-            access_token: Some(AccessToken {
-                // Access token obtained from connector.
-                token: Some(Secret::new("probe_access_token".to_string())), // The token string.
-                expires_in_seconds: Some(3600), // Expiration timestamp (seconds since epoch).
-                token_type: Some("Bearer".to_string()), // Token type (e.g., "Bearer", "Basic").
-            }),
-            ..Default::default()
-        }),
-        customer_acceptance: Some(CustomerAcceptance {
-            acceptance_type: AcceptanceType::Online.into(), // Type of acceptance (e.g., online, offline).
-            accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-            online_mandate_details: Some(OnlineMandate {
-                // Details if the acceptance was an online mandate.
-                ip_address: Some("127.0.0.1".to_string()), // IP address from which the mandate was accepted.
-                user_agent: "Mozilla/5.0".to_string(), // User agent string of the browser used for mandate acceptance.
-            }),
-        }),
-        setup_mandate_details: Some(SetupMandateDetails {
-            mandate_type: Some(MandateType {
-                // Type of mandate (single_use or multi_use) with amount details.
-                mandate_type: Some(mandate_type::MandateType::MultiUse(MandateAmountData {
-                    amount_money: Some(Money {
-                        // Amount in Money type.
-                        minor_amount: 0,
-                        currency: Currency::Usd.into(),
-                    }),
-                    ..Default::default()
-                })),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        setup_future_usage: Some(FutureUsage::OffSession.into()),
-        ..Default::default()
-    }
-}
-
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
     PaymentServiceVoidRequest {
         merchant_void_id: Some("probe_void_001".to_string()), // Identification.
@@ -911,18 +858,6 @@ pub async fn process_setup_recurring(
     ))
 }
 
-// Flow: PaymentService.TokenSetupRecurring
-#[allow(dead_code)]
-pub async fn process_token_setup_recurring(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .token_setup_recurring(build_token_setup_recurring_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn process_void(
@@ -971,10 +906,9 @@ async fn main() {
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
-        "process_token_setup_recurring" => process_token_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_create_server_authentication_token, process_get, process_incremental_authorization, process_parse_event, process_post_authenticate, process_proxy_authorize, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_create_order, process_create_server_authentication_token, process_get, process_incremental_authorization, process_parse_event, process_post_authenticate, process_proxy_authorize, process_recurring_charge, process_refund_get, process_setup_recurring, process_void", flow);
             return;
         }
     };

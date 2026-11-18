@@ -7,7 +7,7 @@
 
 import { PaymentClient, MerchantAuthenticationClient, EventClient, PaymentMethodAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "incremental_authorization", "parse_event", "post_authenticate", "proxy_authorize", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_setup_recurring", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "incremental_authorization", "parse_event", "post_authenticate", "proxy_authorize", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -334,49 +334,6 @@ function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringReque
     };
 }
 
-function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecurringRequest {
-    return {
-        "merchantRecurringPaymentId": "probe_tokenized_mandate_001",
-        "amount": {
-            "minorAmount": 0,
-            "currency": Currency.USD
-        },
-        "connectorToken": {"value": "pm_1AbcXyzStripeTestToken"},
-        "address": {
-            "billingAddress": {
-            }
-        },
-        "state": {
-            "accessToken": {  // Access token obtained from connector.
-                "token": {"value": "probe_access_token"},  // The token string.
-                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
-                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
-            }
-        },
-        "customerAcceptance": {
-            "acceptanceType": AcceptanceType.ONLINE,  // Type of acceptance (e.g., online, offline).
-            "acceptedAt": 0,  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-            "onlineMandateDetails": {  // Details if the acceptance was an online mandate.
-                "ipAddress": "127.0.0.1",  // IP address from which the mandate was accepted.
-                "userAgent": "Mozilla/5.0"  // User agent string of the browser used for mandate acceptance.
-            }
-        },
-        "setupMandateDetails": {
-            "mandateType": {  // Type of mandate (single_use or multi_use) with amount details.
-                "multiUse": {  // Multi use mandate with amount details (for recurring payments).
-                    "amount": 0,  // Use amount_money instead (will be removed in a future release).
-                    "currency": Currency.USD,  // Use amount_money.currency instead (will be removed in a future release).
-                    "amountMoney": {  // Amount in Money type.
-                        "minorAmount": 0,
-                        "currency": Currency.USD
-                    }
-                }
-            }
-        },
-        "setupFutureUsage": FutureUsage.OFF_SESSION
-    };
-}
-
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
@@ -643,15 +600,6 @@ async function setupRecurring(merchantTransactionId: string, config: types.IConn
     return setupResponse;
 }
 
-// Flow: PaymentService.TokenSetupRecurring
-async function tokenSetupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const tokenResponse = await paymentClient.tokenSetupRecurring(_buildTokenSetupRecurringRequest());
-
-    return tokenResponse;
-}
-
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -664,7 +612,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, incrementalAuthorization, parseEvent, postAuthenticate, proxyAuthorize, recurringCharge, refund, refundGet, setupRecurring, tokenSetupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, incrementalAuthorization, parseEvent, postAuthenticate, proxyAuthorize, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildIncrementalAuthorizationRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner
