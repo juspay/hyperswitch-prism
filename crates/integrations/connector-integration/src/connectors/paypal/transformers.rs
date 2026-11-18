@@ -1103,6 +1103,49 @@ pub struct PaypalZeroMandateRequest {
 pub enum ZeroMandateSourceItem {
     Card(CardMandateRequest),
     Paypal(PaypalMandateStruct),
+    Token(SetupTokenSource),
+}
+
+/// Exchanges a buyer-approved Vault v3 setup token for a payment token.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SetupTokenSource {
+    id: Secret<String>,
+    #[serde(rename = "type")]
+    token_type: SetupTokenType,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SetupTokenType {
+    SetupToken,
+}
+
+/// Stored as connector metadata while a PayPal wallet setup token waits for buyer approval.
+/// The return from approval (CompleteAuthorize -> Authorize) exchanges it for a payment token.
+/// It also parses as `PaypalMeta`, so other flows that read the metadata keep working.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaypalSetupTokenMeta {
+    pub psync_flow: PaypalPaymentIntent,
+    pub setup_token_id: String,
+}
+
+pub fn get_setup_token_id(
+    connector_feature_data: Option<&common_utils::pii::SecretSerdeValue>,
+) -> Option<String> {
+    connector_feature_data
+        .and_then(|data| serde_json::from_value::<PaypalSetupTokenMeta>(data.clone().expose()).ok())
+        .map(|meta| meta.setup_token_id)
+}
+
+impl PaypalZeroMandateRequest {
+    pub fn from_setup_token(setup_token_id: String) -> Self {
+        Self {
+            payment_source: ZeroMandateSourceItem::Token(SetupTokenSource {
+                id: Secret::new(setup_token_id),
+                token_type: SetupTokenType::SetupToken,
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1122,9 +1165,20 @@ pub struct CardMandateRequest {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaypalSetupMandatesResponse {
     id: String,
-    customer: Customer,
-    payment_source: ZeroMandateSourceItem,
+    customer: Option<Customer>,
+    // Set on setup tokens only; a payment token has no status.
+    status: Option<PaypalVaultTokenStatus>,
+    // Card or PayPal details; nothing here is read.
+    payment_source: serde_json::Value,
     links: Vec<PaypalLinks>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalVaultTokenStatus {
+    PayerActionRequired,
+    #[serde(other)]
+    Other,
 }
 
 // RepeatPayment - reuses Authorize request/response types
@@ -3400,6 +3454,48 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let info_response = item.response;
 
+        // PayPal wallet setup token: the buyer must approve it before it can be exchanged.
+        if let Some(PaypalVaultTokenStatus::PayerActionRequired) = info_response.status {
+            let approve_link = info_response
+                .links
+                .iter()
+                .find(|link| link.rel == "approve")
+                .and_then(|link| link.href.clone())
+                .ok_or_else(|| {
+                    Report::new(ConnectorError::response_handling_failed_with_context(
+                        item.http_code,
+                        Some("PayPal setup token response has no approve link".to_string()),
+                    ))
+                })?;
+            let connector_meta = serde_json::json!(PaypalSetupTokenMeta {
+                psync_flow: PaypalPaymentIntent::Authenticate,
+                setup_token_id: info_response.id.clone(),
+            });
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::AuthenticationPending,
+                    ..item.router_data.resource_common_data
+                },
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(info_response.id.clone()),
+                    redirection_data: Some(Box::new(RedirectForm::from((
+                        approve_link,
+                        Method::Get,
+                    )))),
+                    mandate_reference: None,
+                    connector_metadata: Some(connector_meta),
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: Some(info_response.id),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                    payment_account_reference: None,
+                }),
+                ..item.router_data
+            });
+        }
+
         let mandate_reference = Some(Box::new(MandateReference {
             connector_mandate_id: Some(info_response.id.clone()),
             payment_method_id: None,
@@ -3484,6 +3580,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })?,
                 ),
             }),
+
+            // Zero-amount PayPal wallet setup: create a Vault v3 setup token for the buyer to
+            // approve; the return (CompleteAuthorize) exchanges it for a payment token.
+            PaymentMethodData::Wallet(WalletData::PaypalRedirect(_)) => {
+                let return_url = item
+                    .router_data
+                    .request
+                    .complete_authorize_url
+                    .clone()
+                    .or_else(|| item.router_data.request.router_return_url.clone())
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                        context: Default::default(),
+                    })?;
+                ZeroMandateSourceItem::Paypal(PaypalMandateStruct {
+                    experience_context: Some(ContextStruct {
+                        return_url: Some(return_url.clone()),
+                        cancel_url: Some(return_url),
+                        user_action: None,
+                        shipping_preference: ShippingPreference::GetFromFile,
+                    }),
+                    usage_type: UsageType::Merchant,
+                })
+            }
 
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)

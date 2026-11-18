@@ -739,18 +739,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let base = self.connector_base_url_payments(req);
 
-        let path = if let PaymentMethodData::Wallet(WalletData::PaypalSdk(paypal_wallet_data)) =
-            &req.request.payment_method_data
-        {
-            // Case 1: PaypalSdk wallet - complete order using SDK token
-            format!("v2/checkout/orders/{}/{}", paypal_wallet_data.token, action)
-        } else if let Some(order_id) = &req.resource_common_data.connector_order_id {
-            // Case 2: Completing an existing/redirect-approved order (order_id set on the order)
-            format!("v2/checkout/orders/{order_id}/{action}")
-        } else {
-            // Case 3: Creating new order
-            "v2/checkout/orders".to_owned()
-        };
+        let path =
+            if paypal::get_setup_token_id(req.resource_common_data.connector_feature_data.as_ref())
+                .is_some()
+            {
+                // Return from a PayPal wallet setup-token approval: exchange it for a payment token
+                "v3/vault/payment-tokens".to_owned()
+            } else if let PaymentMethodData::Wallet(WalletData::PaypalSdk(paypal_wallet_data)) =
+                &req.request.payment_method_data
+            {
+                // Case 1: PaypalSdk wallet - complete order using SDK token
+                format!("v2/checkout/orders/{}/{}", paypal_wallet_data.token, action)
+            } else if let Some(order_id) = &req.resource_common_data.connector_order_id {
+                // Case 2: Completing an existing/redirect-approved order (order_id set on the order)
+                format!("v2/checkout/orders/{order_id}/{action}")
+            } else {
+                // Case 3: Creating new order
+                "v2/checkout/orders".to_owned()
+            };
 
         Ok(format!("{base}{path}"))
     }
@@ -764,7 +770,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
-        let body = if matches!(
+        let body = if let Some(setup_token_id) =
+            paypal::get_setup_token_id(req.resource_common_data.connector_feature_data.as_ref())
+        {
+            let connector_req = PaypalZeroMandateRequest::from_setup_token(setup_token_id);
+            let typed = events::MaskedSerdeValue::from_masked_optional(
+                &connector_req,
+                "typed_connector_request",
+            );
+            Some(common_utils::request::ConnectorRequestData::new(
+                common_utils::request::RequestContent::Json(Box::new(connector_req)),
+                typed,
+            ))
+        } else if matches!(
             req.request.payment_method_data,
             PaymentMethodData::Wallet(WalletData::PaypalSdk(_))
         ) {
@@ -807,6 +825,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ConnectorError,
     > {
+        if paypal::get_setup_token_id(data.resource_common_data.connector_feature_data.as_ref())
+            .is_some()
+        {
+            let response: PaypalSetupMandatesResponse = res
+                .response
+                .parse_struct("PaypalSetupMandatesResponse")
+                .change_context(utils::response_handling_fail_for_connector(
+                    res.status_code,
+                    "paypal",
+                ))?;
+            return finalize_connector_response!(event_builder, response, data, res.status_code);
+        }
         let response: PaypalAuthResponse = res
             .response
             .parse_struct("PaypalAuthResponse")
@@ -1236,10 +1266,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}v3/vault/payment-tokens/",
-                self.connector_base_url_payments(req)
-            ))
+            // A PayPal wallet needs buyer approval first, so it starts with a setup token.
+            let path = match req.request.payment_method_data {
+                PaymentMethodData::Wallet(WalletData::PaypalRedirect(_)) => "v3/vault/setup-tokens",
+                _ => "v3/vault/payment-tokens/",
+            };
+            Ok(format!("{}{path}", self.connector_base_url_payments(req)))
         }
     }
 );

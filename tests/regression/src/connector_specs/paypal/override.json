@@ -344,5 +344,36 @@
         }
       }
     }
+  },
+  "PaymentService/SetupRecurring": {
+    "paypal_setup_recurring_wallet_zero_amount": {
+      "extends": "setup_recurring",
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": null,
+          "paypal_redirect": {}
+        },
+        "complete_authorize_url": "https://hyperswitch.io/complete",
+        "return_url": "https://hyperswitch.io/return"
+      },
+      "assert": {
+        "mandate_reference.connector_mandate_id.connector_mandate_id": null,
+        "status": {
+          "one_of": [
+            "AUTHENTICATION_PENDING"
+          ]
+        },
+        "redirection_data.form.endpoint": {
+          "equals": "https://www.sandbox.paypal.com/agreements/approve"
+        },
+        "connector_feature_data": {
+          "must_exist": true
+        }
+      }
+    }
   }
 }
