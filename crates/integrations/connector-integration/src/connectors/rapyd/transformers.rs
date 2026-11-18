@@ -922,26 +922,94 @@ pub enum RapydRecurrenceType {
     Installment,
 }
 
-impl TryFrom<Option<&common_enums::MitCategory>> for RapydRecurrenceType {
+#[derive(Debug, Clone, Copy)]
+enum RapydPurposeFlow {
+    InitialSave,
+    SetupMandate,
+    RepeatPayment,
+}
+
+#[derive(Debug)]
+struct RapydPaymentPurpose {
+    recurrence_type: RapydRecurrenceType,
+    initiation_type: RapydInitiationType,
+}
+
+impl TryFrom<(Option<&common_enums::MitCategory>, RapydPurposeFlow)> for RapydPaymentPurpose {
     type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(category: Option<&common_enums::MitCategory>) -> Result<Self, Self::Error> {
-        match category {
-            None | Some(common_enums::MitCategory::Unscheduled) => Ok(Self::Unscheduled),
-            Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
-                Ok(Self::Recurring)
-            }
-            Some(common_enums::MitCategory::Installment) => Ok(Self::Installment),
-            Some(common_enums::MitCategory::Resubmission) => Err(IntegrationError::NotSupported {
-                message: "Resubmission stored-card purpose".to_owned(),
-                connector: "rapyd",
-                context: utils::integration_ctx(
-                    "Rapyd resubmission purpose is not supported",
-                    "Use a documented unscheduled, recurring, subscription, or installment purpose.",
+    fn try_from(
+        (category, flow): (Option<&common_enums::MitCategory>, RapydPurposeFlow),
+    ) -> Result<Self, Self::Error> {
+        // Payment flows share this purpose mapping and support installments.
+        // Zero-amount setup applies its narrower restrictions below.
+        let (recurrence_type, initiation_type) = match (category, flow) {
+            (
+                None | Some(common_enums::MitCategory::Unscheduled),
+                RapydPurposeFlow::InitialSave | RapydPurposeFlow::SetupMandate,
+            ) => (
+                RapydRecurrenceType::Unscheduled,
+                RapydInitiationType::CustomerPresent,
+            ),
+            // Preserve the default for saved-card requests without a category.
+            (None, RapydPurposeFlow::RepeatPayment)
+            | (
+                Some(
+                    common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
                 ),
+                RapydPurposeFlow::SetupMandate | RapydPurposeFlow::RepeatPayment,
+            ) => (
+                RapydRecurrenceType::Recurring,
+                RapydInitiationType::Recurring,
+            ),
+            (
+                Some(
+                    common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
+                ),
+                RapydPurposeFlow::InitialSave,
+            ) => (
+                RapydRecurrenceType::Recurring,
+                RapydInitiationType::CustomerPresent,
+            ),
+            (Some(common_enums::MitCategory::Unscheduled), RapydPurposeFlow::RepeatPayment) => (
+                RapydRecurrenceType::Unscheduled,
+                RapydInitiationType::Unscheduled,
+            ),
+            (Some(common_enums::MitCategory::Installment), RapydPurposeFlow::InitialSave) => (
+                RapydRecurrenceType::Installment,
+                RapydInitiationType::CustomerPresent,
+            ),
+            (Some(common_enums::MitCategory::Installment), RapydPurposeFlow::RepeatPayment) => (
+                RapydRecurrenceType::Installment,
+                RapydInitiationType::Installment,
+            ),
+            (Some(common_enums::MitCategory::Installment), RapydPurposeFlow::SetupMandate) => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Installment zero-amount setup".to_owned(),
+                    connector: "rapyd",
+                    context: utils::integration_ctx(
+                        "Installment SetupMandate is not supported by this integration",
+                        "Use a supported unscheduled or recurring setup purpose.",
+                    ),
+                }
+                .into());
             }
-            .into()),
-        }
+            (Some(common_enums::MitCategory::Resubmission), _) => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Resubmission stored-card purpose".to_owned(),
+                    connector: "rapyd",
+                    context: utils::integration_ctx(
+                        "Rapyd resubmission purpose is not supported",
+                        "Use a documented unscheduled, recurring, subscription, or installment purpose.",
+                    ),
+                }
+                .into());
+            }
+        };
+        Ok(Self {
+            recurrence_type,
+            initiation_type,
+        })
     }
 }
 
@@ -1245,10 +1313,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }
                         .into());
                     }
-                    initiation_type = Some(RapydInitiationType::CustomerPresent);
-                    Some(RapydRecurrenceType::try_from(
+                    let purpose = RapydPaymentPurpose::try_from((
                         item.router_data.request.mit_category.as_ref(),
-                    )?)
+                        RapydPurposeFlow::InitialSave,
+                    ))?;
+                    initiation_type = Some(purpose.initiation_type);
+                    Some(purpose.recurrence_type)
                 } else {
                     None
                 };
@@ -2373,23 +2443,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
         // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
         let amount = StringMajorUnit::zero();
-        let recurrence_type = RapydRecurrenceType::try_from(request.mit_category.as_ref())?;
-        // Setup verifies future use; it does not perform a saved-card charge.
-        let initiation_type = match recurrence_type {
-            RapydRecurrenceType::Unscheduled => RapydInitiationType::CustomerPresent,
-            RapydRecurrenceType::Recurring => RapydInitiationType::Recurring,
-            RapydRecurrenceType::Installment => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Installment zero-amount setup".to_owned(),
-                    connector: "rapyd",
-                    context: utils::integration_ctx(
-                        "Installment SetupMandate is not supported by this integration",
-                        "Use a supported unscheduled or recurring setup purpose.",
-                    ),
-                }
-                .into());
-            }
-        };
+        let purpose = RapydPaymentPurpose::try_from((
+            request.mit_category.as_ref(),
+            RapydPurposeFlow::SetupMandate,
+        ))?;
 
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
@@ -2423,7 +2480,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         expiration_year: ccard.card_exp_year.to_owned(),
                         name: cardholder_name,
                         cvv: ccard.card_cvc.to_owned(),
-                        recurrence_type: Some(recurrence_type),
+                        recurrence_type: Some(purpose.recurrence_type),
                     })),
                     address: None,
                     digital_wallet: None,
@@ -2516,7 +2573,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .map(Address::from),
             receipt_email: request.email.clone(),
             save_payment_method: Some(true),
-            initiation_type: Some(initiation_type),
+            initiation_type: Some(purpose.initiation_type),
         })
     }
 }
@@ -2696,15 +2753,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             complete_payment_url: Some(return_url),
             customer: None,
             save_payment_method: None,
-            initiation_type: Some(match request.mit_category.as_ref() {
-                // Preserve the default for saved-card requests without a category.
-                None => RapydInitiationType::Recurring,
-                category => match RapydRecurrenceType::try_from(category)? {
-                    RapydRecurrenceType::Recurring => RapydInitiationType::Recurring,
-                    RapydRecurrenceType::Unscheduled => RapydInitiationType::Unscheduled,
-                    RapydRecurrenceType::Installment => RapydInitiationType::Installment,
-                },
-            }),
+            initiation_type: Some(
+                RapydPaymentPurpose::try_from((
+                    request.mit_category.as_ref(),
+                    RapydPurposeFlow::RepeatPayment,
+                ))?
+                .initiation_type,
+            ),
             client_details: request.browser_info.as_ref().map(RapydClientDetails::from),
             address: router_data
                 .resource_common_data
