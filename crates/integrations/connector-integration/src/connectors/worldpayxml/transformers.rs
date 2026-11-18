@@ -2571,21 +2571,23 @@ impl responses::WorldpayxmlWebhookBody {
     ) -> CustomResult<WebhookDetailsResponse, WebhookError> {
         let event = self.notify.order_status_event;
         let payment = event.payment;
-        let event_context = if payment.last_event == WorldpayxmlLastEvent::Authorised {
-            event_context.ok_or(WebhookError::WebhookMissingRequiredContext {
-                field: "capture_method",
-                origin: "payment authorize",
-            })?
+        let capture_method = if payment.last_event == WorldpayxmlLastEvent::Authorised {
+            event_context
+                .ok_or(WebhookError::WebhookMissingRequiredContext {
+                    field: "capture_method",
+                    origin: "payment authorize",
+                })?
+                .capture_method
         } else {
-            event_context.unwrap_or_default()
+            event_context.and_then(|context| context.capture_method)
         };
         let status = map_worldpayxml_authorize_status(
             &payment.last_event,
             !matches!(
-                event_context.capture_method,
+                capture_method,
                 Some(CaptureMethod::Manual | CaptureMethod::ManualMultiple)
             ),
-            event_context.previous_status.as_ref(),
+            None,
             200,
         )
         .change_context(WebhookError::WebhookProcessingFailed)?;
