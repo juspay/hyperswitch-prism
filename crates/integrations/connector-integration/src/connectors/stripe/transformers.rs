@@ -899,6 +899,10 @@ pub struct StripeBillingAddressCardToken {
     pub state: Option<Secret<String>>,
     #[serde(rename = "billing_details[address][city]")]
     pub city: Option<Secret<String>>,
+    #[serde(rename = "billing_details[address][postal_code]")]
+    pub zip_code: Option<Secret<String>>,
+    #[serde(rename = "billing_details[address][country]")]
+    pub country: Option<common_enums::CountryAlpha2>,
 }
 
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided.
@@ -7400,6 +7404,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .router_data
                 .resource_common_data
                 .get_optional_billing_state(),
+            zip_code: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_zip(),
+            country: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_country(),
         };
 
         // Card flow for tokenization is handled separately because of API contract difference

@@ -1,11 +1,152 @@
 use common_enums::{
-    CardNetwork, CardSegmentType, CardType, CountryAlpha2, FundingSource, PaymentMethodType,
+    AttemptStatus, CardNetwork, CardSegmentType, CardType, CountryAlpha2, FundingSource,
+    PaymentMethodType, RefundStatus,
 };
-use domain_types::router_data::AdditionalPaymentMethodConnectorResponse;
+use domain_types::utils::ForeignTryFrom;
+use domain_types::{
+    connector_types::{EventType, HttpMethod, RequestDetails, WebhookResourceReference},
+    payment_method_data::DefaultPCIHolder,
+    router_data::AdditionalPaymentMethodConnectorResponse,
+};
+use interfaces::webhooks::IncomingWebhook;
 
 use super::{
     responses::WorldpayxmlAuthorizeResponse, transformers::get_worldpayxml_connector_response,
+    Worldpayxml,
 };
+
+#[test]
+fn authorization_webhook_preserves_in_progress_manual_operations() {
+    for (capture_method, previous_status, expected_status) in [
+        (
+            "MANUAL",
+            "CAPTURE_INITIATED",
+            AttemptStatus::CaptureInitiated,
+        ),
+        ("MANUAL", "VOID_INITIATED", AttemptStatus::VoidInitiated),
+        ("MANUAL", "AUTHORIZING", AttemptStatus::Authorized),
+        ("MANUAL", "AUTHORIZED", AttemptStatus::Authorized),
+        (
+            "MANUAL",
+            "PAYMENT_STATUS_UNSPECIFIED",
+            AttemptStatus::Authorized,
+        ),
+        ("AUTOMATIC", "CAPTURE_INITIATED", AttemptStatus::Charged),
+        ("AUTOMATIC", "VOID_INITIATED", AttemptStatus::Charged),
+    ] {
+        let context = serde_json::from_value::<grpc_api_types::payments::EventContext>(
+            serde_json::json!({"event_context": {"Payment": {
+                "capture_method": capture_method,
+                "previous_status": previous_status
+            }}}),
+        )
+        .expect("payment context must decode");
+        let context = domain_types::connector_types::EventContext::foreign_try_from(context)
+            .expect("payment context must convert");
+        let response = Worldpayxml::<DefaultPCIHolder>::new().process_payment_webhook(
+            RequestDetails {
+                method: HttpMethod::Post,
+                uri: None,
+                headers: std::collections::HashMap::new(),
+                body: br#"<paymentService version="1.4" merchantCode="fixture-merchant"><notify><orderStatusEvent orderCode="authorization"><payment><lastEvent>AUTHORISED</lastEvent></payment></orderStatusEvent></notify></paymentService>"#.to_vec(),
+                query_params: None,
+            }, None, None, Some(context),
+        ).expect("authorization webhook must decode");
+        assert_eq!(
+            response.status, expected_status,
+            "{capture_method}, {previous_status}"
+        );
+    }
+}
+
+#[test]
+fn authorization_webhook_accepts_context_without_previous_status() {
+    let context = serde_json::from_value::<grpc_api_types::payments::EventContext>(
+        serde_json::json!({"event_context": {"Payment": {"capture_method": "MANUAL"}}}),
+    )
+    .expect("older payment context must decode");
+    let context = domain_types::connector_types::EventContext::foreign_try_from(context)
+        .expect("older payment context must convert");
+    let response = Worldpayxml::<DefaultPCIHolder>::new().process_payment_webhook(
+        RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers: std::collections::HashMap::new(),
+            body: br#"<paymentService version="1.4" merchantCode="fixture-merchant"><notify><orderStatusEvent orderCode="authorization"><payment><lastEvent>AUTHORISED</lastEvent></payment></orderStatusEvent></notify></paymentService>"#.to_vec(),
+            query_params: None,
+        }, None, None, Some(context),
+    ).expect("older payment context must retain its authorization behavior");
+    assert_eq!(response.status, AttemptStatus::Authorized);
+}
+
+#[test]
+fn payment_context_rejects_unrecognized_previous_status() {
+    use grpc_api_types::payments::{event_context, EventContext, PaymentEventContext};
+
+    let error = domain_types::connector_types::EventContext::foreign_try_from(EventContext {
+        event_context: Some(event_context::EventContext::Payment(PaymentEventContext {
+            capture_method: Some(grpc_api_types::payments::CaptureMethod::Manual.into()),
+            previous_status: Some(i32::MAX),
+        })),
+    })
+    .expect_err("an unrecognized status must not reach connector processing");
+    assert!(matches!(
+        error.current_context(),
+        domain_types::errors::WebhookError::WebhookBodyDecodingFailed
+    ));
+}
+
+#[test]
+fn pending_refund_webhooks_report_processing_and_preserve_refund_reference() {
+    let connector = Worldpayxml::<DefaultPCIHolder>::new();
+    for last_event in [
+        "REFUND_REQUESTED",
+        "SENT_FOR_REFUND",
+        "SENT_FOR_FAST_REFUND",
+    ] {
+        let request = RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers: std::collections::HashMap::new(),
+            body: format!(
+                r#"<paymentService version="1.4" merchantCode="fixture-merchant">
+  <notify>
+    <orderStatusEvent orderCode="refund-requested">
+      <payment><lastEvent>{last_event}</lastEvent></payment>
+    </orderStatusEvent>
+  </notify>
+</paymentService>"#
+            )
+            .into_bytes(),
+            query_params: None,
+        };
+
+        assert_eq!(
+            connector
+                .get_event_type(request.clone())
+                .expect("refund request event must decode"),
+            EventType::RefundProcessing
+        );
+        let reference = connector
+            .get_webhook_event_reference(request.clone())
+            .expect("pending refund reference must decode");
+        let Some(WebhookResourceReference::Refund(reference)) = reference else {
+            panic!("expected a refund reference for {last_event}");
+        };
+        assert_eq!(
+            reference.connector_refund_id.as_deref(),
+            Some("refund-requested")
+        );
+        let response = connector
+            .process_refund_webhook(request, None, None)
+            .expect("refund request must remain pending");
+        assert_eq!(response.status, RefundStatus::Pending);
+        assert_eq!(
+            response.connector_refund_id.as_deref(),
+            Some("refund-requested")
+        );
+    }
+}
 
 const CARD_WITH_BIN: &str = r#"
 <paymentService version="1.4" merchantCode="fixture-merchant">

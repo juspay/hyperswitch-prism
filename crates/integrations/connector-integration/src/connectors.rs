@@ -352,3 +352,5 @@ pub use self::reddot::Reddot;
 
 pub mod ecommpay;
 pub use self::ecommpay::Ecommpay;
+pub mod payhound;
+pub use self::payhound::Payhound;

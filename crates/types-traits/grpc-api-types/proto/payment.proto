@@ -758,7 +758,8 @@ enum Connector {
   CLEARSALE_BR = 154;
   BETTERPAYMENT = 155;
   REDDOT = 156;
-  REVPAY = 157;
+  PAYHOUND = 157;
+  REVPAY = 158;
 }
 
 // Payment method types
@@ -880,22 +881,22 @@ enum PaymentMethodType {
   SKRILL = 114;
   PAYMAYA = 115 [deprecated = true]; // Use MAYA_WALLET.
   GRAB_PAY = 116 [deprecated = true]; // Use GRABPAY_WALLET.
-  // PAYMENT_METHOD_TYPE_KLARNA (not bare KLARNA): the value name KLARNA is already
-  // taken by the Connector enum in this same proto package, and protobuf requires
-  // enum value names to be unique per-package (C++ scoping). Klarna is legitimately
-  // both a connector and a payment method; this value carries the enum-name prefix
-  // that the protobuf style guide recommends for exactly this reason.
-  PAYMENT_METHOD_TYPE_KLARNA = 117;
+  // KLARNA_BNPL (not bare KLARNA): the value name KLARNA is already taken by the
+  // Connector enum in this same proto package, and protobuf requires enum value
+  // names to be unique per-package (C++ scoping). Klarna is legitimately both a
+  // connector and a payment method; disambiguated with its payment method
+  // category as a suffix, same as QWIKCILVER_WALLET above.
+  KLARNA_BNPL = 117;
   BHN_CARD_NETWORK = 118;
   BLUECODE = 119;
   BREADPAY = 120;
   EFT_DEBIT_ORDER = 121;
   FLEXITI = 122;
   INDONESIAN_BANK_TRANSFER = 123;
-  // PAYMENT_METHOD_TYPE_MIFINITY (not bare MIFINITY): the value name MIFINITY is
-  // already taken by the Connector enum in this same proto package; see the
-  // PAYMENT_METHOD_TYPE_KLARNA note above.
-  PAYMENT_METHOD_TYPE_MIFINITY = 124;
+  // MIFINITY_WALLET (not bare MIFINITY): the value name MIFINITY is already
+  // taken by the Connector enum in this same proto package; see the
+  // KLARNA_BNPL note above.
+  MIFINITY_WALLET = 124;
   PAYJUSTNOW = 125;
   PAYSERA = 126;
   PAYSHAP = 127;
@@ -1341,6 +1342,15 @@ message L2L3Data {
 
   // Tax information
   optional TaxInfo tax_info = 2;
+
+  // Customer details
+  optional Customer customer_info = 3;
+
+  // Shipping address
+  optional Address shipping_details = 4;
+
+  // Billing address
+  optional Address billing_details = 5;
 }
 
 // Redirection response data
@@ -3526,6 +3536,13 @@ message RefundServiceVoidPostRefundRequest {
 
   // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 12;
+
+  // Refund context required by connectors that need the original payment data
+  // to reverse a refund (for example, Worldpay RAFT).
+  optional PaymentMethod payment_method = 13;
+
+  // Amount of the original refund to reverse.
+  optional Money refund_amount = 14;
 }
 
 // Request message for creating a dispute
@@ -5044,7 +5061,7 @@ message CheckoutConfig {
   SecretString api_secret = 2;
   SecretString processing_channel_id = 3;
   // Optional Checkout client ID sourced from Hyperswitch MCA metadata.
-  // Consumed only by Checkout payout URL resolution.
+  // Used to derive the optional account-specific API subdomain for payment and payout requests.
   optional SecretString connector_client_id = 4;
   // Optional Checkout currency account (`ca_...`) used as the payout `source.id`.
   // Payout-only; kept separate from `api_key` (the payment public key).
@@ -5996,6 +6013,16 @@ message ReddotConfig {
   optional string base_url = 50;
 }
 
+message PayhoundConfig {
+  // Payhound API key, sent as the X-MB-Key header.
+  SecretString api_key = 1;
+  // Payhound API secret: the HMAC-SHA512 key for X-MB-Signature on requests, and also the key
+  // Payhound signs incoming callbacks with (there is no separate webhook secret).
+  SecretString api_secret = 2;
+  // Overrides the Payhound API host from config (e.g. https://sandbox-api.payhound.com).
+  optional string base_url = 50;
+}
+
 // revPAY (Revenue Group Berhad). There is no HTTP auth header:
 // authentication is an in-body SHA-512 signature on every request.
 // Field names follow revPAY's own credential vocabulary (Merchant API 3.1.10).
@@ -6374,8 +6401,10 @@ message ConnectorSpecificConfig {
     BetterpaymentConfig betterpayment = 166;
     // REDDOT = 156
     ReddotConfig reddot = 167;
-    // REVPAY = 157
-    RevpayConfig revpay = 168;
+    // PAYHOUND = 157
+    PayhoundConfig payhound = 168;
+    // REVPAY = 158
+    RevpayConfig revpay = 169;
   }
 }
 

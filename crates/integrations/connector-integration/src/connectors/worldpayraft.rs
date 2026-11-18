@@ -9,13 +9,13 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate, Void,
-        VoidPC,
+        VoidPC, VoidPostRefund,
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
-        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        RefundFlowData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, SetupMandateRequestData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -36,10 +36,11 @@ use transformers::{
     WorldpayraftAuthorizeRequest, WorldpayraftAuthorizeResponse, WorldpayraftCaptureRequest,
     WorldpayraftCaptureResponse, WorldpayraftIncrementalAuthorizationRequest,
     WorldpayraftIncrementalAuthorizationResponse, WorldpayraftRefundRequest,
-    WorldpayraftRefundResponse, WorldpayraftRepeatPaymentRequest,
-    WorldpayraftRepeatPaymentResponse, WorldpayraftSetupMandateRequest,
-    WorldpayraftSetupMandateResponse, WorldpayraftVoidPCRequest, WorldpayraftVoidPCResponse,
-    WorldpayraftVoidRequest, WorldpayraftVoidResponse,
+    WorldpayraftRefundRequest as WorldpayraftRefundReversalRequest, WorldpayraftRefundResponse,
+    WorldpayraftRefundResponse as WorldpayraftRefundReversalResponse,
+    WorldpayraftRepeatPaymentRequest, WorldpayraftRepeatPaymentResponse,
+    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse, WorldpayraftVoidPCRequest,
+    WorldpayraftVoidPCResponse, WorldpayraftVoidRequest, WorldpayraftVoidResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, utils, with_error_response_body};
@@ -79,6 +80,12 @@ macros::create_all_prerequisites!(
             request_body: WorldpayraftRefundRequest,
             response_body: WorldpayraftRefundResponse,
             router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: VoidPostRefund,
+            request_body: WorldpayraftRefundReversalRequest,
+            response_body: WorldpayraftRefundReversalResponse,
+            router_data: RouterDataV2<VoidPostRefund, RefundFlowData, RefundVoidPostRefundData, RefundsResponseData>,
         ),
         (
             flow: SetupMandate,
@@ -417,6 +424,43 @@ macros::macro_connector_implementation!(
     }
 );
 
+// ===== REFUND REVERSAL TRAIT MARKER =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundVoidPostRefundV2 for Worldpayraft<T>
+{
+}
+
+// =============================================================================
+// REFUND REVERSAL FLOW IMPLEMENTATION
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayraft,
+    curl_request: Json(WorldpayraftRefundReversalRequest),
+    curl_response: WorldpayraftRefundReversalResponse,
+    flow_name: VoidPostRefund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundVoidPostRefundData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPostRefund, RefundFlowData, RefundVoidPostRefundData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPostRefund, RefundFlowData, RefundVoidPostRefundData, RefundsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            Ok(format!("{}/credit/refund", self.connector_base_url_refunds(req)))
+        }
+    }
+);
+
 // ===== SETUPMANDATE TRAIT MARKER =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Worldpayraft<T>
@@ -608,6 +652,5 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         Accept,
         DefendDispute,
         SubmitEvidence,
-        VoidPostRefund,
     ],
 );

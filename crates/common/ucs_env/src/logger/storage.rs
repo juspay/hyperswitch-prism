@@ -33,7 +33,7 @@ impl<'a> Storage<'a> {
         if super::formatter::IMPLICIT_KEYS.contains(key) {
             #[allow(clippy::print_stderr)]
             {
-                eprintln!("{key} is a reserved entry. Skipping it. value: {value}");
+                eprintln!("{key} is a reserved entry. Skipping it.");
             }
         } else {
             self.values.insert(key, value);

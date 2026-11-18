@@ -390,7 +390,7 @@ when the flow returned "not implemented" for every one of them.
 **Check.**
 
 ```bash
-git diff --name-only {BASE} | grep -vE '^(crates/integrations/connector-integration/src/connectors/<c>|crates/internal/integration-tests/src/connector_specs/<c>)'   # gate: blocking
+git diff --name-only {BASE} | grep -vE '^(crates/integrations/connector-integration/src/connectors/<c>|tests/regression/src/connector_specs/<c>)'   # gate: blocking
 ```
 
 Everything that survives is either deliberately in scope and called out in the PR body, or belongs in

@@ -377,6 +377,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                         doc_url: None,
                     },
                 })?,
+                PayoutWallet::GooglePayDecrypt(_) => Err(IntegrationError::NotSupported {
+                    message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "PayPal Payout Transfer - Google Pay Decrypt is not supported for payouts"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use PayPal or Venmo wallet for payouts".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?,
                 PayoutWallet::Mifinity(_) => Err(IntegrationError::NotSupported {
                     message: "Mifinity PayoutMethodType is not supported".to_string(),
                     connector: "Paypal",
