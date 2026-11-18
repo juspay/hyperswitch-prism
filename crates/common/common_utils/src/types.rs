@@ -14,8 +14,9 @@ use crate::errors::ParsingError;
 pub use crate::money::{
     AmountConvertor, BasisPointsPercentageForConnector, ConnectorMinorUnit,
     ConnectorMinorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, Money,
-    Percentage, StringMajorUnit, StringMajorUnitForConnector, StringMajorUnitForCore,
-    StringMinorUnit, StringMinorUnitForConnector, StringTwoDecimalUnit,
+    PaddedStringMinorUnitForConnector, Percentage, PositiveScaledMinorUnitError,
+    PositiveScaledStringMinorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector,
+    StringMajorUnitForCore, StringMinorUnit, StringMinorUnitForConnector, StringTwoDecimalUnit,
     StringTwoDecimalUnitForConnector, TruncatedTwoDecimalMajorUnitForConnector,
 };
 

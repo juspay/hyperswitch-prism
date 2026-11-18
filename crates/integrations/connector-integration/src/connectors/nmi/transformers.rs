@@ -22,7 +22,7 @@ use domain_types::{
     router_response_types::RedirectForm,
     utils::{get_unimplemented_payment_method_error_message, ForeignTryFrom},
 };
-use grpc_api_types::payments::{Currency, Money};
+use grpc_api_types::payments::Currency;
 
 // Note: Refund and RefundsData are used for the Refund flow implementation
 use error_stack::ResultExt;
@@ -1493,8 +1493,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     .change_context(ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
                     })?;
-                let amount_data = common_utils::types::ConnectorMinorUnitForConnector
-                    .convert(&item.router_data.request.money);
                 let currency_data = item.router_data.request.currency.ok_or(
                     ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
@@ -1506,24 +1504,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     })
                 })?;
 
+                let _ = Currency::foreign_try_from(currency_data).map_err(|_| {
+                    error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                        context: Default::default(),
+                    })
+                })?;
+
                 (
                     AttemptStatus::AuthenticationPending,
                     Ok(PaymentsResponseData::PreAuthenticateResponse {
                         resource_id: None,
                         authentication_data: None,
                         redirection_data: Some(Box::new(RedirectForm::Nmi {
-                            amount: Money {
-                                minor_amount: amount_data.get_amount_as_i64(),
-                                currency: Currency::foreign_try_from(currency_data)
-                                    .map_err(|_| {
-                                        error_stack::report!(
-                                            ConnectorError::ResponseHandlingFailed {
-                                                context: Default::default(),
-                                            }
-                                        )
-                                    })?
-                                    .into(),
-                            },
+                            money: item.router_data.request.money.clone(),
                             public_key: auth_type.public_key.ok_or(
                                 ConnectorError::ResponseHandlingFailed {
                                     context: Default::default(),

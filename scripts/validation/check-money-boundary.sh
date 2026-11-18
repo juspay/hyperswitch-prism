@@ -52,6 +52,9 @@ domain_minor_converter = []
 inferred_domain_minor_unit = []
 money_amount = []
 percentage_ratio = []
+connector_integer_getter = []
+connector_integer_getter_pointer = []
+domain_proto_money_mapper = []
 string_major_getter = []
 string_two_decimal_getter = []
 inferred_minor_field_read = []
@@ -120,6 +123,9 @@ check minor_unit_constructor_pointer clippy::disallowed_methods
 check domain_minor_converter E0425
 check inferred_domain_minor_unit clippy::disallowed_methods
 check percentage_ratio clippy::disallowed_methods
+check connector_integer_getter clippy::disallowed_methods
+check connector_integer_getter_pointer clippy::disallowed_methods
+check domain_proto_money_mapper E0603
 check money_amount clippy::disallowed_methods
 check string_major_getter E0599
 check string_two_decimal_getter E0599

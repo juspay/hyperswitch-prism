@@ -15,6 +15,22 @@ use common_enums::Currency;
 use common_utils::types::MinorUnit;
 use common_utils::types::{AmountConvertor, ConnectorMinorUnitForConnector, Money};
 
+#[cfg(feature = "connector_integer_getter")]
+pub fn connector_integer_getter(amount: common_utils::types::ConnectorMinorUnit) -> i64 {
+    amount.get_amount_as_i64()
+}
+
+#[cfg(feature = "connector_integer_getter_pointer")]
+pub fn connector_integer_getter_pointer(amount: common_utils::types::ConnectorMinorUnit) -> i64 {
+    let extract = common_utils::types::ConnectorMinorUnit::get_amount_as_i64;
+    extract(amount)
+}
+
+#[cfg(feature = "domain_proto_money_mapper")]
+pub fn domain_proto_money_mapper(money: &Money) {
+    let _ = domain_types::money::to_proto_money(money);
+}
+
 #[cfg(feature = "percentage_ratio")]
 pub fn percentage_ratio() -> Option<common_utils::types::Percentage> {
     common_utils::types::Percentage::from_minor_unit_ratio(Default::default(), Default::default())

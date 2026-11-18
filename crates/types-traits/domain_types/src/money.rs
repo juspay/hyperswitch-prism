@@ -13,3 +13,13 @@ pub(crate) fn from_proto_money(
         common_enums::Currency::foreign_try_from(value.currency())?,
     ))
 }
+
+/// Whole-money response mapping stays in L2, never in connector transformers.
+pub(crate) fn to_proto_money(
+    value: &Money,
+) -> Result<grpc_api_types::payments::Money, error_stack::Report<crate::errors::ConnectorError>> {
+    Ok(grpc_api_types::payments::Money {
+        minor_amount: value.amount().get_amount_as_i64(),
+        currency: grpc_api_types::payments::Currency::foreign_try_from(value.currency())?.into(),
+    })
+}

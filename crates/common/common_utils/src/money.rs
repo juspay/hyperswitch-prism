@@ -138,6 +138,48 @@ impl AmountConvertor for FloatMajorUnitForConnector {
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct ConnectorMinorUnitForConnector;
 
+/// Convert money to an integer string with a minimum, zero-filled field width.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct PaddedStringMinorUnitForConnector;
+
+impl PaddedStringMinorUnitForConnector {
+    pub fn convert(&self, money: &Money, minimum_width: u8) -> StringMinorUnit {
+        let minimum_width = usize::from(minimum_width);
+        StringMinorUnit::new(format!("{:0>minimum_width$}", money.amount.0))
+    }
+}
+
+/// Failure to encode a checked, strictly positive scaled minor-unit amount.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum PositiveScaledMinorUnitError {
+    #[error("minor-unit scaling overflow")]
+    Overflow,
+    #[error("scaled minor-unit amount is not positive")]
+    NonPositive,
+}
+
+/// Checked scaling and positive-value validation before integer-string encoding.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct PositiveScaledStringMinorUnitForConnector;
+
+impl PositiveScaledStringMinorUnitForConnector {
+    pub fn convert(
+        &self,
+        money: &Money,
+        multiplier: u16,
+    ) -> Result<StringMinorUnit, PositiveScaledMinorUnitError> {
+        let scaled = money
+            .amount
+            .0
+            .checked_mul(i64::from(multiplier))
+            .ok_or(PositiveScaledMinorUnitError::Overflow)?;
+        if scaled <= 0 {
+            return Err(PositiveScaledMinorUnitError::NonPositive);
+        }
+        Ok(StringMinorUnit::new(scaled.to_string()))
+    }
+}
+
 impl ConnectorMinorUnitForConnector {
     /// Preserves the integer minor-unit value without currency scaling.
     pub fn convert(&self, money: &Money) -> ConnectorMinorUnit {

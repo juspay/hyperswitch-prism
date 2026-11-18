@@ -10636,7 +10636,7 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
                 ),
             }),
             router_response_types::RedirectForm::Nmi {
-                amount,
+                money,
                 public_key,
                 customer_vault_id,
                 order_id,
@@ -10644,7 +10644,7 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
             } => Ok(Self {
                 form_type: Some(grpc_api_types::payments::redirect_form::FormType::Nmi(
                     grpc_api_types::payments::NmiData {
-                        amount: Some(amount),
+                        amount: Some(crate::money::to_proto_money(&money)?),
                         public_key: Some(public_key),
                         customer_vault_id,
                         order_id,
@@ -14892,7 +14892,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                                 })
                             }
                             router_response_types::RedirectForm::Nmi {
-                                amount,
+                                money,
                                 public_key,
                                 customer_vault_id,
                                 order_id,
@@ -14901,7 +14901,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                                 form_type: Some(
                                     grpc_api_types::payments::redirect_form::FormType::Nmi(
                                         grpc_api_types::payments::NmiData {
-                                            amount: Some(amount),
+                                            amount: Some(crate::money::to_proto_money(&money)?),
                                             public_key: Some(public_key),
                                             customer_vault_id,
                                             order_id,
@@ -21612,7 +21612,7 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                             })
                         }
                         router_response_types::RedirectForm::Nmi {
-                            amount,
+                            money,
                             public_key,
                             customer_vault_id,
                             order_id,
@@ -21621,7 +21621,7 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                             form_type: Some(
                                 grpc_api_types::payments::redirect_form::FormType::Nmi(
                                     grpc_api_types::payments::NmiData {
-                                        amount: Some(amount),
+                                        amount: Some(crate::money::to_proto_money(&money)?),
                                         public_key: Some(public_key),
                                         customer_vault_id,
                                         order_id,
