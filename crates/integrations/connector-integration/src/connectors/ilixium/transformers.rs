@@ -2847,7 +2847,12 @@ impl IlixiumHistoryStatus {
 /// and no `cardResponse` either, hence no `authCode`, `iso8583code` or 3-D Secure field.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct IlixiumHistoryTransaction {
-    pub amount: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "common_utils::types::ConnectorMinorUnitForConnector::deserialize_optional_string",
+        serialize_with = "common_utils::types::ConnectorMinorUnitForConnector::serialize_optional_string"
+    )]
+    pub amount: Option<common_utils::types::ConnectorMinorUnit>,
     pub currency: Option<String>,
     /// The only value that ties a report entry back to a UCS payment.
     #[serde(rename = "merchantRef")]
@@ -2915,12 +2920,10 @@ impl IlixiumHistoryOperation {
             .filter(|value| !value.is_empty())
     }
 
-    /// Compare `transaction.amount` using the existing integer parsing rules.
-    fn matches_minor_amount(&self, amount: common_utils::types::ConnectorMinorUnit) -> bool {
+    fn minor_amount(&self) -> Option<common_utils::types::ConnectorMinorUnit> {
         self.transaction
             .as_ref()
-            .and_then(|transaction| transaction.amount.as_deref())
-            .is_some_and(|value| amount.matches_minor_unit_str(value))
+            .and_then(|transaction| transaction.amount)
     }
 }
 
@@ -3484,7 +3487,7 @@ impl IlixiumHistoryResponse {
             Some(amount) => {
                 let matching: Vec<(usize, &IlixiumHistoryOperation)> = candidates
                     .iter()
-                    .filter(|(_, operation)| operation.matches_minor_amount(amount))
+                    .filter(|(_, operation)| operation.minor_amount() == Some(amount))
                     .copied()
                     .collect();
                 if matching.is_empty() {

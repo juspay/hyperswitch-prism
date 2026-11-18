@@ -130,6 +130,29 @@ impl ConnectorMinorUnitForConnector {
     pub fn convert(&self, money: &Money) -> ConnectorMinorUnit {
         ConnectorMinorUnit(money.amount.get_amount_as_i64())
     }
+
+    /// Decode an optional quoted minor-unit response amount, ignoring invalid integer text.
+    /// Non-string JSON values remain deserialization errors.
+    pub fn deserialize_optional_string<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<ConnectorMinorUnit>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <Option<String> as serde::Deserialize>::deserialize(deserializer)?;
+        Ok(value.and_then(|value| value.parse::<i64>().ok().map(ConnectorMinorUnit)))
+    }
+
+    /// Encode an optional connector amount as quoted, canonical minor-unit text.
+    pub fn serialize_optional_string<S>(
+        amount: &Option<ConnectorMinorUnit>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde::Serialize::serialize(&amount.as_ref().map(ToString::to_string), serializer)
+    }
 }
 
 impl AmountConvertor for ConnectorMinorUnitForConnector {
@@ -328,12 +351,6 @@ impl Sum for MinorUnit {
 pub struct ConnectorMinorUnit(i64);
 
 impl ConnectorMinorUnit {
-    /// Compares a response's integer minor-unit text without exposing the amount.
-    /// Uses Rust's i64 parsing rules, rejecting whitespace, decimals and overflow.
-    pub fn matches_minor_unit_str(&self, value: &str) -> bool {
-        value.parse::<i64>().is_ok_and(|value| self.0 == value)
-    }
-
     /// Returns the integer minor-unit value for a connector payload.
     pub fn get_amount_as_i64(self) -> i64 {
         self.0
