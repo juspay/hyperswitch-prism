@@ -528,6 +528,24 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
     fn try_from(item: AbsaSanlamWebhookEvent) -> Result<Self, Self::Error> {
         match item {
             AbsaSanlamWebhookEvent::Payment(payment_event) => {
+                let is_consistent = matches!(
+                    (&payment_event.event_type, &payment_event.payment.status),
+                    (
+                        AbsaSanlamWebhookEventType::PaymentSucceeded,
+                        AbsaSanlamPaymentStatus::Success
+                    ) | (
+                        AbsaSanlamWebhookEventType::PaymentFailed,
+                        AbsaSanlamPaymentStatus::Failure
+                    )
+                );
+                if !is_consistent {
+                    return Err(error_stack::report!(
+                        WebhookError::WebhookBodyDecodingFailed
+                    ))
+                    .attach_printable(
+                        "AbsaSanlam webhook: event_type does not match payment.status",
+                    );
+                }
                 let status = AttemptStatus::try_from(&payment_event.payment.status)?;
                 if is_payment_failure(status) {
                     Ok(Self {
