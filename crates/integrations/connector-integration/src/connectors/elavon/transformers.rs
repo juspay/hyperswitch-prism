@@ -356,10 +356,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        // Log generated XML for debugging
-        let raw_xml = xml_content.clone();
-        tracing::info!(xml=?raw_xml, "Generated raw XML");
-
         let mut result = HashMap::new();
         result.insert(
             "xmldata".to_string(),
@@ -418,10 +414,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })
         })?;
-
-        // Log generated XML for debugging
-        let raw_xml = xml_content.clone();
-        tracing::info!(xml=?raw_xml, "Generated raw XML");
 
         let mut result = HashMap::new();
         result.insert(
