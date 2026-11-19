@@ -7136,7 +7136,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     (
                         Some(payment_data),
                         None,
-                        StripeBillingAddress::default(),
+                        billing_address.unwrap_or_default(),
                         None,
                         None,
                     )
