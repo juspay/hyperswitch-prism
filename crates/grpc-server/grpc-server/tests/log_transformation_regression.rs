@@ -76,8 +76,8 @@ fn load_config(enabled: bool) -> Config {
         .expect("merge TOML fixtures")
         .try_deserialize()
         .expect("serialize configuration fixture");
-    raw["log"]["fields"]["enabled"] = json!(enabled);
-    raw["connector_response_masking"] = json!({
+    *raw.pointer_mut("/log/fields/enabled").unwrap() = json!(enabled);
+    *raw.get_mut("connector_response_masking").unwrap() = json!({
         "enabled": enabled,
         // Public values are allowlisted. Secret fields must stay masked even
         // when accidentally included in the operator's allowlist.
@@ -207,6 +207,12 @@ fn golden_log<'a>(records: &'a [Value], category: &str, message: &str) -> &'a Va
     matching.first().unwrap()
 }
 
+fn log_field<'a>(record: &'a Value, pointer: &str) -> &'a Value {
+    record
+        .pointer(pointer)
+        .expect("configured JSON log field must be present")
+}
+
 fn assert_transformed_logs(records: &[Value], connector_status: u16) {
     let incoming = golden_log(
         records,
@@ -214,12 +220,12 @@ fn assert_transformed_logs(records: &[Value], connector_status: u16) {
         "Golden Log Line (incoming - response)",
     );
     assert_eq!(incoming["provider"], "stripe");
-    assert_eq!(incoming["api_details"]["status_code"], 200);
+    assert_eq!(log_field(incoming, "/api_details/status_code"), 200);
     assert_eq!(
-        incoming["api_details"]["request"]["connector_transaction_id"],
+        log_field(incoming, "/api_details/request/connector_transaction_id"),
         "pi_log_regression",
     );
-    assert!(incoming["api_details"]["response"].is_object());
+    assert!(log_field(incoming, "/api_details/response").is_object());
     assert!(incoming["api_details"].get("missing").is_none());
     let timestamp = incoming["timestamp"].as_str().expect("mapped timestamp");
     time::OffsetDateTime::parse(
@@ -229,12 +235,15 @@ fn assert_transformed_logs(records: &[Value], connector_status: u16) {
     .expect("timestamp must retain its ISO format");
 
     let outgoing = golden_log(records, "OUTGOING_API", "Outgoing Request completed");
-    assert_eq!(outgoing["api_details"]["status_code"], connector_status);
-    assert!(outgoing["api_details"]["headers"].is_object());
-    assert!(!outgoing["api_details"]["headers"]
+    assert_eq!(
+        log_field(outgoing, "/api_details/status_code"),
+        connector_status
+    );
+    assert!(log_field(outgoing, "/api_details/headers").is_object());
+    assert!(!log_field(outgoing, "/api_details/headers")
         .to_string()
         .contains("sk_test_mock"));
-    assert!(outgoing["api_details"]["url"]
+    assert!(log_field(outgoing, "/api_details/url")
         .as_str()
         .expect("mapped connector URL")
         .ends_with("/mockGateway"));
@@ -250,8 +259,10 @@ fn comparable_response(response: &PaymentServiceGetResponse) -> Value {
         "raw_connector_response",
         "typed_connector_response",
     ] {
-        if let Some(raw) = value.get(key).and_then(Value::as_str) {
-            value[key] = serde_json::from_str(raw).expect("JSON connector envelope");
+        if let Some(entry) = value.get_mut(key) {
+            if let Some(raw) = entry.as_str() {
+                *entry = serde_json::from_str(raw).expect("JSON connector envelope");
+            }
         }
     }
     value
@@ -287,14 +298,14 @@ async fn log_transformation_preserves_success_response_and_emits_masked_json() {
         assert_transformed_logs(&records, 200);
         let outgoing = golden_log(&records, "OUTGOING_API", "Outgoing Request completed");
         assert_eq!(
-            outgoing["api_details"]["response"]["id"],
+            log_field(outgoing, "/api_details/response/id"),
             "pi_log_regression"
         );
         let masked = &outgoing["response.masked_body"];
         assert_eq!(masked["id"], "pi_log_regression");
         assert_eq!(masked["client_secret"], "***");
-        assert_eq!(masked["metadata"]["merchant_reference"], "***");
-        assert_eq!(masked["metadata"]["public_field"], "visible");
+        assert_eq!(log_field(masked, "/metadata/merchant_reference"), "***");
+        assert_eq!(log_field(masked, "/metadata/public_field"), "visible");
         let transformed = json!({"mapped": outgoing["api_details"], "masked": masked}).to_string();
         assert!(!transformed.contains("private_client_secret"));
         assert!(!transformed.contains("private_reference"));
