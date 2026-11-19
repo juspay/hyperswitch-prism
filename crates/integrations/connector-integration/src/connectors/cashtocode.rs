@@ -80,15 +80,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .get("authorization")
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
-        let signature = base64_signature.as_bytes();
-
-        let secret_auth = String::from_utf8(webhook_secret.secret.to_vec())
-            .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Could not convert secret to UTF-8")?;
-        let signature_auth = String::from_utf8(signature.to_vec())
-            .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Could not convert secret to UTF-8")?;
-        Ok(signature_auth == secret_auth)
+        Ok(ring::constant_time::verify_slices_are_equal(
+            base64_signature.as_bytes(),
+            &webhook_secret.secret,
+        )
+        .is_ok())
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
