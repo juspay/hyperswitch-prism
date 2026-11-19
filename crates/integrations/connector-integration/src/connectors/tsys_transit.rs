@@ -1,5 +1,6 @@
 pub mod profile;
 pub mod rules;
+mod test;
 pub mod transformers;
 
 use std::fmt::Debug;

@@ -58,6 +58,7 @@ impl CofPhase {
                     r,
                     MandateReferenceId::ConnectorMandateId(_)
                         | MandateReferenceId::NetworkMandateId(_)
+                        | MandateReferenceId::NetworkTokenWithNTI(_)
                 )
             });
 

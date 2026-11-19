@@ -378,9 +378,15 @@ pub(super) fn generate_xml<T: Serialize>(request: &T) -> Result<String, Report<I
     ))
 }
 
-fn generate_xml_or_fallback<T: Serialize>(request: &T, fallback_root: &str) -> String {
-    let fallback = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<{fallback_root}/>");
-    generate_xml(request).unwrap_or(fallback)
+/// `GetSoapXml::to_soap_xml` returns `String` (shared with other connectors), so an encoding
+/// error cannot be returned here. The fallback is deliberately malformed XML (mismatched end
+/// tag): the macro's `validate_xml_structure` rejects it with `RequestEncodingFailed` and
+/// nothing is sent. An empty `<Sale/>` would be well-formed and reach TSYS as a schema failure.
+pub(super) fn generate_xml_or_fallback<T: Serialize>(request: &T, root: &str) -> String {
+    generate_xml(request).unwrap_or_else(|error| {
+        tracing::error!(?error, root, "tsys_transit: failed to serialize request");
+        String::from("<SerializationFailed></NotSendable>")
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -1211,8 +1217,11 @@ fn format_expiration_date(card: &Card<impl PaymentMethodDataTypes>) -> Secret<St
     // month or a 2-digit year delivered by the upstream caller still
     // produce a network-valid expiration string (e.g. "3"/"25" -> "03/25",
     // "12"/"2028" -> "12/28").
-    let month_raw = card.card_exp_month.peek();
-    let year_raw = card.card_exp_year.peek();
+    format_mm_yy(card.card_exp_month.peek(), card.card_exp_year.peek())
+}
+
+/// `MM/YY` for TSYS TransIT, zero-padding both halves.
+pub(super) fn format_mm_yy(month_raw: &str, year_raw: &str) -> Secret<String> {
     let month = format!("{month_raw:0>2}");
     let year_short = if year_raw.len() >= 4 {
         year_raw[year_raw.len() - 2..].to_string()
@@ -1411,7 +1420,6 @@ fn build_tsys_product_details(
             let missing_fields = collect_missing_value_keys!(
                 ("order_details.commodity_code", commodity_code),
                 ("order_details.unit_of_measure", measurement_unit),
-                ("order_details.unit_discount_amount", unit_discount_amount),
                 ("order_details.product_tax_name", product_tax_name),
                 ("order_details.product_tax_amount", product_tax_amount),
                 (
@@ -1428,14 +1436,12 @@ fn build_tsys_product_details(
         if matches!(card_network, Some(CardNetwork::Mastercard)) {
             let missing_fields = collect_missing_value_keys!(
                 ("order_details.unit_of_measure", measurement_unit),
-                ("order_details.unit_discount_amount", unit_discount_amount),
                 ("order_details.product_tax_name", product_tax_name),
                 ("order_details.product_tax_amount", product_tax_amount),
                 (
                     "order_details.product_tax_percentage",
                     product_tax_percentage
-                ),
-                ("order_details.unit_discount_amount", unit_discount_amount)
+                )
             );
 
             if !missing_fields.is_empty() {
@@ -1449,18 +1455,24 @@ fn build_tsys_product_details(
             price,
             quantity,
             measurement_unit,
-            product_discount_details: Some(TsysTransitProductDiscountDetails {
-                product_discount_name: product_discount_name
-                    .ok_or(missing_field("order_details.discount_name"))?,
-                product_discount_amount: unit_discount_amount
-                    .ok_or(missing_field("order_details.unit_discount_amount"))?,
-                product_discount_percentage: product_discount_percentage
-                    .ok_or(missing_field("order_details.discount_percentage"))?,
-                product_discount_type: product_discount_type
-                    .ok_or(missing_field("order_details.discount_type"))?,
-                priority,
-                stackable,
-            }),
+            // Discount details describe a discount; an item without one sends none, so its
+            // discount fields are only required when it has a discount.
+            product_discount_details: has_discount
+                .then(|| -> Result<_, Report<IntegrationError>> {
+                    Ok(TsysTransitProductDiscountDetails {
+                        product_discount_name: product_discount_name
+                            .ok_or(missing_field("order_details.discount_name"))?,
+                        product_discount_amount: unit_discount_amount
+                            .ok_or(missing_field("order_details.unit_discount_amount"))?,
+                        product_discount_percentage: product_discount_percentage
+                            .ok_or(missing_field("order_details.discount_percentage"))?,
+                        product_discount_type: product_discount_type
+                            .ok_or(missing_field("order_details.discount_type"))?,
+                        priority,
+                        stackable,
+                    })
+                })
+                .transpose()?,
             product_tax_details: Some(TsysTransitProductTaxDetails {
                 product_tax_name,
                 product_tax_amount,
@@ -1641,6 +1653,14 @@ fn compute_commercial_card_context<
             )
         })
         .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
+        // Incomplete Level III line items downgrade the transaction to Level II rather than
+        // failing it; log why so the downgrade is not silent.
+        .map_err(|error| {
+            tracing::warn!(
+                ?error,
+                "tsys_transit: Level III product details incomplete, sending without them"
+            );
+        })
         .ok()
         .and_then(|items| items.into_iter().collect());
     let shipping_charges = l2_l3_data
@@ -1672,18 +1692,15 @@ fn compute_commercial_card_context<
         .map(super::TsysTransitAmountConvertor::convert)
         .transpose()?;
     let tax_amount = sales_tax.clone();
-    let tax_category = derived_tax_type.clone().map(|value| value.parse::<TsysTransitTaxCategory>()).transpose().change_context(
-        IntegrationError::InvalidDataFormat {
-            field_name: "order_details.product_tax_code",
-            context: IntegrationErrorContext {
-                suggested_action: Some("Ensure that the product_tax_code is one of the valid TSYS TransIT tax categories: service, duty, vat, alternate, national and tax_exempt".to_string()),
-                doc_url: None,
-                additional_context: Some(format!(
-                    "failed to parse product_tax_code {derived_tax_type:?} as a TsysTransitTaxCategory"
-                )),
-            },
-        },
-    )?;
+    // `product_tax_code` is a free-form per-item code (also sent as productTaxType); only a
+    // value naming a TSYS tax category (any case) becomes taxCategory. Any other code leaves
+    // taxCategory unset instead of failing the whole payment.
+    let tax_category = derived_tax_type.as_deref().and_then(|value| {
+        value
+            .to_ascii_lowercase()
+            .parse::<TsysTransitTaxCategory>()
+            .ok()
+    });
     let order_reference = l2_l3_data
         .and_then(|data| data.get_merchant_order_reference_id())
         .or_else(|| router_data.request.merchant_order_id.clone());
@@ -1937,7 +1954,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
 ) -> Result<AuthorizeAssembly, Report<IntegrationError>> {
     let router_data = &item.router_data;
     let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
-    let mandate_dispatch = decode_mandate_dispatch(router_data.request.mandate_id.as_ref());
+    let mandate_dispatch = decode_mandate_dispatch(router_data.request.mandate_id.as_ref())?;
     let is_cit_setup = matches!(mandate_dispatch, MandateDispatch::None)
         && (router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
             || router_data.request.off_session == Some(true));
@@ -2051,16 +2068,12 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
                 None,
             )
         } else if let Some(nti) = nti_card_opt {
-            let month = nti.card_exp_month.peek().clone();
-            let year_full = nti.card_exp_year.peek().clone();
-            let year_short = if year_full.len() == 4 {
-                year_full[2..].to_string()
-            } else {
-                year_full
-            };
             (
                 Some(Secret::new(nti.card_number.peek().to_string())),
-                Some(Secret::new(format!("{}/{}", month, year_short))),
+                Some(format_mm_yy(
+                    nti.card_exp_month.peek(),
+                    nti.card_exp_year.peek(),
+                )),
                 None,
                 None,
                 None,
@@ -2328,27 +2341,46 @@ pub enum MandateDispatch {
     },
     None,
 }
-fn decode_mandate_dispatch(mandate_id: Option<&MandateIds>) -> MandateDispatch {
-    let Some(mandate_id) = mandate_id else {
-        return MandateDispatch::None;
+pub(super) fn decode_mandate_dispatch(
+    mandate_id: Option<&MandateIds>,
+) -> Result<MandateDispatch, Report<IntegrationError>> {
+    let Some(reference) = mandate_id.and_then(|m| m.mandate_reference_id.as_ref()) else {
+        return Ok(MandateDispatch::None);
     };
 
-    if let Some(MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) =
-        mandate_id.mandate_reference_id.as_ref()
-    {
-        if let Some(raw) = connector_mandate_ids.get_connector_mandate_id() {
-            return decode_mandate_id_string(&raw);
+    match reference {
+        MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
+            // A stored-credential reference that cannot be decoded must not go out as an
+            // MIT with no vault / NTID reference.
+            match connector_mandate_ids
+                .get_connector_mandate_id()
+                .as_deref()
+                .map(decode_mandate_id_string)
+            {
+                Some(dispatch @ MandateDispatch::Vault { .. }) => Ok(dispatch),
+                Some(MandateDispatch::Ntid { .. } | MandateDispatch::None) | None => {
+                    Err(IntegrationError::InvalidDataFormat {
+                        field_name: "mandate_reference.connector_mandate_id",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Send connector_mandate_id as a TSYS vault reference (cust:<customer_code>:<wallet_id>), or use a network transaction id mandate"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: None,
+                        },
+                    }
+                    .into())
+                }
+            }
         }
-    }
-    if let Some(MandateReferenceId::NetworkMandateId(ntid)) =
-        mandate_id.mandate_reference_id.as_ref()
-    {
-        return MandateDispatch::Ntid {
+        MandateReferenceId::NetworkMandateId(ntid) => Ok(MandateDispatch::Ntid {
             ntid: ntid.network_transaction_id.clone(),
-        };
+        }),
+        MandateReferenceId::NetworkTokenWithNTI(network_token) => Ok(MandateDispatch::Ntid {
+            ntid: network_token.network_transaction_id.clone(),
+        }),
     }
-
-    MandateDispatch::None
 }
 
 fn visa_card_on_file(card_network: Option<&CardNetwork>) -> Option<TsysTransitCardOnFile> {
@@ -3182,18 +3214,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             acquirer_reference_number: None,
         };
 
-        let refund_amount = response
-            .returned_amount
-            .as_ref()
-            .map(|amount| {
-                parse_ambiguous_transaction_amount(
-                    &connector,
-                    amount,
-                    router_data.request.currency,
-                    item.http_code,
-                )
+        // The refund has already been executed at TSYS: an unparseable `returnedAmount` must not
+        // turn the success into an error (losing the refund id). It only feeds the integrity
+        // object, which falls back to the requested amount.
+        let refund_amount = response.returned_amount.as_ref().and_then(|amount| {
+            parse_ambiguous_transaction_amount(
+                &connector,
+                amount,
+                router_data.request.currency,
+                item.http_code,
+            )
+            .map_err(|error| {
+                tracing::warn!(
+                    ?error,
+                    "tsys_transit: could not parse refund returnedAmount"
+                );
             })
-            .transpose()?;
+            .ok()
+        });
 
         Ok(Self {
             resource_common_data: RefundFlowData {
@@ -3404,11 +3442,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // arbitrary caller-supplied cancellation_reason (free text) is rejected
         // with "The value of element 'voidReason' is not valid." Ignore the
         // request value and always send a valid connector default.
-        let void_reason = router_data
-            .request
-            .cancellation_reason
-            .clone()
-            .unwrap_or_else(|| DEFAULT_CANCELLATION_REASON.to_string());
+        let void_reason = DEFAULT_CANCELLATION_REASON.to_string();
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3796,9 +3830,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.setup_future_usage,
             router_data.request.payment_channel.as_ref(),
         )?;
+        // `None` is e-commerce, as everywhere else in this connector (and the request is sent
+        // with cardDataSource=INTERNET).
         let is_ecommerce_payment = matches!(
             router_data.request.payment_channel,
-            Some(PaymentChannel::Ecommerce)
+            Some(PaymentChannel::Ecommerce) | None
         );
 
         let card = match &router_data.request.payment_method_data {
