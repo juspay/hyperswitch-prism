@@ -505,7 +505,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 netcetera_types::NetceteraDeviceChannel::Browser
             },
             message_category: netcetera_types::NetceteraMessageCategory::PaymentAuthentication,
-            three_ds_comp_ind: Some(netcetera_types::ThreeDSMethodCompletionIndicator::U),
+            // Authenticate runs after the browser returns from the 3DS Method (DDC) redirect
+            // with a redirect_response; without one the 3DS Method was not run.
+            three_ds_comp_ind: Some(if request.redirect_response.is_some() {
+                netcetera_types::ThreeDSMethodCompletionIndicator::Y
+            } else {
+                netcetera_types::ThreeDSMethodCompletionIndicator::U
+            }),
             three_ds_requestor: Some(three_ds_requestor),
             three_ds_server_trans_id,
             three_ds_requestor_url: netcetera_meta
