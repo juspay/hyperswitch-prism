@@ -164,13 +164,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let outcome_code = match payload.event_type {
-            paypal::PaypalWebhookEventType::CustomerDisputeResolved => Some(
-                request
+            paypal::PaypalWebhookEventType::CustomerDisputeResolved => {
+                let details: paypal::PaypalWebhooksBody = request
                     .body
-                    .parse_struct::<paypal::DisputeOutcome>("PaypalDisputeOutcome")
-                    .change_context(WebhookError::WebhookEventTypeNotFound)?
-                    .outcome_code,
-            ),
+                    .parse_struct("PaypalWebhooksBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                get_paypal_dispute_outcome(details.resource)?
+            }
             _ => None,
         };
 
@@ -419,6 +420,56 @@ fn get_paypal_dispute_status_from_outcome(
             common_enums::DisputeStatus::DisputeCancelled
         }
         paypal::OutcomeCode::ResolvedWithPayout => common_enums::DisputeStatus::DisputeCancelled,
+    }
+}
+
+fn get_paypal_dispute_outcome(
+    resource: paypal::PaypalResource,
+) -> Result<Option<paypal::OutcomeCode>, error_stack::Report<WebhookError>> {
+    match resource {
+        paypal::PaypalResource::PaypalDisputeWebhooks(dispute) => {
+            Ok(dispute.dispute_outcome.map(|outcome| outcome.outcome_code))
+        }
+        _ => Err(report!(WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Expected PayPal dispute webhook resource")),
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod webhook_tests {
+    use super::*;
+
+    #[test]
+    fn resolved_dispute_reads_outcome_from_webhook_resource() {
+        let body: paypal::PaypalWebhooksBody = serde_json::from_value(serde_json::json!({
+            "event_type": "CUSTOMER.DISPUTE.RESOLVED",
+            "resource": {
+                "dispute_id": "synthetic_dispute",
+                "disputed_transactions": [{
+                    "seller_transaction_id": "synthetic_transaction"
+                }],
+                "dispute_amount": {
+                    "currency_code": "USD",
+                    "value": "10.00"
+                },
+                "dispute_outcome": {
+                    "outcome_code": "RESOLVED_SELLER_FAVOUR"
+                },
+                "dispute_life_cycle_stage": "CHARGEBACK",
+                "status": "RESOLVED",
+                "reason": "synthetic_reason"
+            }
+        }))
+        .expect("valid synthetic PayPal dispute webhook");
+
+        let outcome = get_paypal_dispute_outcome(body.resource)
+            .expect("synthetic dispute resource should be supported");
+
+        assert!(matches!(
+            get_paypal_event_type(body.event_type, outcome),
+            domain_types::connector_types::EventType::DisputeWon
+        ));
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
