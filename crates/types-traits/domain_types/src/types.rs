@@ -611,7 +611,6 @@ impl Connectors {
     ///
     /// # Returns
     /// `Ok(Connectors)` - A new `Connectors` instance with the patched connector params.
-    /// `Err(IntegrationError)` - If the connector is not supported for URL patching.
     ///
     /// # Example
     /// ```ignore
@@ -902,19 +901,116 @@ impl Connectors {
             ConnectorEnum::Revpay => {
                 patched.revpay.apply(params_patch);
             }
-            _ => {
-                // Connector not supported for URL patching - return error
-                return Err(IntegrationError::InvalidDataFormat {
-                    field_name: "connector",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(format!(
-                            "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, payhound, ecommpay, betterpayment, revpay",
-                            connector
-                        )),
-                        ..Default::default()
-                    }
-                });
+            ConnectorEnum::Airwallex => {
+                patched.airwallex.apply(params_patch);
+            }
+            ConnectorEnum::Authipay => {
+                patched.authipay.apply(params_patch);
+            }
+            ConnectorEnum::Authorizedotnet => {
+                patched.authorizedotnet.apply(params_patch);
+            }
+            ConnectorEnum::Axisbank => {
+                patched.axisbank.apply(params_patch);
+            }
+            ConnectorEnum::Cashtocode => {
+                patched.cashtocode.apply(params_patch);
+            }
+            ConnectorEnum::Citigate => {
+                patched.citigate.apply(params_patch);
+            }
+            ConnectorEnum::Dlocal => {
+                patched.dlocal.apply(params_patch);
+            }
+            ConnectorEnum::Easebuzz => {
+                patched.easebuzz.apply(params_patch);
+            }
+            ConnectorEnum::Fiuu => {
+                patched.fiuu.apply(params_patch);
+            }
+            ConnectorEnum::Getnet => {
+                patched.getnet.apply(params_patch);
+            }
+            ConnectorEnum::Hyperpg => {
+                patched.hyperpg.apply(params_patch);
+            }
+            ConnectorEnum::Hyperswitch => {
+                patched.hyperswitch.apply(params_patch);
+            }
+            ConnectorEnum::Iatapay => {
+                patched.iatapay.apply(params_patch);
+            }
+            ConnectorEnum::Itaubank => {
+                patched.itaubank.apply(params_patch);
+            }
+            ConnectorEnum::Juspay => {
+                patched.juspay.apply(params_patch);
+            }
+            ConnectorEnum::Netcetera => {
+                patched.netcetera.apply(params_patch);
+            }
+            ConnectorEnum::Nmi => {
+                patched.nmi.apply(params_patch);
+            }
+            ConnectorEnum::Noon => {
+                patched.noon.apply(params_patch);
+            }
+            ConnectorEnum::Paybox => {
+                patched.paybox.apply(params_patch);
+            }
+            ConnectorEnum::Payconex => {
+                patched.payconex.apply(params_patch);
+            }
+            ConnectorEnum::Paydotcom => {
+                patched.paydotcom.apply(params_patch);
+            }
+            ConnectorEnum::Paynearme => {
+                patched.paynearme.apply(params_patch);
+            }
+            ConnectorEnum::Paysafe => {
+                patched.paysafe.apply(params_patch);
+            }
+            ConnectorEnum::Paytm => {
+                patched.paytm.apply(params_patch);
+            }
+            ConnectorEnum::Payu => {
+                patched.payu.apply(params_patch);
+            }
+            ConnectorEnum::Peachpayments => {
+                patched.peachpayments.apply(params_patch);
+            }
+            ConnectorEnum::Phonepe => {
+                patched.phonepe.apply(params_patch);
+            }
+            ConnectorEnum::PinelabsOnline => {
+                patched.pinelabs_online.apply(params_patch);
+            }
+            ConnectorEnum::Razorpay => {
+                patched.razorpay.apply(params_patch);
+            }
+            ConnectorEnum::RazorpayV2 => {
+                patched.razorpayv2.apply(params_patch);
+            }
+            ConnectorEnum::Redsys => {
+                patched.redsys.apply(params_patch);
+            }
+            ConnectorEnum::Saferpay => {
+                patched.saferpay.apply(params_patch);
+            }
+            ConnectorEnum::Tesouro => {
+                patched.tesouro.apply(params_patch);
+            }
+            ConnectorEnum::TsysTransit => {
+                patched.tsys_transit.apply(params_patch);
+            }
+            ConnectorEnum::Volt => {
+                patched.volt.apply(params_patch);
+            }
+            ConnectorEnum::Worldpayraft => {
+                patched.worldpayraft.apply(params_patch);
+            }
+            ConnectorEnum::Xendit => {
+                patched.xendit.apply(params_patch);
             }
         }
 
