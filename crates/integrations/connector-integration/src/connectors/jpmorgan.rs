@@ -1,5 +1,6 @@
 mod requests;
 mod responses;
+mod test;
 pub mod transformers;
 
 use domain_types::router_data::ConnectorSpecificConfig;
