@@ -2191,8 +2191,29 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: return_url — Missing required field: return_url"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              },
+              "return_url": "https://example.com/payment/return"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://checkout-test.adyen.com/v72/sessions",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"reference\":\"probe_sdk_session_001\",\"returnUrl\":\"https://example.com/payment/return\"}"
+        }
       }
     },
     "create_order": {
