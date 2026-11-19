@@ -957,10 +957,10 @@ pub struct RevpayPaymentsResponse {
     pub bank_redirect_url: Option<String>,
     #[serde(rename = "Key_Index", skip_serializing_if = "Option::is_none")]
     pub key_index: Option<i64>,
-    // PSync verifies signed inquiry responses using sha512(key + mid +
+    // Authorize, PSync and RSync verify signed responses using sha512(key + mid +
     // Transaction_ID + Response_Code + Reference_Number + Amount + Currency).
-    // Initial redirect responses can omit Transaction_ID, so Authorize cannot
-    // apply that complete preimage until the subsequent inquiry/webhook.
+    // Initial redirect responses can omit Transaction_ID; it then contributes
+    // zero bytes to the preimage.
     #[serde(rename = "Signature", skip_serializing_if = "Option::is_none")]
     pub signature: Option<Secret<String>>,
     #[serde(
@@ -975,17 +975,15 @@ fn verify_payment_response_signature(
     connector_config: &ConnectorSpecificConfig,
     http_code: u16,
 ) -> Result<(), error_stack::Report<ConnectorError>> {
+    // The signature is the only in-body authentication, so an unsigned response is not
+    // trusted whatever its Response_Code (a forged decline would otherwise be accepted).
     let Some(received) = response.signature.as_ref() else {
-        return if matches!(response.response_code, RevpayResponseCode::Success) {
-            Err(error_stack::report!(
-                crate::utils::response_deserialization_fail(
-                    http_code,
-                    "revpay: successful payment/inquiry response omitted Signature",
-                )
-            ))
-        } else {
-            Ok(())
-        };
+        return Err(error_stack::report!(
+            crate::utils::response_deserialization_fail(
+                http_code,
+                "revpay: payment/inquiry response omitted Signature",
+            )
+        ));
     };
     let auth = RevpayAuthType::try_from(connector_config).map_err(|error| {
         error_stack::report!(crate::utils::unexpected_response_fail(
@@ -1056,6 +1054,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
         let router_data = &item.router_data;
+        // Same signed shape as the inquiry response; a missing Transaction_ID (redirect
+        // responses) contributes zero bytes to the preimage.
+        verify_payment_response_signature(response, &router_data.connector_config, item.http_code)?;
         // Single decision point for the authorize outcome — used unchanged on
         // both the success and the in-band-decline branches.
         let status = authorize_attempt_status(
@@ -1583,17 +1584,15 @@ fn verify_refund_response_signature(
     connector_config: &ConnectorSpecificConfig,
     http_code: u16,
 ) -> Result<(), error_stack::Report<ConnectorError>> {
+    // The signature is the only in-body authentication, so an unsigned response is not
+    // trusted whatever its Response_Code (a forged decline would otherwise be accepted).
     let Some(received) = response.signature.as_ref() else {
-        return if matches!(response.response_code, RevpayResponseCode::Success) {
-            Err(error_stack::report!(
-                crate::utils::response_deserialization_fail(
-                    http_code,
-                    "revpay: successful refund response omitted Signature",
-                )
-            ))
-        } else {
-            Ok(())
-        };
+        return Err(error_stack::report!(
+            crate::utils::response_deserialization_fail(
+                http_code,
+                "revpay: refund response omitted Signature",
+            )
+        ));
     };
     let auth = RevpayAuthType::try_from(connector_config).map_err(|error| {
         error_stack::report!(crate::utils::unexpected_response_fail(
@@ -1912,6 +1911,8 @@ impl TryFrom<ResponseRouterData<RevpayRSyncResponse, Self>>
     fn try_from(item: ResponseRouterData<RevpayRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
         let router_data = &item.router_data;
+        // Same inquiry endpoint and response shape as PSync, verified the same way.
+        verify_payment_response_signature(response, &router_data.connector_config, item.http_code)?;
 
         // INQUIRY SEMANTICS (same posture as PSync): RSync is a status query
         // and revPAY answers every inquiry with HTTP 200, so the refund
