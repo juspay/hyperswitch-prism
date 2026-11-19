@@ -2279,9 +2279,9 @@ fn get_finix_webhook_attempt_status(
 /// Ports HS `impl From<FinixState> for RefundStatus` (finix/transformers.rs).
 fn get_finix_webhook_refund_status(state: &FinixState) -> RefundStatus {
     match state {
-        FinixState::Pending => RefundStatus::Pending,
+        FinixState::Pending | FinixState::Unknown => RefundStatus::Pending,
         FinixState::Succeeded => RefundStatus::Success,
-        FinixState::Failed | FinixState::Canceled | FinixState::Unknown => RefundStatus::Failure,
+        FinixState::Failed | FinixState::Canceled => RefundStatus::Failure,
     }
 }
 
