@@ -14,6 +14,7 @@ import payments.PaymentClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
+import payments.CountryAlpha2
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -59,6 +60,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
+                countryAlpha2Code = CountryAlpha2.US
             }
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
@@ -256,6 +258,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
+                countryAlpha2Code = CountryAlpha2.US
             }
         }
         captureMethod = CaptureMethod.AUTOMATIC

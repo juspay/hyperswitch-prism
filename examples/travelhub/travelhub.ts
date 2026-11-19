@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx travelhub.ts checkout_autocapture
 
 import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -43,6 +43,7 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "captureMethod": captureMethod,  // Method for capturing the payment.
         "address": {  // Address Information.
             "billingAddress": {
+                "countryAlpha2Code": CountryAlpha2.US
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
@@ -89,6 +90,7 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
         },
         "address": {
             "billingAddress": {
+                "countryAlpha2Code": CountryAlpha2.US
             }
         },
         "captureMethod": CaptureMethod.AUTOMATIC,

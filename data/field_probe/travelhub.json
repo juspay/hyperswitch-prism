@@ -59,7 +59,9 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "US"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -108,7 +110,9 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "US"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -195,7 +199,9 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "US"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -726,7 +732,9 @@
             "card_network": "VISA"
           },
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "country_alpha2_code": "US"
+            }
           },
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
