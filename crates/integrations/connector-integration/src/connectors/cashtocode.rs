@@ -80,11 +80,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .get("authorization")
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
-        Ok(ring::constant_time::verify_slices_are_equal(
+        Ok(common_utils::crypto::constant_time_equal(
             base64_signature.as_bytes(),
             &webhook_secret.secret,
-        )
-        .is_ok())
+        ))
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
