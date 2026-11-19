@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L262) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L151) · [Rust](../../examples/moneris/moneris.rs#L326)
+**Examples:** [Python](../../examples/moneris/moneris.py#L265) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L152) · [Rust](../../examples/moneris/moneris.rs#L327)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L281) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L167) · [Rust](../../examples/moneris/moneris.rs#L342)
+**Examples:** [Python](../../examples/moneris/moneris.py#L284) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L168) · [Rust](../../examples/moneris/moneris.rs#L343)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L306) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L189) · [Rust](../../examples/moneris/moneris.rs#L365)
+**Examples:** [Python](../../examples/moneris/moneris.py#L309) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L190) · [Rust](../../examples/moneris/moneris.rs#L366)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L331) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L211) · [Rust](../../examples/moneris/moneris.rs#L388)
+**Examples:** [Python](../../examples/moneris/moneris.py#L334) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L212) · [Rust](../../examples/moneris/moneris.rs#L389)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L353) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L230) · [Rust](../../examples/moneris/moneris.rs#L407)
+**Examples:** [Python](../../examples/moneris/moneris.py#L356) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L231) · [Rust](../../examples/moneris/moneris.rs#L408)
 
 ## API Reference
 
@@ -314,7 +314,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L391) · [Kotlin](../../examples/moneris/moneris.kt#L248) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L393) · [Kotlin](../../examples/moneris/moneris.kt#L249) · [Rust](../../examples/moneris/moneris.rs)
 
 #### PaymentService.Capture
 
@@ -325,7 +325,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L400) · [Kotlin](../../examples/moneris/moneris.kt#L260) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L402) · [Kotlin](../../examples/moneris/moneris.kt#L261) · [Rust](../../examples/moneris/moneris.rs)
 
 #### PaymentService.Get
 
@@ -336,7 +336,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L418) · [Kotlin](../../examples/moneris/moneris.kt#L280) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L420) · [Kotlin](../../examples/moneris/moneris.kt#L281) · [Rust](../../examples/moneris/moneris.rs)
 
 #### PaymentService.IncrementalAuthorization
 
@@ -347,7 +347,7 @@ Increase the authorized amount for an existing payment. Enables you to capture a
 | **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
 | **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L427) · [Kotlin](../../examples/moneris/moneris.kt#L288) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L429) · [Kotlin](../../examples/moneris/moneris.kt#L289) · [Rust](../../examples/moneris/moneris.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -358,7 +358,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L454) · [Kotlin](../../examples/moneris/moneris.kt#L390) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L456) · [Kotlin](../../examples/moneris/moneris.kt#L393) · [Rust](../../examples/moneris/moneris.rs)
 
 #### PaymentService.Refund
 
@@ -369,7 +369,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L463) · [Kotlin](../../examples/moneris/moneris.kt#L426) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L465) · [Kotlin](../../examples/moneris/moneris.kt#L429) · [Rust](../../examples/moneris/moneris.rs)
 
 #### PaymentService.Void
 
@@ -380,7 +380,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts) · [Kotlin](../../examples/moneris/moneris.kt#L455) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts) · [Kotlin](../../examples/moneris/moneris.kt#L458) · [Rust](../../examples/moneris/moneris.rs)
 
 ### Refunds
 
@@ -393,7 +393,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L472) · [Kotlin](../../examples/moneris/moneris.kt#L436) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L474) · [Kotlin](../../examples/moneris/moneris.kt#L439) · [Rust](../../examples/moneris/moneris.rs)
 
 ### Authentication
 
@@ -406,7 +406,7 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L409) · [Kotlin](../../examples/moneris/moneris.kt#L270) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L411) · [Kotlin](../../examples/moneris/moneris.kt#L271) · [Rust](../../examples/moneris/moneris.rs)
 
 #### PaymentMethodAuthenticationService.PostAuthenticate
 
@@ -417,7 +417,7 @@ Validate authentication results with the issuing bank. Processes bank's authenti
 | **Request** | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePostAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L436) · [Kotlin](../../examples/moneris/moneris.kt#L315) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L438) · [Kotlin](../../examples/moneris/moneris.kt#L316) · [Rust](../../examples/moneris/moneris.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -428,4 +428,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L445) · [Kotlin](../../examples/moneris/moneris.kt#L352) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L447) · [Kotlin](../../examples/moneris/moneris.kt#L353) · [Rust](../../examples/moneris/moneris.rs)

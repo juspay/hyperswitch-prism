@@ -1,6 +1,6 @@
 use super::CheckoutPayoutsRouterData;
 use crate::types::ResponseRouterData;
-use common_enums::PayoutStatus;
+use common_enums::{Currency, PayoutStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     types::ConnectorMinorUnit,
@@ -14,7 +14,7 @@ use domain_types::{
         payout_method_data::{PayoutMethodData, Wallet},
         payouts_types::{
             PayoutFlowData, PayoutFundsTransferType, PayoutGetRequest, PayoutGetResponse,
-            PayoutIndividualDetails, PayoutSourceOfFunds, PayoutTransferRequest,
+            PayoutIndividualDetails, PayoutPurpose, PayoutSourceOfFunds, PayoutTransferRequest,
             PayoutTransferResponse, PayoutVendorDetails,
         },
     },
@@ -64,7 +64,7 @@ pub struct CheckoutPayoutRequest {
     source: CheckoutPayoutSource,
     destination: CheckoutPayoutMethod,
     amount: ConnectorMinorUnit,
-    currency: common_enums::Currency,
+    currency: Currency,
     reference: String,
     processing_channel_id: Secret<String>,
     instruction: CheckoutPayoutInstruction,
@@ -102,6 +102,52 @@ struct CheckoutPayoutNetworkToken {
     eci: Option<String>,
     account_holder: CheckoutPayoutAccountHolder,
 }
+impl CheckoutPayoutNetworkToken {
+    fn from_decrypted_wallet(
+        pan: &cards::CardNumber,
+        month: &Secret<String>,
+        year: &Secret<String>,
+        token_type: CheckoutPayoutTokenType,
+        account_holder: CheckoutPayoutAccountHolder,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let expiry_month = month
+            .peek()
+            .parse::<u8>()
+            .ok()
+            .filter(|month| (1..=12).contains(month))
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "expiry_month",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some("expiry month must be a number 1-12".to_owned()),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        let expiry_year = domain_types::utils::expand_expiry_year_to_four_digits(year)
+            .peek()
+            .parse()
+            .map_err(|_| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "expiry_year",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some("expiry year must be a number".to_owned()),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(Self {
+            token: pan.clone(),
+            expiry_month: Secret::new(expiry_month),
+            expiry_year: Secret::new(expiry_year),
+            token_type,
+            cryptogram: None,
+            eci: None,
+            account_holder,
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct CheckoutPaymentInstrument {
     id: Secret<String>,
@@ -129,8 +175,61 @@ struct CheckoutPayoutAddress {
 }
 #[derive(Debug, Serialize)]
 struct CheckoutPayoutInstruction {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    purpose: Option<CheckoutPayoutPurpose>,
     // Checkout assigns this value. Absence must serialize as null.
     funds_transfer_type: Option<CheckoutPayoutFundsTransferType>,
+}
+
+/// Checkout-specific wire representation of the shared business purpose.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum CheckoutPayoutPurpose {
+    Donations,
+    Education,
+    EmergencyNeed,
+    Expatriation,
+    FamilySupport,
+    FinancialServices,
+    Gifts,
+    Income,
+    Insurance,
+    Investment,
+    ItServices,
+    Leisure,
+    LoanPayment,
+    MedicalTreatment,
+    Pension,
+    Royalties,
+    Savings,
+    TravelAndTourism,
+    Other,
+}
+
+impl From<PayoutPurpose> for CheckoutPayoutPurpose {
+    fn from(value: PayoutPurpose) -> Self {
+        match value {
+            PayoutPurpose::Donations => Self::Donations,
+            PayoutPurpose::Education => Self::Education,
+            PayoutPurpose::EmergencyNeed => Self::EmergencyNeed,
+            PayoutPurpose::Expatriation => Self::Expatriation,
+            PayoutPurpose::FamilySupport => Self::FamilySupport,
+            PayoutPurpose::FinancialServices => Self::FinancialServices,
+            PayoutPurpose::Gifts => Self::Gifts,
+            PayoutPurpose::Income => Self::Income,
+            PayoutPurpose::Insurance => Self::Insurance,
+            PayoutPurpose::Investment => Self::Investment,
+            PayoutPurpose::ItServices => Self::ItServices,
+            PayoutPurpose::Leisure => Self::Leisure,
+            PayoutPurpose::LoanPayment => Self::LoanPayment,
+            PayoutPurpose::MedicalTreatment => Self::MedicalTreatment,
+            PayoutPurpose::Pension => Self::Pension,
+            PayoutPurpose::Royalties => Self::Royalties,
+            PayoutPurpose::Savings => Self::Savings,
+            PayoutPurpose::TravelAndTourism => Self::TravelAndTourism,
+            PayoutPurpose::Other => Self::Other,
+        }
+    }
 }
 
 /// Checkout-specific wire representation of the common funds-transfer classification.
@@ -272,6 +371,7 @@ enum CheckoutPayoutSourceOfFunds {
 #[serde(rename_all = "lowercase")]
 enum CheckoutPayoutTokenType {
     Applepay,
+    Googlepay,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -479,64 +579,47 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let creds = credentials(&data.connector_config)?;
         let billing = data.request.get_billing_address()?;
         let mut holder = CheckoutPayoutAccountHolder::try_from_billing(billing)?;
-        if let Some(PayoutMethodData::Wallet(Wallet::ApplePayDecrypt(token))) =
-            data.request.payout_method_data.as_ref()
-        {
-            if let Some(name) = token.card_holder_name.as_ref() {
-                let mut parts = name.peek().split_whitespace();
-                if let Some(first) = parts.next() {
-                    let last = parts.collect::<Vec<_>>().join(" ");
-                    if !last.is_empty() {
-                        holder.first_name = Secret::new(first.to_owned());
-                        holder.last_name = Secret::new(last);
-                    }
+        let wallet_card_holder_name = match data.request.payout_method_data.as_ref() {
+            Some(PayoutMethodData::Wallet(Wallet::ApplePayDecrypt(token))) => {
+                token.card_holder_name.as_ref()
+            }
+            Some(PayoutMethodData::Wallet(Wallet::GooglePayDecrypt(token))) => {
+                token.card_holder_name.as_ref()
+            }
+            _ => None,
+        };
+        if let Some(name) = wallet_card_holder_name {
+            let mut parts = name.peek().split_whitespace();
+            if let Some(first) = parts.next() {
+                let last = parts.collect::<Vec<_>>().join(" ");
+                if !last.is_empty() {
+                    holder.first_name = Secret::new(first.to_owned());
+                    holder.last_name = Secret::new(last);
                 }
             }
         }
         let destination = match data.request.payout_method_data.as_ref() {
             Some(PayoutMethodData::Wallet(Wallet::ApplePayDecrypt(token))) => {
-                CheckoutPayoutMethod::NetworkToken(Box::new(CheckoutPayoutNetworkToken {
-                    token: token.dpan.clone(),
-                    expiry_month: Secret::new(
-                        token
-                            .expiry_month
-                            .peek()
-                            .parse::<u8>()
-                            .ok()
-                            .filter(|month| (1..=12).contains(month))
-                            .ok_or_else(|| {
-                                error_stack::report!(IntegrationError::InvalidDataFormat {
-                                    field_name: "apple_pay.expiry_month",
-                                    context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: Some(
-                                            "expiry month must be a number 1-12".to_owned(),
-                                        ),
-                                        ..Default::default()
-                                    },
-                                })
-                            })?,
-                    ),
-                    expiry_year: Secret::new(
-                        domain_types::utils::expand_expiry_year_to_four_digits(&token.expiry_year)
-                            .peek()
-                            .parse()
-                            .map_err(|_| {
-                                error_stack::report!(IntegrationError::InvalidDataFormat {
-                                    field_name: "apple_pay.expiry_year",
-                                    context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: Some(
-                                            "expiry year must be a number".to_owned(),
-                                        ),
-                                        ..Default::default()
-                                    },
-                                })
-                            })?,
-                    ),
-                    token_type: CheckoutPayoutTokenType::Applepay,
-                    cryptogram: None,
-                    eci: None,
-                    account_holder: holder,
-                }))
+                CheckoutPayoutMethod::NetworkToken(Box::new(
+                    CheckoutPayoutNetworkToken::from_decrypted_wallet(
+                        &token.dpan,
+                        &token.expiry_month,
+                        &token.expiry_year,
+                        CheckoutPayoutTokenType::Applepay,
+                        holder,
+                    )?,
+                ))
+            }
+            Some(PayoutMethodData::Wallet(Wallet::GooglePayDecrypt(token))) => {
+                CheckoutPayoutMethod::NetworkToken(Box::new(
+                    CheckoutPayoutNetworkToken::from_decrypted_wallet(
+                        &token.application_primary_account_number,
+                        &token.expiry_month,
+                        &token.expiry_year,
+                        CheckoutPayoutTokenType::Googlepay,
+                        holder,
+                    )?,
+                ))
             }
             Some(PayoutMethodData::Passthrough(token)) => {
                 CheckoutPayoutMethod::PaymentInstrument(Box::new(CheckoutPaymentInstrument {
@@ -551,8 +634,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector: "checkout",
                     context: domain_types::errors::IntegrationErrorContext {
                         additional_context: Some(
-                            "Checkout payouts support Apple Pay decrypted wallet tokens and \
-                             PSP-token passthrough only"
+                            "Checkout payouts support Apple Pay and Google Pay decrypted wallet \
+                             tokens and PSP-token passthrough only"
                                 .to_owned(),
                         ),
                         ..Default::default()
@@ -585,6 +668,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone(),
             processing_channel_id: creds.processing_channel_id.clone(),
             instruction: CheckoutPayoutInstruction {
+                purpose: data.request.purpose.map(Into::into),
                 funds_transfer_type: data.request.funds_transfer_type.map(Into::into),
             },
             sender: CheckoutPayoutSender::try_from(&data.request)?,
@@ -598,6 +682,11 @@ pub struct CheckoutPayoutResponse {
     status: CheckoutPayoutStatus,
     response_code: Option<String>,
     response_summary: Option<String>,
+    reference: Option<String>,
+    requested_on: Option<String>,
+    processed_on: Option<String>,
+    amount: Option<MinorUnit>,
+    currency: Option<Currency>,
 }
 /// Checkout.com returns transfer statuses in PascalCase on the wire (e.g. `"Pending"`,
 /// `"Paid"`); the lowercase forms are kept as deserialize aliases for safety. The set

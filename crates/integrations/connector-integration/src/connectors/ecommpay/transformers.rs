@@ -332,7 +332,7 @@ impl TryFrom<&ConnectorSpecificConfig> for EcommpayAuthType {
 //   * signature = Base64(HMAC-SHA512(secret_key, preimage)).
 //
 // The integration harness re-implements these rules independently
-// (`integration-tests/src/webhook_signatures.rs`) and so acts as an oracle for them; the
+// (`tests/regression/src/webhook_signatures.rs`) and so acts as an oracle for them; the
 // baseline probe pins them against the documentation's worked examples.
 
 fn flatten_leaves(path: &str, value: &Value, out: &mut Vec<String>) {
@@ -1296,7 +1296,9 @@ fn wallet_source<T: PaymentMethodDataTypes>(
         WalletData::AliPayQr(_)
         | WalletData::AliPayRedirect(_)
         | WalletData::AliPayHkRedirect(_)
+        | WalletData::AliPayPlusRedirect {}
         | WalletData::BluecodeRedirect {}
+        | WalletData::BoostRedirect {}
         | WalletData::AmazonPayRedirect(_)
         | WalletData::MomoRedirect(_)
         | WalletData::KakaoPayRedirect(_)

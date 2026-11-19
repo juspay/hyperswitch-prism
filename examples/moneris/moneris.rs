@@ -252,14 +252,14 @@ pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePre
             })),
             ..Default::default()
         }),
-        customer: Some(Customer {
-            // Customer Information.
-            email: Some(Secret::new("test@example.com".to_string())),
-            ..Default::default()
-        }),
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
+                line1: Some(Secret::new("123 Main St".to_string())),
+                city: Some(Secret::new("Seattle".to_string())),
+                zip_code: Some(Secret::new("98101".to_string())),
+                country_alpha2_code: Some(CountryAlpha2::Us.into()),
+                state_code_iso: Some(Secret::new("WA".to_string())),
                 ..Default::default()
             }),
             ..Default::default()

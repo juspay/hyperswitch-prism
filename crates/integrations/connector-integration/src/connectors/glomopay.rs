@@ -494,7 +494,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Glomopay<T>
+    interfaces::webhooks::IncomingWebhook for Glomopay<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"entity_type":"payment","event_type":"in_progress","data":{"id":"payt_686f7cc3pe69T","payin_id":"order_686f7c8c7txqj","status":"active","payment_amount":374580,"payment_currency":"AED","converted_amount":102000,"converted_currency":"USD","requested_amount":100000,"requested_currency":"USD","fees":{"txn_fee":{"currency":"USD","amount":1000},"fx_fee":{"currency":"USD","amount":1000},"referral_fee":{"currency":"USD","amount":0}},"error_code":null,"error_description":null,"error_message":null,"funds_available":false}}"#

@@ -95,7 +95,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Imerchantsolutions<T>
+    interfaces::webhooks::IncomingWebhook for Imerchantsolutions<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"type": "payment.completed","paymentId": "cmml1234abcd","pspReference": "ABC123DEF456","reference": "order-12345","amount": 5000,"currency": "USD","status": "captured","processor": "Adyen","cardLast4": "1111","cardBrand": "visa","customerEmail": "customer@example.com","partnerId": "your_partner_id","merchantId": "merchant_id","timestamp": "2026-03-30T15:45:00.000Z"}}}"#

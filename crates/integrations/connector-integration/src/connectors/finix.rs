@@ -181,7 +181,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // with the hex-encoded signature carried in the comma-separated
 // `Finix-Signature: timestamp=...,sig=...` header.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Finix<T>
+    interfaces::webhooks::IncomingWebhook for Finix<T>
 {
     fn verify_webhook_source(
         &self,

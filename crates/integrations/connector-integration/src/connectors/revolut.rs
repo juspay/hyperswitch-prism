@@ -138,7 +138,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Revolut<T>
+    interfaces::webhooks::IncomingWebhook for Revolut<T>
 {
     fn get_webhook_integrity_checks(&self) -> Vec<connector_types::WebhookIntegrityCheck> {
         vec![connector_types::WebhookIntegrityCheck::ConnectorTransactionId]

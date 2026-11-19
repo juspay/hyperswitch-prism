@@ -802,7 +802,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 /// algorithm as requests); chargeback callbacks are unsigned by design and token callbacks sign
 /// under `general.signature`, so neither is ever source-verified.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Ecommpay<T>
+    interfaces::webhooks::IncomingWebhook for Ecommpay<T>
 {
     fn verify_webhook_source(
         &self,

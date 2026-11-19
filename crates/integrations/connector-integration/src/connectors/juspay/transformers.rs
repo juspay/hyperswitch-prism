@@ -688,6 +688,8 @@ fn wallet_to_juspay(
         | WalletData::Skrill(_)
         | WalletData::Neteller(_)
         | WalletData::PaymayaRedirect(_)
+        | WalletData::AliPayPlusRedirect {}
+        | WalletData::BoostRedirect {}
         | WalletData::PayhereRedirect {} => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),

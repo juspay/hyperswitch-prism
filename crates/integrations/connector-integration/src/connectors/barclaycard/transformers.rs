@@ -210,6 +210,8 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::Neteller(_) => "neteller",
         WalletData::PaymayaRedirect(_) => "paymaya_redirect",
         WalletData::PayhereRedirect {} => "payhere_redirect",
+        WalletData::BoostRedirect {} => "boost_redirect",
+        WalletData::AliPayPlusRedirect {} => "ali_pay_plus_redirect",
     }
 }
 
@@ -279,6 +281,7 @@ fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
         | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::MyDebit
         | common_enums::CardNetwork::AirPlus
         | common_enums::CardNetwork::Aurore
         | common_enums::CardNetwork::EftposAustralia

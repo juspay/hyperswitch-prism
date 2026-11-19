@@ -2145,7 +2145,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: None,
+                attempt_status: Some(FlowStatus::Refund(refund_status)),
                 connector_transaction_id: Some(connector_refund_id),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -2204,12 +2204,12 @@ where
     #[serde(untagged)]
     enum Repr {
         List(Vec<PacoInquiryData>),
-        Single(PacoInquiryData),
+        Single(Box<PacoInquiryData>),
         Null,
     }
     match Option::<Repr>::deserialize(deserializer)? {
         Some(Repr::List(mut v)) => Ok(v.drain(..).next()),
-        Some(Repr::Single(d)) => Ok(Some(d)),
+        Some(Repr::Single(d)) => Ok(Some(*d)),
         Some(Repr::Null) | None => Ok(None),
     }
 }
@@ -2227,6 +2227,8 @@ pub struct PacoInquiryData {
     pub approval_code: Option<String>,
     #[serde(default)]
     pub credit_card_authenticated_details: Option<PacoCreditCardAuthenticatedDetails>,
+    #[serde(default)]
+    pub prior_payment_response_details: Option<PacoPriorPaymentResponseDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2314,9 +2316,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             .and_then(|d| d.invoice_no2c2p.clone());
         let order = response.data.as_ref().and_then(|d| d.order_no.clone());
         let approval_code = response.data.as_ref().and_then(|d| d.approval_code.clone());
+        let prior = response
+            .data
+            .as_ref()
+            .and_then(|d| d.prior_payment_response_details.clone());
 
         if matches!(status, AttemptStatus::Failure) {
-            let (code, message) = error_code_message(&response.api_response, &None);
+            let (code, message) = error_code_message(&response.api_response, &prior);
             let error = ErrorResponse {
                 code,
                 message: message.clone(),
@@ -2347,7 +2353,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             .clone()
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
-        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &None);
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2428,15 +2434,19 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             None => RefundStatus::Pending,
         };
         let connector_refund_id = router_data.request.connector_refund_id.clone();
+        let prior = response
+            .data
+            .as_ref()
+            .and_then(|d| d.prior_payment_response_details.clone());
 
         if refund_status == RefundStatus::Failure {
-            let (code, message) = error_code_message(&response.api_response, &None);
+            let (code, message) = error_code_message(&response.api_response, &prior);
             let error = ErrorResponse {
                 code,
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: None,
+                attempt_status: Some(FlowStatus::Refund(refund_status)),
                 connector_transaction_id: Some(connector_refund_id),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -2457,7 +2467,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             });
         }
 
-        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &None);
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &prior);
 
         Ok(Self {
             resource_common_data: RefundFlowData {

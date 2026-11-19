@@ -655,6 +655,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::AliPayPlusRedirect {}
+                | WalletDataPaymentMethod::BoostRedirect {}
                 | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_)
@@ -2564,6 +2566,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::AliPayPlusRedirect {}
+                | WalletDataPaymentMethod::BoostRedirect {}
                 | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_)

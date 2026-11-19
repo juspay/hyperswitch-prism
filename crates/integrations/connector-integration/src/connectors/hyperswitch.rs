@@ -283,7 +283,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 const HYPERSWITCH_WEBHOOK_SIGNATURE_HEADER: &str = "x-webhook-signature-512";
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Hyperswitch<T>
+    interfaces::webhooks::IncomingWebhook for Hyperswitch<T>
 {
     fn get_webhook_source_verification_signature(
         &self,

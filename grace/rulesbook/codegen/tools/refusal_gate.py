@@ -30,12 +30,12 @@ import os
 import sys
 
 PROBE_DIR = "data/field_probe"
-SPECS_DIR = "crates/internal/integration-tests/src/connector_specs"
+SPECS_DIR = "tests/regression/src/connector_specs"
 
 # Flow marker -> the key field_probe files use.
 #
 # UNVERIFIED. field_probe's flow keys are generated from the connector's `*_req_transformer`
-# function names (crates/internal/field-probe/build.rs), not from the flow markers, so this map
+# function names (tools/field-probe/build.rs), not from the flow markers, so this map
 # is a best-effort correspondence and is known to be wrong for at least PaymentMethodToken.
 # Consequently: a lookup that misses is a note, never a failure, and CAP-01 is advisory. Only
 # REF-01 and CAP-02 can fail, and both fail solely on a POSITIVE probe fact (an arm the probe
@@ -57,7 +57,7 @@ MARKER_TO_PROBE = {
     "IncrementalAuthorization": "incremental_authorization",
 }
 
-# Mirrors flow_to_suites() in crates/internal/integration-tests/src/bin/check_connector_specs.rs.
+# Mirrors flow_to_suites() in tests/regression/src/bin/check_connector_specs.rs.
 # A marker absent here has no harness suite -- IncomingWebhook and the dispute/payout flows --
 # and is provable only end to end.
 MARKER_TO_SUITES = {
@@ -142,7 +142,7 @@ def inconclusive_note(check, unit, marker, arm, probe, subject=""):
             ", ".join(names[:12]) + ("" if len(names) <= 12
                                      else ", ... (%d arms in all)" % len(names)))
     return ("%s: %s/%s arm %r%s has no field_probe entry under flow key %r -- inconclusive, not a "
-            "failure. The probe has: %s. Extend crates/internal/field-probe to probe this arm."
+            "failure. The probe has: %s. Extend tools/field-probe to probe this arm."
             % (check, unit, marker, arm, subject, flow_key, have))
 
 

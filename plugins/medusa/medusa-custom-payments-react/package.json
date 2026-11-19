@@ -47,7 +47,7 @@
     "@stripe/stripe-js": ">=3.0.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
-    "tsup": "^8.0.0",
+    "tsup": "^9.0.0",
     "typescript": "^5.3.0"
   },
   "keywords": [

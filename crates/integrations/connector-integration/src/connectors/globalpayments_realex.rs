@@ -421,7 +421,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // The XML card flows have no webhooks (tech spec §1).
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for GlobalpaymentsRealex<T>
+    interfaces::webhooks::IncomingWebhook for GlobalpaymentsRealex<T>
 {
 }
 

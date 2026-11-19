@@ -98,7 +98,7 @@ macros::macro_connector_payout_implementation!(
 // ===== DISPUTE FLOW TRAIT IMPLEMENTATIONS =====
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Payme<T>
+    interfaces::webhooks::IncomingWebhook for Payme<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -148,8 +148,34 @@ pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub billing_descriptor: Option<crate::connector_types::BillingDescriptor>,
     /// Merchant-supplied funds-transfer classification assigned by the payment processor.
     pub funds_transfer_type: Option<PayoutFundsTransferType>,
+    /// Merchant-supplied business purpose; no connector-independent default exists.
+    pub purpose: Option<PayoutPurpose>,
     /// Common funding-party details normalized by Hyperswitch before calling UCS.
     pub vendor_account_details: Option<PayoutVendorAccountDetails>,
+}
+
+/// Merchant-supplied business purpose. Each connector defines its own supported mappings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PayoutPurpose {
+    Donations,
+    Education,
+    EmergencyNeed,
+    Expatriation,
+    FamilySupport,
+    FinancialServices,
+    Gifts,
+    Income,
+    Insurance,
+    Investment,
+    ItServices,
+    Leisure,
+    LoanPayment,
+    MedicalTreatment,
+    Pension,
+    Royalties,
+    Savings,
+    TravelAndTourism,
+    Other,
 }
 
 #[derive(Debug, Clone, Copy)]

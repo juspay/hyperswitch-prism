@@ -342,6 +342,7 @@ fn authorize_data() -> AuthorizeData {
             currency_conversion_data: Default::default(),
             is_account_funding_transaction: Default::default(),
             recipient_details: Default::default(),
+            sender_details: Default::default(),
             additional_connector_details: Default::default(),
             customer: Default::default(),
             business_country: Default::default(),
@@ -667,7 +668,7 @@ fn cybersource_flag_is_strictly_validated() {
 #[test]
 fn webhook_statuses_follow_rdp_mapping_and_are_never_treated_as_verified() {
     use domain_types::connector_types::{EventType, RequestDetails};
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
     let connector = Reddot::<DefaultPCIHolder>::new();
     for (code, expected_status, expected_event) in [
         (

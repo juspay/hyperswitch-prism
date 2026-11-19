@@ -105,7 +105,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Dlocal<T>
+    interfaces::webhooks::IncomingWebhook for Dlocal<T>
 {
     /// The signature dLocal sends with the IPN: the hex value in the
     /// `Authorization: V2-HMAC-SHA256, Signature: <hex>` header, decoded to bytes.
