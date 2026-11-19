@@ -1752,6 +1752,8 @@ pub(crate) fn build_order_request(
         product,
         country,
     } = parts;
+    let item_value =
+        item_value.filter(|_| !items.is_empty() && items.iter().all(|item| item.value.is_some()));
     ClearSaleOrderCreateRequest {
         order: ClearSaleOrderRequest {
             code,
