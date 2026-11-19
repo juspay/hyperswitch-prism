@@ -491,15 +491,7 @@ fn build_travelhub_apple_pay(
                     .payment_data
                     .online_payment_cryptogram
                     .clone(),
-                // TEMP LOCAL TEST PATCH — DO NOT COMMIT. Default ECI when
-                // Apple's token omits eciIndicator; preprod rejects without it.
-                eci: Some(
-                    decrypted_data
-                        .payment_data
-                        .eci_indicator
-                        .clone()
-                        .unwrap_or_else(|| "07".to_string()), //testing purpose hardcoded
-                ),
+                eci: decrypted_data.payment_data.eci_indicator.clone(),
             }),
         }),
     }
@@ -507,22 +499,15 @@ fn build_travelhub_apple_pay(
 
 fn build_travelhub_billing_address<T: PaymentMethodDataTypes>(
     item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> Option<TravelhubBillingAddress> {
-    // TEMP LOCAL TEST PATCH — DO NOT COMMIT.
-    // Preprod rejects authorize without billingAddress.country
-    // (BILLING_ADDRESS_COUNTRY_CODE_IS_REQUIRED); default to US while the
-    // upstream request does not send one.
-    Some(TravelhubBillingAddress {
+) -> Result<Option<TravelhubBillingAddress>, error_stack::Report<IntegrationError>> {
+    Ok(Some(TravelhubBillingAddress {
         number: None,
         street: item.resource_common_data.get_optional_billing_line1(),
         city: item.resource_common_data.get_optional_billing_city(),
         state: item.resource_common_data.get_optional_billing_state(),
         postal_code: item.resource_common_data.get_optional_billing_zip(),
-        country: item
-            .resource_common_data
-            .get_optional_billing_country()
-            .or(Some(common_enums::CountryAlpha2::US)), //testing purpose hardcoded
-    })
+        country: Some(item.resource_common_data.get_billing_country()?),
+    }))
 }
 
 impl<T: PaymentMethodDataTypes>
@@ -544,7 +529,7 @@ impl<T: PaymentMethodDataTypes>
 
         let payment_method_data = &item.request.payment_method_data;
         let is_auto_capture = !crate::utils::is_manual_capture(item.request.capture_method);
-        let billing_address = build_travelhub_billing_address(item);
+        let billing_address = build_travelhub_billing_address(item)?;
 
         let payment = match payment_method_data {
             PaymentMethodData::Card(card_data) => {
@@ -782,6 +767,16 @@ fn map_travelhub_refund_status(result: &TravelhubResult) -> RefundStatus {
             RefundStatus::Failure
         }
         TravelhubResult::Pending | TravelhubResult::Unknown => RefundStatus::Pending,
+        _ => RefundStatus::Pending,
+    }
+}
+
+fn map_travelhub_refund_sync_status(result: &TravelhubResult) -> RefundStatus {
+    match result {
+        TravelhubResult::Refunded => RefundStatus::Success,
+        TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid => {
+            RefundStatus::Failure
+        }
         _ => RefundStatus::Pending,
     }
 }
@@ -1426,8 +1421,8 @@ impl TryFrom<ResponseRouterData<TravelhubRSyncResponse, Self>>
                 response: Err(travelhub_error_response(
                     result,
                     item.http_code,
-                    item.response.transaction_id.clone(),
-                    Some(FlowStatus::Refund(map_travelhub_refund_status(result))),
+                    Some(item.router_data.request.connector_refund_id.clone()),
+                    Some(FlowStatus::Refund(map_travelhub_refund_sync_status(result))),
                 )),
                 resource_common_data: RefundFlowData {
                     raw_connector_status: Some(travelhub_raw_connector_status(result)),
@@ -1437,14 +1432,8 @@ impl TryFrom<ResponseRouterData<TravelhubRSyncResponse, Self>>
             });
         }
 
-        let refund_status = map_travelhub_refund_status(result);
-
-        let connector_refund_id = item.response.transaction_id.clone().ok_or_else(|| {
-            ConnectorError::response_handling_failed_with_context(
-                item.http_code,
-                Some("transaction_id missing in travelhub refund sync response".to_string()),
-            )
-        })?;
+        let refund_status = map_travelhub_refund_sync_status(result);
+        let connector_refund_id = item.router_data.request.connector_refund_id.clone();
 
         Ok(Self {
             response: Ok(RefundsResponseData {
