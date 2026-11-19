@@ -113,7 +113,10 @@ pub enum PaysafeSettlementStatus {
     #[default]
     Pending,
     Processing,
+    Received,
+    Initiated,
     Completed,
+    Expired,
     Failed,
     Cancelled,
 }
@@ -135,7 +138,9 @@ pub enum PaysafeVoidStatus {
     #[default]
     Pending,
     Processing,
+    Received,
     Completed,
+    Held,
     Failed,
     Cancelled,
 }
