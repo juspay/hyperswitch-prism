@@ -1055,12 +1055,20 @@ pub fn extract_returned_bank_details(
 
 pub fn verify_webhook_signature(
     webhook_body: TrustlyWebhookBody,
+    raw_body: &[u8],
     public_key: Vec<u8>,
 ) -> error_stack::Result<bool, errors::WebhookError> {
     let method = webhook_body.method;
     let uuid = webhook_body.params.uuid;
-    let data = &webhook_body.params.data;
     let signature = &webhook_body.params.signature;
+    // Trustly signs the `data` object as sent. Rebuilding it from `TrustlyWebhookData` would
+    // drop fields the struct does not model and change the plaintext, so use the raw JSON.
+    let raw_value: serde_json::Value = serde_json::from_slice(raw_body)
+        .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+    let data = raw_value
+        .get("params")
+        .and_then(|params| params.get("data"))
+        .ok_or(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
     let pem_bytes = general_purpose::STANDARD
         .decode(&public_key)
@@ -1089,7 +1097,7 @@ pub fn verify_webhook_signature(
         (Algorithm::SHA1, signature.as_str())
     };
 
-    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+    let plaintext = format!("{}{}{}", method.as_str(), uuid, serialize_value(data));
 
     let signature_bytes = general_purpose::STANDARD
         .decode(signature_b64)
