@@ -6115,26 +6115,54 @@ pub(crate) fn get_adyen_payment_webhook_event(
             if is_success_scenario(&is_success) {
                 Ok(AttemptStatus::Authorized)
             } else {
-                Ok(AttemptStatus::Failure)
+                // The adjustment failed, but the original authorization is still valid.
+                Ok(AttemptStatus::Authorized)
             }
         }
         WebhookEventCode::Cancellation => {
             if is_success_scenario(&is_success) {
                 Ok(AttemptStatus::Voided)
             } else {
-                Ok(AttemptStatus::Authorized)
+                Ok(AttemptStatus::VoidFailed)
             }
         }
         WebhookEventCode::Capture => {
             if is_success_scenario(&is_success) {
                 Ok(AttemptStatus::Charged)
             } else {
-                Ok(AttemptStatus::Failure)
+                Ok(AttemptStatus::CaptureFailed)
             }
         }
-        WebhookEventCode::CaptureFailed => Ok(AttemptStatus::Failure),
+        WebhookEventCode::CaptureFailed => Ok(AttemptStatus::CaptureFailed),
         WebhookEventCode::OfferClosed => Ok(AttemptStatus::Expired),
         _ => Err(WebhookError::WebhookProcessingFailed),
+    }
+}
+
+pub(crate) struct AdyenPaymentWebhookReferences {
+    pub resource_id: String,
+    pub connector_response_reference_id: String,
+    pub connector_request_reference_id: String,
+}
+
+pub(crate) fn get_adyen_payment_webhook_references(
+    notif: &AdyenNotificationRequestItemWH,
+) -> AdyenPaymentWebhookReferences {
+    let resource_id = match notif.event_code {
+        WebhookEventCode::Capture
+        | WebhookEventCode::CaptureFailed
+        | WebhookEventCode::Cancellation
+        | WebhookEventCode::AuthorisationAdjustment => notif
+            .original_reference
+            .clone()
+            .unwrap_or_else(|| notif.psp_reference.clone()),
+        _ => notif.psp_reference.clone(),
+    };
+
+    AdyenPaymentWebhookReferences {
+        resource_id,
+        connector_response_reference_id: notif.psp_reference.clone(),
+        connector_request_reference_id: notif.merchant_reference.clone(),
     }
 }
 
@@ -8204,6 +8232,19 @@ pub struct DisputeServiceResult {
     success: bool,
 }
 
+fn get_defend_dispute_status(
+    result: &DisputeServiceResult,
+) -> Result<common_enums::DisputeStatus, String> {
+    if result.success {
+        Ok(common_enums::DisputeStatus::DisputeChallenged)
+    } else {
+        Err(result
+            .error_message
+            .clone()
+            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()))
+    }
+}
+
 impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
     for RouterDataV2<F, DisputeFlowData, Req, DisputeResponseData>
 {
@@ -8219,24 +8260,38 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
         } = value;
         match response {
             AdyenDefendDisputeResponse::DefendDisputeSuccessResponse(result) => {
-                let dispute_status = if result.dispute_service_result.success {
-                    common_enums::DisputeStatus::DisputeWon
-                } else {
-                    common_enums::DisputeStatus::DisputeLost
-                };
-
-                Ok(Self {
-                    response: Ok(DisputeResponseData {
-                        dispute_status,
-                        connector_dispute_status: None,
-                        connector_dispute_id: router_data
-                            .resource_common_data
-                            .connector_dispute_id
-                            .clone(),
-                        status_code: http_code,
+                match get_defend_dispute_status(&result.dispute_service_result) {
+                    Ok(dispute_status) => Ok(Self {
+                        response: Ok(DisputeResponseData {
+                            dispute_status,
+                            connector_dispute_status: None,
+                            connector_dispute_id: router_data
+                                .resource_common_data
+                                .connector_dispute_id
+                                .clone(),
+                            status_code: http_code,
+                        }),
+                        ..router_data
                     }),
-                    ..router_data
-                })
+                    Err(error_message) => Ok(Self {
+                        response: Err(ErrorResponse {
+                            code: NO_ERROR_CODE.to_string(),
+                            message: error_message.clone(),
+                            reason: Some(error_message),
+                            status_code: http_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            network_decline_code: None,
+                            network_advice_code: None,
+                            network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
+                        }),
+                        ..router_data
+                    }),
+                }
             }
 
             AdyenDefendDisputeResponse::DefendDisputeFailedResponse(result) => Ok(Self {
@@ -8998,12 +9053,9 @@ impl TryFrom<ResponseRouterData<AdyenOrderCreateResponse, Self>>
 // outcome is delivered asynchronously via the AUTHORISATION_ADJUSTMENT webhook.
 // Ref: https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates
 
-// Adyen's /amountUpdates endpoint is documented to return exactly one synchronous
-// status value — `"received"` — acknowledging that the adjustment has been queued.
-// The eventual Authorised/Refused outcome is delivered asynchronously via the
-// AUTHORISATION_ADJUSTMENT webhook (handled separately). The casing below matches
-// Adyen's documented response verbatim, so we do not normalize casing here.
-const ADYEN_INCREMENTAL_AUTH_STATUS_RECEIVED: &str = "received";
+// Adyen's /amountUpdates endpoint returns `"received"` to acknowledge that the
+// adjustment has been queued. The eventual Authorised/Refused outcome is delivered
+// asynchronously via the AUTHORISATION_ADJUSTMENT webhook.
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -9078,16 +9130,12 @@ pub struct AdyenIncrementalAuthResponse {
 // (see doc link above). Final Authorised/Refused outcomes arrive asynchronously
 // via the AUTHORISATION_ADJUSTMENT webhook. Non-2xx responses are handled
 // upstream by get_error_response_v2, so this only runs on 2xx.
-//   - status = "received"  -> Success (adjustment accepted)
-//   - any other / missing  -> Processing (Adyen changed API; fall back
-//                              to Processing and rely on the webhook)
-fn map_incremental_auth_status(status: Option<&str>) -> common_enums::AuthorizationStatus {
-    match status {
-        Some(s) if s == ADYEN_INCREMENTAL_AUTH_STATUS_RECEIVED => {
-            common_enums::AuthorizationStatus::Success
-        }
-        _ => common_enums::AuthorizationStatus::Processing,
-    }
+// Every synchronous acknowledgement remains non-terminal; the later webhook
+// provides the final adjustment outcome.
+pub(crate) fn map_incremental_auth_status(
+    _status: Option<&str>,
+) -> common_enums::AuthorizationStatus {
+    common_enums::AuthorizationStatus::Processing
 }
 
 impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
@@ -9193,5 +9241,105 @@ fn get_capture_delay_hours(
             }
             .into()),
         },
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod lifecycle_tests {
+    use super::*;
+
+    fn webhook_fixture(
+        event_code: &str,
+        original_reference: Option<&str>,
+    ) -> AdyenNotificationRequestItemWH {
+        serde_json::from_value(serde_json::json!({
+            "originalReference": original_reference,
+            "pspReference": "synthetic_event_reference",
+            "amount": { "value": 100, "currency": "USD" },
+            "eventCode": event_code,
+            "merchantAccountCode": "synthetic_account",
+            "merchantReference": "synthetic_merchant_reference",
+            "success": "false",
+            "additionalData": {}
+        }))
+        .expect("valid synthetic Adyen webhook")
+    }
+
+    #[test]
+    fn modification_webhook_status_preserves_payment_lifecycle() {
+        let cases = [
+            (
+                WebhookEventCode::AuthorisationAdjustment,
+                AttemptStatus::Authorized,
+            ),
+            (WebhookEventCode::Cancellation, AttemptStatus::VoidFailed),
+            (WebhookEventCode::Capture, AttemptStatus::CaptureFailed),
+            (
+                WebhookEventCode::CaptureFailed,
+                AttemptStatus::CaptureFailed,
+            ),
+        ];
+
+        for (event_code, expected) in cases {
+            let actual = get_adyen_payment_webhook_event(event_code, "false".to_string())
+                .expect("supported payment event");
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn defend_dispute_acknowledgement_is_not_a_final_outcome() {
+        assert_eq!(
+            get_defend_dispute_status(&DisputeServiceResult {
+                error_message: None,
+                success: true,
+            }),
+            Ok(common_enums::DisputeStatus::DisputeChallenged)
+        );
+        assert_eq!(
+            get_defend_dispute_status(&DisputeServiceResult {
+                error_message: Some("synthetic rejection".to_string()),
+                success: false,
+            }),
+            Err("synthetic rejection".to_string())
+        );
+    }
+
+    #[test]
+    fn incremental_authorization_acknowledgements_remain_processing() {
+        for status in [Some("received"), Some("unexpected"), None] {
+            assert_eq!(
+                map_incremental_auth_status(status),
+                common_enums::AuthorizationStatus::Processing
+            );
+        }
+    }
+
+    #[test]
+    fn modification_webhook_references_point_to_original_payment() {
+        let modification = webhook_fixture("CAPTURE", Some("synthetic_payment_reference"));
+        let references = get_adyen_payment_webhook_references(&modification);
+        assert_eq!(references.resource_id, "synthetic_payment_reference");
+        assert_eq!(
+            references.connector_response_reference_id,
+            "synthetic_event_reference"
+        );
+        assert_eq!(
+            references.connector_request_reference_id,
+            "synthetic_merchant_reference"
+        );
+
+        let missing_original = webhook_fixture("CAPTURE", None);
+        assert_eq!(
+            get_adyen_payment_webhook_references(&missing_original).resource_id,
+            "synthetic_event_reference"
+        );
+
+        let authorization = webhook_fixture("AUTHORISATION", Some("unused_parent_reference"));
+        assert_eq!(
+            get_adyen_payment_webhook_references(&authorization).resource_id,
+            "synthetic_event_reference"
+        );
     }
 }
