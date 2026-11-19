@@ -547,12 +547,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("CheckoutWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        if !is_payout_webhook(&body) || body.data.id.trim().is_empty() {
-            return Err(error_stack::report!(
-                domain_types::errors::WebhookError::WebhookBodyDecodingFailed
-            ));
-        }
-
         let event_body = CheckoutWebhookEventTypeBody {
             transaction_type: body.transaction_type,
             data: Some(transformers::CheckoutWebhookEventTypeData {
