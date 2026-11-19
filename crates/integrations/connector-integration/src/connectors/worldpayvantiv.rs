@@ -14,7 +14,7 @@ use domain_types::{
         Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
     },
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
+        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, PaymentFlowData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
@@ -225,15 +225,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
         Ok(false) // WorldpayVantiv doesn't support webhooks
-    }
-
-    fn get_event_type(
-        &self,
-        _request: RequestDetails,
-    ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        Err(report!(WebhookError::WebhooksNotImplemented {
-            operation: "get_event_type",
-        }))
     }
 
     fn process_payment_webhook(
