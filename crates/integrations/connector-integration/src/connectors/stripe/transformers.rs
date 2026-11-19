@@ -2812,6 +2812,61 @@ fn validate_three_ds_return_url<T: PaymentMethodDataTypes>(
     Ok(())
 }
 
+/// Payment methods that always send the shopper to the bank/wallet/BNPL site and back to
+/// `return_url`. Without a caller-supplied URL the builder's fallback would land the shopper on a
+/// domain the merchant does not own, so such a request is refused up front.
+fn is_redirect_payment_method(payment_method_type: &StripePaymentMethodType) -> bool {
+    match payment_method_type {
+        StripePaymentMethodType::Affirm
+        | StripePaymentMethodType::AfterpayClearpay
+        | StripePaymentMethodType::Alipay
+        | StripePaymentMethodType::Alma
+        | StripePaymentMethodType::AmazonPay
+        | StripePaymentMethodType::Bancontact
+        | StripePaymentMethodType::Cashapp
+        | StripePaymentMethodType::Eps
+        | StripePaymentMethodType::Giropay
+        | StripePaymentMethodType::Ideal
+        | StripePaymentMethodType::Klarna
+        | StripePaymentMethodType::Przelewy24
+        | StripePaymentMethodType::RevolutPay
+        | StripePaymentMethodType::Sofort => true,
+        // Cards are covered by `validate_three_ds_return_url`; the rest never redirect.
+        StripePaymentMethodType::Card
+        | StripePaymentMethodType::Becs
+        | StripePaymentMethodType::Bacs
+        | StripePaymentMethodType::Blik
+        | StripePaymentMethodType::CustomerBalance
+        | StripePaymentMethodType::Sepa
+        | StripePaymentMethodType::Ach
+        | StripePaymentMethodType::Wechatpay => false,
+    }
+}
+
+pub(crate) fn validate_redirect_return_url(
+    payment_method_type: Option<&StripePaymentMethodType>,
+    router_return_url: Option<&str>,
+) -> Result<(), IntegrationError> {
+    if payment_method_type.is_some_and(is_redirect_payment_method)
+        && !has_usable_return_url(router_return_url)
+    {
+        return Err(IntegrationError::MissingRequiredField {
+            field_name: "return_url",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "send return_url with a redirect-based payment method".to_string(),
+                ),
+                doc_url: None,
+                additional_context: Some(
+                    "Stripe sends the shopper back to return_url after the redirect; a redirect payment without one is refused"
+                        .to_string(),
+                ),
+            },
+        });
+    }
+    Ok(())
+}
+
 /// The caller asked for 3DS on a card supplied as a token: ask Stripe for it, as the raw-card
 /// arm does inside `payment_data`. Stripe ignores the parameter for a wallet cryptogram token
 /// (https://docs.stripe.com/payments/3d-secure/authentication-flow). Without a 3DS request
@@ -3248,6 +3303,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             item.resource_common_data.auth_type,
             item.request.router_return_url.as_deref(),
             error_on_requires_action.is_some(),
+        )?;
+        validate_redirect_return_url(
+            payment_method_types.as_ref(),
+            item.request.router_return_url.as_deref(),
         )?;
 
         // on_behalf_of is only supported for destination charges, not direct charges
@@ -4705,7 +4764,8 @@ pub struct RefundResponse {
     pub amount: MinorUnit,
     pub currency: String,
     pub metadata: StripeMetadata,
-    pub payment_intent: String,
+    /// Null for a refund of a charge not created through a PaymentIntent.
+    pub payment_intent: Option<String>,
     pub status: RefundStatus,
     pub failure_reason: Option<String>,
 }
@@ -4993,6 +5053,9 @@ pub struct WebhookEventObjectData {
     pub status: Option<WebhookEventStatus>,
     pub metadata: Option<StripeMetadata>,
     pub last_payment_error: Option<ErrorDetails>,
+    /// Set on a Refund object (`refund.failed` / `refund.updated`); Refunds have no
+    /// `last_payment_error`.
+    pub failure_reason: Option<String>,
     pub network_details: Option<StripeDisputeNetworkDetails>,
 }
 
@@ -5482,9 +5545,14 @@ pub(crate) fn build_webhook_payment_response(
         }
         WebhookEventType::PaymentIntentFailed => common_enums::AttemptStatus::Failure,
         WebhookEventType::PaymentIntentCanceled => common_enums::AttemptStatus::Voided,
-        WebhookEventType::PaymentIntentAmountCapturableUpdated => {
-            common_enums::AttemptStatus::Authorized
-        }
+        // Fired whenever `amount_capturable` changes, including on capture (it drops to 0, PI is
+        // `succeeded`) and possibly out of order: trust the PI's own status, so a late delivery
+        // cannot move a Charged payment back to Authorized.
+        WebhookEventType::PaymentIntentAmountCapturableUpdated => event_object
+            .status
+            .as_ref()
+            .map(payment_status_to_attempt_status)
+            .unwrap_or(common_enums::AttemptStatus::Authorized),
         WebhookEventType::PaymentIntentRequiresAction => {
             common_enums::AttemptStatus::AuthenticationPending
         }
@@ -5581,10 +5649,11 @@ pub(crate) fn build_webhook_refund_response(
     };
 
     let (error_code, error_message) = if status == common_enums::RefundStatus::Failure {
-        let error = event_object.last_payment_error.as_ref();
+        // A Refund object reports why it failed in `failure_reason`
+        // (e.g. `lost_or_stolen_card`); it has no `last_payment_error`.
         (
-            error.and_then(|error| error.code.clone()),
-            error.and_then(|error| error.message.clone()),
+            event_object.failure_reason.clone(),
+            event_object.failure_reason.clone(),
         )
     } else {
         (None, None)
