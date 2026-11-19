@@ -10,7 +10,7 @@ use common_utils::{
     errors::CustomResult,
     pii,
     request::Method,
-    types::{FloatMajorUnit, MinorUnit, StringMajorUnit},
+    types::{FloatMajorUnit, StringMajorUnit},
     Email,
 };
 use domain_types::{
@@ -2543,7 +2543,7 @@ pub(crate) fn get_google_pay_session(
                 .into_iter()
                 .map(Into::into)
                 .collect(),
-            transaction_info: google_pay_init_result.transaction_info.into(),
+            transaction_info: google_pay_init_result.transaction_info.try_into()?,
             secrets: Some((*secrets).clone().into()),
             shipping_address_required: false,
             email_required: false,
@@ -2577,19 +2577,25 @@ impl From<SdkSecretInfo> for SecretInfoToInitiateSdk {
 }
 
 // From implementations for GooglePay types
-impl From<GooglePayTransactionInfo> for domain_types::connector_types::GpayTransactionInfo {
-    fn from(value: GooglePayTransactionInfo) -> Self {
+impl TryFrom<GooglePayTransactionInfo> for domain_types::connector_types::GpayTransactionInfo {
+    type Error = Error;
+    fn try_from(value: GooglePayTransactionInfo) -> Result<Self, Self::Error> {
+        // An unconvertible total must fail the session, not build a 0-amount payment sheet
+        // (same handling as the Apple Pay total above).
         let total_price =
             TrustpayAmountConvertor::convert_back(value.total_price, value.currency_code)
-                .map(|money| money.amount())
-                .unwrap_or_else(|_| MinorUnit::new(0));
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "transaction_info.total_price",
+                    context: Default::default(),
+                })?
+                .amount();
 
-        Self {
+        Ok(Self {
             country_code: value.country_code,
             currency_code: value.currency_code,
             total_price_status: value.total_price_status,
             total_price,
-        }
+        })
     }
 }
 
