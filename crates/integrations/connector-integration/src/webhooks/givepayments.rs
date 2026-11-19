@@ -9,7 +9,7 @@ use domain_types::{
         EventType, PaymentWebhookReference, RefundWebhookReference, RequestDetails,
         WebhookResourceReference,
     },
-    errors::{self},
+    errors,
     payment_method_data::PaymentMethodDataTypes,
 };
 use error_stack::ResultExt;
