@@ -476,7 +476,9 @@ fn truncate_api_transaction_id(id: &str) -> String {
         while remaining >= 5 {
             remaining -= 5;
             let index = usize::from((bits >> remaining) & 31);
-            output.push(char::from(ALPHABET[index]));
+            if let Some(symbol) = ALPHABET.get(index) {
+                output.push(char::from(*symbol));
+            }
         }
     }
     output
