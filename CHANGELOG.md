@@ -19,6 +19,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.18.2
+
+### Features
+
+- **connector:** Revpay Addition ([#2593](https://github.com/juspay/connector-service/pull/2593)) ([`69645b9`](https://github.com/juspay/connector-service/commit/69645b9ec3b79d7c205a360e59ba4fc3904f2b64))
+
+### Bug Fixes
+
+- **connector:** [TwoCTwoP_PACO] use priorPaymentResponseDetails in PSync/RSync inquiry responses ([#2765](https://github.com/juspay/connector-service/pull/2765)) ([`7f35e6e`](https://github.com/juspay/connector-service/commit/7f35e6e0b6293bca41775bd6e71ac4aca18bcb51))
+- **webhooks:** Reverts Preserve Worldpay attempt context ([#2764](https://github.com/juspay/connector-service/pull/2764)) ([`403df70`](https://github.com/juspay/connector-service/commit/403df7094a5a9b4aa6c59d2511241ed4e0f94d4e))
+
+### Revert
+
+- **flywire:** Restore cards-only checkout sessions ([#2763](https://github.com/juspay/connector-service/pull/2763)) ([`60b4a66`](https://github.com/juspay/connector-service/commit/60b4a663942ec75c42584ff3808a248e9fd4d5ca))
+
+**Full Changelog:** [`2026.11.18.1...2026.11.18.2`](https://github.com/juspay/connector-service/compare/2026.11.18.1...2026.11.18.2)
+
+- - -
+
+## 2026.11.18.1
+
+### Features
+
+- **framework:** Add typed sender_details for AFT in checkout and worldpayXML ([#2590](https://github.com/juspay/connector-service/pull/2590)) ([`b211435`](https://github.com/juspay/connector-service/commit/b21143579f18d282856c486d7dd72ec83b3b79c0))
+
+### Bug Fixes
+
+- **connector:** [ClearSale] add Superposition environment routing and lenient metadata decoding ([#2760](https://github.com/juspay/connector-service/pull/2760)) ([`74286d7`](https://github.com/juspay/connector-service/commit/74286d720e1d99ceb5959ad7b05a397d3a1513ed))
+
+**Full Changelog:** [`2026.11.18.0...2026.11.18.1`](https://github.com/juspay/connector-service/compare/2026.11.18.0...2026.11.18.1)
+
+- - -
+
 ## 2026.11.18.0
 
 ### Features

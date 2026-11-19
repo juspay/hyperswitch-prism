@@ -119,14 +119,14 @@ point as major units and a plain integer as minor units before constructing
 ### Capture
 
 Transit capture responses may echo `transactionAmount`. Use the echoed capture
-amount when present; fall back to `minor_amount_to_capture` only when Transit
+amount when present; fall back to `amount_to_capture.amount` only when Transit
 omits it:
 
 ```rust
 request: PaymentsCaptureData {
     integrity_object: Some(CaptureIntegrityObject {
         amount_to_capture: minor_amount_captured
-            .unwrap_or(router_data.request.minor_amount_to_capture),
+            .unwrap_or(router_data.request.amount_to_capture.amount),
         currency: router_data.request.currency,
     }),
     ..router_data.request.clone()

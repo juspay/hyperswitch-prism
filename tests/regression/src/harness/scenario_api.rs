@@ -6298,7 +6298,6 @@ grpc-status: 0
                                 } else {
                                     i32::from(payments::CaptureMethod::Automatic)
                                 }),
-                                previous_status: None,
                             },
                         )),
                     });

@@ -677,7 +677,7 @@ impl ConnectorIntegration<Authorize, PaymentFlowData, PaymentsAuthorizeData, Pay
     ) -> CustomResult<RequestContent, IntegrationError> {
         let amount = self
             .amount_converter
-            .convert(req.request.minor_amount, req.request.currency)
+            .convert(req.request.amount.amount, req.request.currency)
             .change_context(IntegrationError::AmountConversionFailed { context: Default::default() })?;
 
         let connector_router_data = MyConnectorRouterData::from((amount, req));
@@ -1044,7 +1044,7 @@ const BANK_TRANSFER_TIMEOUT_HOURS: u64 = 72; // 3 days
 
 **Solution**: Always use minor units and include currency in instructions:
 ```rust
-let amount_minor = req.request.minor_amount;
+let amount_minor = req.request.amount.amount;
 let currency = req.request.currency;
 // Include both in customer-facing instructions
 ```

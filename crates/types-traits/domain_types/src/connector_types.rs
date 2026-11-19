@@ -181,6 +181,7 @@ pub enum ConnectorEnum {
     Betterpayment,
     Ecommpay,
     Payhound,
+    Revpay,
 }
 
 // snake case for enum variants
@@ -591,6 +592,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
             grpc_api_types::payments::Connector::Payhound => Ok(Self::Payhound),
+            grpc_api_types::payments::Connector::Revpay => Ok(Self::Revpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1933,6 +1935,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -3442,7 +3446,6 @@ pub struct ConnectorWebhookSecrets {
 #[derive(Debug, Clone, Default)]
 pub struct EventContext {
     pub capture_method: Option<common_enums::CaptureMethod>,
-    pub previous_status: Option<common_enums::AttemptStatus>,
 }
 
 #[derive(Debug, Clone)]
@@ -3875,43 +3878,27 @@ impl ForeignTryFrom<grpc_api_types::payments::EventContext> for EventContext {
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         use grpc_api_types::payments::event_context::EventContext as EventContextOneof;
 
-        let (capture_method, previous_status) = match value.event_context {
-            Some(EventContextOneof::Payment(payment_ctx)) => (
-                payment_ctx
-                    .capture_method
-                    .map(|cm| {
-                        grpc_api_types::payments::CaptureMethod::try_from(cm)
-                            .change_context(WebhookError::WebhookBodyDecodingFailed)
-                            .and_then(|cm| {
-                                common_enums::CaptureMethod::foreign_try_from(cm)
-                                    .change_context(WebhookError::WebhookBodyDecodingFailed)
-                            })
-                    })
-                    .transpose()?,
-                payment_ctx
-                    .previous_status
-                    .map(|status| {
-                        grpc_api_types::payments::PaymentStatus::try_from(status)
-                            .change_context(WebhookError::WebhookBodyDecodingFailed)
-                            .and_then(|status| {
-                                common_enums::AttemptStatus::foreign_try_from(status)
-                                    .change_context(WebhookError::WebhookBodyDecodingFailed)
-                            })
-                    })
-                    .transpose()?,
-            ),
+        let capture_method = match value.event_context {
+            Some(EventContextOneof::Payment(payment_ctx)) => payment_ctx
+                .capture_method
+                .map(|cm| {
+                    grpc_api_types::payments::CaptureMethod::try_from(cm)
+                        .change_context(WebhookError::WebhookBodyDecodingFailed)
+                        .and_then(|cm| {
+                            common_enums::CaptureMethod::foreign_try_from(cm)
+                                .change_context(WebhookError::WebhookBodyDecodingFailed)
+                        })
+                })
+                .transpose()?,
             // Other resource contexts carry no fields that map to domain EventContext today.
             Some(EventContextOneof::Refund(_))
             | Some(EventContextOneof::Dispute(_))
             | Some(EventContextOneof::Mandate(_))
             | Some(EventContextOneof::Payout(_))
-            | None => (None, None),
+            | None => None,
         };
 
-        Ok(Self {
-            capture_method,
-            previous_status,
-        })
+        Ok(Self { capture_method })
     }
 }
 
@@ -4186,6 +4173,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -4311,6 +4300,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -4779,6 +4770,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
                 payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
                 payment_method_data::WalletData::PayhereRedirect {} => Self::PayhereRedirect,
+                payment_method_data::WalletData::BoostRedirect {} => Self::BoostRedirect,
+                payment_method_data::WalletData::AliPayPlusRedirect {} => Self::AliPayPlusRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -6875,6 +6868,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Payhound(_) => Ok(Self::Payment(ConnectorEnum::Payhound)),
+            AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {
@@ -6950,6 +6944,65 @@ pub struct RecipientDetails {
     pub phone_number: Option<Secret<String>>,
     pub tax_id: Option<Secret<String>>,
     pub address: Option<AddressDetails>,
+}
+
+/// Address of the party providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SenderAddress {
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
+    pub line3: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub country: Option<common_enums::CountryAlpha2>,
+}
+
+/// An individual (natural person) providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndividualSenderDetails {
+    /// Required by connectors only when the payment is an AFT; validated there, not at parse time.
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub date_of_birth: Option<Secret<time::Date>>,
+    pub address: Option<SenderAddress>,
+    pub email: Option<Email>,
+    pub phone_number: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+}
+
+/// A company (legal entity) providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CorporateSenderDetails {
+    /// Required by connectors only when the payment is an AFT; validated there, not at parse time.
+    pub company_name: Option<Secret<String>>,
+    pub address: Option<SenderAddress>,
+    pub email: Option<Email>,
+    pub phone_number: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+}
+
+/// Details about the sender of funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SenderDetails {
+    Individual(IndividualSenderDetails),
+    Corporate(CorporateSenderDetails),
+}
+
+impl SenderDetails {
+    pub fn get_address(&self) -> Option<&SenderAddress> {
+        match self {
+            Self::Individual(individual) => individual.address.as_ref(),
+            Self::Corporate(corporate) => corporate.address.as_ref(),
+        }
+    }
+
+    pub fn get_email(&self) -> Option<&Email> {
+        match self {
+            Self::Individual(individual) => individual.email.as_ref(),
+            Self::Corporate(corporate) => corporate.email.as_ref(),
+        }
+    }
 }
 
 /// Connector-specific additional details passed through the payment request.

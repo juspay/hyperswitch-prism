@@ -1013,6 +1013,8 @@ pub enum WalletData {
     EaseBuzzRedirect(EaseBuzzRedirection),
     PaymayaRedirect(PaymayaRedirection),
     PayhereRedirect {},
+    BoostRedirect {},
+    AliPayPlusRedirect {},
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.
