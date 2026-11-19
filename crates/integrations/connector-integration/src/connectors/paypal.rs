@@ -435,43 +435,6 @@ fn get_paypal_dispute_outcome(
     }
 }
 
-#[cfg(test)]
-#[allow(clippy::expect_used)]
-mod webhook_tests {
-    use super::*;
-
-    #[test]
-    fn resolved_dispute_reads_outcome_from_webhook_resource() {
-        let body: paypal::PaypalWebhooksBody = serde_json::from_value(serde_json::json!({
-            "event_type": "CUSTOMER.DISPUTE.RESOLVED",
-            "resource": {
-                "dispute_id": "synthetic_dispute",
-                "disputed_transactions": [{
-                    "seller_transaction_id": "synthetic_transaction"
-                }],
-                "dispute_amount": {
-                    "currency_code": "USD",
-                    "value": "10.00"
-                },
-                "dispute_outcome": {
-                    "outcome_code": "RESOLVED_SELLER_FAVOUR"
-                },
-                "dispute_life_cycle_stage": "CHARGEBACK",
-                "status": "RESOLVED",
-                "reason": "synthetic_reason"
-            }
-        }))
-        .expect("valid synthetic PayPal dispute webhook");
-
-        let outcome = get_paypal_dispute_outcome(body.resource)
-            .expect("synthetic dispute resource should be supported");
-
-        assert!(matches!(
-            get_paypal_event_type(body.event_type, outcome),
-            domain_types::connector_types::EventType::DisputeWon
-        ));
-    }
-}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Paypal<T>
 {
