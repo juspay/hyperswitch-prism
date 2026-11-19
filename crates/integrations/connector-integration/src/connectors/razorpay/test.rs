@@ -1617,6 +1617,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentCreateOrderData {
+                    capture_method: None,
                     money: create_order_data().money,
                     currency: Currency::USD,
                     integrity_object: None,
@@ -1751,6 +1752,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentCreateOrderData {
+                    capture_method: None,
                     money: common_utils::types::Money::zero(Currency::USD),
                     currency: Currency::USD,
                     integrity_object: None,
@@ -2082,6 +2084,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
+                capture_method: None,
                 money: create_order_data().money,
                 currency: Currency::USD,
                 integrity_object: None,
@@ -2228,6 +2231,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
+                capture_method: None,
                 money: create_order_data().money,
                 currency: Currency::USD,
                 integrity_object: None,
@@ -2363,6 +2367,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
+                capture_method: None,
                 money: create_order_data().money,
                 currency: Currency::USD,
                 integrity_object: None,

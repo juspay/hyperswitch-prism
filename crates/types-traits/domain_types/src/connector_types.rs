@@ -2350,6 +2350,7 @@ pub enum CaptureSyncResponse {
 
 #[derive(Debug, Clone)]
 pub struct PaymentCreateOrderData {
+    pub capture_method: Option<common_enums::CaptureMethod>,
     pub money: Money,
     pub currency: Currency,
     pub integrity_object: Option<CreateOrderIntegrityObject>,
