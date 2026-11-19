@@ -1032,8 +1032,8 @@ mod tests {
     }
 
     /// ClearSale returns an absolute `ExpirationDate`; `expires_in` is the TTL
-    /// seconds the token cache expects. Already-expired / unparsable stamps
-    /// yield `None` rather than a bogus TTL.
+    /// seconds the token cache expects. An already-expired stamp yields `Some(0)`
+    /// (refresh), an unparsable one an error, never a bogus TTL.
     #[test]
     fn expires_in_is_derived_from_expiration_date() {
         // now = 2023-11-14T22:13:20Z
@@ -1043,7 +1043,7 @@ mod tests {
         assert_eq!(
             expires_in_from_expiration_date("2023-11-14T22:00:00Z", now)
                 .expect("already-expired stamp still parses"),
-            None,
+            Some(0),
             "already expired"
         );
         assert_eq!(

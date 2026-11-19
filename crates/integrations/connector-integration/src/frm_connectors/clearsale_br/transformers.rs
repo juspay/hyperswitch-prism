@@ -289,15 +289,16 @@ pub(crate) fn parse_clearsale_expiration_date(raw: &str) -> Result<time::OffsetD
         })
 }
 
-/// Remaining TTL seconds for the login token. `Ok(None)` means the stamp is
-/// already past `now` — a real, already-expired token, not a parse failure.
+/// Remaining TTL seconds for the login token. A stamp already past `now` (clock skew, or
+/// a zone mismatch on the naive timestamp) gives `Some(0)`: the token is expired, so a
+/// cache refreshes it instead of treating an unknown (`None`) TTL as long-lived.
 pub(crate) fn expires_in_from_expiration_date(
     expiration_date: &str,
     now: time::OffsetDateTime,
 ) -> Result<Option<i64>, Error> {
     let expiry = parse_clearsale_expiration_date(expiration_date)?;
     let secs = (expiry - now).whole_seconds();
-    Ok((secs > 0).then_some(secs))
+    Ok(Some(secs.max(0)))
 }
 
 impl<F> TryFrom<ResponseRouterData<ClearSaleAuthenticateResponse, Self>>
