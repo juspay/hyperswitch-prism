@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 
-use common_utils::types::MinorUnit;
+use common_utils::types::{MinorUnit, Money};
 use domain_types::{
     connector_flow::{
         PayoutCreate, PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutGet,
@@ -101,6 +101,30 @@ pub struct StripeConnectPayoutCreateRequest {
     pub transfer_group: Option<String>,
 }
 
+fn validate_payout_currency(
+    money: &Money,
+    destination_currency: common_enums::Currency,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    if money.currency() == destination_currency {
+        Ok(())
+    } else {
+        Err(report!(IntegrationError::InvalidDataFormat {
+            field_name: "destination_currency",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Stripe transfer amount currency must match destination_currency; this API does not perform currency conversion"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide the transfer amount in destination_currency before calling the connector"
+                        .to_string(),
+                ),
+                doc_url: Some("https://docs.stripe.com/api/transfers/create".to_string()),
+            },
+        }))
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         super::StripePayoutsRouterData<
@@ -129,18 +153,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(&{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: stripe-create; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                request.money.amount(),
-                request.destination_currency,
-            );
-            legacy_money
-        })?;
-        let currency = request.destination_currency;
+        validate_payout_currency(&request.money, request.destination_currency)?;
+        let amount = StripeAmountConvertor::convert(&request.money)?;
+        let currency = request.money.currency();
 
         let destination = request
             .customer
@@ -246,18 +261,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(&{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: stripe-transfer; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                request.money.amount(),
-                request.destination_currency,
-            );
-            legacy_money
-        })?;
-        let currency = request.destination_currency;
+        validate_payout_currency(&request.money, request.destination_currency)?;
+        let amount = StripeAmountConvertor::convert(&request.money)?;
+        let currency = request.money.currency();
         Ok(Self { amount, currency })
     }
 }
