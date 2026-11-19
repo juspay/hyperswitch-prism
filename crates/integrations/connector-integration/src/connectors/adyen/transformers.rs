@@ -9250,4 +9250,3 @@ fn get_capture_delay_hours(
         },
     }
 }
-
