@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use common_enums::{AttemptStatus, AuthenticationType, CaptureMethod, RefundStatus};
 use common_utils::{
-    types::{MinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, StringMinorUnit},
     Method,
 };
 use domain_types::{
@@ -1183,18 +1183,18 @@ impl SaferpayCaptureResponse {
     }
 }
 
-fn authorized_amount_from_metadata(request: &PaymentsCaptureData) -> Option<MinorUnit> {
+fn authorized_amount_from_metadata(request: &PaymentsCaptureData) -> Option<ConnectorMinorUnit> {
     let value = request
         .connector_feature_data
         .as_ref()?
         .peek()
         .get(AUTHORIZED_AMOUNT_METADATA_KEY)?;
 
-    value
+    let amount = value
         .as_str()
         .and_then(|amount| amount.parse::<i64>().ok())
-        .or_else(|| value.as_i64())
-        .map(MinorUnit::new)
+        .or_else(|| value.as_i64())?;
+    serde_json::from_value(serde_json::json!(amount)).ok()
 }
 
 impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRouterData {
@@ -1216,10 +1216,14 @@ impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRoute
             .resource_common_data
             .money
             .as_ref()
-            .map(|money| money.amount())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
             .or_else(|| authorized_amount_from_metadata(request));
         let is_partial = authorized_amount
-            .map(|amount| amount > request.capture_money.amount())
+            .map(|amount| {
+                amount
+                    > common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&request.capture_money)
+            })
             .unwrap_or(true);
 
         let status = response.attempt_status(is_partial);

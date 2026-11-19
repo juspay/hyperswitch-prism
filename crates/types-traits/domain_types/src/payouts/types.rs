@@ -2107,8 +2107,10 @@ where
 
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            source_currency,
+            money: common_utils::types::Money::from_minor_unit(
+                common_utils::types::MinorUnit::new(amount.minor_amount),
+                source_currency,
+            ),
             destination_currency,
             payout_method_data,
             customer,

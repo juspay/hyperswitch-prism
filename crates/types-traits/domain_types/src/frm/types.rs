@@ -10,7 +10,7 @@ use crate::{
     },
     errors::IntegrationError,
     mandates::MandateAmountData,
-    payment_address::{OrderDetailsWithAmount, PaymentAddress},
+    payment_address::PaymentAddress,
     router_request_types::BrowserInformation,
     types::{Connectors, PaymentMethodDataAction},
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
@@ -19,6 +19,44 @@ use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::pii::Email;
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
+
+fn named_items_subtotal(
+    details: Option<&[crate::payment_address::OrderDetailsWithAmount]>,
+    currency: common_enums::Currency,
+) -> Result<Option<common_utils::types::Money>, error_stack::Report<IntegrationError>> {
+    let mut subtotal: Option<i64> = None;
+    for detail in details.unwrap_or_default() {
+        if detail.product_name.trim().is_empty() {
+            continue;
+        }
+        let line_total = detail
+            .money
+            .amount()
+            .get_amount_as_i64()
+            .checked_mul(i64::from(detail.quantity));
+        subtotal = Some(
+            line_total
+                .and_then(|line| subtotal.unwrap_or(0).checked_add(line))
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "order_details",
+                        context: crate::errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Order item subtotal exceeds minor-unit range".to_owned()
+                            ),
+                            ..Default::default()
+                        },
+                    })
+                })?,
+        );
+    }
+    Ok(subtotal.map(|amount| {
+        common_utils::types::Money::from_minor_unit(
+            common_utils::types::MinorUnit::new(amount),
+            currency,
+        )
+    }))
+}
 
 // ── MerchantDetails conversion ────────────────────────────────────────────────
 
@@ -190,8 +228,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             })
         })?;
 
-        // Preserve validation even though scalar order items no longer need currency.
-        let _currency = {
+        let currency = {
             let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
@@ -278,7 +315,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| crate::types::map_order_details(item, currency))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -313,6 +350,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
 
         Ok(Self {
             money: crate::money::from_proto_money(amount)?,
+            named_items_subtotal_money: named_items_subtotal(order_details.as_deref(), currency)?,
             customer_info,
             payment_method,
             browser_info,
@@ -373,8 +411,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             })
         })?;
 
-        // Preserve validation even though scalar order items no longer need currency.
-        let _currency = {
+        let currency = {
             let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
@@ -448,7 +485,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| crate::types::map_order_details(item, currency))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -492,6 +529,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
 
         Ok(Self {
             money: crate::money::from_proto_money(amount)?,
+            named_items_subtotal_money: named_items_subtotal(order_details.as_deref(), currency)?,
             customer_info,
             payment_method,
             browser_info,

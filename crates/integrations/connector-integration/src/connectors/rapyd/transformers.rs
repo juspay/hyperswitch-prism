@@ -1,6 +1,6 @@
 use common_utils::consts::NO_ERROR_MESSAGE;
 use common_utils::{
-    pii::Email, request::Method, types::MinorUnit, FloatMajorUnit, StringMajorUnit,
+    pii::Email, request::Method, types::ConnectorMinorUnit, FloatMajorUnit, StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -385,7 +385,9 @@ impl TryFrom<ResponseRouterData<RapydPSyncResponse, Self>>
 
     fn try_from(item: ResponseRouterData<RapydPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let RapydPSyncResponse(response) = item.response;
-        let is_zero_setup = item.router_data.request.money.amount() == MinorUnit::zero()
+        let is_zero_setup = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.money)
+            == ConnectorMinorUnit::zero()
             && item.router_data.request.is_mandate_payment()
             && response
                 .data
@@ -1130,7 +1132,7 @@ pub struct RapydApplePayDecryptedData {
     /// ISO-4217 numeric currency code (e.g. "978" for EUR), per Apple/Rapyd.
     #[serde(serialize_with = "serialize_currency_as_numeric")]
     currency_code: common_enums::Currency,
-    transaction_amount: MinorUnit,
+    transaction_amount: ConnectorMinorUnit,
     payment_data_type: RapydApplePayPaymentDataType,
     payment_data: RapydApplePayCryptogram,
 }
@@ -1211,7 +1213,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.request.money.amount() == MinorUnit::zero() {
+        if common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.money)
+            == ConnectorMinorUnit::zero()
+        {
             return Err(IntegrationError::NotSupported {
                 message: "Zero-amount authorization".to_owned(),
                 connector: "rapyd",
@@ -1230,7 +1235,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "rapyd authorize",
-                    &item.router_data.request.money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1501,11 +1507,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                 .clone(),
                                             application_expiration_date,
                                             currency_code: item.router_data.request.currency,
-                                            transaction_amount: item
-                                                .router_data
-                                                .request
-                                                .money
-                                                .amount(),
+                                            transaction_amount:
+                                                common_utils::types::ConnectorMinorUnitForConnector
+                                                    .convert(&item.router_data.request.money),
                                             payment_data_type:
                                                 RapydApplePayPaymentDataType::ThreeDSecure,
                                             payment_data: RapydApplePayCryptogram {
@@ -1894,7 +1898,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "rapyd capture",
-                    &item.router_data.request.capture_money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.capture_money),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -1929,7 +1934,8 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "rapyd refund",
-                    &item.router_data.request.refund_money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.refund_money),
                     &item.router_data.request.currency,
                 ),
             })?;
@@ -2408,19 +2414,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // defaulting here would charge an arbitrary value in the caller's
         // currency (e.g. ¥100 vs $1.00). Require the caller to pass an
         // explicit verification amount.
-        let minor_amount = request.money.as_ref().map(|money| money.amount()).ok_or(
-            IntegrationError::MissingRequiredField {
+        let money = request
+            .money
+            .as_ref()
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "minor_amount",
                 context: utils::integration_ctx(
                     "The setup mandate amount is missing",
                     "Provide minor_amount for the zero-value setup.",
                 ),
-            },
-        )?;
+            })?;
         // A setup mandate is a zero-value verification. A funded request
         // belongs in Authorize with `setup_future_usage`, where the capture
         // flow applies.
-        if minor_amount != MinorUnit::zero() {
+        if common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+            != ConnectorMinorUnit::zero()
+        {
             return Err(IntegrationError::NotSupported {
                 message: "Nonzero setup amount".to_owned(),
                 connector: "rapyd",
@@ -2657,7 +2666,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let request = &router_data.request;
 
-        if request.money.amount() == MinorUnit::zero() {
+        if common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)
+            == ConnectorMinorUnit::zero()
+        {
             return Err(IntegrationError::NotSupported {
                 message: "Zero-amount repeat payment".to_owned(),
                 connector: "rapyd",
@@ -2675,7 +2686,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::AmountConversionFailed {
                 context: utils::amount_conversion_ctx(
                     "rapyd repeat payment",
-                    &request.money.amount(),
+                    &common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
                     &request.currency,
                 ),
             })?;

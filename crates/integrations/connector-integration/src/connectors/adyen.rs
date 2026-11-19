@@ -84,7 +84,7 @@ pub(crate) mod headers {
 
 // Type alias for non-generic trait implementations
 
-macros::create_amount_converter_wrapper!(connector_name: Adyen, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Adyen, amount_type: ConnectorMinorUnit);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Adyen<T>
@@ -826,19 +826,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         // Adyen HMAC message format: pspReference:originalReference:merchantAccountCode:merchantReference:amount.value:amount.currency:eventCode:success
-        let message = format!(
-            "{}:{}:{}:{}:{}:{}:{}:{}",
+        let mut message = format!(
+            "{}:{}:{}:{}:",
             notif.psp_reference,
             notif.original_reference.as_deref().unwrap_or(""),
             notif.merchant_account_code,
             notif.merchant_reference,
-            notif.amount.value,
-            notif.amount.currency,
-            notif.event_code,
-            notif.success
+        )
+        .into_bytes();
+        crypto::SignatureValue::update_signature(&notif.amount.value, &mut |bytes| {
+            message.extend_from_slice(bytes)
+        });
+        message.extend_from_slice(
+            format!(
+                ":{}:{}:{}",
+                notif.amount.currency, notif.event_code, notif.success
+            )
+            .as_bytes(),
         );
 
-        Ok(message.into_bytes())
+        Ok(message)
     }
 
     fn verify_webhook_source(
@@ -1106,7 +1113,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = utils::convert_amount_for_webhook(
             self.amount_converter_webhooks,
             &utils::convert_back_amount_to_money_for_webhook(
-                &common_utils::types::MinorUnitForConnector,
+                &common_utils::types::ConnectorMinorUnitForConnector,
                 notif.amount.value,
                 notif.amount.currency,
             )?,

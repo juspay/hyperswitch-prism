@@ -1,7 +1,7 @@
 use crate::types::ResponseRouterData;
 use base64::Engine;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::MinorUnit;
+use common_utils::ConnectorMinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -174,7 +174,7 @@ pub struct TravelhubTravelFlight {
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubTravelFare {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<Currency>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -245,7 +245,7 @@ fn build_travel_data(
                     .or_else(|| airline.flight_date.clone()),
                 air_class: s.class_of_service.clone(),
                 fare: s.fare_money.as_ref().map(|m| TravelhubTravelFare {
-                    amount: Some(m.amount()),
+                    amount: Some(common_utils::types::ConnectorMinorUnitForConnector.convert(m)),
                     currency: Some(m.currency()),
                     fare_class: s.class_of_service.clone(),
                     fare_basis: s.fare_basis_code.clone(),
@@ -398,7 +398,7 @@ pub struct TravelhubPayment<T: PaymentMethodDataTypes> {
 pub struct TravelhubPaymentsRequest<T: PaymentMethodDataTypes> {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub capture: bool,
     pub payment: TravelhubPayment<T>,
@@ -654,7 +654,8 @@ impl<T: PaymentMethodDataTypes>
             order_id: validate_travelhub_order_id(
                 &item.resource_common_data.connector_request_reference_id,
             )?,
-            amount: item.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.request.money),
             currency: item.request.currency,
             capture: is_auto_capture,
             travel: build_travel_data(item.request.domain_data.as_ref()),
@@ -723,7 +724,7 @@ pub struct TravelhubPaymentsResponse {
     #[serde(rename = "transactionId", default)]
     pub transaction_id: Option<String>,
     #[serde(default)]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(default)]
     pub currency: Option<Currency>,
     #[serde(default)]
@@ -948,7 +949,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResp
 pub struct TravelhubCaptureRequest {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
 }
 
@@ -967,7 +968,8 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
             order_id: validate_travelhub_order_id(
                 &item.resource_common_data.connector_request_reference_id,
             )?,
-            amount: item.request.capture_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.request.capture_money),
             currency: item.request.currency,
         })
     }
@@ -1299,7 +1301,7 @@ fn resolve_original_order_id(
 pub struct TravelhubRefundRequest {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
 }
 
@@ -1316,7 +1318,8 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
         Ok(Self {
             merchant_id: auth.get_merchant_id(),
             order_id: resolve_original_order_id(item.request.connector_order_id.as_deref())?,
-            amount: item.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.request.refund_money),
             currency: item.request.currency,
         })
     }

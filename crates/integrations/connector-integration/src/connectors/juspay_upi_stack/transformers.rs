@@ -165,13 +165,6 @@ pub fn sanitize_merchant_request_id(id: &str) -> String {
     }
 }
 
-/// Convert minor units (paise) to major units (rupees) with 2 decimal places
-pub fn minor_to_major_amount(amount: i64) -> String {
-    let major = amount / 100;
-    let minor = amount % 100;
-    format!("{}.{:02}", major, minor.abs())
-}
-
 /// Build error response from Juspay UPI API error
 pub fn build_error_response(
     status_code: u16,
@@ -298,7 +291,7 @@ pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
         PaymentsResponseData,
     >,
     auth: &JuspayUpiAuthConfig,
-    amount_str: String,
+    amount_str: common_utils::types::StringMajorUnit,
 ) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
     use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
 
@@ -424,9 +417,8 @@ pub fn build_refund_request(
         (None, None)
     };
 
-    // Convert minor units (paise) to rupees with 2 decimal places using integer arithmetic
-    let amount_minor = refunds_data.refund_money.amount().get_amount_as_i64();
-    let refund_amount = minor_to_major_amount(amount_minor);
+    let refund_amount = common_utils::types::TruncatedTwoDecimalMajorUnitForConnector
+        .convert(&refunds_data.refund_money);
 
     let refund_request = Refund360Request {
         original_merchant_request_id: refunds_data.connector_transaction_id.clone(),
@@ -475,7 +467,7 @@ pub fn build_rsync_request(
     let amount_str = refund_sync_data
         .refund_money
         .as_ref()
-        .map(|m| minor_to_major_amount(m.amount().get_amount_as_i64()))
+        .map(|money| common_utils::types::TruncatedTwoDecimalMajorUnitForConnector.convert(money))
         .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "refund_money",
             context: IntegrationErrorContext {

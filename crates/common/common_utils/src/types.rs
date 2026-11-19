@@ -12,11 +12,15 @@ use utoipa::ToSchema;
 use crate::errors::ParsingError;
 
 pub use crate::money::{
-    AmountConvertor, ConnectorMinorUnit, ConnectorMinorUnitForConnector, FloatMajorUnit,
-    FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector, Money, StringMajorUnit,
-    StringMajorUnitForConnector, StringMajorUnitForCore, StringMajorUnitWithTwoDecimals,
+    AmountConvertor, BasisPointsPercentageForConnector, ConnectorMinorUnit,
+    ConnectorMinorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector,
+    FloatMajorUnitWithTwoDecimals, FloatMajorUnitWithTwoDecimalsForConnector, MinorUnit, Money,
+    PaddedStringMinorUnitForConnector, Percentage, PositiveScaledMinorUnitError,
+    PositiveScaledStringMinorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector,
+    StringMajorUnitForCore, StringMajorUnitWithTwoDecimals,
     StringMajorUnitWithTwoDecimalsForConnector, StringMinorUnit, StringMinorUnitForConnector,
     StringTwoDecimalUnit, StringTwoDecimalUnitForConnector,
+    TruncatedTwoDecimalMajorUnitForConnector,
 };
 
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.

@@ -180,17 +180,15 @@ impl TryFrom<ResponseRouterData<InterPaymentsSurchargeResponse, Self>>
             Ok(SurchargeCalculateResponse {
                 connector_response_reference_id: None,
                 connector_surcharge_id: item.response.s_tx_id.clone(),
-                surcharge_amount: super::InterPaymentsAmountConvertor::convert_back(
+                surcharge_money: super::InterPaymentsAmountConvertor::convert_back(
                     item.response.transaction_fee,
                     item.router_data.request.money.currency(),
                 )
                 .change_context(utils::response_handling_fail_for_connector(
                     item.http_code,
                     "interpayments",
-                ))?
-                .amount(),
+                ))?,
                 surcharge_rate_percent: item.response.transaction_fee_percent,
-                currency: item.router_data.request.money.currency(),
             })
         } else {
             Err(ErrorResponse {
@@ -364,12 +362,9 @@ impl TryFrom<ResponseRouterData<InterPaymentsSurchargeRefundInitResponse, Self>>
         }
         let currency = item.router_data.request.money.currency();
         let convert = |amount| {
-            super::InterPaymentsAmountConvertor::convert_back(amount, currency)
-                .map(|money| money.amount())
-                .change_context(utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "interpayments",
-                ))
+            super::InterPaymentsAmountConvertor::convert_back(amount, currency).change_context(
+                utils::response_handling_fail_for_connector(item.http_code, "interpayments"),
+            )
         };
         let refund_amount = convert(response.refund)?;
         let original_transaction_fee = convert(response.original_transaction_fee)?;
@@ -378,10 +373,11 @@ impl TryFrom<ResponseRouterData<InterPaymentsSurchargeRefundInitResponse, Self>>
         Ok(Self {
             response: Ok(SurchargeRefundInitResponse {
                 connector_surcharge_refund_id: response.s_tx_id,
-                refund_amount,
-                original_transaction_fee: Some(original_transaction_fee),
-                previously_refunded_transaction_fees: Some(previously_refunded_transaction_fees),
-                currency: Some(currency),
+                refund_money: refund_amount,
+                original_transaction_fee_money: Some(original_transaction_fee),
+                previously_refunded_transaction_fees_money: Some(
+                    previously_refunded_transaction_fees,
+                ),
             }),
             ..item.router_data
         })

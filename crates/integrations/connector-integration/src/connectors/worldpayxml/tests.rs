@@ -444,6 +444,7 @@ mod sender_party {
             connector_feature_data: None,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token: None,
             session_token: None,

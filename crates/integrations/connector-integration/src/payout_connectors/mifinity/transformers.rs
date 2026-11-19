@@ -182,24 +182,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for Mifini
             }
         };
 
-        let amount = convert_amount(&StringMajorUnitForConnector, &{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: mifinity-wallet-transfer; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                req.request.money.amount(),
-                req.request.destination_currency,
-            );
-            legacy_money
-        })?;
+        crate::payout_connectors::require_matching_payout_currency(
+            &req.request.money,
+            req.request.destination_currency,
+            "Mifinity",
+        )?;
+        let amount = convert_amount(&StringMajorUnitForConnector, &req.request.money)?;
 
         Ok(Self {
             source_account,
             destination_account,
             money: MifinityMoney {
                 amount,
-                currency: req.request.destination_currency,
+                currency: req.request.money.currency(),
             },
             description: resolve_description(req),
             trace_id: req
@@ -335,17 +330,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for Mifini
             )
         })?;
 
-        let amount = convert_amount(&StringMajorUnitForConnector, &{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: mifinity-bank-transfer; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                req.request.money.amount(),
-                req.request.destination_currency,
-            );
-            legacy_money
-        })?;
+        crate::payout_connectors::require_matching_payout_currency(
+            &req.request.money,
+            req.request.destination_currency,
+            "Mifinity",
+        )?;
+        let amount = convert_amount(&StringMajorUnitForConnector, &req.request.money)?;
 
         let description = resolve_description(req);
 
@@ -358,7 +348,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<&MifinityPayoutRouterData<T>> for Mifini
             description: description.clone(),
             money: MifinityMoney {
                 amount,
-                currency: req.request.destination_currency,
+                currency: req.request.money.currency(),
             },
             bank_payee: MifinityBankPayee {
                 country,

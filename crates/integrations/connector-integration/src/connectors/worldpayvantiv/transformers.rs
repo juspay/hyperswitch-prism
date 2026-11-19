@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashMap};
 
 use common_enums::{self, CountryAlpha2, Currency};
-use common_utils::{id_type::CustomerId, types::MinorUnit, StringMajorUnit};
+use common_utils::{id_type::CustomerId, types::ConnectorMinorUnit, StringMajorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, Void,
@@ -187,8 +187,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = build_payment_request(
             &item.router_data,
-            item.router_data.request.currency,
-            item.router_data.request.money.amount(),
+            &item.router_data.request.money,
             item.router_data.request.is_auto_capture(),
             order_source,
             payment_info,
@@ -232,8 +231,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         let request = build_payment_request(
             &item.router_data,
-            request.currency,
-            request.money.amount(),
+            &request.money,
             request.is_auto_capture(),
             order_source,
             payment_info,
@@ -364,12 +362,13 @@ fn format_token_expiry(
 
 fn build_payment_request<T: PaymentMethodDataTypes, F, Req>(
     router_data: &RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>,
-    currency: Currency,
-    amount: MinorUnit,
+    money: &common_utils::types::Money,
     is_auto_capture: bool,
     order_source: OrderSource,
     payment_info: PaymentInfo<T>,
 ) -> Result<WorldpayvantivPaymentsRequest<T>, Report<IntegrationError>> {
+    let currency = money.currency();
+    let amount = common_utils::types::ConnectorMinorUnitForConnector.convert(money);
     let auth = WorldpayvantivAuthType::try_from(&router_data.connector_config)?;
     let merchant_id = auth.merchant_id_for_currency(Some(currency))?;
 
@@ -393,7 +392,7 @@ fn build_payment_request<T: PaymentMethodDataTypes, F, Req>(
     let bill_to_address = get_billing_address(&router_data.resource_common_data);
     let ship_to_address = get_shipping_address(&router_data.resource_common_data);
 
-    let (authorization, sale) = if is_auto_capture && amount != MinorUnit::zero() {
+    let (authorization, sale) = if is_auto_capture && amount != ConnectorMinorUnit::zero() {
         let sale = Sale {
             id: format!("{}_{}", OperationId::Sale, merchant_txn_id),
             report_group: report_group.clone(),
@@ -630,7 +629,7 @@ pub struct Authorization<T: PaymentMethodDataTypes> {
     pub cnp_txn_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_source: Option<OrderSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -667,7 +666,7 @@ pub struct Sale<T: PaymentMethodDataTypes> {
     #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<Secret<String>>,
     pub order_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub order_source: OrderSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bill_to_address: Option<BillToAddress>,
@@ -691,7 +690,7 @@ pub struct CaptureRequest {
     #[serde(rename = "@reportGroup")]
     pub report_group: String,
     pub cnp_txn_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
 }
@@ -705,7 +704,7 @@ pub struct AuthReversal {
     pub report_group: String,
     pub cnp_txn_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
 }
 
 #[derive(Debug, Serialize)]
@@ -728,7 +727,7 @@ pub struct RefundRequest {
     #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     pub cnp_txn_id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -924,15 +923,15 @@ pub struct EnhancedData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_reference: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sales_tax: Option<MinorUnit>,
+    pub sales_tax: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_exempt: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub discount_amount: Option<MinorUnit>,
+    pub discount_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shipping_amount: Option<MinorUnit>,
+    pub shipping_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub duty_amount: Option<MinorUnit>,
+    pub duty_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line_item_data: Option<Vec<LineItemData>>,
 }
@@ -951,11 +950,11 @@ pub struct LineItemData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_of_measure: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub unit_cost: Option<MinorUnit>,
+    pub unit_cost: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub item_total: Option<MinorUnit>,
+    pub item_total: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub item_discount_amount: Option<MinorUnit>,
+    pub item_discount_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commodity_code: Option<String>,
 }
@@ -1024,7 +1023,7 @@ pub struct PaymentResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network_transaction_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub approved_amount: Option<MinorUnit>,
+    pub approved_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_auth_response: Option<EnhancedAuthResponse>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2402,7 +2401,7 @@ pub struct ChargebackCase {
     pub card_number_last4: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_type: Option<String>,
-    pub chargeback_amount: MinorUnit,
+    pub chargeback_amount: ConnectorMinorUnit,
     pub chargeback_currency_type: Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub original_txn_day: Option<String>,
@@ -2421,7 +2420,7 @@ pub struct ChargebackCase {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bin: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_amount: Option<MinorUnit>,
+    pub payment_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_by_day: Option<String>,
     pub activity: Vec<Activity>,
@@ -2437,7 +2436,7 @@ pub struct Activity {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub to_queue: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub settlement_amount: Option<MinorUnit>,
+    pub settlement_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
 }
@@ -3073,7 +3072,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id,
-            amount: item.router_data.request.capture_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.capture_money),
             enhanced_data: None,
         };
 
@@ -3205,7 +3205,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Refund, merchant_txn_id),
             customer_id,
             cnp_txn_id,
-            amount: item.router_data.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.refund_money),
         };
 
         let cnp_request = CnpOnlineRequest {
@@ -3438,7 +3439,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             id: format!("{}_{}", OperationId::Capture, merchant_txn_id),
             report_group,
             cnp_txn_id,
-            amount: item.router_data.request.capture_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.capture_money),
             enhanced_data: None,
         };
 
@@ -3901,7 +3903,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             customer_id: None,
             cnp_txn_id: Some(connector_transaction_id),
             order_id: None,
-            amount: item.router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.money),
             order_source: None,
             bill_to_address: None,
             ship_to_address: None,

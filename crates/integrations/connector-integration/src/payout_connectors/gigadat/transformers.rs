@@ -290,20 +290,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })
         })?;
 
+        crate::payout_connectors::require_matching_payout_currency(
+            &request.money,
+            request.destination_currency,
+            "Gigadat",
+        )?;
         let amount = item
             .connector
             .amount_converter
-            .convert(&{
-                #[expect(
-                    clippy::disallowed_methods,
-                    reason = "Temporary payout currency contract: gigadat-stage; see PR #2642"
-                )]
-                let legacy_money = common_utils::types::Money::from_minor_unit(
-                    request.amount,
-                    request.destination_currency,
-                );
-                legacy_money
-            })
+            .convert(&request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -372,7 +367,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             amount,
             campaign: auth.campaign_id,
-            currency: request.destination_currency,
+            currency: request.money.currency(),
             email,
             mobile,
             name,

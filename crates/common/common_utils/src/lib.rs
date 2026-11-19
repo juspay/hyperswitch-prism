@@ -43,7 +43,8 @@ pub use superposition_config::{
 };
 pub use types::{
     AmountConvertor, ConnectorMinorUnit, ConnectorMinorUnitForConnector, FloatMajorUnit,
-    FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector, Money, StringMajorUnit,
+    FloatMajorUnitForConnector, FloatMajorUnitWithTwoDecimals,
+    FloatMajorUnitWithTwoDecimalsForConnector, MinorUnit, Money, StringMajorUnit,
     StringMajorUnitForConnector, StringMajorUnitWithTwoDecimals,
     StringMajorUnitWithTwoDecimalsForConnector, StringMinorUnit, StringTwoDecimalUnit,
     StringTwoDecimalUnitForConnector,

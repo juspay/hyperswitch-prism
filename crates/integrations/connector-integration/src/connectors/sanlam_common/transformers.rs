@@ -4,7 +4,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::ValueExt,
     pii::SecretSerdeValue,
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::Authorize,
@@ -81,7 +81,7 @@ impl TryFrom<SecretSerdeValue> for AbsaSanlamMetaData {
 #[derive(Debug, Serialize)]
 pub struct AbsaSanlamPaymentsRequest {
     pub user_reference: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     #[serde(rename = "payment_method")]
     pub payment_method: AbsaSanlamPaymentMethod,
@@ -288,7 +288,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }?;
 
         Ok(Self {
-            amount: item.router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.money),
             currency: item.router_data.request.currency,
             payment_method,
             user_reference: item

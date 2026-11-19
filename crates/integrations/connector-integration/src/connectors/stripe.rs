@@ -460,7 +460,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-macros::create_amount_converter_wrapper!(connector_name: Stripe, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Stripe, amount_type: ConnectorMinorUnit);
 macros::create_all_prerequisites!(
     connector_name: Stripe,
     generic_type: T,

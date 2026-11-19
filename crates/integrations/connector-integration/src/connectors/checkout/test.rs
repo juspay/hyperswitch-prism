@@ -69,6 +69,7 @@ fn payment_flow_data(billing: Option<Address>) -> PaymentFlowData {
         connector_feature_data: None,
         captured_money: None,
         capturable_money: None,
+        reported_amounts: None,
         money: None,
         access_token: None,
         session_token: None,
@@ -341,13 +342,16 @@ fn webhook_request(body: Value) -> RequestDetails {
 }
 
 fn payout_body(event_type: &str, destination: bool, declined: bool) -> Value {
-    let mut data = json!({"id": "pay_test_payout", "amount": 200});
+    let mut data = serde_json::Map::from_iter([
+        ("id".to_owned(), json!("pay_test_payout")),
+        ("amount".to_owned(), json!(200)),
+    ]);
     if destination {
-        data["destination"] = json!({"type": "card"});
+        data.insert("destination".to_owned(), json!({"type": "card"}));
     }
     if declined {
-        data["response_code"] = json!("70000");
-        data["response_summary"] = json!("Declined");
+        data.insert("response_code".to_owned(), json!("70000"));
+        data.insert("response_summary".to_owned(), json!("Declined"));
     }
     json!({
         "id": "evt_test_payout",

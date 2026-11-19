@@ -6,7 +6,7 @@ use common_utils::{
     events,
     ext_traits::BytesExt,
     request::RequestContent,
-    types::{AmountConvertor, MinorUnit},
+    types::{AmountConvertor, ConnectorMinorUnit},
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
@@ -49,7 +49,7 @@ pub(crate) mod headers {
 #[derive(Clone)]
 pub struct RazorpayV2<T> {
     #[allow(dead_code)]
-    pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = ConnectorMinorUnit> + Sync),
     #[allow(dead_code)]
     _phantom: std::marker::PhantomData<T>,
 }
@@ -57,7 +57,7 @@ pub struct RazorpayV2<T> {
 impl<T> RazorpayV2<T> {
     pub const fn new() -> &'static Self {
         &Self {
-            amount_converter: &common_utils::types::MinorUnitForConnector,
+            amount_converter: &common_utils::types::ConnectorMinorUnitForConnector,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -218,7 +218,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_router_data: razorpayv2::RazorpayV2RouterData<&PaymentCreateOrderData, T> =
             razorpayv2::RazorpayV2RouterData::try_from((
-                req.request.money.amount(),
+                common_utils::types::ConnectorMinorUnitForConnector.convert(&req.request.money),
                 &req.request,
                 Some(
                     req.resource_common_data

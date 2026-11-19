@@ -429,7 +429,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
             .ok();
             netcetera_types::Purchase {
-                purchase_amount: Some(request.money.amount()),
+                purchase_amount: Some(
+                    common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
+                ),
                 purchase_currency: currency.iso_4217().to_string(),
                 purchase_exponent,
                 purchase_date,

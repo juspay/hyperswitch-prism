@@ -72,7 +72,7 @@ pub struct CashfreeErrorResponse {
 #[derive(Debug, Serialize)]
 pub struct CashfreeOrderCreateRequest {
     pub order_id: String,
-    pub order_amount: f64,
+    pub order_amount: common_utils::types::FloatMajorUnitWithTwoDecimals,
     pub order_currency: String,
     pub customer_details: CashfreeCustomerDetails,
     pub order_meta: CashfreeOrderMeta,
@@ -437,7 +437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let converter = common_utils::types::FloatMajorUnitForConnector;
+        let converter = common_utils::types::FloatMajorUnitWithTwoDecimalsForConnector;
         let converted_amount = converter
             .convert(&wrapper.router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -474,7 +474,7 @@ impl
             PaymentCreateOrderResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let converter = common_utils::types::FloatMajorUnitForConnector;
+        let converter = common_utils::types::FloatMajorUnitWithTwoDecimalsForConnector;
         let converted_amount = converter.convert(&item.request.money).change_context(
             IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
@@ -492,7 +492,7 @@ impl
 
 impl
     TryFrom<(
-        common_utils::types::FloatMajorUnit,
+        common_utils::types::FloatMajorUnitWithTwoDecimals,
         &RouterDataV2<
             CreateOrder,
             PaymentFlowData,
@@ -505,7 +505,7 @@ impl
 
     fn try_from(
         (converted_amount, item): (
-            common_utils::types::FloatMajorUnit,
+            common_utils::types::FloatMajorUnitWithTwoDecimals,
             &RouterDataV2<
                 CreateOrder,
                 PaymentFlowData,
@@ -572,7 +572,7 @@ impl
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(), // FIXED: Use payment_id not connector_request_reference_id
-            order_amount: converted_amount.0,
+            order_amount: converted_amount,
             order_currency: item.request.currency.to_string(),
             customer_details,
             order_meta,
@@ -898,7 +898,7 @@ impl From<CashfreePaymentStatus> for common_enums::AttemptStatus {
 pub struct CashfreeCaptureRequest {
     pub action: String, // "CAPTURE"
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<f64>, // optional partial capture amount
+    pub amount: Option<common_utils::types::FloatMajorUnitWithTwoDecimals>, // optional partial capture amount
 }
 
 /// Cashfree V3 pre-auth response — `CashfreeAuthorizeResponse` (AuthorizationInPayments)
@@ -942,7 +942,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &wrapper.router_data;
-        let converter = common_utils::types::FloatMajorUnitForConnector;
+        let converter = common_utils::types::FloatMajorUnitWithTwoDecimalsForConnector;
         let amount = converter
             .convert(&router_data.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -957,7 +957,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             action: "CAPTURE".to_string(),
-            amount: Some(amount.0),
+            amount: Some(amount),
         })
     }
 }
@@ -1252,7 +1252,7 @@ impl TryFrom<ResponseRouterData<CashfreeSyncResponse, Self>>
 #[derive(Debug, Serialize)]
 pub struct CashfreeRefundRequest {
     pub refund_id: String,
-    pub refund_amount: String,
+    pub refund_amount: common_utils::types::FloatMajorUnitWithTwoDecimals,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_note: Option<String>,
 }
@@ -1297,8 +1297,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &wrapper.router_data;
-        let converter = common_utils::types::FloatMajorUnitForConnector;
-        let amount = converter
+        let converter = common_utils::types::FloatMajorUnitWithTwoDecimalsForConnector;
+        let refund_amount = converter
             .convert(&router_data.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
@@ -1309,7 +1309,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ..Default::default()
                 },
             })?;
-        let refund_amount = format!("{:.2}", amount.0);
 
         Ok(Self {
             refund_id: router_data.request.refund_id.clone(),

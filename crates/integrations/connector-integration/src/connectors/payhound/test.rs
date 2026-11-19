@@ -5,7 +5,7 @@
 mod tests {
     use common_utils::{
         crypto::{self, SignMessage},
-        types::Money,
+        types::{AmountConvertor, StringMinorUnitForConnector},
     };
     use domain_types::{
         errors::IntegrationError,
@@ -147,18 +147,18 @@ mod tests {
 
     fn sample_request(
         currency: common_enums::Currency,
-        minor_amount: i64,
+        minor_amount: &str,
     ) -> PayhoundInvoiceRequest {
+        let money = StringMinorUnitForConnector
+            .convert_back(
+                serde_json::from_value(serde_json::json!(minor_amount))
+                    .expect("response minor amount"),
+                currency,
+            )
+            .expect("response money conversion");
         PayhoundInvoiceRequest {
             currency: PayhoundSettlementCurrency::try_from(currency).expect("supported currency"),
-            price: PayhoundAmountConvertor::convert(
-                // `Money::from_minor_unit` is disallowed in connector code; deserialize instead.
-                &serde_json::from_value::<Money>(
-                    serde_json::json!({ "amount": minor_amount, "currency": currency }),
-                )
-                .expect("money"),
-            )
-            .expect("amount conversion"),
+            price: PayhoundAmountConvertor::convert(&money).expect("amount conversion"),
             invoice_currency: PayhoundInvoiceCurrency::Btc,
             name: None,
             description: None,
@@ -172,7 +172,7 @@ mod tests {
 
     #[test]
     fn amount_is_major_unit_string() {
-        let body = serde_json::to_string(&sample_request(common_enums::Currency::EUR, 1000))
+        let body = serde_json::to_string(&sample_request(common_enums::Currency::EUR, "1000"))
             .expect("serialize");
         assert!(
             body.contains(r#""price":"10.00""#),
@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn optional_fields_are_omitted_not_null() {
-        let body = serde_json::to_string(&sample_request(common_enums::Currency::EUR, 26645))
+        let body = serde_json::to_string(&sample_request(common_enums::Currency::EUR, "26645"))
             .expect("serialize");
         assert!(
             !body.contains("null"),

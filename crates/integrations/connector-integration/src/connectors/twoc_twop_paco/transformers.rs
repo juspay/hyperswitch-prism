@@ -212,7 +212,7 @@ impl ApiRequestEnvelope {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PacoTransactionAmount {
-    pub amount_text: String,
+    pub amount_text: common_utils::types::StringMinorUnit,
     pub currency_code: Currency,
     pub decimal_places: u8,
     pub amount: FloatMajorUnit,
@@ -235,8 +235,7 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let raw = money.amount().get_amount_as_i64();
-        let amount_text = format!("{raw:0>12}");
+        let amount_text = common_utils::types::PaddedStringMinorUnitForConnector.convert(money, 12);
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
             money,
@@ -1117,7 +1116,7 @@ where
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PacoSettlementAmount {
-    pub amount_text: String,
+    pub amount_text: common_utils::types::StringMinorUnit,
     pub currency_code: Currency,
     pub decimal_places: u8,
     pub amount: FloatMajorUnit,

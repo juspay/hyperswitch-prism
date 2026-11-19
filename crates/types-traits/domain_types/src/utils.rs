@@ -6,8 +6,7 @@ use std::{
 use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethodType};
 use common_utils::{
-    consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit,
-    Money,
+    consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, Money,
 };
 use error_stack::{report, Result, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -171,12 +170,11 @@ pub fn get_timestamp_in_milliseconds(datetime: &PrimitiveDateTime) -> i64 {
 
 pub fn get_amount_as_string(
     currency_unit: &CurrencyUnit,
-    amount: MinorUnit,
-    currency: common_enums::Currency,
+    money: &Money,
 ) -> core::result::Result<String, error_stack::Report<IntegrationError>> {
     let amount = match currency_unit {
-        CurrencyUnit::Minor => amount.get_amount_as_i64().to_string(),
-        CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
+        CurrencyUnit::Minor => money.amount().get_amount_as_i64().to_string(),
+        CurrencyUnit::Base => to_currency_base_unit(money)?,
     };
     Ok(amount)
 }
@@ -190,11 +188,11 @@ pub fn base64_decode(
 }
 
 pub fn to_currency_base_unit(
-    amount: MinorUnit,
-    currency: common_enums::Currency,
+    money: &Money,
 ) -> core::result::Result<String, error_stack::Report<IntegrationError>> {
-    currency
-        .to_currency_base_unit(amount.get_amount_as_i64())
+    money
+        .currency()
+        .to_currency_base_unit(money.amount().get_amount_as_i64())
         .change_context(IntegrationError::InvalidDataFormat {
             field_name: "amount",
             context: Default::default(),
