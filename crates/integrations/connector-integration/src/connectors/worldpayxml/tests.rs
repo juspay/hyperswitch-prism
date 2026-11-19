@@ -667,3 +667,43 @@ mod sender_party {
         assert_eq!(missing_field(&error), "sender_details.address");
     }
 }
+
+#[test]
+fn expired_webhook_is_a_failed_payment_with_its_order_reference() {
+    let connector = Worldpayxml::<DefaultPCIHolder>::new();
+    let request = RequestDetails {
+        method: HttpMethod::Post,
+        uri: None,
+        headers: std::collections::HashMap::new(),
+        body: br#"<paymentService version="1.4" merchantCode="fixture-merchant">
+  <notify>
+    <orderStatusEvent orderCode="expired-order">
+      <payment><lastEvent>EXPIRED</lastEvent></payment>
+    </orderStatusEvent>
+  </notify>
+</paymentService>"#
+            .to_vec(),
+        query_params: None,
+    };
+
+    assert_eq!(
+        connector
+            .get_event_type(request.clone())
+            .expect("expired event must decode"),
+        EventType::PaymentIntentExpired
+    );
+    let reference = connector
+        .get_webhook_event_reference(request.clone())
+        .expect("expired reference must decode");
+    let Some(WebhookResourceReference::Payment(reference)) = reference else {
+        panic!("expected a payment reference for EXPIRED");
+    };
+    assert_eq!(
+        reference.connector_transaction_id.as_deref(),
+        Some("expired-order")
+    );
+    let response = connector
+        .process_payment_webhook(request, None, None, None)
+        .expect("expired webhook must process");
+    assert_eq!(response.status, common_enums::AttemptStatus::Failure);
+}
