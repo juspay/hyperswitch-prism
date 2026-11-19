@@ -225,16 +225,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        let signature =
-            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
-
+        let signature_header = request
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("revolut-signature"))
+            .map(|(_, value)| value)
+            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
         let message =
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
-
-        algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
-            .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Webhook source verification failed for Revolut")
+        let mut has_signature = false;
+        for candidate in signature_header.split(',') {
+            let Some(encoded) = candidate.trim().strip_prefix("v1=") else {
+                continue;
+            };
+            let Ok(signature) = hex::decode(encoded) else {
+                continue;
+            };
+            has_signature = true;
+            if algorithm
+                .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+                .change_context(WebhookError::WebhookSourceVerificationFailed)?
+            {
+                return Ok(true);
+            }
+        }
+        if !has_signature {
+            return Err(report!(WebhookError::WebhookSignatureNotFound));
+        }
+        Ok(false)
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
