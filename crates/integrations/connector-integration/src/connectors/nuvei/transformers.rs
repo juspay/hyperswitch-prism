@@ -3866,10 +3866,20 @@ struct NuveiAcsResponse {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-enum NuveiAcsTransStatus {
+pub(super) enum NuveiAcsTransStatus {
     #[serde(rename = "Y", alias = "1", alias = "y")]
     Success,
-    #[serde(rename = "N", alias = "0", alias = "n")]
+    // R (rejected) and U (unavailable) end the challenge without authentication, like N.
+    // A (attempted) stays `Unknown`: proceeding to pay on it is a liability decision.
+    #[serde(
+        rename = "N",
+        alias = "0",
+        alias = "n",
+        alias = "R",
+        alias = "r",
+        alias = "U",
+        alias = "u"
+    )]
     Failed,
     #[serde(other)]
     Unknown,
@@ -7256,14 +7266,16 @@ pub fn map_notification_to_event(
 
 /// Unified status code -> dispute status (hyperswitch
 /// `map_dispute_notification_to_event`, first half; each hyperswitch
-/// `Dispute*` event is the same-named `DisputeStatus`).
+/// `Dispute*` event is the same-named `DisputeStatus`). Differs from hyperswitch
+/// where it left a state change unmapped or misfiled: `FC-CLSD-RCL` is
+/// Cancelled like the other recall codes, the collaboration / inquiry rejections
+/// are Challenged, and a partial inquiry refund is Accepted.
 fn dispute_status_from_unified_code(code: &DisputeUnifiedStatusCode) -> Option<DisputeStatus> {
     use DisputeUnifiedStatusCode as C;
     match code {
         C::FirstChargebackInitiatedByIssuer
         | C::CreditChargebackInitiatedByIssuer
         | C::McCollaborationInitiatedByIssuer
-        | C::FirstChargebackClosedRecall
         | C::InquiryInitiatedByIssuer => Some(DisputeStatus::DisputeOpened),
         C::CreditChargebackAcceptedAutomatically
         | C::FirstChargebackAcceptedAutomatically
@@ -7274,6 +7286,7 @@ fn dispute_status_from_unified_code(code: &DisputeUnifiedStatusCode) -> Option<D
         | C::McCollaborationRefundedByMerchant
         | C::McCollaborationAutomaticAccept
         | C::InquiryAcceptedFullRefund
+        | C::InquiryPartialAcceptedPartialRefund
         | C::PreArbitrationAcceptedByMerchant
         | C::PreArbitrationPartiallyAcceptedByMerchant
         | C::PreArbitrationAutomaticallyAcceptedByMerchant
@@ -7289,7 +7302,10 @@ fn dispute_status_from_unified_code(code: &DisputeUnifiedStatusCode) -> Option<D
         | C::PreArbitrationInitiatedByIssuer
         | C::MerchantPreArbitrationRejectedByIssuer
         | C::InquiryRespondedByMerchant
-        | C::PreArbitrationRejectedByMerchant => Some(DisputeStatus::DisputeChallenged),
+        | C::PreArbitrationRejectedByMerchant
+        | C::McCollaborationRejectedByMerchant
+        | C::McCollaborationPreviouslyRefundedAuto
+        | C::InquiryAutomaticallyRejected => Some(DisputeStatus::DisputeChallenged),
         C::FirstChargebackRejectedAutomaticallyExpired
         | C::FirstChargebackPartiallyAcceptedByMerchantExpired
         | C::FirstChargebackRejectedByMerchantExpired
@@ -7303,15 +7319,12 @@ fn dispute_status_from_unified_code(code: &DisputeUnifiedStatusCode) -> Option<D
         | C::McCollaborationClosedMerchantFavour
         | C::PreArbitrationClosedMerchantFavour => Some(DisputeStatus::DisputeWon),
         C::FirstChargebackRecalledByIssuer
+        | C::FirstChargebackClosedRecall
         | C::InquiryCancelledAfterRefund
         | C::PreArbitrationClosedRecall
         | C::CreditChargebackRecalledByIssuer => Some(DisputeStatus::DisputeCancelled),
-        C::McCollaborationPreviouslyRefundedAuto
-        | C::McCollaborationRejectedByMerchant
-        | C::InquiryAutomaticallyRejected
-        | C::InquiryPartialAcceptedPartialRefund
-        | C::InquiryUpdated
-        | C::Unknown => None,
+        // Informational update with no state change to report.
+        C::InquiryUpdated | C::Unknown => None,
     }
 }
 
