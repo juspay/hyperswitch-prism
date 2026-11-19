@@ -446,6 +446,12 @@ default = '{}'
 "payment_method_type" = 24
 "mit_category" = 2
 
+# Vantiv's connector token represents a card. Supply a reference for its XML
+# orderId; leave expiry absent so the required-field patcher discovers it.
+[connector_overrides.recurring_charge.worldpayvantiv]
+"payment_method_type" = 24 # CREDIT
+"merchant_charge_id" = "probe_recurring_charge_001"
+
 # Header fields whose values are always random/dynamic and should be replaced
 # with a static placeholder in sample output.
 [normalize_headers]
