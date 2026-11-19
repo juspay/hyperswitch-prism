@@ -1789,3 +1789,32 @@ mod satispay_request_tests {
         Ok(())
     }
 }
+
+// ── Mandate start/end date formatting ─────────────────────────────────────────
+#[cfg(test)]
+mod mandate_date_tests {
+    use super::super::transformers::format_ppro_date_time;
+
+    fn formatted(hour: u8, minute: u8) -> Result<String, Box<dyn std::error::Error>> {
+        let date_time = time::Date::from_calendar_date(2025, time::Month::March, 1)?
+            .with_hms(hour, minute, 0)?;
+        Ok(format_ppro_date_time(date_time).map_err(|e| format!("{e:?}"))?)
+    }
+
+    fn ensure_eq(actual: &str, expected: &str) -> Result<(), Box<dyn std::error::Error>> {
+        if actual != expected {
+            return Err(format!("expected {expected}, got {actual}").into());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn single_digit_hour_is_zero_padded_rfc3339() -> Result<(), Box<dyn std::error::Error>> {
+        ensure_eq(&formatted(9, 5)?, "2025-03-01T09:05:00Z")
+    }
+
+    #[test]
+    fn double_digit_hour_is_rfc3339() -> Result<(), Box<dyn std::error::Error>> {
+        ensure_eq(&formatted(19, 45)?, "2025-03-01T19:45:00Z")
+    }
+}
