@@ -2464,10 +2464,7 @@ fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatu
             TsysTransitAuthorizeResponse::AuthResponse(_),
         ) => AttemptStatus::PartiallyAuthorized,
         (Some(TsysTransitStatus::Fail), _, _) => AttemptStatus::Failure,
-        // TODO(tsys-cert): confirm with TSYS whether any other Pass codes
-        // (soft / referral / "call issuer") should be mapped to Pending
-        // rather than Failure. Until then we conservatively fail.
-        _ => AttemptStatus::Failure,
+        _ => AttemptStatus::Pending,
     }
 }
 
@@ -2956,7 +2953,7 @@ fn map_capture_status(response: &TsysTransitCaptureResponse) -> AttemptStatus {
             AttemptStatus::PartialCharged
         }
         (Some(TsysTransitStatus::Fail), _) => AttemptStatus::CaptureFailed,
-        _ => AttemptStatus::CaptureFailed,
+        _ => AttemptStatus::CaptureInitiated,
     }
 }
 
@@ -3119,7 +3116,7 @@ fn map_refund_status(response: &TsysTransitReturnResponse) -> RefundStatus {
             Some("A0000" | PARTIAL_TRANSACTION_AMOUNT_PROCESSED | "A0014"),
         ) => RefundStatus::Success,
         (Some(TsysTransitStatus::Fail), _) => RefundStatus::Failure,
-        _ => RefundStatus::Failure,
+        _ => RefundStatus::Pending,
     }
 }
 
@@ -3427,7 +3424,7 @@ fn map_void_post_refund_status(response: &TsysTransitVoidPostRefundResponse) -> 
             RefundStatus::Success
         }
         (Some(TsysTransitStatus::Fail), _) => RefundStatus::Failure,
-        _ => RefundStatus::Failure,
+        _ => RefundStatus::Pending,
     }
 }
 
@@ -3602,7 +3599,7 @@ fn map_void_status(response: &TsysTransitVoidResponse) -> AttemptStatus {
             AttemptStatus::Voided
         }
         (Some(TsysTransitStatus::Fail), _) => AttemptStatus::VoidFailed,
-        _ => AttemptStatus::VoidFailed,
+        _ => AttemptStatus::VoidInitiated,
     }
 }
 
