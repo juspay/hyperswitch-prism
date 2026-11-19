@@ -2771,7 +2771,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         if let Some(error) = &response.reply.error {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
+                    status: router_data.resource_common_data.status,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
@@ -2779,8 +2779,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: error.message.clone(),
                     reason: Some(error.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
-                    connector_transaction_id: None,
+                    attempt_status: None,
+                    connector_transaction_id: Some(
+                        router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -3060,7 +3065,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         if let Some(error) = &response.reply.error {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
+                    status: router_data.resource_common_data.status,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
@@ -3068,8 +3073,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: error.message.clone(),
                     reason: Some(error.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
-                    connector_transaction_id: None,
+                    attempt_status: None,
+                    connector_transaction_id: Some(
+                        router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -3207,7 +3217,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         if let Some(error) = &response.reply.error {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
+                    status: router_data.resource_common_data.status,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
@@ -3215,8 +3225,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: error.message.clone(),
                     reason: Some(error.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
-                    connector_transaction_id: None,
+                    attempt_status: None,
+                    connector_transaction_id: Some(
+                        router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -4057,10 +4072,9 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
             .unwrap_or_else(|| router_data.request.connector_transaction_id.clone());
 
         // Build success response
-        // WorldpayXML returns cancelReceived/cancelOrRefundReceived synchronously,
-        // so the void is confirmed as Succeeded immediately.
+        // Receipt acknowledges the modification; its final outcome arrives later.
         let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
-            post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
+            post_capture_void_status: common_enums::PostCaptureVoidStatus::Pending,
             connector_reference_id: Some(order_code.clone()),
             status_code: item.http_code,
         };
