@@ -9,6 +9,8 @@ pub struct PaysafePaymentsResponse {
     pub merchant_ref_num: String,
     pub amount: MinorUnit,
     pub available_to_settle: Option<MinorUnit>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub settlements: Vec<PaysafeSyncSettlement>,
     pub currency_code: common_enums::Currency,
     pub status: PaysafePaymentStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -28,6 +30,16 @@ pub enum PaysafePaymentStatus {
     Failed,
     Cancelled,
     Pending,
+    Received,
+    Held,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaysafeSyncSettlement {
+    pub amount: MinorUnit,
+    pub status: PaysafeSettlementStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

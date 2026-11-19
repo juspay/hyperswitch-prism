@@ -996,9 +996,11 @@ pub fn get_paysafe_payment_status(
             | Some(enums::CaptureMethod::Scheduled) => enums::AttemptStatus::Unresolved,
         },
         PaysafePaymentStatus::Failed => enums::AttemptStatus::Failure,
-        PaysafePaymentStatus::Pending | PaysafePaymentStatus::Processing => {
-            enums::AttemptStatus::Pending
-        }
+        PaysafePaymentStatus::Pending
+        | PaysafePaymentStatus::Processing
+        | PaysafePaymentStatus::Received
+        | PaysafePaymentStatus::Held
+        | PaysafePaymentStatus::Unknown => enums::AttemptStatus::Pending,
         PaysafePaymentStatus::Cancelled => enums::AttemptStatus::Voided,
     }
 }
@@ -2611,6 +2613,49 @@ impl<
     }
 }
 
+// Settlement records carry the outcome of a manual capture; payment COMPLETED alone
+// describes the authorization, even after a settlement is created.
+fn get_paysafe_sync_status(
+    payment: &PaysafePaymentsResponse,
+    capture_method: Option<enums::CaptureMethod>,
+) -> enums::AttemptStatus {
+    if payment.status == PaysafePaymentStatus::Completed
+        && matches!(
+            capture_method,
+            Some(enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple)
+        )
+    {
+        let settled: i128 = payment
+            .settlements
+            .iter()
+            .filter(|settlement| settlement.status == PaysafeSettlementStatus::Completed)
+            .map(|settlement| i128::from(settlement.amount.get_amount_as_i64()))
+            .sum();
+        if settled > 0 {
+            return if settled >= i128::from(payment.amount.get_amount_as_i64()) {
+                enums::AttemptStatus::Charged
+            } else {
+                enums::AttemptStatus::PartialCharged
+            };
+        }
+        if payment.settlements.iter().any(|settlement| {
+            matches!(
+                settlement.status,
+                PaysafeSettlementStatus::Pending | PaysafeSettlementStatus::Processing
+            )
+        }) {
+            return enums::AttemptStatus::CaptureInitiated;
+        }
+        if payment
+            .available_to_settle
+            .is_some_and(|amount| amount.get_amount_as_i64() == 0)
+        {
+            return enums::AttemptStatus::Pending;
+        }
+    }
+    get_paysafe_payment_status(payment.status, capture_method)
+}
+
 // PSync Flow - Response
 
 impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
@@ -2624,43 +2669,40 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<PaysafeSyncResponse, Self>) -> Result<Self, Self::Error> {
+        let request_id = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .ok()
+            .filter(|id| !id.is_empty());
         let (status, connector_transaction_id) = match &item.response {
             PaysafeSyncResponse::SinglePayment(payment_response) => {
-                let status = get_paysafe_payment_status(
-                    payment_response.status,
+                let status = get_paysafe_sync_status(
+                    payment_response,
                     item.router_data.request.capture_method,
                 );
                 (status, Some(payment_response.id.clone()))
             }
-            PaysafeSyncResponse::Payments(sync_response) => {
-                let payment_response = sync_response.payments.first().ok_or_else(|| {
-                    error_stack::Report::from(
-                        crate::utils::response_deserialization_fail(
-                            item.http_code,
-                        "paysafe: response body did not match the expected format; confirm API version and connector documentation."),
-                    )
-                })?;
-                let status = get_paysafe_payment_status(
-                    payment_response.status,
-                    item.router_data.request.capture_method,
-                );
-                (status, Some(payment_response.id.clone()))
-            }
+            PaysafeSyncResponse::Payments(sync_response) => match sync_response.payments.first() {
+                Some(payment) => (
+                    get_paysafe_sync_status(payment, item.router_data.request.capture_method),
+                    Some(payment.id.clone()),
+                ),
+                None => (enums::AttemptStatus::Pending, request_id.clone()),
+            },
             PaysafeSyncResponse::SinglePaymentHandle(payment_handle_response) => {
                 let status = enums::AttemptStatus::try_from(payment_handle_response.status)?;
                 (status, Some(payment_handle_response.id.clone()))
             }
             PaysafeSyncResponse::PaymentHandle(sync_response) => {
-                let payment_handle_response =
-                    sync_response.payment_handles.first().ok_or_else(|| {
-                        error_stack::Report::from(
-                            crate::utils::response_deserialization_fail(
-                                item.http_code,
-                            "paysafe: response body did not match the expected format; confirm API version and connector documentation."),
-                        )
-                    })?;
-                let status = enums::AttemptStatus::try_from(payment_handle_response.status)?;
-                (status, Some(payment_handle_response.id.clone()))
+                match sync_response.payment_handles.first() {
+                    Some(handle) => (
+                        enums::AttemptStatus::try_from(handle.status)?,
+                        Some(handle.id.clone()),
+                    ),
+                    None => (enums::AttemptStatus::Pending, request_id.clone()),
+                }
             }
         };
 
