@@ -391,9 +391,9 @@ pub fn domain_minor_converter(money: &Money) {
 
 #[cfg(feature = "inferred_domain_minor_unit")]
 pub fn inferred_domain_minor_unit(
-    request: &domain_types::payouts::payouts_types::PayoutStageRequest,
+    request: &domain_types::payment_address::OrderDetailsWithAmount,
 ) {
-    let _ = request.amount.get_amount_as_i64();
+    let _ = request.get_total_amount().get_amount_as_i64();
 }
 
 #[cfg(feature = "money_amount")]
