@@ -767,7 +767,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"1\",\"Cvv2Cvc2CIDValue\":\"{{$card_cvc}}\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_proxy_txn_\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"AccountCodesAndData\":{\"FromAccountSelected\":\"CC\"},\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"CardVerificationData\":{\"Cvv2Cvc2CIDIndicator\":\"1\",\"Cvv2Cvc2CIDValue\":\"{{$card_cvc}}\"},\"TerminalData\":{\"EntryMode\":\"KEYED\",\"POSConditionCode\":\"59\",\"TerminalEntryCap\":\"0\"},\"E-commerceData\":{\"E-commerceIndicator\":\"07\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"rjqnsdf8eka9q0r3\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -806,7 +806,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_proxy_mand\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"{{$card_number}}\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"jgdnfg3uacq743to\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
@@ -969,7 +969,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_mandate_00\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+          "body": "{\"tokenize\":{\"CardInfo\":{\"PAN\":\"4111111111111111\",\"ExpirationDate\":\"3003\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"dsq2h5i9422o38t2\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
         }
       }
     },
