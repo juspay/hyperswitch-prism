@@ -3190,7 +3190,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
                 message: error.error_text.clone(),
                 reason: Some(error.error_text.clone()),
                 status_code: http_code,
-                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                attempt_status: Some(FlowStatus::Refund(RefundStatus::Failure)),
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -3588,10 +3588,10 @@ fn get_hs_status(
     // `Failure`: the authorization it targeted is still open.
     let failure_status = match operation {
         Operation::Void => AttemptStatus::VoidFailed,
-        Operation::Authorize
-        | Operation::Capture
-        | Operation::VoidPostCapture
-        | Operation::Refund => AttemptStatus::Failure,
+        Operation::Capture => AttemptStatus::CaptureFailed,
+        Operation::Authorize | Operation::VoidPostCapture | Operation::Refund => {
+            AttemptStatus::Failure
+        }
     };
 
     // Return failure immediately if result code is Error
@@ -3623,7 +3623,8 @@ fn get_hs_status(
             Operation::Void => AttemptStatus::VoidFailed,
             Operation::VoidPostCapture => AttemptStatus::VoidedPostCapture,
             // No transaction was created: a failed attempt, as in hyperswitch.
-            Operation::Authorize | Operation::Capture | Operation::Refund => AttemptStatus::Failure,
+            Operation::Capture => AttemptStatus::CaptureFailed,
+            Operation::Authorize | Operation::Refund => AttemptStatus::Failure,
         };
     }
 
@@ -3909,7 +3910,7 @@ impl From<SyncStatus> for AttemptStatus {
                 Self::Charged
             }
             SyncStatus::AuthorizedPendingCapture => Self::Authorized,
-            SyncStatus::Declined => Self::AuthenticationFailed,
+            SyncStatus::Declined => Self::Failure,
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
