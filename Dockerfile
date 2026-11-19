@@ -94,11 +94,17 @@ RUN --mount=type=cache,target=/sccache \
 # target/<profile>, and the runtime stage must not have to know that. Also the
 # compiled FileDescriptorSet the build emits: the deja replay driver
 # (deja-kernel, KERNEL_DESCRIPTOR_SET) decodes recorded gRPC bodies with it.
-# `ls -t | head -1` picks the real build's OUT_DIR over any chef-stub leftover.
+# Found by name, not by path: cargo 1.100 moved `build/<pkg>-<hash>/out` to
+# `build/<pkg>/<hash>/out`. Newest mtime picks the real build's OUT_DIR over
+# any chef-stub leftover.
 RUN PROFILE_DIR="$([ "${CARGO_BUILD_PROFILE}" = "dev" ] && echo debug || echo "${CARGO_BUILD_PROFILE}")" \
     && mkdir -p /app/dist \
     && cp "/app/target/${PROFILE_DIR}/grpc-server" /app/dist/grpc-server \
-    && cp "$(ls -t /app/target/${PROFILE_DIR}/build/grpc-api-types-*/out/connector_service_descriptor.bin | head -1)" /app/dist/
+    && cp "$(find /app/target -type f -name connector_service_descriptor.bin -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)" /app/dist/
+
+# Shared libraries the binary needs at runtime; the distroless runtime must
+# provide every one of them (check this output when changing features).
+RUN ldd /app/dist/grpc-server
 
 # Output sccache statistics
 RUN sccache --show-stats
@@ -106,33 +112,23 @@ RUN sccache --show-stats
 ########################################
 # 4. Runtime stage
 ########################################
-FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
-WORKDIR /app
+# Distroless Debian 13 (glibc + OpenSSL + libgcc/libstdc++, no shell, no apt,
+# non-root uid 65532). The binary is built on bookworm (glibc 2.36) and runs on
+# trixie (glibc 2.41). Bookworm has no fixes for the curl/glibc/util-linux/krb5
+# CVEs, so the runtime ships none of those packages. curl and libpq-dev are
+# gone: nothing in the workspace links libpq, and the in-pod connector probe
+# should use `kubectl debug` with an ephemeral container instead of curl.
+FROM gcr.io/distroless/cc-debian13:nonroot AS runtime
 
-# Install only runtime dependencies and clean up
-# curl: probe outbound connector reachability from inside the pod.
-RUN apt-get update \
-    && apt-get install -y \
-       libpq-dev \
-       ca-certificates \
-       curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create a non-root user for security
-RUN useradd -ms /bin/bash rustuser
-RUN chown -R rustuser:rustuser /app
-USER rustuser
-
-# Copy built binary and config
-RUN mkdir -p bin config
-COPY --from=builder /app/dist/grpc-server bin/grpc-server
-COPY --from=builder /app/config/development.toml config/development.toml
-COPY --from=builder /app/config/production.toml config/production.toml
-COPY --from=builder /app/config/sandbox.toml config/sandbox.toml
-COPY --from=builder /app/config/superposition.toml config/superposition.toml
+COPY --from=builder --chown=65532:65532 /app/dist/grpc-server /app/bin/grpc-server
+COPY --from=builder --chown=65532:65532 /app/config/development.toml /app/config/development.toml
+COPY --from=builder --chown=65532:65532 /app/config/production.toml /app/config/production.toml
+COPY --from=builder --chown=65532:65532 /app/config/sandbox.toml /app/config/sandbox.toml
+COPY --from=builder --chown=65532:65532 /app/config/superposition.toml /app/config/superposition.toml
 # The descriptor set rides the image at a stable path so the replay harness can
 # copy/mount it for deja-kernel (KERNEL_DESCRIPTOR_SET) without a prism checkout.
-COPY --from=builder /app/dist/connector_service_descriptor.bin share/connector_service_descriptor.bin
+COPY --from=builder --chown=65532:65532 /app/dist/connector_service_descriptor.bin /app/share/connector_service_descriptor.bin
 
+WORKDIR /app
+USER 65532:65532
 ENTRYPOINT ["/app/bin/grpc-server"]

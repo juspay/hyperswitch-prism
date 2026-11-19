@@ -568,7 +568,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ExamplePayRouterData<RouterDataV2<Author
         let connector = item.connector;
 
         let amount = connector.amount_converter.convert(
-            router_data.request.minor_amount,
+            router_data.request.amount.amount,
             router_data.request.currency,
         )?;
 

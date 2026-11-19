@@ -1,0 +1,672 @@
+{
+  "connector": "revpay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for revpay"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "PaySafeCard": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Skrill": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Webpay": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for revpay"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for revpay"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for revpay"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for revpay"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for revpay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for revpay"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for revpay"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for revpay"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for revpay"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for revpay"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by revpay connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for revpay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for revpay"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for revpay"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for revpay"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for revpay"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for revpay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for revpay"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for revpay"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_config.key_index. revPAY sends Key_Index as Int(3)"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for revpay"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for revpay"
+      }
+    }
+  }
+}

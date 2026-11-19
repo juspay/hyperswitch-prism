@@ -582,8 +582,12 @@ impl GetIntegrityObject<VerifyWebhookSourceIntegrityObject> for VerifyWebhookSou
 
     fn get_request_integrity_object(&self) -> VerifyWebhookSourceIntegrityObject {
         // Extract webhook_id from merchant_secret (for PayPal, webhook_id is stored in secret)
-        let webhook_id =
-            String::from_utf8(self.merchant_secret.secret.to_vec()).unwrap_or_default();
+        let webhook_id = self
+            .merchant_secret
+            .as_ref()
+            .and_then(|secrets| std::str::from_utf8(&secrets.secret).ok())
+            .unwrap_or_default()
+            .to_string();
         VerifyWebhookSourceIntegrityObject { webhook_id }
     }
 }

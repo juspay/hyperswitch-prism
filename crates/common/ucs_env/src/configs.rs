@@ -5,15 +5,10 @@ use std::sync::Arc;
 
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
-    connector_response_masking::{
-        CompiledMaskingKeys, ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
-    },
+    connector_response_masking::{CompiledMaskingKeys, ConnectorResponseMaskingConfig},
     consts,
-    events::{
-        CompiledLogFieldsConfig, EventConfig, EventConfigPatch, RuntimeMetadata,
-        RuntimeMetadataPatch,
-    },
-    metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
+    events::{CompiledLogFieldsConfig, EventConfig, RuntimeMetadata, RuntimeMetadataPatch},
+    metadata::HeaderMaskingConfig,
     superposition_config::{SuperpositionClientConfig, SuperpositionSource},
     SuperpositionConfig,
 };
@@ -25,26 +20,31 @@ use domain_types::{
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
-use crate::{
-    error::ConfigurationError,
-    logger::config::{Log, LogPatch},
-};
+use crate::{error::ConfigurationError, logger::config::Log};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 #[derive(Debug, Deserialize, Serialize, Clone, config_patch_derive::Patch)]
 pub struct Config {
     pub common: Common,
     pub server: Server,
     pub metrics: MetricsServer,
+    /// Logging policy and destinations are operator-controlled, never request-controlled.
+    #[patch(ignore)]
     pub log: Log,
     pub proxy: ProxyConfig,
     pub connectors: Connectors,
+    /// Requests must not change audit payloads or publication settings.
     #[serde(default)]
+    #[patch(ignore)]
     pub events: EventConfig,
     #[serde(default)]
     pub lineage: LineageConfig,
+    /// Only operators may decide which metadata headers are safe to log unmasked.
     #[serde(default)]
+    #[patch(ignore)]
     pub unmasked_headers: HeaderMaskingConfig,
+    /// Requests must not expand the set of connector response fields visible in logs.
     #[serde(default)]
+    #[patch(ignore)]
     pub connector_response_masking: ConnectorResponseMaskingConfig,
     #[serde(default)]
     pub test: TestConfig,
@@ -75,7 +75,7 @@ pub struct Config {
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
     /// Pre-compiled log fields for golden log lines.
     /// Compiled at startup from `[log.fields.incoming]` and `[log.fields.outgoing]`.
-    /// Recompiled per-request when `x-config-override` patches `log.fields`.
+    /// Derived from operator-controlled logging configuration.
     #[serde(skip)]
     #[patch(ignore)]
     pub log_fields: Arc<CompiledLogFieldsConfig>,
@@ -216,11 +216,15 @@ pub struct Common {
     /// responses returned to the client.
     ///
     /// Enabling this can significantly increase gRPC response size.
+    /// Only operators may enable returning potentially sensitive connector data.
     #[serde(default = "default_return_connector_data")]
+    #[patch(ignore)]
     pub return_raw_connector_data: bool,
     /// Controls whether typed connector request/response payloads are included
     /// in responses returned to the client.
+    /// Only operators may enable returning potentially sensitive connector data.
     #[serde(default = "default_return_connector_data")]
+    #[patch(ignore)]
     pub return_typed_connector_data: bool,
 }
 

@@ -953,6 +953,14 @@ where
                         .await?,
                     );
                     state.completed_step = Some(AuthenticationStep::PostAuthenticate);
+
+                    if state
+                        .post_authn_response_opt
+                        .as_ref()
+                        .is_some_and(|r| is_failure_payment_status(r.status))
+                    {
+                        break;
+                    }
                 }
 
                 AuthenticationStep::Authorize => {
