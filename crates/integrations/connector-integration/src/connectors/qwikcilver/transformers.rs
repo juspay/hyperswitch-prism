@@ -466,7 +466,7 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        if req.minor_refund_amount != req.minor_payment_amount {
+        if req.refund_money.amount() != req.payment_money.amount() {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "Partial refunds".to_string(),
                 connector: "qwikcilver",
