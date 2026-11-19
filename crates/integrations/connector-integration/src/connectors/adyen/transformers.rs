@@ -7348,7 +7348,14 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let connector = router_data.connector;
         let router_data = router_data.router_data;
         let pmt = router_data.request.payment_method_type;
-        let is_manual_capture = false;
+        // Zero-amount setups stay non-manual (HS parity); a non-zero setup sent as a
+        // PreAuth is only authorized and must not be reported as charged.
+        let is_manual_capture = router_data
+            .request
+            .money
+            .as_ref()
+            .is_some_and(|money| money.amount() > MinorUnit::zero())
+            && is_manual_capture(router_data.request.capture_method);
         // Unwrap the response wrapper to get AdyenPaymentResponse
         let SetupMandateResponse(adyen_response) = response;
 
@@ -7607,7 +7614,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             value: item.router_data.request.money.amount(),
         };
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
-        let shopper_interaction = AdyenShopperInteraction::ContinuedAuthentication;
+        // Like the recurring model, an unset off_session is treated as merchant-initiated.
+        let shopper_interaction = shopper_interaction(
+            item.router_data.request.off_session.or(Some(true)),
+            &item.router_data.request.payment_channel,
+        );
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model_for_repeat_payment(&item.router_data)?;
         let browser_info = None;
