@@ -633,6 +633,14 @@ macros::create_all_prerequisites!(
                 })
                 .collect::<String>()
         });
+        let non_terminal = !matches!(res.status_code, 400..=499)
+            || matches!(res.status_code, 401 | 403 | 408 | 409 | 425 | 429)
+            || response.details.as_ref().is_some_and(|details| {
+                details.iter().any(|detail| {
+                    matches!(detail.issue.as_str(),
+                        "ORDER_ALREADY_CAPTURED" | "ORDER_ALREADY_AUTHORIZED" | "INTERNAL_SERVER_ERROR")
+                })
+            });
         let errors_list = response.details.unwrap_or_default();
         let option_error_code_message =
             utils::get_error_code_error_message_based_on_priority(
@@ -652,8 +660,9 @@ macros::create_all_prerequisites!(
                 .map(|error_code_message| error_code_message.error_message)
                 .unwrap_or(NO_ERROR_MESSAGE.to_string()),
             reason: error_reason.or(Some(response.message)),
-            attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
-            connector_transaction_id: response.debug_id,
+            attempt_status: (!non_terminal)
+                .then_some(FlowStatus::Payment(AttemptStatus::Failure)),
+            connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

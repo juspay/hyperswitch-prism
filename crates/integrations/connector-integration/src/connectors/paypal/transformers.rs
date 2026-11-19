@@ -874,8 +874,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         }];
 
-        // Default to Authorize intent so we can capture later
-        let intent = PaypalPaymentIntent::Authorize;
+        let intent = if matches!(
+            router_data.request.capture_method,
+            Some(
+                common_enums::CaptureMethod::Manual
+                    | common_enums::CaptureMethod::ManualMultiple
+                    | common_enums::CaptureMethod::Scheduled
+            )
+        ) {
+            PaypalPaymentIntent::Authorize
+        } else {
+            PaypalPaymentIntent::Capture
+        };
 
         Ok(Self {
             intent,
@@ -2659,11 +2669,14 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalThreeDsSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<PaypalThreeDsSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Without a payments resource, COMPLETED alone does not establish a capture.
+        let status = match item.response.status {
+            PaypalOrderStatus::Completed => common_enums::AttemptStatus::Pending,
+            status => get_order_status(status, PaypalPaymentIntent::Authenticate),
+        };
         Ok(Self {
-            // status is hardcoded because this try_from will only be reached in card 3ds before the completion of complete authorize flow.
-            // also force sync won't be hit in terminal status thus leaving us with only one status to get here.
             resource_common_data: PaymentFlowData {
-                status: common_enums::AttemptStatus::AuthenticationPending,
+                status,
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2860,6 +2873,12 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<PaypalPaymentsSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let connector_metadata = item
+            .router_data
+            .resource_common_data
+            .connector_feature_data
+            .clone()
+            .map(ExposeInterface::expose);
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status),
@@ -2880,7 +2899,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
                 ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: item
@@ -3163,8 +3182,8 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
             mandate_metadata: None,
         }));
         // https://developer.paypal.com/docs/api/payment-tokens/v3/#payment-tokens_create
-        // If 201 status code, then order is captured, other status codes are handled by the error handler
-        let status = if item.http_code == 201 {
+        // Token creation also returns 200 for a successful idempotent replay.
+        let status = if (200..300).contains(&item.http_code) {
             common_enums::AttemptStatus::Charged
         } else {
             common_enums::AttemptStatus::Failure
