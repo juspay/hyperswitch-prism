@@ -2147,9 +2147,8 @@ pub(super) fn get_finix_webhook_event_type(
                     FinixState::Succeeded => Ok(EventType::RefundSuccess),
                     // HS: `EventNotSupported` (see doc comment above).
                     FinixState::Pending => Ok(EventType::IncomingWebhookEventUnspecified),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::RefundFailure)
-                    }
+                    FinixState::Unknown => Ok(EventType::RefundProcessing),
+                    FinixState::Failed | FinixState::Canceled => Ok(EventType::RefundFailure),
                 }
             } else {
                 match transfer.state {
