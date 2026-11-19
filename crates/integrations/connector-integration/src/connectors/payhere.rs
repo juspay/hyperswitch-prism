@@ -31,6 +31,8 @@ use serde::Serialize;
 
 use super::macros;
 use crate::types::ResponseRouterData;
+use crate::webhooks::payhere::transformers::PayhereWebhookPayload;
+use crate::webhooks::payhere::Payhere as PayhereWebhook;
 use base64::Engine;
 use common_utils::types::StringMajorUnit;
 use transformers::*;
@@ -210,17 +212,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let payload: PayhereWebhookPayload =
-            serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body).map_err(|_| {
-                error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound)
-            })?;
-
-        match payload.status_code {
-            2 => Ok(EventType::PaymentIntentSuccess),
-            0 => Ok(EventType::PaymentIntentProcessing),
-            -1 | -2 => Ok(EventType::PaymentIntentFailure),
-            _ => Ok(EventType::IncomingWebhookEventUnspecified),
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            PayhereWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

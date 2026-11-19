@@ -16,6 +16,7 @@ pub mod grabpay;
 pub mod hyperswitch;
 pub mod maya;
 pub mod nexixpay;
+pub mod payhere;
 pub mod phonepe;
 pub mod ppro;
 pub mod rapyd;
@@ -27,6 +28,6 @@ pub use self::{
     boost::Boost, braintree::Braintree, calida::Calida, cashtocode::Cashtocode,
     cryptopay::Cryptopay, dlocal::Dlocal, ecommpay::Ecommpay, finix::Finix, flywire::Flywire,
     givepayments::Givepayments, grabpay::Grabpay, hyperswitch::Hyperswitch, maya::Maya,
-    nexixpay::Nexixpay, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay,
-    trustpay::Trustpay, worldpayxml::Worldpayxml,
+    nexixpay::Nexixpay, payhere::Payhere, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,
+    razorpay::Razorpay, trustpay::Trustpay, worldpayxml::Worldpayxml,
 };
