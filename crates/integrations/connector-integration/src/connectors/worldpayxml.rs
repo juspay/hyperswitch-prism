@@ -10,12 +10,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_enums::CurrencyUnit;
-use common_utils::{
-    errors::CustomResult,
-    events,
-    ext_traits::{ByteSliceExt, XmlExt},
-    StringMinorUnit,
-};
+use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
@@ -26,7 +21,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
         PayoutWebhookDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
         RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        SetupMandateRequestData, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -55,6 +50,9 @@ use responses::{
 };
 
 use super::macros::{self, GetSoapXml};
+use crate::webhooks::worldpayxml::{
+    transformers as webhook_transformers, Worldpayxml as WorldpayxmlWebhook,
+};
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
@@ -120,21 +118,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(false)
     }
 
-    fn get_event_type(&self, request: RequestDetails) -> CustomResult<EventType, WebhookError> {
-        if request.body.is_empty() {
-            return Ok(EventType::EndpointVerification);
-        }
-        Ok(parse_webhook_body(&request.body)?.event_type())
-    }
-
-    fn get_webhook_event_reference(
+    fn get_event_type(
         &self,
         request: RequestDetails,
-    ) -> CustomResult<Option<WebhookResourceReference>, WebhookError> {
-        if request.body.is_empty() {
-            return Ok(None);
-        }
-        parse_webhook_body(&request.body)?.event_reference()
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            WorldpayxmlWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -144,7 +136,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         event_context: Option<EventContext>,
     ) -> CustomResult<WebhookDetailsResponse, WebhookError> {
-        parse_webhook_body(&request.body)?.payment_details(event_context)
+        webhook_transformers::parse_webhook_body(&request.body)?.payment_details(event_context)
     }
 
     fn process_refund_webhook(
@@ -153,7 +145,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> CustomResult<RefundWebhookDetailsResponse, WebhookError> {
-        RefundWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+        RefundWebhookDetailsResponse::try_from(webhook_transformers::parse_webhook_body(
+            &request.body,
+        )?)
     }
 
     fn process_dispute_webhook(
@@ -162,7 +156,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> CustomResult<DisputeWebhookDetailsResponse, WebhookError> {
-        DisputeWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+        DisputeWebhookDetailsResponse::try_from(webhook_transformers::parse_webhook_body(
+            &request.body,
+        )?)
     }
 
     fn process_payout_webhook(
@@ -171,14 +167,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> CustomResult<PayoutWebhookDetailsResponse, WebhookError> {
-        PayoutWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+        PayoutWebhookDetailsResponse::try_from(webhook_transformers::parse_webhook_body(
+            &request.body,
+        )?)
     }
 
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, WebhookError> {
-        Ok(Box::new(parse_webhook_body(&request.body)?))
+        Ok(Box::new(webhook_transformers::parse_webhook_body(
+            &request.body,
+        )?))
     }
 
     fn get_webhook_api_response(
@@ -197,15 +197,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"<paymentService version="1.4" merchantCode="MERCHANT"><notify><orderStatusEvent orderCode="order_001"><payment><lastEvent>CAPTURED</lastEvent><amount value="1000" currencyCode="EUR" exponent="2"/></payment></orderStatusEvent></notify></paymentService>"#
     }
-}
-
-fn parse_webhook_body(
-    body: &[u8],
-) -> CustomResult<responses::WorldpayxmlWebhookBody, WebhookError> {
-    std::str::from_utf8(body)
-        .change_context(WebhookError::WebhookBodyDecodingFailed)?
-        .parse_xml()
-        .change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
