@@ -292,6 +292,7 @@ pub enum PayoutConnectorEnum {
 pub enum WebhookConnectorEnum {
     Adyen,
     Braintree,
+    Calida,
     Rapyd,
 }
 
@@ -302,6 +303,7 @@ impl From<WebhookConnectorEnum> for ConnectorEnum {
         match connector {
             WebhookConnectorEnum::Adyen => Self::Adyen,
             WebhookConnectorEnum::Braintree => Self::Braintree,
+            WebhookConnectorEnum::Calida => Self::Calida,
             WebhookConnectorEnum::Rapyd => Self::Rapyd,
         }
     }
@@ -314,6 +316,7 @@ impl TryFrom<ConnectorEnum> for WebhookConnectorEnum {
         match value {
             ConnectorEnum::Adyen => Ok(Self::Adyen),
             ConnectorEnum::Braintree => Ok(Self::Braintree),
+            ConnectorEnum::Calida => Ok(Self::Calida),
             ConnectorEnum::Rapyd => Ok(Self::Rapyd),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",

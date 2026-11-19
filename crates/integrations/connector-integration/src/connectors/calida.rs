@@ -45,6 +45,7 @@ use serde::Serialize;
 use transformers::*;
 
 use super::macros;
+use crate::webhooks::calida::Calida as CalidaWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
 
@@ -144,9 +145,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn get_event_type(
         &self,
-        _request: RequestDetails,
+        request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        Ok(EventType::Payment)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            CalidaWebhook::<T>::new(),
+            request,
+        )
     }
 }
 macros::macro_connector_payout_implementation!(

@@ -4855,6 +4855,10 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     auth,
                     &ConnectorVariant::Payment(ConnectorEnum::Braintree),
                 )),
+                WebhookConnectorEnum::Calida => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Calida),
+                )),
                 WebhookConnectorEnum::Rapyd => {
                     Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Rapyd)))
                 }

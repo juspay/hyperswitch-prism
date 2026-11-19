@@ -414,6 +414,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
         match connector_name {
             WebhookConnectorEnum::Adyen => Box::new(webhooks::Adyen::<T>::new()),
             WebhookConnectorEnum::Braintree => Box::new(webhooks::Braintree::<T>::new()),
+            WebhookConnectorEnum::Calida => Box::new(webhooks::Calida::<T>::new()),
             WebhookConnectorEnum::Rapyd => Box::new(webhooks::Rapyd::<T>::new()),
         }
     }
