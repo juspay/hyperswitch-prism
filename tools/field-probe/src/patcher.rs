@@ -130,6 +130,7 @@ fn parse_rule_key(key: &str) -> (&str, Option<&str>) {
         "token_authorize",
         "token_setup_recurring",
         "create_order",
+        "create_client_authentication_token",
         "incremental_authorization",
         "refund_get",
     ];
