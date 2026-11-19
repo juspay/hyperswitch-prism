@@ -3127,12 +3127,27 @@ pub struct WorldpayraftSetupMandateTraceNumbers {
 pub struct WorldpayraftSetupMandateResponseInner {
     pub return_code: String,
     pub reason_code: Option<String>,
+    pub return_text: Option<String>,
     pub response_code: String,
+    pub error_information: Option<WorldpayraftErrorInformation>,
     pub reference_trace_numbers: Option<WorldpayraftSetupMandateTraceNumbers>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
+    pub encryption_token_data: Option<WorldpayraftEncryptionTokenData>,
     #[serde(flatten)]
     pub brand_specific_data: WorldpayraftBrandSpecificData,
+}
+
+impl From<&WorldpayraftSetupMandateResponseInner> for WorldpayraftErrorResponse {
+    fn from(response: &WorldpayraftSetupMandateResponseInner) -> Self {
+        Self {
+            return_code: Some(response.return_code.clone()),
+            reason_code: response.reason_code.clone(),
+            return_text: response.return_text.clone(),
+            response_code: Some(response.response_code.clone()),
+            error_information: response.error_information.clone(),
+        }
+    }
 }
 
 /// Wrapper for the tokenizeresponse body.
@@ -3249,12 +3264,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 format!("{TXN_TYPE_CREDIT}|{auth_num}|{retrieval_ref}|{sys_trace}")
             })
             .unwrap_or_default();
+        let mandate_reference = response
+            .encryption_token_data
+            .as_ref()
+            .and_then(|data| data.tokenized_pan.clone())
+            .map(connector_mandate_reference);
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = match WorldpayraftErrorResponse::from(response).error_response_if_failed(
+            item.http_code,
+            Some(FlowStatus::Payment(status)),
+            Some(connector_transaction_id.clone()),
+        ) {
+            Some(error) => Err(error),
+            None => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: response.brand_specific_data.network_transaction_id(),
                 network_txn_link_id: None,
@@ -3264,6 +3289,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 status_code: item.http_code,
                 payment_account_reference: None,
             }),
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -3604,10 +3633,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // VOID REQUEST
 // =============================================================================
 // A void is a reversal sent to the SAME endpoint as the original authorization:
-//   - credit card auth   → POST /credit/authorization  (body key: "creditauth")
-//   - debit card preauth → POST /debit/preauth          (body key: "debitpreauth")
+//   - credit card auth → POST /credit/authorization (body key: "creditauth")
 // The reversal is distinguished from a normal auth by AuthorizationType: "RV".
 // The original authorization is linked via ReferenceTraceNumbers.AuthorizationNumber.
+// Debit preauth voids are rejected until the debit reversal contract is verified.
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -3709,7 +3738,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let connector_txn_id = &router_data.request.connector_transaction_id;
-        let (_, auth_num, retrieval_ref, _) = parse_connector_transaction_id(connector_txn_id)?;
+        let (transaction_type, auth_num, retrieval_ref, _) =
+            parse_connector_transaction_id(connector_txn_id)?;
+        if transaction_type.is_debit() {
+            return Err(errors::IntegrationError::NotSupported {
+                message: "Worldpay RAFT void is currently supported for credit transactions only".to_string(),
+                connector: "worldpayraft",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "The connector_transaction_id identifies a debit preauthorization, but the RAFT void flow uses POST /credit/authorization with FromAccountSelected=CC; debit preauth reversals require a separately verified debit/preauth contract".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
 
         if auth_num.is_empty() {
             return Err(error_stack::report!(
