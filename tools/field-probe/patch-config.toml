@@ -752,3 +752,8 @@ value = "{\"transaction_id\":\"probe_txn_001\",\"order_id\":\"probe_order_001\"}
 # Note: ppro/worldpay token_authorize requires payment_method_type but
 # PaymentServiceTokenAuthorizeRequest has no such proto field — not fixable via
 # probe config.
+
+["create_client_authentication_token.domain_context.payment.return_url"]
+aliases = ["return_url", "router_return_url"]
+type = "string"
+value = "https://example.com/payment/return"
