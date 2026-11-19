@@ -433,7 +433,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         let router_data = &item.router_data;
 
         let payments_response_data = PayoutTransferResponse {
-            merchant_payout_id: None,
+            merchant_payout_id: router_data.request.merchant_payout_id.clone(),
             payout_status: transfer_res.transfer_status.get_payout_status(),
             connector_payout_id: Some(transfer_res.id.clone()),
             status_code: item.http_code,
@@ -479,7 +479,9 @@ impl TryFrom<ResponseRouterData<ItaubankPayoutGetResponse, Self>>
         let payments_response_data = PayoutGetResponse {
             merchant_payout_id: router_data.request.merchant_payout_id.clone(),
             payout_status,
-            connector_payout_id: None,
+            // The sync response carries no id; echo the one queried so the stored
+            // reference is not overwritten with None.
+            connector_payout_id: router_data.request.connector_payout_id.clone(),
             status_code: item.http_code,
         };
 
