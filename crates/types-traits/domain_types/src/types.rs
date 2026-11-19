@@ -10313,18 +10313,14 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
-        let payment_method = value
-            .payment_method_type
-            .map(|pm_type_i32| {
-                // Convert i32 to gRPC PaymentMethodType enum
-                let grpc_pm_type =
-                    grpc_api_types::payments::PaymentMethodType::try_from(pm_type_i32)
-                        .unwrap_or(grpc_api_types::payments::PaymentMethodType::Unspecified);
+        let payment_method = value.payment_method_type.and_then(|pm_type_i32| {
+            // Convert i32 to gRPC PaymentMethodType enum
+            let grpc_pm_type = grpc_api_types::payments::PaymentMethodType::try_from(pm_type_i32)
+                .unwrap_or(grpc_api_types::payments::PaymentMethodType::Unspecified);
 
-                // Convert from gRPC enum to internal PaymentMethod using ForeignTryFrom
-                PaymentMethod::foreign_try_from(grpc_pm_type)
-            })
-            .transpose()?;
+            // Unspecified or not-yet-mapped types leave payment_method unset
+            PaymentMethod::foreign_try_from(grpc_pm_type).ok()
+        });
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
@@ -10431,18 +10427,14 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
-        let payment_method = value
-            .payment_method_type
-            .map(|pm_type_i32| {
-                // Convert i32 to gRPC PaymentMethodType enum
-                let grpc_pm_type =
-                    grpc_api_types::payments::PaymentMethodType::try_from(pm_type_i32)
-                        .unwrap_or(grpc_api_types::payments::PaymentMethodType::Unspecified);
+        let payment_method = value.payment_method_type.and_then(|pm_type_i32| {
+            // Convert i32 to gRPC PaymentMethodType enum
+            let grpc_pm_type = grpc_api_types::payments::PaymentMethodType::try_from(pm_type_i32)
+                .unwrap_or(grpc_api_types::payments::PaymentMethodType::Unspecified);
 
-                // Convert from gRPC enum to internal PaymentMethod using ForeignTryFrom
-                PaymentMethod::foreign_try_from(grpc_pm_type)
-            })
-            .transpose()?;
+            // Unspecified or not-yet-mapped types leave payment_method unset
+            PaymentMethod::foreign_try_from(grpc_pm_type).ok()
+        });
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         let refund_id = value.merchant_refund_id.clone();
