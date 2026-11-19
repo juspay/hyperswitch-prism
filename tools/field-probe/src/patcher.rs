@@ -204,6 +204,16 @@ pub(crate) fn patch_type_to_value(patch_type: &str, value: Option<&str>) -> Opti
             serde_json::to_value(usd_money(amount)).ok()
         }
         "card_with_no_cvc" => serde_json::to_value(card_with_no_cvc_payment_method()).ok(),
+        "additional_card_info" => serde_json::to_value(proto::AdditionalPaymentData {
+            payment_method_data: Some(proto::additional_payment_data::PaymentMethodData::Card(
+                proto::AdditionalCardInfo {
+                    card_exp_month: Some(hyperswitch_masking::Secret::new("03".to_string())),
+                    card_exp_year: Some(hyperswitch_masking::Secret::new("2030".to_string())),
+                    ..Default::default()
+                },
+            )),
+        })
+        .ok(),
         "full_browser_info" => serde_json::to_value(full_browser_info()).ok(),
         "full_address" => serde_json::to_value(full_address()).ok(),
         "full_customer" => serde_json::to_value(full_customer()).ok(),
@@ -276,6 +286,53 @@ mod tests {
     use super::*;
     use hyperswitch_masking::PeekInterface;
     use serde_json::json;
+
+    #[test]
+    fn test_recurring_charge_additional_card_info_patch() {
+        use grpc_api_types::payments::additional_payment_data::PaymentMethodData;
+
+        for field in [
+            "additional_payment_data.card",
+            "additional_payment_data.card.card_exp_month",
+            "additional_payment_data.card.card_exp_year",
+        ] {
+            let mut req = crate::requests::base_recurring_charge_request();
+            let mandate = serde_json::to_value(&req.connector_recurring_payment_id).unwrap();
+            smart_patch(&mut req, "recurring_charge", field);
+            let Some(PaymentMethodData::Card(card)) = req
+                .additional_payment_data
+                .as_ref()
+                .and_then(|data| data.payment_method_data.as_ref())
+            else {
+                panic!("expected additional card details after patching {field}");
+            };
+            assert_eq!(card.card_exp_month.as_ref().unwrap().peek(), "03");
+            assert_eq!(card.card_exp_year.as_ref().unwrap().peek(), "2030");
+            assert_eq!(
+                serde_json::to_value(&req.connector_recurring_payment_id).unwrap(),
+                mandate
+            );
+        }
+    }
+
+    #[test]
+    fn test_worldpayvantiv_recurring_charge_probe_builds_token_xml() {
+        let connector = ConnectorEnum::Worldpayvantiv;
+        let result = crate::flow_registry::probe_recurring_charge(
+            &connector,
+            &crate::auth::load_config(),
+            crate::auth::dummy_auth(&connector),
+            &crate::auth::make_masked_metadata(),
+        );
+        assert_eq!(result.status, "supported", "{:?}", result.error);
+        assert!(result
+            .required_fields
+            .iter()
+            .any(|field| field == "additional_payment_data.card"));
+        let body = result.sample.unwrap().body.unwrap();
+        assert!(body.contains("<cnpToken>probe-mandate-123</cnpToken>"));
+        assert!(body.contains("<expDate>0330</expDate>"));
+    }
 
     #[test]
     fn test_smart_patch_billing_city() {

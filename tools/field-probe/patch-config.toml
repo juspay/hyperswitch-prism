@@ -72,6 +72,15 @@ value = '{"api_transaction_id":"probe_auth_001","original_authorized_amount":{"a
 aliases = ["payment_method", "payment_method_data"]
 type = "card_with_no_cvc"
 
+["recurring_charge.additional_payment_data"]
+# Processor-token charges can require the original card's expiry alongside the token.
+aliases = [
+  "additional_payment_data.card",
+  "additional_payment_data.card.card_exp_month",
+  "additional_payment_data.card.card_exp_year",
+]
+type = "additional_card_info"
+
 [network_transaction_id]
 aliases = ["network_transaction_id"]
 type = "string"
