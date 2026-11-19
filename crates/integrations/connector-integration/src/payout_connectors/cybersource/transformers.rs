@@ -186,7 +186,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         let order_information = OrderInformation {
             amount_details: Amount {
                 total_amount: ctx.total_amount,
-                currency: request.destination_currency,
+                currency: request.money.currency(),
             },
         };
 

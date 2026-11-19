@@ -72,7 +72,12 @@ fn payment_webhook_returns_payment_state_and_preserves_routing() -> TestResult {
         return Err("merchant payment reference was not preserved".into());
     }
     let amount = response.amount.ok_or("missing amount")?;
-    if amount.amount().get_amount_as_i64() != 2649 {
+    let expected = common_utils::types::AmountConvertor::convert_back(
+        &common_utils::types::ConnectorMinorUnitForConnector,
+        serde_json::from_str("2649")?,
+        common_enums::Currency::USD,
+    )?;
+    if amount != expected {
         return Err("payment amount was not converted to minor units".into());
     }
     Ok(())

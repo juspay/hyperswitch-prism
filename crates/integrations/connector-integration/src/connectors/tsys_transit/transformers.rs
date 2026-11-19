@@ -2505,10 +2505,9 @@ fn derive_amount_captured(
                 .convert_back(amount.clone(), currency)
                 .change_context(ConnectorError::ResponseDeserializationFailed {
                     context: ResponseTransformationErrorContext {
-                        additional_context: Some(format!(
-                            "tsysTransit: failed to parse captured amount: {}",
-                            amount
-                        )),
+                        additional_context: Some(
+                            "tsysTransit: failed to parse captured amount".to_owned(),
+                        ),
                         http_status_code: Some(http_status_code),
                     },
                 })
@@ -2537,10 +2536,9 @@ fn derive_amount_capturable(
                 .convert_back(amount.clone(), currency)
                 .change_context(ConnectorError::ResponseDeserializationFailed {
                     context: ResponseTransformationErrorContext {
-                        additional_context: Some(format!(
-                            "tsysTransit: failed to parse capturable amount: {}",
-                            amount
-                        )),
+                        additional_context: Some(
+                            "tsysTransit: failed to parse capturable amount".to_owned(),
+                        ),
                         http_status_code: Some(http_status_code),
                     },
                 })

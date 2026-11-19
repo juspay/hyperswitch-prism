@@ -246,18 +246,16 @@ impl PayherePaymentsRequest {
             .generate_digest(auth.merchant_secret.expose().as_bytes())
             .change_context(hash_failed())?;
         let hash_secret_upper = hex::encode(hash_secret).to_uppercase();
-        let message = format!(
-            "{}{}{}{}{}",
-            auth.merchant_id.peek(),
-            router_data
-                .resource_common_data
-                .connector_request_reference_id,
-            amount,
-            router_data.request.currency,
-            hash_secret_upper
-        );
         let final_hash = common_utils::crypto::Md5
-            .generate_digest(message.as_bytes())
+            .generate_digest_from_fields(&[
+                auth.merchant_id.peek(),
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+                &amount,
+                &router_data.request.currency.to_string(),
+                &hash_secret_upper,
+            ])
             .change_context(hash_failed())?;
         let hash = hex::encode(final_hash).to_uppercase();
 

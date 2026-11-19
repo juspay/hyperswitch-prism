@@ -1537,8 +1537,8 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutStageIntegrityObject>
 
     fn get_request_integrity_object(&self) -> PayoutStageIntegrityObject {
         PayoutStageIntegrityObject {
-            amount: self.amount,
-            currency: self.source_currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
         }
     }
 }

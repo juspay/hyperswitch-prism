@@ -196,17 +196,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde
             },
         );
 
-        let converted_amount = WorldpayxmlAmountConvertor::convert(&{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: worldpayxml-transfer; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                request.money.amount(),
-                request.destination_currency,
-            );
-            legacy_money
-        })?;
+        crate::payout_connectors::require_matching_payout_currency(
+            &request.money,
+            request.destination_currency,
+            "Worldpayxml",
+        )?;
+        let converted_amount = WorldpayxmlAmountConvertor::convert(&request.money)?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -224,8 +219,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde
                         .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
-                        currency_code: request.destination_currency,
-                        exponent: worldpayxml_amount_exponent(request.destination_currency)?,
+                        currency_code: request.money.currency(),
+                        exponent: worldpayxml_amount_exponent(request.money.currency())?,
                     },
                     payment_details: requests::WorldpayxmlPayoutPaymentDetails { payment_method },
                 },

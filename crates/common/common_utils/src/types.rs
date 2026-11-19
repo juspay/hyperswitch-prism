@@ -13,7 +13,8 @@ use crate::errors::ParsingError;
 
 pub use crate::money::{
     AmountConvertor, BasisPointsPercentageForConnector, ConnectorMinorUnit,
-    ConnectorMinorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, Money,
+    ConnectorMinorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector,
+    FloatMajorUnitWithTwoDecimals, FloatMajorUnitWithTwoDecimalsForConnector, MinorUnit, Money,
     PaddedStringMinorUnitForConnector, Percentage, PositiveScaledMinorUnitError,
     PositiveScaledStringMinorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector,
     StringMajorUnitForCore, StringMajorUnitWithTwoDecimals,

@@ -3494,7 +3494,8 @@ pub struct QrCodeNextInstructions {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SepaAndBacsReceiver {
-    pub amount_received: ConnectorMinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount_received: Option<ConnectorMinorUnit>,
     pub amount_remaining: ConnectorMinorUnit,
 }
 
@@ -3927,9 +3928,15 @@ where
         let payment_account_reference =
             card_details_from_latest_charge.and_then(|card| card.payment_account_reference.clone());
 
-        let connector_metadata = get_connector_metadata(
+        let (connector_metadata, reported_amounts) = get_connector_metadata(
             item.response.next_action.as_ref(),
             item.response.amount,
+            item.router_data
+                .resource_common_data
+                .money
+                .as_ref()
+                .map(|money| money.currency())
+                .unwrap_or_default(),
             item.http_code,
         )?;
 
@@ -4012,6 +4019,7 @@ where
                     })
                     .transpose()?,
                 connector_response: connector_response_data,
+                reported_amounts,
                 capturable_money: amount_capturable
                     .map(|amount| {
                         crate::utils::response_amount_to_money(
@@ -4053,8 +4061,39 @@ impl From<StripePaymentStatus> for common_enums::AuthorizationStatus {
 pub fn get_connector_metadata(
     next_action: Option<&StripeNextActionResponse>,
     amount: ConnectorMinorUnit,
+    currency: common_enums::Currency,
     http_status: u16,
-) -> CustomResult<Option<Value>, ConnectorError> {
+) -> CustomResult<
+    (
+        Option<Value>,
+        Option<domain_types::connector_types::ReportedPaymentAmounts>,
+    ),
+    ConnectorError,
+> {
+    let reported_amounts = match next_action {
+        Some(StripeNextActionResponse::DisplayBankTransferInstructions(response))
+            if matches!(
+                &response.financial_addresses,
+                FinancialInformation::StripeFinancialInformation(_)
+            ) =>
+        {
+            let converter = common_utils::types::ConnectorMinorUnitForConnector;
+            Some(
+                domain_types::connector_types::ReportedPaymentAmounts::BankTransferFunding {
+                    total_money: converter.convert_back(amount, currency).change_context(
+                        crate::utils::response_handling_fail_for_connector(http_status, "stripe"),
+                    )?,
+                    remaining_money: converter
+                        .convert_back(response.amount_remaining, currency)
+                        .change_context(crate::utils::response_handling_fail_for_connector(
+                            http_status,
+                            "stripe",
+                        ))?,
+                },
+            )
+        }
+        _ => None,
+    };
     let next_action_response = next_action
         .and_then(|next_action_response| match next_action_response {
             StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
@@ -4081,7 +4120,7 @@ pub fn get_connector_metadata(
                             sepa_bank_instructions,
                             bacs_bank_instructions,
                             receiver: SepaAndBacsReceiver {
-                                amount_received: amount - response.amount_remaining,
+                                amount_received: None,
                                 amount_remaining: response.amount_remaining,
                             },
                         };
@@ -4159,7 +4198,7 @@ pub fn get_connector_metadata(
             http_status,
             "stripe",
         ))?;
-    Ok(next_action_response)
+    Ok((next_action_response, reported_amounts))
 }
 
 pub fn get_payment_method_id(
@@ -4241,9 +4280,10 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
             });
 
-        let connector_metadata = get_connector_metadata(
+        let (connector_metadata, reported_amounts) = get_connector_metadata(
             item.response.next_action.as_ref(),
             item.response.amount,
+            item.router_data.request.money.currency(),
             item.http_code,
         )?;
 
@@ -4331,6 +4371,7 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status.to_owned()),
+                reported_amounts,
                 captured_money: item
                     .response
                     .amount_received

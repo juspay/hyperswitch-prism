@@ -59,14 +59,14 @@ fn merchant_signature_matches_documented_md5_algorithm() {
     // Include refund_id to cover the additional field sent by this connector.
     let signature = compute_merchant_api_signature(
         vec![
-            ("transaction_id", "po01_9403311911650893436".to_string()),
-            ("response_type", "json".to_string()),
-            ("refund_id", "refund-1".to_string()),
-            ("order_number", "TST103".to_string()),
-            ("mid", "test-mid".to_string()),
-            ("currency", "SGD".to_string()),
-            ("amount", "0.01".to_string()),
-            ("action_type", "refund".to_string()),
+            ("transaction_id", &"po01_9403311911650893436"),
+            ("response_type", &"json"),
+            ("refund_id", &"refund-1"),
+            ("order_number", &"TST103"),
+            ("mid", &"test-mid"),
+            ("currency", &"SGD"),
+            ("amount", &"0.01"),
+            ("action_type", &"refund"),
         ],
         "test-secret",
     )
@@ -103,6 +103,7 @@ fn payment_sync_data(
             connector_feature_data: Default::default(),
             captured_money: Default::default(),
             capturable_money: Default::default(),
+            reported_amounts: None,
             money: Default::default(),
             access_token: Default::default(),
             session_token: Default::default(),
@@ -443,7 +444,10 @@ fn authorize_uses_money_currency_and_stable_order_id_ignoring_incoming_metadata(
     assert_eq!(first.order_id, retry.order_id);
     assert_eq!(first.order_id.len(), 20);
     assert_eq!(first.ccy, Currency::SGD);
-    assert_eq!(first.amount.to_string(), "1.10");
+    assert_eq!(
+        serde_json::to_value(&first.amount).unwrap(),
+        serde_json::json!("1.10")
+    );
     assert_eq!(first.signature.peek(), "435ee25a1e24b09d0a81d1f0e1316f6798368a556d8a2423d0241cf5d6af8bd120d353a4f0a642171d794082ca5b75d8c9102528550f51ad7e3636cdee34b677");
 }
 
@@ -520,7 +524,10 @@ fn refund_request_uses_money_currency_and_original_order_id() {
     })
     .unwrap();
     assert_eq!(request.currency, Currency::SGD);
-    assert_eq!(request.amount.to_string(), "1.10");
+    assert_eq!(
+        serde_json::to_value(&request.amount).unwrap(),
+        serde_json::json!("1.10")
+    );
     assert_eq!(request.order_number, "original-order");
     assert_eq!(request.refund_id, "refund-1");
     assert_eq!(request.signature.peek(), "2b01603f19407add1eb03bac703b80e4");

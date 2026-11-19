@@ -6702,6 +6702,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: value.session_token,
@@ -6811,6 +6812,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: value
                 .amount
                 .as_ref()
@@ -6910,6 +6912,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: value.session_token,
@@ -7049,6 +7052,7 @@ impl
                 .transpose()?,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: value
                 .amount
                 .as_ref()
@@ -7141,6 +7145,7 @@ impl
                 .transpose()?,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: value
                 .amount
                 .as_ref()
@@ -7227,6 +7232,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: None,
@@ -7325,6 +7331,7 @@ impl
                 .transpose()?,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: None,
@@ -8161,6 +8168,74 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
     }
 }
 
+fn reported_money_difference(
+    total: &common_utils::types::Money,
+    deducted: &common_utils::types::Money,
+    http_status: u16,
+) -> Result<common_utils::types::Money, error_stack::Report<ConnectorError>> {
+    if total.currency() != deducted.currency() {
+        return Err(ConnectorError::response_handling_failed(http_status))
+            .attach_printable("Cannot derive a balance from amounts in different currencies");
+    }
+    let amount = total
+        .amount()
+        .get_amount_as_i64()
+        .checked_sub(deducted.amount().get_amount_as_i64())
+        .ok_or_else(|| {
+            error_stack::report!(ConnectorError::response_handling_failed(http_status))
+                .attach_printable("Reported payment balance exceeds minor-unit range")
+        })?;
+    Ok(common_utils::types::Money::from_minor_unit(
+        common_utils::types::MinorUnit::new(amount),
+        total.currency(),
+    ))
+}
+
+fn complete_reported_payment_amounts(
+    data: &mut PaymentFlowData,
+    response: &mut Result<PaymentsResponseData, crate::router_data::ErrorResponse>,
+) -> Result<(), error_stack::Report<ConnectorError>> {
+    let Ok(PaymentsResponseData::TransactionResponse {
+        connector_metadata,
+        status_code,
+        ..
+    }) = response
+    else {
+        return Ok(());
+    };
+    match data.reported_amounts.take() {
+        Some(crate::connector_types::ReportedPaymentAmounts::Capturable { total_money }) => {
+            data.capturable_money = total_money
+                .as_ref()
+                .zip(data.captured_money.as_ref())
+                .map(|(total, captured)| reported_money_difference(total, captured, *status_code))
+                .transpose()?;
+        }
+        Some(crate::connector_types::ReportedPaymentAmounts::BankTransferFunding {
+            total_money,
+            remaining_money,
+        }) => {
+            let received = reported_money_difference(&total_money, &remaining_money, *status_code)?;
+            let receiver = connector_metadata
+                .as_mut()
+                .and_then(|metadata| metadata.get_mut("receiver"))
+                .and_then(serde_json::Value::as_object_mut)
+                .ok_or_else(|| {
+                    error_stack::report!(ConnectorError::response_handling_failed(*status_code))
+                        .attach_printable(
+                            "Bank-transfer funding response is missing receiver metadata",
+                        )
+                })?;
+            receiver.insert(
+                "amount_received".to_owned(),
+                serde_json::json!(received.amount().get_amount_as_i64()),
+            );
+        }
+        None => {}
+    }
+    Ok(())
+}
+
 /// Converts a connector-reported amount (e.g. `amount_captured`, `amount_capturable`) into the
 /// gRPC `Money` returned to callers.
 fn connector_money_to_grpc(
@@ -8191,13 +8266,17 @@ fn connector_money_to_grpc(
 )]
 #[allow(deprecated)]
 pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
-    router_data_v2: RouterDataV2<
+    mut router_data_v2: RouterDataV2<
         Authorize,
         PaymentFlowData,
         PaymentsAuthorizeData<T>,
         PaymentsResponseData,
     >,
 ) -> Result<PaymentServiceAuthorizeResponse, error_stack::Report<ConnectorError>> {
+    complete_reported_payment_amounts(
+        &mut router_data_v2.resource_common_data,
+        &mut router_data_v2.response,
+    )?;
     let transaction_response = router_data_v2.response;
     let status = router_data_v2.resource_common_data.status;
     info!("Payment authorize response status: {:?}", status);
@@ -9362,8 +9441,9 @@ impl From<&router_data::ErrorResponse> for grpc_payment_types::IssuerErrorDetail
 
 #[allow(deprecated)]
 pub fn generate_payment_void_response(
-    router_data_v2: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+    mut router_data_v2: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
 ) -> Result<PaymentServiceVoidResponse, error_stack::Report<ConnectorError>> {
+    complete_reported_payment_amounts(&mut router_data_v2.resource_common_data, &mut router_data_v2.response)?;
     let transaction_response = router_data_v2.response;
 
     // Create state if either access token or connector customer is available
@@ -9794,8 +9874,17 @@ impl ForeignFrom<PaymentSyncSkipped> for PaymentServiceGetResponse {
 
 #[allow(deprecated)]
 pub fn generate_payment_sync_response(
-    router_data_v2: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+    mut router_data_v2: RouterDataV2<
+        PSync,
+        PaymentFlowData,
+        PaymentsSyncData,
+        PaymentsResponseData,
+    >,
 ) -> Result<PaymentServiceGetResponse, error_stack::Report<ConnectorError>> {
+    complete_reported_payment_amounts(
+        &mut router_data_v2.resource_common_data,
+        &mut router_data_v2.response,
+    )?;
     let transaction_response = router_data_v2.response;
     let raw_connector_response = router_data_v2
         .resource_common_data
@@ -11802,6 +11891,7 @@ impl
             connector_response_headers: None,
             vault_headers: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             connector_response: None,
             recurring_mandate_payment_data: None,
@@ -11938,6 +12028,7 @@ impl
             connector_response_headers: None,
             vault_headers: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             connector_response: None,
             recurring_mandate_payment_data: None,
@@ -13416,6 +13507,7 @@ impl
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: None,
@@ -13613,13 +13705,14 @@ pub fn generate_payment_incremental_authorization_response(
 
 #[allow(deprecated)]
 pub fn generate_payment_capture_response(
-    router_data_v2: RouterDataV2<
+    mut router_data_v2: RouterDataV2<
         Capture,
         PaymentFlowData,
         PaymentsCaptureData,
         PaymentsResponseData,
     >,
 ) -> Result<PaymentServiceCaptureResponse, error_stack::Report<ConnectorError>> {
+    complete_reported_payment_amounts(&mut router_data_v2.resource_common_data, &mut router_data_v2.response)?;
     let transaction_response = router_data_v2.response;
 
     // Create state if either access token or connector customer is available
@@ -13909,6 +14002,7 @@ impl
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: value.session_token,
@@ -14010,6 +14104,7 @@ impl
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: value.session_token,
@@ -15402,6 +15497,7 @@ impl
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: None,
@@ -16626,6 +16722,7 @@ impl
             connector_feature_data: None,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: None,
@@ -16799,6 +16896,7 @@ impl
                 .transpose()?,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: value.amount.map(|amt| {
                 common_utils::types::Money::from_minor_unit(
                     common_utils::types::MinorUnit::new(amt.minor_amount),
@@ -16921,6 +17019,7 @@ impl
                 .transpose()?,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: None,
@@ -17032,6 +17131,7 @@ impl
                 .transpose()?,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: None,
@@ -17335,6 +17435,7 @@ impl
             connector_feature_data,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token: None,
             session_token: None,
@@ -17425,6 +17526,7 @@ impl
             connector_feature_data: None,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token: None,
             session_token: None,
@@ -17761,7 +17863,7 @@ impl<
 
 #[allow(deprecated)]
 pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
-    router_data_v2: RouterDataV2<
+    mut router_data_v2: RouterDataV2<
         RepeatPayment,
         PaymentFlowData,
         RepeatPaymentData<T>,
@@ -17771,6 +17873,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
     grpc_api_types::payments::RecurringPaymentServiceChargeResponse,
     error_stack::Report<ConnectorError>,
 > {
+    complete_reported_payment_amounts(&mut router_data_v2.resource_common_data, &mut router_data_v2.response)?;
     let transaction_response = router_data_v2.response;
     let status = router_data_v2.resource_common_data.status;
     let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -21234,6 +21337,7 @@ impl
                 .transpose()?,
             captured_money: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             access_token,
             session_token: value.session_token,
@@ -21373,6 +21477,7 @@ impl
             typed_connector_request: None,
             typed_connector_response: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             connector_response: None,
             recurring_mandate_payment_data: None,
@@ -21480,6 +21585,7 @@ impl
             typed_connector_request: None,
             typed_connector_response: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             connector_response: None,
             recurring_mandate_payment_data: None,
@@ -21563,6 +21669,7 @@ impl
             connector_response_headers: None,
             vault_headers: None,
             capturable_money: None,
+            reported_amounts: None,
             money: None,
             connector_response: None,
             recurring_mandate_payment_data: None,

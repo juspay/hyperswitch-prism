@@ -264,6 +264,24 @@ fn realex_digest(fields: &[&str], shared_secret: &str) -> String {
     sha1_hex(&format!("{stage1}.{shared_secret}"))
 }
 
+fn realex_amount_digest(
+    prefix: &str,
+    amount: Option<&StringMinorUnit>,
+    suffix: &str,
+    shared_secret: &str,
+) -> String {
+    let mut context = ring::digest::Context::new(&ring::digest::SHA1_FOR_LEGACY_USE_ONLY);
+    context.update(prefix.as_bytes());
+    if let Some(amount) = amount {
+        common_utils::crypto::SignatureValue::update_signature(amount, &mut |bytes| {
+            context.update(bytes)
+        });
+    }
+    context.update(suffix.as_bytes());
+    let stage1 = hex::encode(context.finish());
+    sha1_hex(&format!("{stage1}.{shared_secret}"))
+}
+
 /// Digest for `type="auth"`: `timestamp.merchantid.orderid.amount.currency.cardnumber`.
 ///
 /// `<account>`, `<channel>`, `<autosettle>` and the whole `<mpi>` block are **not** hashed
@@ -278,9 +296,12 @@ fn build_auth_request_hash(
     card_number: &str,
     shared_secret: &str,
 ) -> Secret<String> {
-    let preimage =
-        format!("{timestamp}.{merchant_id}.{order_id}.{amount}.{currency}.{card_number}");
-    Secret::new(realex_digest(&[&preimage], shared_secret))
+    Secret::new(realex_amount_digest(
+        &format!("{timestamp}.{merchant_id}.{order_id}."),
+        Some(amount),
+        &format!(".{currency}.{card_number}"),
+        shared_secret,
+    ))
 }
 
 /// Digest for the request types that reference an existing transaction rather than a card —
@@ -313,11 +334,12 @@ fn build_reference_request_hash(
     shared_secret: &str,
 ) -> Secret<String> {
     let currency = currency.unwrap_or_default();
-    let preimage = match amount {
-        Some(amount) => format!("{timestamp}.{merchant_id}.{order_id}.{amount}.{currency}."),
-        None => format!("{timestamp}.{merchant_id}.{order_id}..{currency}."),
-    };
-    Secret::new(realex_digest(&[&preimage], shared_secret))
+    Secret::new(realex_amount_digest(
+        &format!("{timestamp}.{merchant_id}.{order_id}."),
+        amount,
+        &format!(".{currency}."),
+        shared_secret,
+    ))
 }
 
 /// The second, **independent** digest that only `rebate` (and the out-of-scope `credit`) carries.
@@ -4963,11 +4985,11 @@ mod tests {
                 format!(
                     "<amount currency=\"{}\">{}</amount>",
                     currency,
-                    format_amount(
-                        &order_detail(1001).get_unit_money(&Money::zero(currency)),
-                        currency
-                    )
-                    .expect("amount")
+                    if currency == Currency::JPY {
+                        "100100"
+                    } else {
+                        "1001"
+                    }
                 ),
                 "serde and Display disagree for {currency}"
             );

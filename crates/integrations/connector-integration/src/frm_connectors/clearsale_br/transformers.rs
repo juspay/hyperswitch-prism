@@ -915,6 +915,7 @@ pub(crate) struct OrderInputs<'a> {
     b2b_b2c: Option<CustomerType>,
     email: Email,
     money: common_utils::types::Money,
+    named_items_subtotal_money: Option<common_utils::types::Money>,
     ip: Option<String>,
     customer_info: Option<&'a domain_types::connector_types::CustomerInfo>,
     address: Option<&'a domain_types::payment_address::PaymentAddress>,
@@ -961,6 +962,7 @@ impl<'a> OrderInputs<'a> {
                 .ok_or_else(|| missing_field_err("email"))?
                 .get_email()?,
             money: req.money.clone(),
+            named_items_subtotal_money: req.named_items_subtotal_money.clone(),
             ip: req
                 .browser_info
                 .as_ref()
@@ -1007,6 +1009,7 @@ impl<'a> OrderInputs<'a> {
                 .ok_or_else(|| missing_field_err("email"))?
                 .get_email()?,
             money: req.money.clone(),
+            named_items_subtotal_money: req.named_items_subtotal_money.clone(),
             ip: req
                 .browser_info
                 .as_ref()
@@ -1712,6 +1715,7 @@ pub(crate) struct OrderRequestParts {
     session_id: String,
     email: Email,
     total_value: FloatMajorUnit,
+    item_value: Option<FloatMajorUnit>,
     billing: ClearSalePerson,
     shipping: Option<ClearSalePerson>,
     payments: Vec<ClearSalePayment>,
@@ -1722,17 +1726,6 @@ pub(crate) struct OrderRequestParts {
     b2b_b2c: Option<CustomerType>,
     product: i32,
     country: Option<String>,
-}
-
-fn items_subtotal(items: &[ClearSaleItem]) -> Option<FloatMajorUnit> {
-    if items.is_empty() {
-        return None;
-    }
-    let mut subtotal = FloatMajorUnit::zero();
-    for item in items {
-        subtotal = subtotal + item.value? * item.amount.unwrap_or(1);
-    }
-    Some(subtotal)
 }
 
 pub(crate) fn build_order_request(
@@ -1747,6 +1740,7 @@ pub(crate) fn build_order_request(
         session_id,
         email,
         total_value,
+        item_value,
         billing,
         shipping,
         payments,
@@ -1765,7 +1759,7 @@ pub(crate) fn build_order_request(
             date: generated_datetime,
             email,
             b2b_b2c,
-            item_value: items_subtotal(&items),
+            item_value,
             total_value,
             number_of_installments: installments,
             ip,
@@ -2278,6 +2272,7 @@ pub(super) fn order_from_common_at(
         config_product,
         email,
         money,
+        named_items_subtotal_money,
         ip,
         customer_info,
         address,
@@ -2360,6 +2355,10 @@ pub(super) fn order_from_common_at(
             session_id,
             email,
             total_value,
+            item_value: named_items_subtotal_money
+                .as_ref()
+                .map(super::ClearSaleBrAmountConvertor::convert)
+                .transpose()?,
             billing,
             shipping,
             payments,

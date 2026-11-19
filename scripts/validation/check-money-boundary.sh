@@ -73,8 +73,27 @@ connector_minor_trait_arithmetic = []
 float_major_add = []
 float_major_mul = []
 float_major_trait_arithmetic = []
+float_major_read = []
+float_major_write = []
+float_major_constructor = []
+two_decimal_float_pass = []
+two_decimal_float_read = []
+two_decimal_float_write = []
+two_decimal_float_constructor = []
+two_decimal_float_add = []
+two_decimal_float_sub = []
+two_decimal_float_mul = []
+two_decimal_float_sum = []
 string_major_getter = []
 string_two_decimal_getter = []
+connector_minor_to_string = []
+connector_minor_display = []
+string_minor_to_string = []
+string_minor_display = []
+string_major_to_string = []
+string_major_display = []
+string_two_decimal_to_string = []
+string_two_decimal_display = []
 inferred_minor_field_read = []
 inferred_minor_field_write = []
 inferred_minor_to_string = []
@@ -108,8 +127,7 @@ check() {
     fi
     if [[ "$expected" != pass && "$status" == 101 ]] && jq -es --arg expected "$expected" '
         [.[] | select(.reason == "compiler-message" and .message.level == "error") | .message.code.code] as $codes |
-        ($codes | length > 0) and
-        all($codes[]; . as $code | $code != null and ($expected | split(",") | index($code) != null))
+        ($codes | unique | sort) == ($expected | split(",") | sort)
     ' "$scratch/output.jsonl" > /dev/null; then
         local actual
         actual="$(jq -rs '[.[] | select(.reason == "compiler-message" and .message.level == "error") | .message.code.code] | unique | join(",")' "$scratch/output.jsonl")"
@@ -125,9 +143,9 @@ check() {
 
 check domain_boundary pass
 check connector_pass pass
-check boundary_expect pass
-check boundary_expect_scope clippy::disallowed_methods
-check obsolete_boundary_expect unfulfilled_lint_expectations
+check boundary_expect E0453
+check boundary_expect_scope E0453
+check obsolete_boundary_expect E0453
 check boundary_allow E0453
 check boundary_in_tests clippy::disallowed_methods
 check private_constructor E0599
@@ -140,8 +158,8 @@ check boundary_reexport clippy::disallowed_methods
 check proto_trait E0599
 check domain_mapper E0603
 check domain_minor_unit clippy::disallowed_types
-check minor_unit_constructor clippy::disallowed_methods
-check minor_unit_constructor_pointer clippy::disallowed_methods
+check minor_unit_constructor clippy::disallowed_methods,clippy::disallowed_types
+check minor_unit_constructor_pointer clippy::disallowed_methods,clippy::disallowed_types
 check domain_minor_converter E0425
 check inferred_domain_minor_unit clippy::disallowed_methods
 check percentage_ratio clippy::disallowed_methods
@@ -166,9 +184,28 @@ check connector_minor_trait_arithmetic E0277
 check float_major_add E0369
 check float_major_mul E0369
 check float_major_trait_arithmetic E0277
+check float_major_read E0616
+check float_major_write E0616
+check float_major_constructor E0423
+check two_decimal_float_pass pass
+check two_decimal_float_read E0616
+check two_decimal_float_write E0616
+check two_decimal_float_constructor E0423
+check two_decimal_float_add E0369
+check two_decimal_float_sub E0369
+check two_decimal_float_mul E0369
+check two_decimal_float_sum E0277
 check money_amount clippy::disallowed_methods
 check string_major_getter E0599
 check string_two_decimal_getter E0599
+check connector_minor_to_string E0599
+check connector_minor_display E0277
+check string_minor_to_string E0599
+check string_minor_display E0277
+check string_major_to_string E0599
+check string_major_display E0277
+check string_two_decimal_to_string E0599
+check string_two_decimal_display E0277
 check inferred_minor_field_read E0616
 check inferred_minor_field_write E0616
 check inferred_minor_to_string E0599

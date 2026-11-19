@@ -104,23 +104,14 @@ fn nuvei_context(
 
 fn convert_payout_amount(
     money: &common_utils::types::Money,
-    destination_currency: common_enums::Currency,
 ) -> Result<StringMajorUnit, Report<IntegrationError>> {
     StringMajorUnitForConnector
-        .convert(&{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: nuvei-transfer-amount; see PR #2642"
-            )]
-            let legacy_money =
-                common_utils::types::Money::from_minor_unit(money.amount(), destination_currency);
-            legacy_money
-        })
+        .convert(money)
         .change_context(IntegrationError::InvalidDataFormat {
             field_name: "amount",
             context: nuvei_context(
-                "Nuvei payout amount could not be converted to destination currency units",
-                "Provide an amount valid for the destination currency",
+                "Nuvei payout amount could not be converted using its denomination currency",
+                "Provide a valid source amount and currency",
             ),
         })
 }
@@ -149,8 +140,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })),
         }?;
         let request = &data.request;
-        let amount = convert_payout_amount(&request.money, request.destination_currency)?;
-        let currency = request.destination_currency.to_string();
+        crate::payout_connectors::require_matching_payout_currency(
+            &request.money,
+            request.destination_currency,
+            "Nuvei",
+        )?;
+        let amount = convert_payout_amount(&request.money)?;
+        let currency = request.money.currency().to_string();
         let time_stamp = NuveiAuthType::get_timestamp();
         let reference = match &data.resource_common_data.connector_request_reference_id {
             reference if !reference.trim().is_empty() => Ok(reference),
@@ -202,7 +198,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             merchant_id.peek(),
             merchant_site_id.peek(),
             reference,
-            &amount.to_string(),
+            &amount,
             &currency,
             &time_stamp.to_string(),
         ]);
@@ -355,7 +351,7 @@ mod tests {
     }
 
     #[test]
-    fn payout_amount_uses_destination_currency_units() {
+    fn payout_amount_preserves_its_source_currency_units() {
         let request = PayoutTransferRequest::<DefaultPCIHolder>::foreign_try_from(
             grpc_api_types::payouts::PayoutServiceTransferRequest {
                 amount: Some(grpc_api_types::payments::Money {
@@ -368,10 +364,11 @@ mod tests {
         )
         .expect("valid payout fixture");
         assert_eq!(
-            convert_payout_amount(&request.money, request.destination_currency,)
-                .expect("JPY amount should convert")
-                .to_string(),
-            "1234"
+            serde_json::to_value(
+                convert_payout_amount(&request.money).expect("USD amount should convert")
+            )
+            .expect("wire amount"),
+            serde_json::json!("12.34")
         );
     }
 
@@ -387,12 +384,12 @@ mod tests {
 
         assert_eq!(
             auth.generate_checksum(&[
-                "merchant",
-                "site",
-                "payout_123",
-                "10.00",
-                "USD",
-                "20261007123000"
+                &"merchant",
+                &"site",
+                &"payout_123",
+                &"10.00",
+                &"USD",
+                &"20261007123000"
             ]),
             "8501f7dd724473e8a4149c9e227684e221b82b6fa40816add3e1064b36c21eee"
         );

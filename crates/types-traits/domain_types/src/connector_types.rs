@@ -897,6 +897,17 @@ pub struct RawConnectorStatus {
 }
 
 #[derive(Debug, Clone)]
+pub enum ReportedPaymentAmounts {
+    /// The provider reported a total and a separately captured amount.
+    Capturable { total_money: Option<Money> },
+    /// Bank-transfer metadata needs the amount received from these reported values.
+    BankTransferFunding {
+        total_money: Money,
+        remaining_money: Money,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<CustomerId>,
@@ -913,6 +924,8 @@ pub struct PaymentFlowData {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub captured_money: Option<Money>,
     pub capturable_money: Option<Money>,
+    /// Raw, typed response facts; derived balances are computed after leaving L3.
+    pub reported_amounts: Option<ReportedPaymentAmounts>,
     pub money: Option<Money>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub session_token: Option<String>,

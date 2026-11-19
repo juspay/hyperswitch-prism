@@ -13,8 +13,17 @@ fn string_amount(value: &str) -> StringMajorUnit {
 }
 
 use crate::connectors::revpay::RevpayAmountConvertor;
-use common_utils::types::MinorUnit;
+use common_utils::types::StringMinorUnitForConnector;
 use domain_types::payment_method_data::DefaultPCIHolder;
+
+fn response_money(minor_amount: &str, currency: Currency) -> Money {
+    StringMinorUnitForConnector
+        .convert_back(
+            serde_json::from_value(serde_json::json!(minor_amount)).expect("response minor amount"),
+            currency,
+        )
+        .expect("response money conversion")
+}
 
 // Known-answer vectors from the revPAY Merchant API doc (§3.28 / §3.29)
 // with sample key material Merchant Key "1OoL87PmJQ", Merchant ID
@@ -87,7 +96,7 @@ fn signed_payment_response() -> RevpayPaymentsResponse {
         payment_id: Some(2),
         transaction_id: Some("txn-test-0001".to_string()),
         reference_number: Some("reference-test-0001".to_string()),
-        amount: Some(RevpayAmount::Number(FloatMajorUnit(52.4))),
+        amount: Some(serde_json::from_str("52.4").expect("numeric response amount")),
         currency: Some("MYR".to_string()),
         response_code: RevpayResponseCode::Success,
         error_description: None,
@@ -275,11 +284,8 @@ fn response_code_maps_to_refund_sync_status() {
 #[test]
 fn amount_formats_major_with_two_decimals() {
     // RM 52.40 — the bytes revPAY signs must carry the literal dot.
-    let amount = RevpayAmountConvertor::convert(
-        &serde_json::from_value::<Money>(serde_json::json!({"amount": 5240, "currency": "MYR"}))
-            .expect("domain money fixture"),
-    )
-    .expect("amount conversion should succeed for MYR");
+    let amount = RevpayAmountConvertor::convert(&response_money("5240", Currency::MYR))
+        .expect("amount conversion should succeed for MYR");
     assert_eq!(
         serde_json::to_value(&amount).expect("amount serialization"),
         "52.40"
@@ -540,32 +546,26 @@ fn issuer_country_maps_to_alpha3() {
 
 #[test]
 fn amount_round_trips_through_wire_form() {
-    let amount = RevpayAmountConvertor::convert(
-        &serde_json::from_value::<Money>(serde_json::json!({"amount": 1000, "currency": "MYR"}))
-            .expect("domain money fixture"),
-    )
-    .expect("amount conversion should succeed");
+    let amount = RevpayAmountConvertor::convert(&response_money("1000", Currency::MYR))
+        .expect("amount conversion should succeed");
     assert_eq!(
         serde_json::to_value(&amount).expect("amount serialization"),
         "10.00"
     );
     let back = RevpayAmountConvertor::convert_back(amount, Currency::MYR)
         .expect("convert_back should succeed");
-    assert_eq!(back.amount(), MinorUnit::new(1000));
+    assert_eq!(back, response_money("1000", Currency::MYR));
 
     // Zero-exponent currency: no minor units, still rendered with two decimals.
-    let jpy = RevpayAmountConvertor::convert(
-        &serde_json::from_value::<Money>(serde_json::json!({"amount": 1000, "currency": "JPY"}))
-            .expect("domain money fixture"),
-    )
-    .expect("JPY conversion should succeed");
+    let jpy = RevpayAmountConvertor::convert(&response_money("1000", Currency::JPY))
+        .expect("JPY conversion should succeed");
     assert_eq!(
         serde_json::to_value(&jpy).expect("amount serialization"),
         "1000.00"
     );
     let back = RevpayAmountConvertor::convert_back(jpy, Currency::JPY)
         .expect("convert_back should succeed");
-    assert_eq!(back.amount(), MinorUnit::new(1000));
+    assert_eq!(back, response_money("1000", Currency::JPY));
 }
 
 // ============================================================================
@@ -751,7 +751,7 @@ fn response_amount_accepts_shared_string_and_float_types() {
     for raw in ["\"52.40\"", "52.4"] {
         let amount: RevpayAmount = serde_json::from_str(raw).expect("response amount");
         let money = amount.to_money(Currency::MYR).expect("money conversion");
-        assert_eq!(money.amount(), MinorUnit::new(5240));
+        assert_eq!(money, response_money("5240", Currency::MYR));
         assert_eq!(money.currency(), Currency::MYR);
     }
 }
@@ -762,7 +762,7 @@ fn webhook_amount_supplies_integrity_money() {
         serde_urlencoded::from_str(&webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE))
             .expect("webhook body");
     let money = body.money().expect("webhook money");
-    assert_eq!(money.amount(), MinorUnit::new(5240));
+    assert_eq!(money, response_money("5240", Currency::MYR));
     assert_eq!(money.currency(), Currency::MYR);
     assert!(body.verifies_against(&webhook_auth()));
 }
@@ -788,7 +788,7 @@ fn webhook_response_exposes_amount_and_only_successful_capture() {
         assert!(matches!(&response.resource_id,
             Some(ResponseId::ConnectorTransactionId(id)) if id == "RF201774111"));
         let amount = response.amount.expect("integrity money");
-        assert_eq!(amount.amount(), MinorUnit::new(5240));
+        assert_eq!(amount, response_money("5240", Currency::MYR));
         assert_eq!(amount.currency(), Currency::MYR);
         assert_eq!(response.captured_money.is_some(), captured);
     }

@@ -41,6 +41,10 @@ mod tests {
 
     // ── fixtures ─────────────────────────────────────────────────────────
 
+    fn wire_amount(value: &str) -> FloatMajorUnit {
+        serde_json::from_str(value).expect("numeric wire amount")
+    }
+
     fn email() -> Email {
         Email::from_str("comprador@example.com.br").expect("valid email")
     }
@@ -107,7 +111,7 @@ mod tests {
         }
     }
 
-    fn order_details() -> Vec<OrderDetailsWithAmount> {
+    fn order_details_request() -> PreRiskCheckRequest {
         PreRiskCheckRequest::foreign_try_from(grpc_api_types::frm::FrmServicePreRiskCheckRequest {
             amount: Some(grpc_api_types::payments::Money {
                 minor_amount: 30000,
@@ -129,23 +133,19 @@ mod tests {
             ..Default::default()
         })
         .expect("valid order-item fixture")
-        .order_details
-        .expect("order items present")
+    }
+
+    fn order_details() -> Vec<OrderDetailsWithAmount> {
+        order_details_request()
+            .order_details
+            .expect("order items present")
     }
 
     fn pre_risk_check_request() -> PreRiskCheckRequest {
-        let request = PreRiskCheckRequest::foreign_try_from(
-            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
-                amount: Some(grpc_api_types::payments::Money {
-                    minor_amount: 30000,
-                    currency: grpc_api_types::payments::Currency::Brl.into(),
-                }),
-                ..Default::default()
-            },
-        )
-        .expect("valid pre-risk-check fixture");
+        let request = order_details_request();
         PreRiskCheckRequest {
             money: request.money,
+            named_items_subtotal_money: request.named_items_subtotal_money,
             customer_info: Some(customer_info()),
             payment_method: Some(card()),
             browser_info: Some(BrowserInformation {
@@ -159,7 +159,7 @@ mod tests {
             )),
             installment_details: Some(domain_types::frm::frm_types::InstallmentDetails { installment_count: 3 }),
             order_description: Some("Order description".to_owned()),
-            order_details: Some(order_details()),
+            order_details: request.order_details,
             address: Some(payment_address()),
             metadata: Some(Secret::new(r#"{"session_id":"sdk-session-42"}"#.to_owned())),
             test_mode: Some(true),
@@ -179,6 +179,7 @@ mod tests {
         let pre = pre_risk_check_request();
         PostRiskCheckRequest {
             money: pre.money,
+            named_items_subtotal_money: pre.named_items_subtotal_money,
             customer_info: pre.customer_info,
             payment_method: pre.payment_method,
             browser_info: pre.browser_info,
@@ -303,8 +304,8 @@ mod tests {
             date: "2017-03-22T13:38:59.9894222".to_string(),
             email: email(),
             b2b_b2c: Some(CustomerType::Individual),
-            item_value: Some(FloatMajorUnit(10.00)),
-            total_value: FloatMajorUnit(15.00),
+            item_value: Some(wire_amount("10.00")),
+            total_value: wire_amount("15.00"),
             number_of_installments: Some(1),
             ip: Some("192.168.0.1".to_string()),
             is_gift: Some(false),
@@ -382,18 +383,18 @@ mod tests {
                 }],
                 delivery_type: Some("1".to_string()),
                 delivery_time: Some("2 dias úteis".to_string()),
-                price: Some(FloatMajorUnit(5.00)),
+                price: Some(wire_amount("5.00")),
                 pick_up_store_document: Some(Secret::new("12345678910".to_string())),
             }),
             payments: vec![ClearSalePayment {
                 payment_type: 1,
-                value: FloatMajorUnit(25.00),
+                value: wire_amount("25.00"),
                 date: Some("2017-03-21T22:36:53.0000000".to_string()),
                 currency: Some(986),
                 sequential: Some(1),
                 installments: Some(1),
-                interest_rate: Some(FloatMajorUnit(10.0)),
-                interest_value: Some(FloatMajorUnit(2.00)),
+                interest_rate: Some(wire_amount("10.0")),
+                interest_value: Some(wire_amount("2.00")),
                 card: Some(ClearSaleCard {
                     bin: Secret::new("123456".to_string()),
                     end: Secret::new("1234".to_string()),
@@ -411,7 +412,7 @@ mod tests {
                 name: "Item description".to_string(),
                 code: Some("Item Code".to_string()),
                 bar_code: None,
-                value: Some(FloatMajorUnit(10.00)),
+                value: Some(wire_amount("10.00")),
                 // ClearSale documents items[].amount as Integer (line quantity).
                 amount: Some(1),
                 category_id: Some(1),
@@ -1311,7 +1312,7 @@ mod tests {
         assert_eq!(order.items.len(), 1);
         assert_eq!(order.items[0].amount, Some(2));
         // `itemValue` is the items subtotal (unit × quantity), not `totalValue`.
-        assert_eq!(order.item_value, Some(FloatMajorUnit(300.00)));
+        assert_eq!(order.item_value, Some(wire_amount("300.00")));
         assert_eq!(order.nationality, None);
         // Country goes on the wire as the documented name, not ISO alpha-2.
         assert_eq!(order.country.as_deref(), Some("Brasil"));
@@ -1631,7 +1632,7 @@ mod tests {
     fn build_clear_sale_items_uses_integer_quantity() {
         let items = build_clear_sale_items(Some(&order_details()), Some(false)).unwrap();
         assert_eq!(items[0].amount, Some(2));
-        assert_eq!(items[0].value, Some(FloatMajorUnit(150.0)));
+        assert_eq!(items[0].value, Some(wire_amount("150.0")));
         assert!(build_clear_sale_items(None, None).unwrap().is_empty());
         assert!(build_clear_sale_items(Some(&Vec::new()), None)
             .unwrap()
@@ -1649,7 +1650,7 @@ mod tests {
         });
         let payment = build_clear_sale_payment(
             Some(&debit),
-            FloatMajorUnit(150.0),
+            wire_amount("150.0"),
             "2026-10-22T04:43:43.169848",
             None,
             None,
@@ -1665,7 +1666,7 @@ mod tests {
         // Credit keeps the card block (and still requires one).
         let credit = build_clear_sale_payment(
             Some(&card()),
-            FloatMajorUnit(150.0),
+            wire_amount("150.0"),
             "2026-10-22T04:43:43.169848",
             None,
             None,
@@ -1727,7 +1728,7 @@ mod tests {
         for instrument in [&google_pay, &apple_pay, &network_tx_id] {
             let payment = build_clear_sale_payment(
                 Some(instrument),
-                FloatMajorUnit(150.0),
+                wire_amount("150.0"),
                 "2026-10-22T04:43:43.169848",
                 None,
                 None,

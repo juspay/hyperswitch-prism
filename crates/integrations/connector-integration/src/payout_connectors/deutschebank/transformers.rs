@@ -602,17 +602,12 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         let creation_date_time = current_iso_utc_seconds()?;
         let execution_date = sepa_execution_date()?;
 
-        let amount = utils::convert_amount(&FloatMajorUnitForConnector, &{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: deutschebank-transfer; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                req.request.money.amount(),
-                req.request.destination_currency,
-            );
-            legacy_money
-        })?;
+        crate::payout_connectors::require_matching_payout_currency(
+            &req.request.money,
+            req.request.destination_currency,
+            "Deutschebank",
+        )?;
+        let amount = utils::convert_amount(&FloatMajorUnitForConnector, &req.request.money)?;
         let purpose_code = req
             .resource_common_data
             .description
@@ -683,7 +678,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
                         },
                         amount: DeutschebankAmountWrapper {
                             instructed_amount: DeutschebankInstructedAmount {
-                                currency: req.request.destination_currency,
+                                currency: req.request.money.currency(),
                                 value: amount,
                             },
                         },

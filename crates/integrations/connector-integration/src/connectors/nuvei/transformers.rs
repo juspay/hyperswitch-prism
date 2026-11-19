@@ -92,14 +92,14 @@ impl TryFrom<&ConnectorSpecificConfig> for NuveiAuthType {
 }
 
 impl NuveiAuthType {
-    pub fn generate_checksum(&self, params: &[&str]) -> String {
+    pub fn generate_checksum(
+        &self,
+        params: &[&dyn common_utils::crypto::SignatureValue],
+    ) -> String {
         use sha2::{Digest, Sha256};
-
-        let mut concatenated = params.join("");
-        concatenated.push_str(self.merchant_secret.peek());
-
         let mut hasher = Sha256::new();
-        hasher.update(concatenated.as_bytes());
+        common_utils::crypto::update_signature(params, |bytes| hasher.update(bytes));
+        hasher.update(self.merchant_secret.peek().as_bytes());
         format!("{:x}", hasher.finalize())
     }
 
@@ -3510,7 +3510,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_id.peek(),
             auth.merchant_site_id.peek(),
             &client_request_id,
-            &amount.to_string(),
+            &amount,
             &currency.to_string(),
             &time_stamp.to_string(),
         ]);
@@ -4576,7 +4576,7 @@ fn build_nuvei_three_ds_payment_request<
         auth.merchant_id.peek(),
         auth.merchant_site_id.peek(),
         &client_request_id,
-        &amount.to_string(),
+        &amount,
         &currency.to_string(),
         &time_stamp.to_string(),
     ]);
@@ -5055,7 +5055,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_site_id.peek(),
             &client_request_id,
             &client_unique_id,
-            &amount.to_string(),
+            &amount,
             &currency.to_string(),
             &related_transaction_id,
             &time_stamp.to_string(),
@@ -5307,7 +5307,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_site_id.peek(),
             &client_request_id,
             &client_unique_id,
-            &amount.to_string(),
+            &amount,
             &currency.to_string(),
             &related_transaction_id,
             &time_stamp.to_string(),
@@ -5624,7 +5624,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_site_id.peek(),
             &client_request_id,
             &client_unique_id,
-            &amount.to_string(),
+            &amount,
             &currency.to_string(),
             &related_transaction_id,
             &time_stamp.to_string(),
@@ -5977,7 +5977,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_id.peek(),
             auth.merchant_site_id.peek(),
             &client_request_id,
-            &amount.to_string(),
+            &amount,
             &currency.to_string(),
             &time_stamp.to_string(),
         ]);
@@ -6296,7 +6296,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_id.peek(),
             auth.merchant_site_id.peek(),
             &client_request_id,
-            &amount.to_string(),
+            &amount,
             &currency.to_string(),
             &time_stamp.to_string(),
         ]);
@@ -6735,7 +6735,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_id.peek(),
             auth.merchant_site_id.peek(),
             &client_request_id,
-            &amount.to_string(),
+            &amount,
             &currency.to_string(),
             &time_stamp.to_string(),
         ]);

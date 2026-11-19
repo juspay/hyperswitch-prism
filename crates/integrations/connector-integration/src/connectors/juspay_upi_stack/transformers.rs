@@ -291,7 +291,7 @@ pub fn build_authorize_request<T: PaymentMethodDataTypes + serde::Serialize>(
         PaymentsResponseData,
     >,
     auth: &JuspayUpiAuthConfig,
-    amount_str: String,
+    amount_str: common_utils::types::StringMajorUnit,
 ) -> Result<JwsObject, error_stack::Report<IntegrationError>> {
     use crate::connectors::juspay_upi_stack::crypto::get_current_timestamp_ms;
 

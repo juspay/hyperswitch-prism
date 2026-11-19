@@ -244,10 +244,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
                             additional_context: Some(format!(
-                                "Failed to convert minor amount {} {} to major unit \
+                                "Failed to convert minor amount in {} to major unit \
                                  for Elavon Authorize request",
-                                common_utils::types::ConnectorMinorUnitForConnector
-                                    .convert(&request_data.money),
                                 request_data.currency
                             )),
                             ..Default::default()
@@ -859,10 +857,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Failed to convert capture amount {} {} to major unit for \
+                        "Failed to convert capture amount in {} to major unit for \
                          Elavon Capture (cccomplete) request",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&router_data.request.capture_money),
                         router_data.request.currency
                     )),
                     ..Default::default()
@@ -1056,10 +1052,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Failed to convert refund amount {} {} to major unit for \
+                        "Failed to convert refund amount in {} to major unit for \
                          Elavon Refund (ccreturn) request",
-                        common_utils::types::ConnectorMinorUnitForConnector
-                            .convert(&request_data.refund_money),
                         request_data.currency
                     )),
                     ..Default::default()
@@ -1575,9 +1569,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Failed to convert repeat payment amount {} {} to major unit for \
+                        "Failed to convert repeat payment amount in {} to major unit for \
                          Elavon RepeatPayment request",
-                        common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
                         request.currency
                     )),
                     ..Default::default()

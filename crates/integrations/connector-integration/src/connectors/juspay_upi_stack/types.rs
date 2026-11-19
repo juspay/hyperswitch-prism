@@ -47,7 +47,7 @@ pub enum RegisterIntentFlowType {
 pub struct RegisterIntentRequest {
     pub merchant_request_id: String,
     pub upi_request_id: String,
-    pub amount: String,
+    pub amount: common_utils::types::StringMajorUnit,
     pub flow: RegisterIntentFlowType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub intent_request_expiry_minutes: Option<String>,

@@ -129,18 +129,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(&{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: stripe-create; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                request.money.amount(),
-                request.destination_currency,
-            );
-            legacy_money
-        })?;
-        let currency = request.destination_currency;
+        crate::payout_connectors::require_matching_payout_currency(
+            &request.money,
+            request.destination_currency,
+            "Stripe",
+        )?;
+        let amount = StripeAmountConvertor::convert(&request.money)?;
+        let currency = request.money.currency();
 
         let destination = request
             .customer
@@ -246,18 +241,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(&{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: stripe-transfer; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                request.money.amount(),
-                request.destination_currency,
-            );
-            legacy_money
-        })?;
-        let currency = request.destination_currency;
+        crate::payout_connectors::require_matching_payout_currency(
+            &request.money,
+            request.destination_currency,
+            "Stripe",
+        )?;
+        let amount = StripeAmountConvertor::convert(&request.money)?;
+        let currency = request.money.currency();
         Ok(Self { amount, currency })
     }
 }

@@ -290,19 +290,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
             .into());
         }
 
+        crate::payout_connectors::require_matching_payout_currency(
+            &item.request.money,
+            item.request.destination_currency,
+            "Paypal",
+        )?;
         let amount = PayoutAmount {
-            value: domain_utils::convert_amount(&StringMajorUnitForConnector, &{
-                #[expect(
-                    clippy::disallowed_methods,
-                    reason = "Temporary payout currency contract: paypal-transfer; see PR #2642"
-                )]
-                let legacy_money = common_utils::types::Money::from_minor_unit(
-                    item.request.money.amount(),
-                    item.request.destination_currency,
-                );
-                legacy_money
-            })?,
-            currency: item.request.destination_currency,
+            value: domain_utils::convert_amount(&StringMajorUnitForConnector, &item.request.money)?,
+            currency: item.request.money.currency(),
         };
 
         let payout_method_data = match item.request.payout_method_data.as_ref() {

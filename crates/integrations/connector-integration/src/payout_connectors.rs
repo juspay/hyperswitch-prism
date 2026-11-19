@@ -1,3 +1,26 @@
+/// Single-currency request shapes cannot reinterpret source money as target money.
+pub(crate) fn require_matching_payout_currency(
+    money: &common_utils::types::Money,
+    destination_currency: common_enums::Currency,
+    connector: &'static str,
+) -> Result<(), error_stack::Report<domain_types::errors::IntegrationError>> {
+    if money.currency() != destination_currency {
+        return Err(domain_types::errors::IntegrationError::NotSupported {
+            message: "Cross-currency payout amount mapping is not supported by this integration".to_owned(),
+            connector,
+            context: domain_types::errors::IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Source money is denominated in {:?}, but the requested destination currency is {:?}; unit conversion does not perform FX",
+                    money.currency(), destination_currency,
+                )),
+                suggested_action: Some("Use matching currencies or an explicitly supported provider FX/quote flow".to_owned()),
+                doc_url: None,
+            },
+        }.into());
+    }
+    Ok(())
+}
+
 pub mod itaubank;
 pub use self::itaubank::ItaubankPayouts;
 

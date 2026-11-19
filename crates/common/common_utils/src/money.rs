@@ -1,6 +1,6 @@
 //! Money types and amount converters.
 
-use std::{fmt::Display, str::FromStr};
+use std::str::FromStr;
 
 use common_enums::enums;
 use error_stack::ResultExt;
@@ -181,6 +181,18 @@ impl ConnectorMinorUnitForConnector {
         ConnectorMinorUnit(money.amount.get_amount_as_i64())
     }
 
+    /// Decode a quoted integer response amount without exposing its scalar value.
+    pub fn deserialize_string<'de, D>(deserializer: D) -> Result<ConnectorMinorUnit, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        value
+            .parse::<i64>()
+            .map(ConnectorMinorUnit)
+            .map_err(serde::de::Error::custom)
+    }
+
     /// Decode an optional quoted minor-unit response amount, ignoring invalid integer text.
     /// Non-string JSON values remain deserialization errors.
     pub fn deserialize_optional_string<'de, D>(
@@ -201,7 +213,10 @@ impl ConnectorMinorUnitForConnector {
     where
         S: serde::Serializer,
     {
-        serde::Serialize::serialize(&amount.as_ref().map(ToString::to_string), serializer)
+        serde::Serialize::serialize(
+            &amount.as_ref().map(|amount| amount.0.to_string()),
+            serializer,
+        )
     }
 }
 
@@ -389,9 +404,9 @@ impl ConnectorMinorUnit {
     }
 }
 
-impl Display for ConnectorMinorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+impl crate::crypto::SignatureValue for ConnectorMinorUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(self.0.to_string().as_bytes());
     }
 }
 
@@ -437,15 +452,94 @@ impl StringMinorUnit {
     }
 }
 
-impl Display for StringMinorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+impl crate::crypto::SignatureValue for StringMinorUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(self.0.as_bytes());
     }
 }
 
 /// Connector specific types to send
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
-pub struct FloatMajorUnit(pub f64);
+pub struct FloatMajorUnit(f64);
+
+/// Numeric amounts use fixed hundredths when included in a connector signature.
+impl crate::crypto::SignatureValue for FloatMajorUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(format!("{:.2}", self.0).as_bytes());
+    }
+}
+
+/// Numeric major units with at most two decimal places and no scalar accessor.
+/// JSON numbers do not preserve trailing zeroes; use the string type when required.
+#[derive(Default, Debug, serde::Serialize, Clone, Copy, PartialEq, PartialOrd, ToSchema)]
+#[serde(transparent)]
+pub struct FloatMajorUnitWithTwoDecimals(f64);
+
+impl FloatMajorUnitWithTwoDecimals {
+    fn decimal(value: f64) -> Result<Decimal, error_stack::Report<ParsingError>> {
+        let decimal =
+            Decimal::from_f64(value).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+        if decimal.normalize().scale() > TWO_DECIMAL_EXPONENT || decimal.to_f64() != Some(value) {
+            return Err(error_stack::report!(ParsingError::StructParseFailure(
+                "numeric major-unit amount with two decimals"
+            )));
+        }
+        Ok(decimal)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for FloatMajorUnitWithTwoDecimals {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <f64 as serde::Deserialize>::deserialize(deserializer)?;
+        Self::decimal(value).map_err(serde::de::Error::custom)?;
+        Ok(Self(value))
+    }
+}
+
+/// Converts Money to numeric major units without rounding or losing its value.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnitWithTwoDecimalsForConnector;
+
+impl AmountConvertor for FloatMajorUnitWithTwoDecimalsForConnector {
+    type Output = FloatMajorUnitWithTwoDecimals;
+
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        let scale = Decimal::from_i128_with_scale(currency_scale(money.currency)?, 0);
+        let major = Decimal::from(money.amount.0) / scale;
+        let value = major
+            .to_f64()
+            .ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+        if FloatMajorUnitWithTwoDecimals::decimal(value)? != major {
+            return Err(error_stack::report!(ParsingError::StructParseFailure(
+                "lossless numeric major-unit amount with two decimals"
+            )));
+        }
+        Ok(FloatMajorUnitWithTwoDecimals(value))
+    }
+
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        currency: enums::Currency,
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        let scale = Decimal::from_i128_with_scale(currency_scale(currency)?, 0);
+        let minor = FloatMajorUnitWithTwoDecimals::decimal(amount.0)?
+            .checked_mul(scale)
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        if !minor.fract().is_zero() {
+            return Err(error_stack::report!(ParsingError::StructParseFailure(
+                "whole minor-unit amount"
+            )));
+        }
+        let minor = minor
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(Money::from_minor_unit(MinorUnit::new(minor), currency))
+    }
+}
 
 impl FloatMajorUnit {
     /// forms a new major unit from amount
@@ -528,12 +622,6 @@ impl StringMajorUnit {
     /// forms a new StringMajorUnit default unit i.e zero
     pub fn zero() -> Self {
         Self("0".to_string())
-    }
-}
-
-impl Display for StringMajorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
     }
 }
 
@@ -632,9 +720,9 @@ impl StringTwoDecimalUnit {
     }
 }
 
-impl Display for StringTwoDecimalUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+impl crate::crypto::SignatureValue for StringTwoDecimalUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(self.0.as_bytes());
     }
 }
 

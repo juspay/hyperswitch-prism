@@ -683,9 +683,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 (data.amount, data.currency)
             }
         };
-        let amount = amount
-            .map(|amount| amount.to_string())
-            .unwrap_or("".to_string());
         let currency = currency
             .map(|amount| amount.to_string())
             .unwrap_or("".to_string());
@@ -695,17 +692,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Could not convert webhook secret auth to UTF-8")?;
         let reversed_secret_auth = novalnet::reverse_string(&secret_auth);
 
-        let message = format!(
-            "{}{}{}{}{}{}",
-            notif.event.tid,
-            notif.event.event_type,
-            notif.result.status,
-            amount,
-            currency,
-            reversed_secret_auth
-        );
+        let mut message = format!(
+            "{}{}{}",
+            notif.event.tid, notif.event.event_type, notif.result.status,
+        )
+        .into_bytes();
+        if let Some(amount) = amount {
+            crypto::SignatureValue::update_signature(&amount, &mut |bytes| {
+                message.extend_from_slice(bytes)
+            });
+        }
+        message.extend_from_slice(currency.as_bytes());
+        message.extend_from_slice(reversed_secret_auth.as_bytes());
 
-        Ok(message.into_bytes())
+        Ok(message)
     }
 
     fn verify_webhook_source(

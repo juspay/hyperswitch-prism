@@ -1,11 +1,6 @@
 #![allow(unused_imports)]
 #![cfg_attr(
     not(feature = "domain_boundary"),
-    deny(clippy::disallowed_methods, clippy::disallowed_types)
-)]
-// Exercise the future policy separately from the temporary production deny policy.
-#![cfg_attr(
-    feature = "boundary_allow",
     forbid(clippy::disallowed_methods, clippy::disallowed_types)
 )]
 #![forbid(unfulfilled_lint_expectations)]
@@ -14,6 +9,64 @@ use common_enums::Currency;
 #[cfg(feature = "domain_boundary")]
 use common_utils::types::MinorUnit;
 use common_utils::types::{AmountConvertor, ConnectorMinorUnitForConnector, Money};
+
+#[cfg(feature = "float_major_read")]
+pub fn float_major_read(amount: common_utils::FloatMajorUnit) {
+    let _ = amount.0;
+}
+
+#[cfg(feature = "float_major_write")]
+pub fn float_major_write(amount: &mut common_utils::FloatMajorUnit) {
+    amount.0 = 1.23;
+}
+
+#[cfg(feature = "float_major_constructor")]
+pub fn float_major_constructor() {
+    let _ = common_utils::FloatMajorUnit(1.23);
+}
+
+#[cfg(feature = "two_decimal_float_pass")]
+pub fn two_decimal_float_pass(money: &Money) {
+    let converter = common_utils::FloatMajorUnitWithTwoDecimalsForConnector;
+    let amount: common_utils::FloatMajorUnitWithTwoDecimals = converter.convert(money).unwrap();
+    let _ = amount == Default::default();
+    let _ = converter.convert_back(amount, money.currency()).unwrap();
+}
+
+#[cfg(feature = "two_decimal_float_read")]
+pub fn two_decimal_float_read(amount: common_utils::FloatMajorUnitWithTwoDecimals) {
+    let _ = amount.0;
+}
+
+#[cfg(feature = "two_decimal_float_write")]
+pub fn two_decimal_float_write(amount: &mut common_utils::FloatMajorUnitWithTwoDecimals) {
+    amount.0 = 1.23;
+}
+
+#[cfg(feature = "two_decimal_float_constructor")]
+pub fn two_decimal_float_constructor() {
+    let _ = common_utils::FloatMajorUnitWithTwoDecimals(1.23);
+}
+
+#[cfg(feature = "two_decimal_float_add")]
+pub fn two_decimal_float_add(amount: common_utils::FloatMajorUnitWithTwoDecimals) {
+    let _ = amount + amount;
+}
+
+#[cfg(feature = "two_decimal_float_sub")]
+pub fn two_decimal_float_sub(amount: common_utils::FloatMajorUnitWithTwoDecimals) {
+    let _ = amount - amount;
+}
+
+#[cfg(feature = "two_decimal_float_mul")]
+pub fn two_decimal_float_mul(amount: common_utils::FloatMajorUnitWithTwoDecimals) {
+    let _ = amount * 2_u16;
+}
+
+#[cfg(feature = "two_decimal_float_sum")]
+pub fn two_decimal_float_sum(amount: common_utils::FloatMajorUnitWithTwoDecimals) {
+    let _: common_utils::FloatMajorUnitWithTwoDecimals = std::iter::once(amount).sum();
+}
 
 #[cfg(feature = "minor_unit_type_alias")]
 pub type DomainAmount = common_utils::MinorUnit;
@@ -144,6 +197,10 @@ pub fn domain_boundary(amount: MinorUnit, currency: Currency) -> Money {
 
 #[cfg(feature = "connector_pass")]
 pub fn connector_pass(money: &Money) {
+    let float_converter = common_utils::FloatMajorUnitForConnector;
+    let float_amount = float_converter.convert(money).unwrap();
+    let _ = float_amount.is_positive();
+    let _ = float_converter.convert_back(float_amount, money.currency()).unwrap();
     let _zero = Money::zero(money.currency());
     let _one_minor_unit = Money::one_minor_unit(money.currency());
     let amount: common_utils::types::ConnectorMinorUnit =
@@ -155,12 +212,50 @@ pub fn connector_pass(money: &Money) {
         .unwrap();
     let _major_wire = common_utils::types::StringMajorUnitForConnector
         .convert(money)
-        .unwrap()
-        .to_string();
+        .unwrap();
     let _two_decimal_wire = common_utils::types::StringTwoDecimalUnitForConnector
         .convert(money)
-        .unwrap()
-        .to_string();
+        .unwrap();
+}
+
+#[cfg(feature = "connector_minor_to_string")]
+pub fn connector_minor_to_string(amount: common_utils::types::ConnectorMinorUnit) -> String {
+    amount.to_string()
+}
+
+#[cfg(feature = "connector_minor_display")]
+pub fn connector_minor_display(amount: common_utils::types::ConnectorMinorUnit) -> String {
+    format!("{amount}")
+}
+
+#[cfg(feature = "string_minor_to_string")]
+pub fn string_minor_to_string(amount: common_utils::types::StringMinorUnit) -> String {
+    amount.to_string()
+}
+
+#[cfg(feature = "string_minor_display")]
+pub fn string_minor_display(amount: common_utils::types::StringMinorUnit) -> String {
+    format!("{amount}")
+}
+
+#[cfg(feature = "string_major_to_string")]
+pub fn string_major_to_string(amount: common_utils::types::StringMajorUnit) -> String {
+    amount.to_string()
+}
+
+#[cfg(feature = "string_major_display")]
+pub fn string_major_display(amount: common_utils::types::StringMajorUnit) -> String {
+    format!("{amount}")
+}
+
+#[cfg(feature = "string_two_decimal_to_string")]
+pub fn string_two_decimal_to_string(amount: common_utils::types::StringTwoDecimalUnit) -> String {
+    amount.to_string()
+}
+
+#[cfg(feature = "string_two_decimal_display")]
+pub fn string_two_decimal_display(amount: common_utils::types::StringTwoDecimalUnit) -> String {
+    format!("{amount}")
 }
 
 #[cfg(feature = "string_major_getter")]
@@ -177,7 +272,7 @@ pub fn string_two_decimal_getter(amount: &common_utils::types::StringTwoDecimalU
 pub fn boundary_expect(currency: Currency) -> Money {
     #[expect(
         clippy::disallowed_methods,
-        reason = "Temporary statement-scoped compatibility exception"
+        reason = "Attempted exception must fail under the L3 forbid policy"
     )]
     let money = common_utils::types::Money::from_minor_unit(Default::default(), currency);
     money
@@ -187,7 +282,7 @@ pub fn boundary_expect(currency: Currency) -> Money {
 pub fn boundary_expect_scope(currency: Currency) -> (Money, Money) {
     #[expect(
         clippy::disallowed_methods,
-        reason = "Temporary statement-scoped compatibility exception"
+        reason = "Attempted exception must fail under the L3 forbid policy"
     )]
     let legacy_money =
         common_utils::types::Money::from_minor_unit(Default::default(), currency);
@@ -279,19 +374,11 @@ pub struct DomainMinorUnitPayload {
 }
 
 #[cfg(feature = "minor_unit_constructor")]
-#[expect(
-    clippy::disallowed_types,
-    reason = "Exercise the constructor-method ban independently of the type ban"
-)]
 pub fn minor_unit_constructor() {
     let _ = common_utils::types::MinorUnit::new(1);
 }
 
 #[cfg(feature = "minor_unit_constructor_pointer")]
-#[expect(
-    clippy::disallowed_types,
-    reason = "Exercise the constructor-method ban independently of the type ban"
-)]
 pub fn minor_unit_constructor_pointer() {
     let create = common_utils::types::MinorUnit::new;
     let _ = create(1);

@@ -174,7 +174,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        build_authorize_request(router_data, &shared_auth, amount.to_string())
+        build_authorize_request(router_data, &shared_auth, amount)
     }
 }
 

@@ -1391,15 +1391,24 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         AttemptStatus::Charged => (response.amount, None),
                         AttemptStatus::PartialCharged => {
                             let captured = response.total_captured;
-
-                            let capturable = response
-                                .amount
-                                .zip(captured)
-                                .map(|(total, captured)| total - captured);
-
-                            (captured, capturable)
+                            (captured, None)
                         }
                         _ => (None, None),
+                    };
+                    let reported_amounts = if status == AttemptStatus::PartialCharged {
+                        Some(domain_types::connector_types::ReportedPaymentAmounts::Capturable {
+                            total_money: response.amount
+                                .map(|amount| utils::response_amount_to_money(
+                                    &connector,
+                                    amount,
+                                    router_data.request.money.currency(),
+                                    http_code,
+                                    domain_types::connector_types::ConnectorEnum::Imerchantsolutions,
+                                ))
+                                .transpose()?,
+                        })
+                    } else {
+                        None
                     };
                     let amount_captured = amount_captured
                         .map(|amount| {
@@ -1428,6 +1437,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         resource_common_data: PaymentFlowData {
                             status,
                             captured_money: amount_captured,
+                            reported_amounts,
                             capturable_money: amount_capturable,
                             ..router_data.resource_common_data
                         },

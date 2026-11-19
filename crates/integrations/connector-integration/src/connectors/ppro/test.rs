@@ -1574,6 +1574,7 @@ mod satispay_request_tests {
                 connector_feature_data: None,
                 captured_money: None,
                 capturable_money: None,
+                reported_amounts: None,
                 authorized_money: None,
                 access_token: None,
                 session_token: None,

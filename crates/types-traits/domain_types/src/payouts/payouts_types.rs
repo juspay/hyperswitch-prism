@@ -104,6 +104,7 @@ pub struct PayoutCreateRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub connector_quote_id: Option<String>,
     pub connector_payout_id: Option<String>,
+    /// Amount denominated in the source currency, as supplied by proto.
     pub money: common_utils::types::Money,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
@@ -134,6 +135,7 @@ pub struct PayoutTransferRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_payout_id: Option<String>,
     pub connector_quote_id: Option<String>,
     pub connector_payout_id: Option<String>,
+    /// Amount denominated in the source currency, as supplied by proto.
     pub money: common_utils::types::Money,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
@@ -447,8 +449,8 @@ pub struct PayoutGetResponse {
 #[derive(Debug, Clone)]
 pub struct PayoutStageRequest<T: PaymentMethodDataTypes = DefaultPCIHolder> {
     pub merchant_quote_id: Option<String>,
-    pub amount: common_utils::types::MinorUnit,
-    pub source_currency: common_enums::Currency,
+    /// Amount denominated in the source currency, as supplied by proto.
+    pub money: common_utils::types::Money,
     pub destination_currency: common_enums::Currency,
     pub payout_method_data: Option<crate::payouts::payout_method_data::PayoutMethodData<T>>,
     pub customer: Option<PayoutCustomer>,

@@ -5,7 +5,7 @@ use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
 use common_utils::{
     errors::CustomResult,
     pii::SecretSerdeValue,
-    types::{MinorUnit, MinorUnitForConnector, Money, StringMinorUnitForConnector},
+    types::{ConnectorMinorUnitForConnector, Money, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -1798,7 +1798,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .request
             .money
             .as_ref()
-            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+            .map(|money| ConnectorMinorUnitForConnector.convert(money))
             .is_some_and(|amount| amount.is_greater_than(0))
         {
             return Err(IntegrationError::FlowNotSupported {
@@ -2652,17 +2652,18 @@ impl TryFrom<&responses::WorldpayxmlAmountResponse> for Money {
     type Error = Report<WebhookError>;
 
     fn try_from(amount: &responses::WorldpayxmlAmountResponse) -> Result<Self, Self::Error> {
-        let minor_amount = MinorUnit::new(amount.value.parse::<i64>().change_context(
-            WebhookError::WebhookAmountConversionFailed {
-                reason: "Invalid Worldpay XML minor-unit amount".to_string(),
-            },
-        )?);
+        let minor_amount = ConnectorMinorUnitForConnector::deserialize_string(
+            serde::de::value::StrDeserializer::<serde::de::value::Error>::new(&amount.value),
+        )
+        .change_context(WebhookError::WebhookAmountConversionFailed {
+            reason: "Invalid Worldpay XML minor-unit amount".to_string(),
+        })?;
         let currency = amount
             .currency_code
             .parse::<common_enums::Currency>()
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         domain_types::utils::convert_back_amount_to_money_for_webhook(
-            &MinorUnitForConnector,
+            &ConnectorMinorUnitForConnector,
             minor_amount,
             currency,
         )

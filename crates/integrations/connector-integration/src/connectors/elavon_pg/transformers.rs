@@ -660,12 +660,8 @@ impl ElavonPgCaptureRoute {
             None => Ok(Self::Partial),
             Some(metadata) if metadata.is_partially_capturable => Ok(Self::Partial),
             Some(metadata) if metadata.authorized_total == *requested_total => Ok(Self::Full),
-            Some(metadata) => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: format!(
-                    "a capture of {} against an authorization of {}: partial capture on an \
-                     account whose EPG transactions report isPartiallyCapturable = false",
-                    requested_total, metadata.authorized_total,
-                ),
+            Some(_) => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "a partial capture against an authorization on an account whose EPG transactions report isPartiallyCapturable = false".to_owned(),
                 connector: ELAVON_PG_CONNECTOR_ID,
                 context: IntegrationErrorContext {
                     additional_context: Some(

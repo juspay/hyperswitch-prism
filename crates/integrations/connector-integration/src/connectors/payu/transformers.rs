@@ -888,42 +888,32 @@ fn generate_payu_hash(
 
     // Build hash fields array exactly as PayU expects based on Haskell implementation
     // Pattern from Haskell: key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5|udf6|udf7|udf8|udf9|udf10|salt
-    let hash_fields = vec![
-        request.key.clone(),                                // key
-        request.txnid.clone(),                              // txnid
-        request.amount.to_string(),                         // amount
-        request.productinfo.clone(),                        // productinfo
-        request.firstname.peek().clone(),                   // firstname
-        request.email.peek().clone(),                       // email
-        request.udf1.as_deref().unwrap_or("").to_string(),  // udf1
-        request.udf2.as_deref().unwrap_or("").to_string(),  // udf2
-        request.udf3.as_deref().unwrap_or("").to_string(),  // udf3
-        request.udf4.as_deref().unwrap_or("").to_string(),  // udf4
-        request.udf5.as_deref().unwrap_or("").to_string(),  // udf5
-        request.udf6.as_deref().unwrap_or("").to_string(),  // udf6
-        request.udf7.as_deref().unwrap_or("").to_string(),  // udf7
-        request.udf8.as_deref().unwrap_or("").to_string(),  // udf8
-        request.udf9.as_deref().unwrap_or("").to_string(),  // udf9
-        request.udf10.as_deref().unwrap_or("").to_string(), // udf10
-        merchant_salt.peek().to_string(),                   // salt
+    let hash_fields: &[&dyn common_utils::crypto::SignatureValue] = &[
+        &request.key,
+        &request.txnid,
+        &request.amount,
+        &request.productinfo,
+        request.firstname.peek(),
+        request.email.peek(),
+        &request.udf1.as_deref().unwrap_or(""),
+        &request.udf2.as_deref().unwrap_or(""),
+        &request.udf3.as_deref().unwrap_or(""),
+        &request.udf4.as_deref().unwrap_or(""),
+        &request.udf5.as_deref().unwrap_or(""),
+        &request.udf6.as_deref().unwrap_or(""),
+        &request.udf7.as_deref().unwrap_or(""),
+        &request.udf8.as_deref().unwrap_or(""),
+        &request.udf9.as_deref().unwrap_or(""),
+        &request.udf10.as_deref().unwrap_or(""),
+        merchant_salt.peek(),
     ];
-
-    // Join with pipe separator as PayU expects
-    let hash_string = hash_fields.join("|");
-
-    // Log hash string for debugging (remove in production)
-    #[cfg(debug_assertions)]
-    {
-        if let Some(fields_without_last) = hash_fields.get(..hash_fields.len().saturating_sub(1)) {
-            let masked_hash = format!("{}|***MASKED***", fields_without_last.join("|"));
-            tracing::debug!("PayU hash string (salt masked): {}", masked_hash);
-            tracing::debug!("PayU expected format from Haskell: key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5|udf6|udf7|udf8|udf9|udf10|salt");
-        }
-    }
-
-    // Generate SHA-512 hash as PayU expects
     let mut hasher = Sha512::new();
-    hasher.update(hash_string.as_bytes());
+    for (index, field) in hash_fields.iter().enumerate() {
+        if index != 0 {
+            hasher.update(b"|");
+        }
+        field.update_signature(&mut |bytes| hasher.update(bytes));
+    }
     let result = hasher.finalize();
     Ok(hex::encode(result))
 }
@@ -1209,11 +1199,11 @@ fn map_payu_sync_status(payu_status: &str, txn_detail: &PayuTransactionDetail) -
 // Spec: key | command="capture_transaction" | var1=mihpayid | var2=amount | hash
 #[derive(Debug, Serialize)]
 pub struct PayuCaptureRequest {
-    pub key: String,     // Merchant key
-    pub command: String, // "capture_transaction"
-    pub var1: String,    // PayU payment ID (mihpayid / connector_transaction_id)
-    pub var2: String,    // Amount to capture
-    pub hash: String,    // SHA-512 signature: SHA512(key|command|var1|salt)
+    pub key: String,                                // Merchant key
+    pub command: String,                            // "capture_transaction"
+    pub var1: String, // PayU payment ID (mihpayid / connector_transaction_id)
+    pub var2: common_utils::types::StringMajorUnit, // Amount to capture
+    pub hash: String, // SHA-512 signature: SHA512(key|command|var1|salt)
 }
 
 // PayU Capture Response structure
@@ -1310,7 +1300,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             key: auth.api_key.peek().to_string(),
             command: command.clone(),
             var1: connector_transaction_id,
-            var2: amount.to_string(),
+            var2: amount,
             hash: String::new(), // Computed below
         };
 
@@ -1626,7 +1616,7 @@ pub struct PayuRefundRequest {
     pub key: String,
     pub command: String,
     pub var1: String,
-    pub var2: String,
+    pub var2: common_utils::types::StringMajorUnit,
     pub var3: String,
     pub hash: String,
 }
@@ -1702,7 +1692,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             key: auth.api_key.peek().to_string(),
             command,
             var1: connector_transaction_id,
-            var2: amount.to_string(),
+            var2: amount,
             var3: txnid,
             hash: String::new(),
         };

@@ -223,8 +223,28 @@ impl TryFrom<BankNames> for FPXTxnChannel {
 
 #[derive(Serialize, Debug, Clone)]
 pub struct FiuuMandateRequest {
-    #[serde(rename = "0")]
-    mandate_request: Secret<String>,
+    #[serde(rename = "0", serialize_with = "serialize_recurring_record")]
+    mandate_request: FiuuRecurringRecord,
+}
+
+#[derive(Debug, Clone)]
+struct FiuuRecurringRecord {
+    prefix: Secret<String>,
+    amount: StringMajorUnit,
+    suffix: Secret<String>,
+}
+
+fn serialize_recurring_record<S: serde::Serializer>(
+    record: &FiuuRecurringRecord,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut bytes = record.prefix.peek().as_bytes().to_vec();
+    crypto::SignatureValue::update_signature(&record.amount, &mut |amount| {
+        bytes.extend_from_slice(amount)
+    });
+    bytes.extend_from_slice(record.suffix.peek().as_bytes());
+    let value = std::str::from_utf8(&bytes).map_err(serde::ser::Error::custom)?;
+    serializer.serialize_str(value)
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -318,20 +338,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             verify_key: verify_key.clone(),
         };
         let check_sum = calculate_check_sum(recurring_request)?;
-        let mandate_request = format!(
-            "{}|{}||{}|{}|{}|{}|{}|{}|||{}",
-            record_type,
-            merchant_id.peek(),
-            token.peek(),
-            order_id,
-            currency,
-            amount,
-            billing_name.peek(),
-            email.peek(),
-            check_sum.peek()
-        );
         Ok(Self {
-            mandate_request: mandate_request.into(),
+            mandate_request: FiuuRecurringRecord {
+                prefix: Secret::new(format!(
+                    "{}|{}||{}|{}|{}|",
+                    record_type,
+                    merchant_id.peek(),
+                    token.peek(),
+                    order_id,
+                    currency
+                )),
+                amount,
+                suffix: Secret::new(format!(
+                    "|{}|{}|||{}",
+                    billing_name.peek(),
+                    email.peek(),
+                    check_sum.peek()
+                )),
+            },
         })
     }
 }
@@ -339,23 +363,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub fn calculate_check_sum(
     req: FiuuRecurringRequest,
 ) -> CustomResult<Secret<String>, IntegrationError> {
-    let formatted_string = format!(
-        "{}{}{}{}{}{}{}",
-        req.record_type,
+    calculate_fields_signature(&[
+        &req.record_type.to_string(),
         req.merchant_id.peek(),
         req.token.peek(),
-        req.order_id,
-        req.currency,
-        req.amount,
-        req.verify_key.peek()
-    );
-    Ok(Secret::new(hex::encode(
-        crypto::Md5
-            .generate_digest(formatted_string.as_bytes())
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?,
-    )))
+        &req.order_id,
+        &req.currency.to_string(),
+        &req.amount,
+        req.verify_key.peek(),
+    ])
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -490,12 +506,19 @@ pub struct FiuuGooglePayData {
 pub fn calculate_signature(
     signature_data: String,
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    let message = signature_data.as_bytes();
-    let encoded_data = hex::encode(crypto::Md5.generate_digest(message).change_context(
-        IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        },
-    )?);
+    calculate_fields_signature(&[&signature_data])
+}
+
+fn calculate_fields_signature(
+    fields: &[&dyn crypto::SignatureValue],
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    let encoded_data = hex::encode(
+        crypto::Md5
+            .generate_digest_from_fields(fields)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?,
+    );
     Ok(Secret::new(encoded_data))
 }
 
@@ -541,10 +564,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_request_reference_id
             .clone();
         let verify_key = auth.verify_key.peek().to_string();
-        let signature = calculate_signature(format!(
-            "{}{merchant_id}{reference_no}{verify_key}",
-            txn_amount
-        ))?;
+        let signature =
+            calculate_fields_signature(&[&txn_amount, &merchant_id, &reference_no, &verify_key])?;
         let txn_type = match item.router_data.request.is_auto_capture() {
             true => TxnType::Sals,
             false => TxnType::Auts,
@@ -765,10 +786,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_request_reference_id
             .clone();
         let verify_key = auth.verify_key.peek().to_string();
-        let signature = calculate_signature(format!(
-            "{}{merchant_id}{reference_no}{verify_key}",
-            txn_amount
-        ))?;
+        let signature =
+            calculate_fields_signature(&[&txn_amount, &merchant_id, &reference_no, &verify_key])?;
         let txn_type = match item.router_data.request.is_auto_capture() {
             true => TxnType::Sals,
             false => TxnType::Auts,
@@ -893,10 +912,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_request_reference_id
             .clone();
         let verify_key = auth.verify_key.peek().to_string();
-        let signature = calculate_signature(format!(
-            "{}{merchant_id}{reference_no}{verify_key}",
-            txn_amount
-        ))?;
+        let signature =
+            calculate_fields_signature(&[&txn_amount, &merchant_id, &reference_no, &verify_key])?;
         // SetupMandate is auth-only by intent (we just want to register the
         // mandate, not move funds). `Auts` is Fiuu's auth-only txn type and
         // is still compatible with `mpstokenstatus=1`.
@@ -1688,11 +1705,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ref_id: reference_no.clone(),
             txn_id: txn_id.clone(),
             amount: txn_amount.clone(),
-            signature: calculate_signature(format!(
-                "{}{merchant_id}{reference_no}{txn_id}{}{secret_key}",
-                RefundType::Partial,
-                txn_amount
-            ))?,
+            signature: calculate_fields_signature(&[
+                &RefundType::Partial.to_string(),
+                &merchant_id,
+                &reference_no,
+                &txn_id,
+                &txn_amount,
+                &secret_key,
+            ])?,
             notify_url: Some(
                 Url::parse(&item.router_data.request.get_webhook_url()?).change_context(
                     IntegrationError::RequestEncodingFailed {
@@ -1906,7 +1926,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: amount.clone(),
             tx_id: txn_id.clone(),
             domain: merchant_id.clone(),
-            skey: calculate_signature(format!("{txn_id}{merchant_id}{verify_key}{}", amount))?,
+            skey: calculate_fields_signature(&[&txn_id, &merchant_id, &verify_key, &amount])?,
         })
     }
 }
@@ -2226,8 +2246,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
         let verify_key = auth.verify_key.peek().to_string();
-        let signature =
-            calculate_signature(format!("{txn_id}{}{merchant_id}{verify_key}", amount))?;
+        let signature = calculate_fields_signature(&[&txn_id, &amount, &merchant_id, &verify_key])?;
         Ok(Self {
             domain: merchant_id,
             tran_id: txn_id,

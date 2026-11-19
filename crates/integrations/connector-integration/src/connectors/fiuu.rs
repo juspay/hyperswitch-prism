@@ -765,18 +765,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         let verification_message = match resource {
             FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => {
-                let key0 = format!(
-                    "{}{}{}{}{}{}",
-                    webhooks_payment_response.tran_id,
-                    webhooks_payment_response.order_id,
-                    webhooks_payment_response.status,
-                    webhooks_payment_response.domain.clone().peek(),
-                    webhooks_payment_response.amount,
-                    webhooks_payment_response.currency
-                );
                 let md5_key0 = hex::encode(
                     crypto::Md5
-                        .generate_digest(key0.as_bytes())
+                        .generate_digest_from_fields(&[
+                            &webhooks_payment_response.tran_id.to_string(),
+                            &webhooks_payment_response.order_id,
+                            &webhooks_payment_response.status.to_string(),
+                            webhooks_payment_response.domain.clone().peek(),
+                            &webhooks_payment_response.amount,
+                            &webhooks_payment_response.currency,
+                        ])
                         .change_context(WebhookError::WebhookSourceVerificationFailed)?,
                 );
                 let key1 = format!(
@@ -789,23 +787,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .map_or("".to_string(), |appcode| appcode.expose()),
                     String::from_utf8_lossy(&connector_webhook_secrets.secret)
                 );
-                key1
+                key1.into_bytes()
             }
             FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
-                format!(
-                    "{}{}{}{}{}{}{}{}",
+                let mut message = format!(
+                    "{}{}{}{}{}",
                     webhooks_refunds_response.refund_type,
                     webhooks_refunds_response.merchant_id.peek(),
                     webhooks_refunds_response.ref_id,
                     webhooks_refunds_response.refund_id,
                     webhooks_refunds_response.txn_id,
-                    webhooks_refunds_response.amount,
-                    webhooks_refunds_response.status,
-                    String::from_utf8_lossy(&connector_webhook_secrets.secret)
                 )
+                .into_bytes();
+                crypto::SignatureValue::update_signature(
+                    &webhooks_refunds_response.amount,
+                    &mut |bytes| message.extend_from_slice(bytes),
+                );
+                message.extend_from_slice(
+                    format!(
+                        "{}{}",
+                        webhooks_refunds_response.status,
+                        String::from_utf8_lossy(&connector_webhook_secrets.secret)
+                    )
+                    .as_bytes(),
+                );
+                message
             }
         };
-        Ok(verification_message.as_bytes().to_vec())
+        Ok(verification_message)
     }
 
     fn verify_webhook_source(
