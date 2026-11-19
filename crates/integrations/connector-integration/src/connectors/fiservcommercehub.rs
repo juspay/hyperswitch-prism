@@ -52,6 +52,8 @@ use transformers::{
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
+const FISERVCOMMERCEHUB_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(32);
+
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const API_KEY: &str = "Api-Key";
@@ -513,6 +515,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
+    }
+
+    fn get_request_timeout(&self) -> Option<std::time::Duration> {
+        Some(FISERVCOMMERCEHUB_REQUEST_TIMEOUT)
     }
 
     fn base_url<'a>(&self, _connectors: &'a Connectors) -> &'a str {
@@ -1192,3 +1198,19 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
     ],
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain_types::payment_method_data::DefaultPCIHolder;
+
+    #[test]
+    fn uses_connector_specific_request_timeout() {
+        let connector = Fiservcommercehub::<DefaultPCIHolder>::new();
+
+        assert_eq!(
+            connector.get_request_timeout(),
+            Some(std::time::Duration::from_secs(32))
+        );
+    }
+}

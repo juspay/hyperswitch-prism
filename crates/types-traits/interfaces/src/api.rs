@@ -35,6 +35,15 @@ pub trait ConnectorCommon {
         "application/json"
     }
 
+    /// Optional timeout for an individual connector HTTP request.
+    ///
+    /// This overrides the shared HTTP client's timeout without rebuilding the
+    /// client, so connectors with longer upstream response windows can retain
+    /// the existing connection pool.
+    fn get_request_timeout(&self) -> Option<std::time::Duration> {
+        None
+    }
+
     // FIXME write doc - think about this
     // fn headers(&self) -> Vec<(&str, &str)>;
 
