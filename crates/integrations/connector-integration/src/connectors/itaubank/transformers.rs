@@ -104,7 +104,7 @@ impl
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ItaubankAccessTokenResponse {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
 }
@@ -125,7 +125,7 @@ impl<F> TryFrom<ResponseRouterData<ItaubankAccessTokenResponse, Self>>
         let mut data = item.router_data;
         let token_res = item.response;
         data.response = Ok(ServerAuthenticationTokenResponseData {
-            access_token: token_res.access_token.into(),
+            access_token: token_res.access_token,
             token_type: token_res.token_type,
             expires_in: token_res.expires_in,
         });

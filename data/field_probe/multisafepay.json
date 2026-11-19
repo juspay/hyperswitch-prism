@@ -51,9 +51,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -153,9 +154,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -233,9 +235,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -273,9 +276,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -326,9 +330,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -374,9 +379,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -410,9 +416,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -580,9 +587,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -671,9 +679,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -719,9 +728,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -759,9 +769,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -817,9 +828,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -852,9 +864,10 @@
           }
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/auth/api_token?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/auth/api_token",
           "method": "Get",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -933,9 +946,10 @@
           }
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders/probe_connector_txn_001?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders/probe_connector_txn_001",
           "method": "Get",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -1005,9 +1019,10 @@
           "description": "Probe payment"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -1052,9 +1067,10 @@
           "reason": "customer_request"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders/probe_connector_txn_001/refunds?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders/probe_connector_txn_001/refunds",
           "method": "Post",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
@@ -1071,9 +1087,10 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://testapi.multisafepay.com/v1/json/orders/probe_refund_id_001?api_key=probe_key",
+          "url": "https://testapi.multisafepay.com/v1/json/orders/probe_refund_id_001",
           "method": "Get",
           "headers": {
+            "api_key": "probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
