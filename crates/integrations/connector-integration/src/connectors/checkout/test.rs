@@ -133,7 +133,7 @@ fn individual(date_of_birth: Option<time::Date>) -> SenderDetails {
 fn build(
     sender_details: Option<&SenderDetails>,
     customer: Option<&CustomerInfo>,
-) -> Result<serde_json::Value, error_stack::Report<IntegrationError>> {
+) -> Result<Value, error_stack::Report<IntegrationError>> {
     build_checkout_sender(
         &payment_flow_data(Some(billing_address())),
         sender_details,
