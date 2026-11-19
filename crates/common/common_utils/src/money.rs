@@ -1,11 +1,6 @@
 //! Money types and amount converters.
 
-use std::{
-    fmt::Display,
-    iter::Sum,
-    ops::{Add, Mul, Sub},
-    str::FromStr,
-};
+use std::{fmt::Display, str::FromStr};
 
 use common_enums::enums;
 use error_stack::ResultExt;
@@ -388,11 +383,6 @@ impl ConnectorMinorUnit {
         Self(0)
     }
 
-    /// Multiplies a converted connector amount without overflowing.
-    pub fn checked_mul(self, quantity: u16) -> Option<Self> {
-        self.0.checked_mul(i64::from(quantity)).map(Self)
-    }
-
     /// Checks a connector amount against an integer minor-unit threshold.
     pub fn is_greater_than(&self, value: i64) -> bool {
         self.0 > value
@@ -402,36 +392,6 @@ impl ConnectorMinorUnit {
 impl Display for ConnectorMinorUnit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
-    }
-}
-
-impl Add for ConnectorMinorUnit {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl Sub for ConnectorMinorUnit {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self(self.0 - rhs.0)
-    }
-}
-
-impl Mul<u16> for ConnectorMinorUnit {
-    type Output = Self;
-
-    fn mul(self, quantity: u16) -> Self::Output {
-        Self(self.0 * i64::from(quantity))
-    }
-}
-
-impl Sum for ConnectorMinorUnit {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self::zero(), |total, amount| total + amount)
     }
 }
 
@@ -523,22 +483,6 @@ impl FloatMajorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
-    }
-}
-
-impl Add for FloatMajorUnit {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl Mul<u16> for FloatMajorUnit {
-    type Output = Self;
-
-    fn mul(self, quantity: u16) -> Self::Output {
-        Self(self.0 * f64::from(quantity))
     }
 }
 

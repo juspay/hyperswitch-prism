@@ -685,7 +685,7 @@ pub struct CheckoutPayoutResponse {
     reference: Option<String>,
     requested_on: Option<String>,
     processed_on: Option<String>,
-    amount: Option<MinorUnit>,
+    amount: Option<ConnectorMinorUnit>,
     currency: Option<Currency>,
 }
 /// Checkout.com returns transfer statuses in PascalCase on the wire (e.g. `"Pending"`,

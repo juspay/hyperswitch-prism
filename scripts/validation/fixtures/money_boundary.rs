@@ -15,6 +15,77 @@ use common_enums::Currency;
 use common_utils::types::MinorUnit;
 use common_utils::types::{AmountConvertor, ConnectorMinorUnitForConnector, Money};
 
+#[cfg(feature = "minor_unit_type_alias")]
+pub type DomainAmount = common_utils::MinorUnit;
+
+#[cfg(feature = "money_amount_read")]
+pub fn money_amount_read(money: &Money) {
+    let _ = money.amount;
+}
+
+#[cfg(feature = "money_currency_read")]
+pub fn money_currency_read(money: &Money) {
+    let _ = money.currency;
+}
+
+#[cfg(feature = "money_amount_write")]
+pub fn money_amount_write(money: &mut Money) {
+    money.amount = Default::default();
+}
+
+#[cfg(feature = "money_currency_write")]
+pub fn money_currency_write(money: &mut Money) {
+    money.currency = Currency::USD;
+}
+
+#[cfg(feature = "connector_minor_add")]
+pub fn connector_minor_add(amount: common_utils::ConnectorMinorUnit) {
+    let _ = amount + amount;
+}
+
+#[cfg(feature = "connector_minor_sub")]
+pub fn connector_minor_sub(amount: common_utils::ConnectorMinorUnit) {
+    let _ = amount - amount;
+}
+
+#[cfg(feature = "connector_minor_mul")]
+pub fn connector_minor_mul(amount: common_utils::ConnectorMinorUnit) {
+    let _ = amount * 2_u16;
+}
+
+#[cfg(feature = "connector_minor_sum")]
+pub fn connector_minor_sum(amount: common_utils::ConnectorMinorUnit) {
+    let _: common_utils::ConnectorMinorUnit = std::iter::once(amount).sum();
+}
+
+#[cfg(feature = "connector_minor_checked_mul")]
+pub fn connector_minor_checked_mul(amount: common_utils::ConnectorMinorUnit) {
+    let _ = amount.checked_mul(2);
+}
+
+#[cfg(feature = "connector_minor_trait_arithmetic")]
+pub fn connector_minor_trait_arithmetic(amount: common_utils::ConnectorMinorUnit) {
+    let _ = std::ops::Add::add(amount, amount);
+    let _ = std::ops::Sub::sub(amount, amount);
+    let _ = std::ops::Mul::mul(amount, 2_u16);
+}
+
+#[cfg(feature = "float_major_add")]
+pub fn float_major_add(amount: common_utils::FloatMajorUnit) {
+    let _ = amount + amount;
+}
+
+#[cfg(feature = "float_major_mul")]
+pub fn float_major_mul(amount: common_utils::FloatMajorUnit) {
+    let _ = amount * 2_u16;
+}
+
+#[cfg(feature = "float_major_trait_arithmetic")]
+pub fn float_major_trait_arithmetic(amount: common_utils::FloatMajorUnit) {
+    let _ = std::ops::Add::add(amount, amount);
+    let _ = std::ops::Mul::mul(amount, 2_u16);
+}
+
 #[cfg(feature = "connector_integer_getter")]
 pub fn connector_integer_getter(amount: common_utils::types::ConnectorMinorUnit) -> i64 {
     amount.get_amount_as_i64()
