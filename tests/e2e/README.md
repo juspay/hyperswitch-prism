@@ -116,6 +116,41 @@ Choose `toMatchObject` for partial nested objects and `toEqual` for exact object
 
 Eleven shared specs are implemented: six one-time No3DS payment journeys, a completed browser 3DS payment, a nonzero mandate setup followed by an off-session recurring charge, full void of an authorized payment, forced payment synchronization, and full-refund submission. Each manual-capture journey includes its own full capture, so it verifies the complete authorization-to-capture lifecycle. Adyen runs ten applicable cases and explicitly excludes PSync because its redirect-completion sync requires customer-returned encoded data. Other connector exclusions document unsupported or not-yet-certified behavior. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The comprehensive automatic inline-confirmation sequence is:
 
+### Adyen coverage matrix
+
+`✅` means an executable scenario passed against the Adyen sandbox in this
+change. `🟡` means the agreed scenario has a `.planned.ts` placeholder but is
+not executable coverage. `❌` means the scenario is not yet represented; it
+does not mean that Adyen or HS cannot support it.
+
+| Journey | Status | Current coverage |
+| --- | :---: | --- |
+| Guest payment, manual capture (without customer) | ✅ | Authorize without a customer, then fully capture |
+| Guest payment, automatic capture (without customer) | ✅ | Inline confirm and automatic capture |
+| One-time payment, manual capture | ✅ | Inline and separate confirmation variants, followed by full capture |
+| One-time payment, automatic capture | ✅ | Inline and separate confirmation variants |
+| Setup mandate, nonzero CIT, manual capture | 🟡 | Planned standalone mandate-setup journey |
+| Setup mandate, nonzero CIT, automatic capture | ✅ | Nonzero setup followed by an off-session recurring charge |
+| Setup mandate, zero CIT, manual capture | 🟡 | Planned standalone mandate-setup journey |
+| Setup mandate, zero CIT, automatic capture | 🟡 | Planned standalone and recurring journeys |
+| Repeat CIT using a saved card | 🟡 | Planned saved-card journey |
+| Recurring using connector mandate ID | ✅ | Reuses the mandate created by the nonzero setup payment without card data |
+| Recurring using network transaction ID | 🟡 | Planned recurring-reference journey |
+| Recurring using network-token NTI | 🟡 | Planned recurring-reference journey |
+| Webhook | 🟡 | Planned authenticated payment-status webhook verification |
+| Refund | ✅ | Full-refund submission after an automatically captured payment |
+| Refund reversal | 🟡 | Planned reversal before settlement |
+| Full void | ✅ | Voids a manually authorized payment |
+| Incremental authorization | 🟡 | Planned authorized-amount increase |
+| Partial capture | 🟡 | Planned partial capture of an authorized payment |
+| Overcapture | 🟡 | Planned capture above the authorized amount |
+| External 3DS | ❌ | Not yet represented |
+| 3DS | ✅ | Completes the real processor-hosted browser challenge and verifies the final charged payment |
+| Wallet connector decryption | ❌ | Not yet represented |
+| Wallet Hyperswitch decryption | ❌ | Not yet represented |
+| Wallet merchant decryption | ❌ | Not yet represented |
+| Partial void | 🟡 | Planned partial void of an authorized payment |
+
 ```text
 POST /payments with confirm:true
   -> check success, customer, addresses, browser information, order details and payment fields
