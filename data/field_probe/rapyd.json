@@ -975,7 +975,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"},\"receipt_email\":\"test@example.com\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
+          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"{{$card_number}}\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"{{$card_cvc}}\",\"recurrence_type\":\"unscheduled\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_proxy_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\",\"address\":{\"country\":\"IS\"},\"receipt_email\":\"test@example.com\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true,\"initiation_type\":\"customer_present\"}"
         }
       }
     },
@@ -1135,7 +1135,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/mandate-return\",\"error_payment_url\":\"https://example.com/mandate-return\",\"address\":{\"country\":\"IS\"},\"receipt_email\":\"test@example.com\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true}"
+          "body": "{\"amount\":\"0\",\"currency\":\"EUR\",\"payment_method\":{\"type\":\"is_visa_card\",\"fields\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"name\":\"John Doe\",\"cvv\":\"737\",\"recurrence_type\":\"unscheduled\"},\"address\":null,\"digital_wallet\":null},\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"probe_mandate_001\",\"capture\":false,\"description\":null,\"complete_payment_url\":\"https://example.com/mandate-return\",\"error_payment_url\":\"https://example.com/mandate-return\",\"address\":{\"country\":\"IS\"},\"receipt_email\":\"test@example.com\",\"customer\":{\"name\":\"John Doe\",\"email\":\"test@example.com\"},\"save_payment_method\":true,\"initiation_type\":\"customer_present\"}"
         }
       }
     },
