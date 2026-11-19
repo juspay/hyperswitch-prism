@@ -538,11 +538,10 @@ impl TryFrom<ResponseRouterData<GigadatRefundResponse, Self>>
         let response = item.response;
         let mut router_data = item.router_data;
 
-        // Determine refund status based on HTTP code
-        let refund_status = match item.http_code {
-            200 => RefundStatus::Success,
-            400 | 401 | 422 => RefundStatus::Failure,
-            _ => RefundStatus::Pending,
+        let refund_status = if response.success {
+            RefundStatus::Success
+        } else {
+            RefundStatus::Failure
         };
 
         router_data.response = Ok(RefundsResponseData {
