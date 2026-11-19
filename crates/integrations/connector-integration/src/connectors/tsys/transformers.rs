@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::ResponseRouterData;
 
 use super::TsysRouterData;
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
 // ============================================================================
 // Card Data Source Enum
@@ -951,8 +951,9 @@ impl From<TsysPaymentStatus> for common_enums::enums::RefundStatus {
 impl From<TsysTransactionDetails> for common_enums::enums::RefundStatus {
     fn from(item: TsysTransactionDetails) -> Self {
         match item.transaction_status {
-            // TSYS API uses Approved status for processing refunds
-            TsysTransactionStatus::Approved => Self::Pending,
+            // An approved Return is a processed refund, the same outcome the Refund call
+            // reports for PASS, so a later RSync cannot regress Success -> Pending.
+            TsysTransactionStatus::Approved => Self::Success,
             TsysTransactionStatus::Void => Self::Success, // TSYS marks successful refunds as VOID
             TsysTransactionStatus::Declined => Self::Failure,
         }
@@ -1109,11 +1110,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card_data) => {
                 let auth: TsysAuthType = TsysAuthType::try_from(&item.connector_config)?;
 
-                // TSYS requires a non-zero amount even for authorization; default
-                // to 1 minor unit if the request does not carry one.
-                let money = item.request.money.clone().unwrap_or_else(|| {
-                    common_utils::types::Money::one_minor_unit(item.request.currency)
-                });
+                // TSYS requires a non-zero amount even for authorization, and the
+                // SetupMandate authorization is never voided. Require the caller's
+                // amount instead of placing a hidden 1-minor-unit hold on the card.
+                let money = item
+                    .request
+                    .money
+                    .clone()
+                    .filter(|money| money.amount().get_amount_as_i64() > 0)
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Send a non-zero amount for TSYS SetupMandate; it is authorized on the card"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: None,
+                        },
+                    })?;
                 let transaction_amount = item_data
                     .connector
                     .amount_converter
@@ -1156,7 +1171,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // with the TSYS transactionID. This is what RecurringPaymentService.Charge pulls
 // out of `connector_recurring_payment_id.connector_mandate_id.connector_mandate_id`
 // as the referenced CIT for the subsequent MIT replay.
-fn get_setup_mandate_response(
+pub(super) fn get_setup_mandate_response(
     connector_response: TsysResponse,
     http_code: u16,
 ) -> PaymentsResponseData {
@@ -1171,7 +1186,9 @@ fn get_setup_mandate_response(
             mandate_metadata: None,
         })),
         connector_metadata: None,
-        network_txn_id: Some(transaction_id.clone()),
+        // The TSYS transactionID is a connector-local id (already the connector_mandate_id),
+        // not a card-scheme network transaction id.
+        network_txn_id: None,
         network_txn_link_id: None,
         connector_response_reference_id: Some(transaction_id),
         incremental_authorization_allowed: None,
@@ -1248,9 +1265,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TsysSetupMandateRespo
 // ============================================================================
 // TSYS Genius transnox_api does not vault card data server-side — the Sale
 // request (our charge endpoint for auto-capture MITs) always requires the PAN
-// plus the card's exp/cvv. The CIT transactionID serves as a reference on the
-// replay via the orderNumber (linked upstream) and as schemeTransactionId via
-// the gRPC network_txn_id channel, but TSYS has no pure token-based MIT.
+// plus the card's exp/cvv. The CIT transactionID (returned as connector_mandate_id)
+// serves as a reference on the replay via the orderNumber (linked upstream), but
+// TSYS has no pure token-based MIT.
 //
 // Callers must therefore supply `payment_method.card` on RecurringPaymentService
 // .Charge; without it we cannot build a Sale request. When present we issue
