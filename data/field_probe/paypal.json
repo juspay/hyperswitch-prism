@@ -913,7 +913,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"AUTHORIZE\",\"purchase_units\":[{\"reference_id\":\"probe_order_001\",\"invoice_id\":\"probe_order_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"}}]}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_order_001\",\"invoice_id\":\"probe_order_001\",\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"}}]}"
         }
       }
     },

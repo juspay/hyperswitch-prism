@@ -470,6 +470,7 @@ pub enum PaypalPayoutStatus {
     Processing,
     Denied,
     Failed,
+    #[serde(rename = "CANCELED", alias = "CANCELLED")]
     Cancelled,
     Refunded,
     Returned,
