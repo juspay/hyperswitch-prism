@@ -19,13 +19,12 @@ use domain_types::{
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentFlowData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
-        WebhookResourceReference,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, SetupMandateRequestData,
+        WebhookDetailsResponse,
     },
     errors::WebhookError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -72,6 +71,9 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::cybersource::{
+    transformers as webhook_transformers, Cybersource as CybersourceWebhook,
+};
 use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -250,44 +252,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        let body = parse_cybersource_webhook_body(&request)?;
-
-        EventType::try_from(body.event_type)
-    }
-
-    /// Payment and refund events carry the PSP request id in `payload.data.id`. When the event
-    /// data also echoes `clientReferenceInformation.code`, prefer that caller-assigned id during
-    /// lookup; it is especially important for capture events, whose PSP id differs from the
-    /// authorization id. The merchant reference remains optional because the payments payload
-    /// schema is not published and live events are message-level encrypted.
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        let body = parse_cybersource_webhook_body(&request)?;
-        let merchant_reference_id = body.merchant_reference_id();
-
-        if body.event_type.is_payment_event() {
-            Ok(Some(WebhookResourceReference::Payment(
-                PaymentWebhookReference {
-                    connector_transaction_id: Some(body.object_reference_id()?),
-                    merchant_transaction_id: merchant_reference_id,
-                    connector_preprocessing_id: None,
-                },
-            )))
-        } else if body.event_type.refund_status().is_some() {
-            Ok(Some(WebhookResourceReference::Refund(
-                RefundWebhookReference {
-                    connector_refund_id: Some(body.object_reference_id()?),
-                    merchant_refund_id: merchant_reference_id,
-                    connector_transaction_id: None,
-                    merchant_transaction_id: None,
-                },
-            )))
-        } else {
-            Err(Report::new(WebhookError::WebhookEventTypeNotFound))
-                .attach_printable("Cybersource webhook: unsupported eventType")
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            CybersourceWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -297,7 +266,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
-        let body = parse_cybersource_webhook_body(&request)?;
+        let body = webhook_transformers::parse_cybersource_webhook_body(&request)?;
 
         // An accepted authorization is `Charged` for a sale and `Authorized` otherwise. A
         // payment context without a capture method is read as the Authorize request reads it
@@ -343,7 +312,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
-        let body = parse_cybersource_webhook_body(&request)?;
+        let body = webhook_transformers::parse_cybersource_webhook_body(&request)?;
 
         let status = body
             .event_type
@@ -365,17 +334,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             response_headers: None,
         })
     }
-}
-
-/// Deserializes the notification envelope. A body that is not the plaintext JSON envelope
-/// (for example a message-level encrypted notification) is refused.
-fn parse_cybersource_webhook_body(
-    request: &RequestDetails,
-) -> Result<cybersource::CybersourceWebhookBody, Report<WebhookError>> {
-    request
-        .body
-        .parse_struct("CybersourceWebhookBody")
-        .change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
 /// Reads and parses the `v-c-signature` header. Header names are matched case-insensitively:

@@ -413,6 +413,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
     pub fn convert_connector(connector_name: WebhookConnectorEnum) -> BoxedWebhookConnector<T> {
         match connector_name {
             WebhookConnectorEnum::Adyen => Box::new(webhooks::Adyen::<T>::new()),
+            WebhookConnectorEnum::Cybersource => Box::new(webhooks::Cybersource::<T>::new()),
             WebhookConnectorEnum::Checkout => Box::new(webhooks::Checkout::<T>::new()),
             WebhookConnectorEnum::Authorizedotnet => {
                 Box::new(webhooks::Authorizedotnet::<T>::new())
