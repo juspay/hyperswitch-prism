@@ -590,7 +590,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             query,
                             variables: GenericVariableInput {
                                 input: WalletPaymentInput {
-                                    payment_method_id: payment_method_id.into(),
+                                    payment_method_id,
                                     transaction: WalletTransactionBody {
                                         amount: amount.clone(),
                                         merchant_account_id: merchant_account_id.clone(),

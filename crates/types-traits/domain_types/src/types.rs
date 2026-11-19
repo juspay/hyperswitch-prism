@@ -2178,8 +2178,7 @@ impl<
                             .token
                             .ok_or_else(|| {
                                 IntegrationError::InvalidDataFormat { field_name: "payment_method.paypal_sdk.token", context: IntegrationErrorContext { additional_context: Some("PayPal SDK token is required".to_string()), ..Default::default() } }
-                            })?
-                            .expose(),
+                            })?,
                     },
                 ))),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaypalRedirect(
@@ -2425,7 +2424,7 @@ impl<
                 ),
                 grpc_payment_types::payment_method::PaymentMethod::Blik(blik) => Ok(
                     Self::BankRedirect(payment_method_data::BankRedirectData::Blik {
-                        blik_code: blik.blik_code,
+                        blik_code: blik.blik_code.map(Secret::new),
                     }),
                 ),
                 grpc_payment_types::payment_method::PaymentMethod::Interac(interac) => Ok(
