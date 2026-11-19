@@ -1146,10 +1146,7 @@ pub fn build_capture_request(
     Ok(TwocTwopPacoCaptureRequest {
         api_request: ApiRequestEnvelope::new(request_message_id),
         office_id,
-        order_no: item
-            .resource_common_data
-            .connector_request_reference_id
-            .clone(),
+        order_no: paco_original_order_no(&item.resource_common_data),
         invoice_no2c2p: invoice_no,
         settlement_amount: PacoSettlementAmount {
             amount_text: amount.amount_text,
@@ -1182,10 +1179,7 @@ pub fn build_void_request(
     Ok(TwocTwopPacoVoidRequest {
         api_request: ApiRequestEnvelope::new(request_message_id),
         office_id,
-        order_no: item
-            .resource_common_data
-            .connector_request_reference_id
-            .clone(),
+        order_no: paco_original_order_no(&item.resource_common_data),
         invoice_no2c2p: item.request.connector_transaction_id.clone(),
         cancellation_reason: item.request.cancellation_reason.clone(),
     })
@@ -1206,10 +1200,7 @@ pub fn build_void_pc_request(
     Ok(TwocTwopPacoVoidRequest {
         api_request: ApiRequestEnvelope::new(request_message_id),
         office_id,
-        order_no: item
-            .resource_common_data
-            .connector_request_reference_id
-            .clone(),
+        order_no: paco_original_order_no(&item.resource_common_data),
         invoice_no2c2p: item.request.connector_transaction_id.clone(),
         cancellation_reason: item.request.cancellation_reason.clone(),
     })
@@ -1235,6 +1226,17 @@ pub struct TwocTwopPacoRefundRequest {
     pub product_description: Option<String>,
     pub refund_amount: PacoTransactionAmount,
     pub local_maker_checker: PacoMakerChecker,
+}
+
+/// PACO matches Capture / Void / VoidPC / PSync against the original Authorize's
+/// `orderNo`. Prefer the caller-supplied `connector_order_id` (that original orderNo);
+/// without one, fall back to this request's reference, as before.
+pub(crate) fn paco_original_order_no(flow_data: &PaymentFlowData) -> String {
+    flow_data
+        .connector_order_id
+        .clone()
+        .filter(|order_no| !order_no.is_empty())
+        .unwrap_or_else(|| flow_data.connector_request_reference_id.clone())
 }
 
 pub fn build_refund_request(
@@ -2350,10 +2352,11 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             });
         }
 
+        // An empty / absent inquiry row must not drop the reference the caller synced with.
         let resource_id = invoice
             .clone()
             .map(ResponseId::ConnectorTransactionId)
-            .unwrap_or(ResponseId::NoResponseId);
+            .unwrap_or_else(|| router_data.request.connector_transaction_id.clone());
         let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &prior);
 
         Ok(Self {
