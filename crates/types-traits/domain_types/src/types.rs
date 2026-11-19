@@ -6763,7 +6763,12 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Unspecified,
-            payment_method: PaymentMethod::Card,
+            // Unmapped or absent payment method data keeps the previous Card default.
+            payment_method: value
+                .payment_method
+                .clone()
+                .and_then(|pm| PaymentMethod::foreign_try_from(pm).ok())
+                .unwrap_or(PaymentMethod::Card),
             payment_method_type: value
                 .payment_method
                 .map(<Option<PaymentMethodType>>::foreign_try_from)
@@ -6862,7 +6867,12 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Unspecified,
-            payment_method: PaymentMethod::Card,
+            // Unmapped or absent payment method data keeps the previous Card default.
+            payment_method: value
+                .payment_method
+                .clone()
+                .and_then(|pm| PaymentMethod::foreign_try_from(pm).ok())
+                .unwrap_or(PaymentMethod::Card),
             payment_method_type: value
                 .payment_method
                 .map(<Option<PaymentMethodType>>::foreign_try_from)
