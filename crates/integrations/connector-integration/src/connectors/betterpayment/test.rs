@@ -17,11 +17,17 @@ use domain_types::{
     utils::ForeignTryFrom,
 };
 use hyperswitch_masking::Secret;
-use interfaces::{api::ConnectorCommon, webhooks::IncomingWebhook};
+use interfaces::{
+    api::ConnectorCommon,
+    webhooks::{IncomingWebhook, IncomingWebhookEventParser},
+};
 use serde_json::json;
 
 use super::{transformers::*, Betterpayment};
 use crate::types::ResponseRouterData;
+use crate::webhooks::betterpayment::transformers::{
+    get_webhook_event_type, BetterpaymentWebhookBody,
+};
 
 fn config() -> ConnectorSpecificConfig {
     ConnectorSpecificConfig::Betterpayment {
@@ -252,6 +258,7 @@ fn form_webhook(body: &str) -> RequestDetails {
 #[test]
 fn captured_wero_form_postback_decodes_and_routes() {
     let connector = Betterpayment::<DefaultPCIHolder>::new();
+    let parser = crate::webhooks::Betterpayment::<DefaultPCIHolder>::new();
     let raw = "transaction_id=f585d8d3-93c0-4e1a-9021-30611639674e&payment_type=wero&status_code=5&status=canceled&order_id=34533343&message=CONSENT%20DENIED&additional_transaction_data=customer_id%3D123ABC%2C%20billing_info%3D12345678&amount=15.9&recurring=0&included_fees=0.00&checksum=bc2423a3f1c94d1f49c3af563a3f16726f483a63";
     let request = form_webhook(raw);
     let parsed: BetterpaymentWebhookBody =
@@ -261,7 +268,7 @@ fn captured_wero_form_postback_decodes_and_routes() {
         connector.get_event_type(request.clone()).expect("event"),
         EventType::PaymentIntentFailure
     );
-    match connector
+    match parser
         .get_webhook_event_reference(request.clone())
         .expect("reference")
         .expect("present")
@@ -287,6 +294,7 @@ fn captured_wero_form_postback_decodes_and_routes() {
 #[test]
 fn form_refund_postbacks_decode_numeric_codes_and_route() {
     let connector = Betterpayment::<DefaultPCIHolder>::new();
+    let parser = crate::webhooks::Betterpayment::<DefaultPCIHolder>::new();
     for (code, expected) in [
         (0, RefundStatus::Pending),
         (1, RefundStatus::Success),
@@ -300,7 +308,7 @@ fn form_refund_postbacks_decode_numeric_codes_and_route() {
         assert_eq!(response.status, expected);
         assert_eq!(response.connector_refund_id.as_deref(), Some("refund123"));
         assert!(matches!(
-            connector
+            parser
                 .get_webhook_event_reference(request.clone())
                 .expect("refund reference"),
             Some(domain_types::connector_types::WebhookResourceReference::Refund(_))
@@ -352,6 +360,7 @@ fn form_signature_is_verified_on_original_encoded_bytes() {
 #[test]
 fn malformed_and_json_webhook_bodies_fail() {
     let connector = Betterpayment::<DefaultPCIHolder>::new();
+    let parser = crate::webhooks::Betterpayment::<DefaultPCIHolder>::new();
     for raw in [
         "",
         "status=completed",
@@ -360,9 +369,7 @@ fn malformed_and_json_webhook_bodies_fail() {
     ] {
         let request = form_webhook(raw);
         assert!(connector.get_event_type(request.clone()).is_err());
-        assert!(connector
-            .get_webhook_event_reference(request.clone())
-            .is_err());
+        assert!(parser.get_webhook_event_reference(request.clone()).is_err());
         assert!(connector
             .process_payment_webhook(request.clone(), None, None, None)
             .is_err());
@@ -766,9 +773,10 @@ fn canceled_webhook_event_and_status_both_report_failure() {
 #[test]
 fn sanitized_webhook_order_id_is_not_returned_as_merchant_reference() {
     let connector = Betterpayment::<DefaultPCIHolder>::new();
+    let parser = crate::webhooks::Betterpayment::<DefaultPCIHolder>::new();
     // Both pay_ab_1 and pay_a_b1 sanitize to payab1; neither can be recovered.
     let payment = form_webhook("transaction_id=payment-123&order_id=payab1&status=completed");
-    match connector
+    match parser
         .get_webhook_event_reference(payment.clone())
         .expect("payment reference")
         .expect("present")
@@ -794,7 +802,7 @@ fn sanitized_webhook_order_id_is_not_returned_as_merchant_reference() {
     );
 
     let refund = form_webhook("transaction_id=payment-123&order_id=payab1&status=refunded&refund_id=refund-123&refund_status_code=1");
-    match connector
+    match parser
         .get_webhook_event_reference(refund.clone())
         .expect("refund reference")
         .expect("present")
