@@ -1005,6 +1005,32 @@
         "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

@@ -780,6 +780,32 @@
         "error": "This feature is not implemented: setup_mandate flow for fiserv"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"
