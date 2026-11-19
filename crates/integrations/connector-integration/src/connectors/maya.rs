@@ -109,7 +109,7 @@ macros::create_all_prerequisites!(
 
             Ok(vec![(
                 headers::AUTHORIZATION.to_string(),
-                format!("Basic {encoded}").into(),
+                format!("Basic {encoded}").into_masked(),
             )])
         }
     }
@@ -792,4 +792,38 @@ impl_unsupported_connector_flow!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::verification::SourceVerification for Maya<T>
 {
+}
+
+#[cfg(test)]
+mod tests {
+    use domain_types::payment_method_data::DefaultPCIHolder;
+
+    use super::*;
+
+    #[test]
+    fn secret_auth_header_is_masked_in_diagnostics_and_preserved_for_transport() {
+        let secret_key = "maya_test_secret";
+        let config = ConnectorSpecificConfig::Maya {
+            public_key: Secret::new("maya_test_public".to_string()),
+            secret_key: Secret::new(secret_key.to_string()),
+            base_url: None,
+        };
+        let headers = Maya::<DefaultPCIHolder>::new()
+            .get_secret_auth_header(&config)
+            .expect("valid Maya credentials");
+        let expected = format!("Basic {}", BASE64_ENGINE.encode(format!("{secret_key}:")));
+
+        assert_eq!(headers.len(), 1);
+        let (name, value) = headers.first().expect("authorization header");
+        assert_eq!(name, headers::AUTHORIZATION);
+        assert!(value.is_masked());
+        assert_eq!(value.clone().into_inner(), expected);
+
+        let debug = format!("{headers:?}");
+        let event = events::maskable_headers_to_json(&headers).to_string();
+        for diagnostic in [debug, event] {
+            assert!(!diagnostic.contains(secret_key));
+            assert!(!diagnostic.contains(&expected));
+        }
+    }
 }
