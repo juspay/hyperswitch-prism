@@ -16,10 +16,9 @@ use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
-        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse, RefundFlowData,
-        RefundSyncData, RefundWebhookReference, RefundsData, RefundsResponseData, RequestDetails,
-        ResponseId, WebhookResourceReference,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RequestDetails, ResponseId,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -39,10 +38,12 @@ use transformers::{
     TamaraAuthType, TamaraCaptureRequest, TamaraCaptureResponse, TamaraEligibilityRequest,
     TamaraEligibilityResponse, TamaraErrorResponse, TamaraPSyncResponse, TamaraPaymentsRequest,
     TamaraPaymentsResponse, TamaraRSyncResponse, TamaraRefundRequest, TamaraRefundResponse,
-    TamaraVoidRequest, TamaraVoidResponse, TamaraWebhookEvent, TamaraWebhookEventType,
+    TamaraVoidRequest, TamaraVoidResponse,
 };
 
 use super::macros;
+use crate::webhooks::tamara::transformers::TamaraWebhookEventType;
+use crate::webhooks::tamara::Tamara as TamaraWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 macros::create_amount_converter_wrapper!(connector_name: Tamara, amount_type: MinorUnit);
@@ -253,42 +254,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let event: TamaraWebhookEventType = request
-            .body
-            .parse_struct("TamaraWebhookEventType")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(EventType::from(event.event_type))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let event: TamaraWebhookEventType = request
-            .body
-            .parse_struct("TamaraWebhookEventType")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        let refund_id = event.data.as_ref().and_then(|d| d.refund_id.clone());
-
-        match event.event_type {
-            TamaraWebhookEvent::OrderRefunded => Ok(Some(WebhookResourceReference::Refund(
-                RefundWebhookReference {
-                    connector_refund_id: refund_id.clone(),
-                    merchant_refund_id: None,
-                    connector_transaction_id: Some(event.order_id),
-                    merchant_transaction_id: refund_id,
-                },
-            ))),
-            _ => Ok(Some(WebhookResourceReference::Payment(
-                PaymentWebhookReference {
-                    connector_transaction_id: Some(event.order_id),
-                    merchant_transaction_id: event.order_reference_id,
-                    connector_preprocessing_id: None,
-                },
-            ))),
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            TamaraWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
