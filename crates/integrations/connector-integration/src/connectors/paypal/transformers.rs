@@ -43,7 +43,9 @@ use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
+use crate::webhooks::paypal::transformers::DisputeOutcome;
 use url::Url;
+
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 trait GetRequestIncrementalAuthorization {
     fn get_request_incremental_authorization(&self) -> Option<bool>;
@@ -3719,11 +3721,6 @@ pub struct PaypalWebhooksBody {
     pub resource: PaypalResource,
 }
 
-#[derive(Deserialize, Debug, Serialize)]
-pub struct PaypalWebooksEventType {
-    pub event_type: PaypalWebhookEventType,
-}
-
 #[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]
 pub enum PaypalWebhookEventType {
     #[serde(rename = "PAYMENT.CAPTURE.COMPLETED")]
@@ -3816,11 +3813,6 @@ pub enum DisputeStatus {
     UnderReview,
     Resolved,
     Other,
-}
-
-#[derive(Deserialize, Debug, Serialize)]
-pub struct DisputeOutcome {
-    pub outcome_code: OutcomeCode,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
