@@ -25,6 +25,7 @@ pub mod rapyd;
 pub mod razorpay;
 pub mod reddot;
 pub mod revolut;
+pub mod stripe;
 pub mod trustpay;
 pub mod worldpayxml;
 pub use self::{
@@ -33,6 +34,6 @@ pub use self::{
     cryptopay::Cryptopay, dlocal::Dlocal, ecommpay::Ecommpay, finix::Finix, flywire::Flywire,
     givepayments::Givepayments, grabpay::Grabpay, hyperswitch::Hyperswitch, maya::Maya,
     nexixpay::Nexixpay, payhere::Payhere, payload::Payload, paypal::Paypal, phonepe::Phonepe,
-    ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot, revolut::Revolut,
+    ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot, revolut::Revolut, stripe::Stripe,
     trustpay::Trustpay, worldpayxml::Worldpayxml,
 };
