@@ -1689,15 +1689,18 @@ fn compute_commercial_card_context<
         .map(super::TsysTransitAmountConvertor::convert)
         .transpose()?;
     let tax_amount = sales_tax.clone();
-    // `product_tax_code` is a free-form per-item code (also sent as productTaxType); only a
-    // value naming a TSYS tax category (any case) becomes taxCategory. Any other code leaves
-    // taxCategory unset instead of failing the whole payment.
-    let tax_category = derived_tax_type.as_deref().and_then(|value| {
-        value
-            .to_ascii_lowercase()
-            .parse::<TsysTransitTaxCategory>()
-            .ok()
-    });
+    let tax_category = derived_tax_type.clone().map(|value| value.parse::<TsysTransitTaxCategory>()).transpose().change_context(
+        IntegrationError::InvalidDataFormat {
+            field_name: "order_details.product_tax_code",
+            context: IntegrationErrorContext {
+                suggested_action: Some("Ensure that the product_tax_code is one of the valid TSYS TransIT tax categories: service, duty, vat, alternate, national and tax_exempt".to_string()),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "failed to parse product_tax_code {derived_tax_type:?} as a TsysTransitTaxCategory"
+                )),
+            },
+        },
+    )?;
     let order_reference = l2_l3_data
         .and_then(|data| data.get_merchant_order_reference_id())
         .or_else(|| router_data.request.merchant_order_id.clone());
