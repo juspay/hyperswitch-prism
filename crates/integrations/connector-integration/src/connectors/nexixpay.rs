@@ -4,6 +4,9 @@ use std::fmt::Debug;
 
 use super::macros;
 use crate::types::ResponseRouterData;
+use crate::webhooks::nexixpay::{
+    transformers as webhook_transformers, Nexixpay as NexixpayWebhook,
+};
 use crate::with_error_response_body;
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
@@ -17,12 +20,11 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
-        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ResponseId, SetupMandateRequestData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, WebhookDetailsResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -275,38 +277,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
-        nexixpay::get_nexixpay_webhook_event_type(&notification.operation)
-            .ok_or_else(|| WebhookError::WebhookEventTypeNotFound.into())
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
-        let operation = notification.operation;
-        Ok(
-            match nexixpay::get_nexixpay_webhook_event_type(&operation) {
-                // orderId is the connector_transaction_id of every Nexi payment flow.
-                Some(event) if event.is_payment_event() => {
-                    Some(WebhookResourceReference::Payment(PaymentWebhookReference {
-                        connector_transaction_id: Some(operation.order_id),
-                        merchant_transaction_id: None,
-                        connector_preprocessing_id: None,
-                    }))
-                }
-                // The refund's operationId is the connector_refund_id returned by Refund.
-                Some(event) if event.is_refund_event() => {
-                    Some(WebhookResourceReference::Refund(RefundWebhookReference {
-                        connector_refund_id: Some(operation.operation_id),
-                        merchant_refund_id: None,
-                        connector_transaction_id: Some(operation.order_id),
-                        merchant_transaction_id: None,
-                    }))
-                }
-                Some(_) | None => None,
-            },
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            NexixpayWebhook::<T>::new(),
+            request,
         )
     }
 
@@ -317,9 +291,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
-        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let notification = webhook_transformers::parse_nexixpay_webhook(&request.body)?;
         let operation = notification.operation;
-        match nexixpay::get_nexixpay_webhook_event_type(&operation) {
+        match webhook_transformers::get_nexixpay_webhook_event_type(&operation) {
             Some(event) if event.is_payment_event() => {}
             Some(_) | None => return Err(WebhookError::WebhookEventTypeNotFound.into()),
         }
@@ -367,9 +341,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
-        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let notification = webhook_transformers::parse_nexixpay_webhook(&request.body)?;
         let operation = notification.operation;
-        match nexixpay::get_nexixpay_webhook_event_type(&operation) {
+        match webhook_transformers::get_nexixpay_webhook_event_type(&operation) {
             Some(event) if event.is_refund_event() => {}
             Some(_) | None => return Err(WebhookError::WebhookEventTypeNotFound.into()),
         }
