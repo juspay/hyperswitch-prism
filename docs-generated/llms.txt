@@ -227,7 +227,7 @@ connector_id: cybersource
 doc: docs/connectors/cybersource.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted, SamsungPay
-flows: authenticate, authorize, capture, get, handle_event, incremental_authorization, parse_event, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, reverse, setup_recurring, token_authorize, void
+flows: authenticate, authorize, capture, create_client_authentication_token, get, handle_event, incremental_authorization, parse_event, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, reverse, setup_recurring, token_authorize, void
 examples_python: examples/cybersource/cybersource.py
 
 ## D24
@@ -243,7 +243,7 @@ connector_id: datatrans
 doc: docs/connectors/datatrans.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, Card
-flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, reverse, setup_recurring, token_authorize, token_setup_recurring, void
+flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, reverse, setup_recurring, token_authorize, token_setup_recurring, void
 examples_python: examples/datatrans/datatrans.py
 
 ## Deutschebank
@@ -619,7 +619,7 @@ connector_id: nexixpay
 doc: docs/connectors/nexixpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, handle_event, parse_event, refund, refund_get, void
+flows: authorize, capture, create_client_authentication_token, get, handle_event, parse_event, refund, refund_get, void
 examples_python: examples/nexixpay/nexixpay.py
 
 ## Nmi
