@@ -2,20 +2,29 @@ use std::fmt::Debug;
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD_ENGINE, Engine};
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
-use common_utils::{errors::CustomResult, pii::SecretSerdeValue};
+use common_utils::{
+    errors::CustomResult,
+    pii::SecretSerdeValue,
+    types::{MinorUnit, MinorUnitForConnector, Money, StringMinorUnitForConnector},
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
         Void, VoidPC,
     },
     connector_types::{
-        ContinueRedirectionResponse, MandateReference, MandateReferenceId, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RecipientAccount,
-        RecipientBankAccount, RecipientDetails, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        ContinueRedirectionResponse, CustomerInfo, DisputeWebhookDetailsResponse,
+        DisputeWebhookReference, EventContext, EventType, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, PayoutWebhookDetailsResponse,
+        PayoutWebhookReference, RawConnectorStatus, RecipientAccount, RecipientBankAccount,
+        RecipientDetails, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SenderAddress, SenderDetails, SetupMandateRequestData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::{
         Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
@@ -1159,6 +1168,7 @@ fn build_worldpayxml_recipient_party(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("recipient_details.address"))?;
+    let country = *address.get_country()?;
 
     let account_reference = recipient_details
         .account
@@ -1171,15 +1181,21 @@ fn build_worldpayxml_recipient_party(
         account_reference,
         full_name: requests::WorldpayxmlFullName {
             first: address.get_first_name()?.clone(),
+            middle: None,
             last: address.get_last_name()?.clone(),
         },
         funding_address: requests::WorldpayxmlFundingAddress {
             address1: address.get_line1()?.clone(),
             address2: address.get_optional_line2(),
+            address3: address.line3.clone(),
             postal_code: address.get_optional_zip(),
             city: address.get_city()?.clone().expose(),
-            state: address.get_state()?.clone(),
-            country_code: *address.get_country()?,
+            state: get_worldpayxml_funding_state(
+                address.get_optional_state(),
+                country,
+                "recipient_details.address.state",
+            )?,
+            country_code: country,
         },
         funding_data: recipient_details
             .phone_number
@@ -1201,18 +1217,89 @@ fn build_worldpayxml_recipient_party(
     })
 }
 
-fn build_worldpayxml_sender_party<
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
->(
-    router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
+/// Worldpay has no company-name element, so a corporate sender's name is spread over the
+/// `fullName` parts: first word, middle words, last word. AFT requires both a first and a last
+/// name, so a one-word name is rejected.
+fn get_worldpayxml_company_full_name(
+    company_name: &Secret<String>,
+) -> Result<requests::WorldpayxmlFullName, Report<IntegrationError>> {
+    let words: Vec<&str> = company_name.peek().split_whitespace().collect();
+    match words.as_slice() {
+        [] | [_] => Err(IntegrationError::InvalidDataFormat {
+            field_name: "sender_details.company_name",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "For AFT, both a first name and a second name of the company is mandatory"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Pass the full registered company name (for example, \"Acme Ltd\")."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into()),
+        [first, middle @ .., last] => Ok(requests::WorldpayxmlFullName {
+            first: Secret::new((*first).to_string()),
+            middle: (!middle.is_empty()).then(|| Secret::new(middle.join(" "))),
+            last: Secret::new((*last).to_string()),
+        }),
+    }
+}
+
+/// Worldpay needs a state only for US and CA addresses, as its 2-letter code; elsewhere it is
+/// sent when given.
+fn get_worldpayxml_funding_state(
+    state: Option<Secret<String>>,
+    country: common_enums::CountryAlpha2,
+    field_name: &'static str,
+) -> Result<Option<Secret<String>>, Report<IntegrationError>> {
+    let convert_to_code: fn(&str) -> String = match country {
+        common_enums::CountryAlpha2::US => domain_types::utils::convert_us_state_to_code,
+        common_enums::CountryAlpha2::CA => domain_types::utils::convert_canada_state_to_code,
+        _ => return Ok(state),
+    };
+    state
+        .map(|state| Some(Secret::new(convert_to_code(state.peek()))))
+        .ok_or_else(utils::missing_field_err(field_name))
+}
+
+fn build_worldpayxml_sender_funding_address(
+    address: &SenderAddress,
+) -> Result<requests::WorldpayxmlFundingAddress, Report<IntegrationError>> {
+    let country_code = address
+        .country
+        .ok_or_else(utils::missing_field_err("sender_details.address.country"))?;
+    Ok(requests::WorldpayxmlFundingAddress {
+        address1: address
+            .line1
+            .clone()
+            .ok_or_else(utils::missing_field_err("sender_details.address.line1"))?,
+        address2: address.line2.clone(),
+        address3: address.line3.clone(),
+        postal_code: address.zip.clone(),
+        city: address
+            .city
+            .clone()
+            .ok_or_else(utils::missing_field_err("sender_details.address.city"))?
+            .expose(),
+        state: get_worldpayxml_funding_state(
+            address.state.clone(),
+            country_code,
+            "sender_details.address.state",
+        )?,
+        country_code,
+    })
+}
+
+/// Pre-`sender_details` behaviour, kept verbatim for backward compatibility: the sender is the
+/// individual on the billing address, with the date of birth taken from the customer.
+fn build_worldpayxml_sender_party_from_billing(
+    resource_common_data: &PaymentFlowData,
+    customer_date_of_birth: Option<Secret<time::Date>>,
     card_number: Secret<String>,
 ) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
-    let resource_common_data = &router_data.resource_common_data;
     Ok(requests::WorldpayxmlFundingParty {
         party_type: requests::WorldpayxmlFundingPartyType::Sender,
         account_reference: requests::WorldpayxmlAccountReference {
@@ -1221,25 +1308,119 @@ fn build_worldpayxml_sender_party<
         },
         full_name: requests::WorldpayxmlFullName {
             first: resource_common_data.get_billing_first_name()?,
+            middle: None,
             last: resource_common_data.get_billing_last_name()?,
         },
         funding_address: requests::WorldpayxmlFundingAddress {
             address1: resource_common_data.get_billing_line1()?,
             address2: resource_common_data.get_optional_billing_line2(),
+            address3: resource_common_data.get_optional_billing_line3(),
             postal_code: resource_common_data.get_optional_billing_zip(),
             city: resource_common_data.get_billing_city()?.expose(),
-            state: resource_common_data.get_billing_state()?,
+            state: Some(resource_common_data.get_billing_state()?),
             country_code: resource_common_data.get_billing_country()?,
         },
         funding_data: Some(requests::WorldpayxmlFundingData {
-            birth_date: router_data
-                .request
-                .customer
-                .as_ref()
-                .and_then(|customer| customer.date_of_birth.clone())
-                .map(requests::WorldpayxmlBirthDate::from),
+            birth_date: customer_date_of_birth.map(requests::WorldpayxmlBirthDate::from),
             telephone_number: resource_common_data.get_optional_billing_phone_number(),
         }),
+        tax_id: None,
+    })
+}
+
+/// Builds the sender `fundingParty` from `sender_details` when present. Without
+/// `sender_details`, falls back to the pre-existing billing-address path, unchanged.
+pub(super) fn build_worldpayxml_sender_party(
+    resource_common_data: &PaymentFlowData,
+    sender_details: Option<&SenderDetails>,
+    customer: Option<&CustomerInfo>,
+    card_number: Secret<String>,
+) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
+    let customer_date_of_birth = customer.and_then(|customer| customer.date_of_birth.clone());
+
+    match sender_details {
+        // for backwards compatibility, if sender_details is not provided, we will use the billing address to build the sender party
+        None => build_worldpayxml_sender_party_from_billing(
+            resource_common_data,
+            customer_date_of_birth,
+            card_number,
+        ),
+        Some(sender_details) => build_worldpayxml_sender_party_from_sender_details(
+            resource_common_data,
+            sender_details,
+            customer_date_of_birth,
+            card_number,
+        ),
+    }
+}
+
+fn build_worldpayxml_sender_party_from_sender_details(
+    resource_common_data: &PaymentFlowData,
+    sender_details: &SenderDetails,
+    customer_date_of_birth: Option<Secret<time::Date>>,
+    card_number: Secret<String>,
+) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
+    let (full_name, funding_address, funding_data) = match sender_details {
+        SenderDetails::Individual(individual) => (
+            requests::WorldpayxmlFullName {
+                first: individual
+                    .first_name
+                    .clone()
+                    .ok_or_else(utils::missing_field_err(
+                        "sender_details.individual.first_name",
+                    ))?,
+                middle: None,
+                last: individual
+                    .last_name
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
+            },
+            individual
+                .address
+                .as_ref()
+                .ok_or_else(utils::missing_field_err("sender_details.address"))
+                .and_then(build_worldpayxml_sender_funding_address)?,
+            Some(requests::WorldpayxmlFundingData {
+                // For backward compatibility, fall back to the customer's date of birth, which was
+                // the only source of the sender's date of birth before sender details were added.
+                birth_date: individual
+                    .date_of_birth
+                    .clone()
+                    .or(customer_date_of_birth)
+                    .map(requests::WorldpayxmlBirthDate::from),
+                telephone_number: individual
+                    .phone_number
+                    .clone()
+                    .or_else(|| resource_common_data.get_optional_billing_phone_number()),
+            }),
+        ),
+        SenderDetails::Corporate(corporate) => (
+            get_worldpayxml_company_full_name(corporate.company_name.as_ref().ok_or_else(
+                utils::missing_field_err("sender_details.corporate.company_name"),
+            )?)?,
+            corporate
+                .address
+                .as_ref()
+                .ok_or_else(utils::missing_field_err("sender_details.address"))
+                .and_then(build_worldpayxml_sender_funding_address)?,
+            corporate.phone_number.clone().map(|telephone_number| {
+                requests::WorldpayxmlFundingData {
+                    birth_date: None,
+                    telephone_number: Some(telephone_number),
+                }
+            }),
+        ),
+    };
+
+    Ok(requests::WorldpayxmlFundingParty {
+        party_type: requests::WorldpayxmlFundingPartyType::Sender,
+        account_reference: requests::WorldpayxmlAccountReference {
+            account_type: WORLDPAYXML_ACCOUNT_TYPE_CARD.to_string(),
+            value: card_number,
+        },
+        full_name,
+        funding_address,
+        funding_data,
         tax_id: None,
     })
 }
@@ -1313,7 +1494,12 @@ fn build_worldpayxml_funding_transfer<
                 category: WORLDPAYXML_FUNDING_CATEGORY.to_string(),
                 payment_purpose: payment_purpose.to_string(),
                 funding_party: vec![
-                    build_worldpayxml_sender_party(router_data, card_number)?,
+                    build_worldpayxml_sender_party(
+                        &router_data.resource_common_data,
+                        router_data.request.sender_details.as_ref(),
+                        router_data.request.customer.as_ref(),
+                        card_number,
+                    )?,
                     build_worldpayxml_recipient_party(
                         router_data.request.recipient_details.as_ref(),
                         router_data.request.business_country,
@@ -1536,7 +1722,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         info_3d_secure,
                     }),
                     shopper: Some(requests::WorldpayxmlShopper {
-                        shopper_email_address: router_data.request.email.clone(),
+                        // The sender's email only fills in for a missing shopper email.
+                        shopper_email_address: router_data.request.email.clone().or_else(|| {
+                            router_data
+                                .request
+                                .sender_details
+                                .as_ref()
+                                .and_then(SenderDetails::get_email)
+                                .cloned()
+                        }),
                         authenticated_shopper_id,
                         browser: router_data
                             .request
@@ -1665,12 +1859,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let info_3d_secure =
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
-        let converted_amount =
-            super::WorldpayxmlAmountConvertor::convert(
-                &router_data.request.money.clone().unwrap_or_else(|| {
-                    common_utils::types::Money::zero(router_data.request.currency)
-                }),
-            )?;
+        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
+            &router_data
+                .request
+                .money
+                .clone()
+                .unwrap_or_else(|| Money::zero(router_data.request.currency)),
+        )?;
 
         Ok(Self {
             version: API_VERSION.to_string(),
@@ -2274,6 +2469,288 @@ fn map_worldpayxml_refund_status(
             http_code,
             "worldpayxml: lastEvent is not part of a refund lifecycle.",
         )),
+    }
+}
+
+impl responses::WorldpayxmlWebhookBody {
+    pub fn event_type(&self) -> EventType {
+        match self.notify.order_status_event.payment.last_event {
+            WorldpayxmlLastEvent::Authorised | WorldpayxmlLastEvent::SentForAuthorisation => {
+                EventType::PaymentIntentProcessing
+            }
+            WorldpayxmlLastEvent::Captured | WorldpayxmlLastEvent::Settled => {
+                EventType::PaymentIntentSuccess
+            }
+            WorldpayxmlLastEvent::Cancelled => EventType::PaymentIntentCancelled,
+            WorldpayxmlLastEvent::Refused => EventType::PaymentIntentFailure,
+            WorldpayxmlLastEvent::Refunded | WorldpayxmlLastEvent::RefundedByMerchant => {
+                EventType::RefundSuccess
+            }
+            WorldpayxmlLastEvent::RefundFailed => EventType::RefundFailure,
+            WorldpayxmlLastEvent::RefundRequested
+            | WorldpayxmlLastEvent::SentForRefund
+            | WorldpayxmlLastEvent::SentForFastRefund => EventType::RefundProcessing,
+            WorldpayxmlLastEvent::ChargedBack => EventType::DisputeOpened,
+            WorldpayxmlLastEvent::ChargebackReversed => EventType::DisputeWon,
+            WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
+                EventType::PayoutProcessing
+            }
+            WorldpayxmlLastEvent::PushApproved | WorldpayxmlLastEvent::SettledByMerchant => {
+                EventType::PayoutSuccess
+            }
+            WorldpayxmlLastEvent::PushRefused => EventType::PayoutFailure,
+            WorldpayxmlLastEvent::Expired
+            | WorldpayxmlLastEvent::Error
+            | WorldpayxmlLastEvent::QueryRequired
+            | WorldpayxmlLastEvent::CancelReceived
+            | WorldpayxmlLastEvent::RefundReceived
+            | WorldpayxmlLastEvent::Unknown => EventType::IncomingWebhookEventUnspecified,
+        }
+    }
+
+    pub fn event_reference(&self) -> CustomResult<Option<WebhookResourceReference>, WebhookError> {
+        let event = &self.notify.order_status_event;
+        let order_code = Some(event.order_code.clone());
+        let reference = match event.payment.last_event {
+            WorldpayxmlLastEvent::Authorised
+            | WorldpayxmlLastEvent::Settled
+            | WorldpayxmlLastEvent::Captured
+            | WorldpayxmlLastEvent::SentForAuthorisation
+            | WorldpayxmlLastEvent::Cancelled
+            | WorldpayxmlLastEvent::Refused => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: order_code,
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                })
+            }
+            WorldpayxmlLastEvent::SentForRefund
+            | WorldpayxmlLastEvent::SentForFastRefund
+            | WorldpayxmlLastEvent::RefundedByMerchant
+            | WorldpayxmlLastEvent::RefundRequested
+            | WorldpayxmlLastEvent::Refunded
+            | WorldpayxmlLastEvent::RefundFailed => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: order_code,
+                    merchant_refund_id: None,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: None,
+                })
+            }
+            WorldpayxmlLastEvent::ChargedBack | WorldpayxmlLastEvent::ChargebackReversed => {
+                WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    connector_dispute_id: None,
+                    connector_transaction_id: order_code,
+                })
+            }
+            WorldpayxmlLastEvent::PushApproved
+            | WorldpayxmlLastEvent::PushPending
+            | WorldpayxmlLastEvent::PushRequested
+            | WorldpayxmlLastEvent::SettledByMerchant
+            | WorldpayxmlLastEvent::PushRefused => {
+                WebhookResourceReference::Payout(PayoutWebhookReference {
+                    connector_payout_id: order_code,
+                    merchant_payout_id: None,
+                })
+            }
+            WorldpayxmlLastEvent::Expired
+            | WorldpayxmlLastEvent::Error
+            | WorldpayxmlLastEvent::QueryRequired
+            | WorldpayxmlLastEvent::CancelReceived
+            | WorldpayxmlLastEvent::RefundReceived
+            | WorldpayxmlLastEvent::Unknown => {
+                return Err(WebhookError::WebhookReferenceIdNotFound.into());
+            }
+        };
+        Ok(Some(reference))
+    }
+
+    pub fn payment_details(
+        self,
+        event_context: Option<EventContext>,
+    ) -> CustomResult<WebhookDetailsResponse, WebhookError> {
+        let event = self.notify.order_status_event;
+        let payment = event.payment;
+        let capture_method = if payment.last_event == WorldpayxmlLastEvent::Authorised {
+            event_context
+                .ok_or(WebhookError::WebhookMissingRequiredContext {
+                    field: "capture_method",
+                    origin: "payment authorize",
+                })?
+                .capture_method
+        } else {
+            event_context.and_then(|context| context.capture_method)
+        };
+        let status = map_worldpayxml_authorize_status(
+            &payment.last_event,
+            !matches!(
+                capture_method,
+                Some(CaptureMethod::Manual | CaptureMethod::ManualMultiple)
+            ),
+            None,
+            200,
+        )
+        .change_context(WebhookError::WebhookProcessingFailed)?;
+        let amount = payment.amount.as_ref().map(Money::try_from).transpose()?;
+        let (error_code, error_message) =
+            payment.webhook_error_details(domain_types::utils::is_payment_failure(status));
+
+        Ok(WebhookDetailsResponse {
+            raw_connector_status: Some(RawConnectorStatus {
+                code: Some(payment.last_event.as_ref().to_string()),
+                ..Default::default()
+            }),
+            amount: amount.clone(),
+            resource_id: Some(ResponseId::ConnectorTransactionId(event.order_code.clone())),
+            status,
+            connector_response_reference_id: Some(event.order_code),
+            connector_request_reference_id: None,
+            mandate_reference: None,
+            error_reason: error_message.clone(),
+            error_code,
+            error_message,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+            captured_money: if status == AttemptStatus::Charged {
+                amount
+            } else {
+                None
+            },
+            network_txn_id: payment
+                .scheme_response
+                .map(|scheme| scheme.transaction_identifier),
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        })
+    }
+}
+
+impl responses::WorldpayxmlPayment {
+    fn webhook_error_details(&self, failed: bool) -> (Option<String>, Option<String>) {
+        if !failed {
+            return (None, None);
+        }
+        let return_code = self.iso8583_return_code.as_ref();
+        (
+            Some(
+                return_code
+                    .and_then(|code| code.code.clone())
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+            ),
+            Some(
+                return_code
+                    .and_then(|code| code.description.clone())
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+            ),
+        )
+    }
+}
+
+impl TryFrom<&responses::WorldpayxmlAmountResponse> for Money {
+    type Error = Report<WebhookError>;
+
+    fn try_from(amount: &responses::WorldpayxmlAmountResponse) -> Result<Self, Self::Error> {
+        let minor_amount = MinorUnit::new(amount.value.parse::<i64>().change_context(
+            WebhookError::WebhookAmountConversionFailed {
+                reason: "Invalid Worldpay XML minor-unit amount".to_string(),
+            },
+        )?);
+        let currency = amount
+            .currency_code
+            .parse::<common_enums::Currency>()
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        domain_types::utils::convert_back_amount_to_money_for_webhook(
+            &MinorUnitForConnector,
+            minor_amount,
+            currency,
+        )
+    }
+}
+
+impl TryFrom<responses::WorldpayxmlWebhookBody> for RefundWebhookDetailsResponse {
+    type Error = Report<WebhookError>;
+
+    fn try_from(body: responses::WorldpayxmlWebhookBody) -> Result<Self, Self::Error> {
+        let event = body.notify.order_status_event;
+        let status =
+            map_worldpayxml_refund_status(&event.payment.last_event, RefundStatus::Pending, 200)
+                .change_context(WebhookError::WebhookProcessingFailed)?;
+        let (error_code, error_message) = event
+            .payment
+            .webhook_error_details(status == RefundStatus::Failure);
+        Ok(Self {
+            raw_connector_status: Some(RawConnectorStatus {
+                code: Some(event.payment.last_event.as_ref().to_string()),
+                ..Default::default()
+            }),
+            connector_refund_id: Some(event.order_code.clone()),
+            merchant_transaction_id: None,
+            status,
+            connector_response_reference_id: Some(event.order_code),
+            error_code,
+            error_message,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+}
+
+impl TryFrom<responses::WorldpayxmlWebhookBody> for DisputeWebhookDetailsResponse {
+    type Error = Report<WebhookError>;
+
+    fn try_from(body: responses::WorldpayxmlWebhookBody) -> Result<Self, Self::Error> {
+        let event = body.notify.order_status_event;
+        let status = match event.payment.last_event {
+            WorldpayxmlLastEvent::ChargedBack => common_enums::DisputeStatus::DisputeOpened,
+            WorldpayxmlLastEvent::ChargebackReversed => common_enums::DisputeStatus::DisputeWon,
+            _ => return Err(WebhookError::WebhookEventTypeNotFound.into()),
+        };
+        let money = Money::try_from(event.payment.amount.as_ref().ok_or(
+            WebhookError::WebhookMissingRequiredField {
+                field: "notify.orderStatusEvent.payment.amount",
+            },
+        )?)?;
+        Ok(Self {
+            amount: domain_types::utils::convert_amount_for_webhook(
+                &StringMinorUnitForConnector,
+                &money,
+            )?,
+            currency: money.currency(),
+            dispute_id: event.order_code,
+            status,
+            stage: common_enums::DisputeStage::Dispute,
+            connector_response_reference_id: None,
+            dispute_message: None,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+            connector_reason_code: None,
+            additional_details: None,
+        })
+    }
+}
+
+impl TryFrom<responses::WorldpayxmlWebhookBody> for PayoutWebhookDetailsResponse {
+    type Error = Report<WebhookError>;
+
+    fn try_from(body: responses::WorldpayxmlWebhookBody) -> Result<Self, Self::Error> {
+        let event = body.notify.order_status_event;
+        let status = common_enums::PayoutStatus::try_from(&event.payment.last_event)
+            .change_context(WebhookError::WebhookProcessingFailed)?;
+        let (error_code, error_message) = event
+            .payment
+            .webhook_error_details(status == common_enums::PayoutStatus::Failure);
+        Ok(Self {
+            connector_payout_id: Some(event.order_code),
+            merchant_payout_id: None,
+            status,
+            error_code,
+            error_message,
+            status_code: 200,
+        })
     }
 }
 

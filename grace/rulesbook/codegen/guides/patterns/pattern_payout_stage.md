@@ -57,7 +57,7 @@ or `BodyDecoding`. Do not write those impls for a payout-only connector.
 
 **No `config/superposition.toml` entry and no `connector_specs/<connector>/specs.json` entry are
 required.** Three independent reasons, all in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`:
+`tests/regression/src/bin/check_connector_specs.rs`:
 
 1. `main()` enumerates connectors by reading
    `crates/integrations/connector-integration/src/connectors/` only — a connector under
@@ -221,7 +221,7 @@ Current implementation coverage: **0 of 10 payout connectors.**
 | _(none)_ | — | — | — | — | See Stub Implementations below. |
 
 This is a **coverage gap, not a decision that the flow should never be covered** — the same framing
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs` applies to uncovered flows.
+`tests/regression/src/bin/check_connector_specs.rs` applies to uncovered flows.
 
 ### Stub Implementations
 
@@ -584,7 +584,7 @@ shape with the appropriate converter from `common_utils::types`; both in-tree pa
 9. **Register the connector at all six sites** listed in the scope note above (the four shared wiring sites below plus the connector file itself and its `payout_connectors.rs` export), and add
    **no** `config/superposition.toml` entry and **no** `connector_specs/<connector>/specs.json`
    entry — `PayoutService` is in `IGNORE_SERVICES` in both
-   `crates/internal/integration-tests/src/bin/check_connector_specs.rs` and `check_coverage.rs`.
+   `tests/regression/src/bin/check_connector_specs.rs` and `check_coverage.rs`.
 
 ## Best Practices
 
@@ -631,7 +631,7 @@ Each connector implementing PayoutStage should cover:
 | Zero-amount stage | amount=0 | — (error, `IntegrationError::InvalidDataFormat { field_name, context }` (errors.rs)) | 422 |
 
 No payout connector exercises these scenarios today. There is no `connector_specs` suite for
-payouts either — `crates/internal/integration-tests/src/bin/check_connector_specs.rs` enumerates
+payouts either — `tests/regression/src/bin/check_connector_specs.rs` enumerates
 connectors from `connectors/` only, never `payout_connectors/`, and `PayoutService` is in its
 `IGNORE_SERVICES` (and `check_coverage.rs`'s), so this flow sits outside the merge-blocking
 certification gate. The in-repo gRPC-level harness is

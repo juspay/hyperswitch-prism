@@ -6,13 +6,13 @@ mod tests {
     pub mod base_url {
         use hyperswitch_masking::Secret;
 
-        use crate::payout_connectors::checkout::get_checkout_payout_base_url;
+        use crate::connectors::checkout::get_checkout_base_url;
 
         const SANDBOX_TEMPLATE: &str = "https://{{optional_client_id}}api.sandbox.checkout.com";
 
         #[test]
         fn client_id_contributes_account_prefix_subdomain() {
-            let url = get_checkout_payout_base_url(
+            let url = get_checkout_base_url(
                 SANDBOX_TEMPLATE,
                 Some(&Secret::new(
                     "cli_x46dhqyzrrrhjrbnl5hyexcluderequest".to_string(),
@@ -24,47 +24,46 @@ mod tests {
 
         #[test]
         fn absent_client_id_drops_optional_subdomain() {
-            let url = get_checkout_payout_base_url(SANDBOX_TEMPLATE, None).unwrap();
+            let url = get_checkout_base_url(SANDBOX_TEMPLATE, None).unwrap();
             assert_eq!(url, "https://api.sandbox.checkout.com");
         }
 
         #[test]
         fn override_without_placeholder_is_used_literally() {
             // Same leniency as payment URL resolution: a plain override must not fail.
-            let url = get_checkout_payout_base_url("http://localhost:8080", None).unwrap();
+            let url = get_checkout_base_url("http://localhost:8080", None).unwrap();
             assert_eq!(url, "http://localhost:8080");
         }
 
         #[test]
         fn override_without_placeholder_trailing_slash_is_trimmed() {
-            let url = get_checkout_payout_base_url("https://payouts.example.com/", None).unwrap();
+            let url = get_checkout_base_url("https://payouts.example.com/", None).unwrap();
             assert_eq!(url, "https://payouts.example.com");
         }
 
         #[test]
         fn override_with_placeholder_trailing_slash_is_trimmed() {
             let url =
-                get_checkout_payout_base_url("https://{{optional_client_id}}api.x.com/", None)
-                    .unwrap();
+                get_checkout_base_url("https://{{optional_client_id}}api.x.com/", None).unwrap();
             assert_eq!(url, "https://api.x.com");
         }
 
         #[test]
         fn malformed_client_id_is_rejected() {
             // Missing the `cli_` prefix.
-            assert!(get_checkout_payout_base_url(
+            assert!(get_checkout_base_url(
                 SANDBOX_TEMPLATE,
                 Some(&Secret::new("x46dhqyzrrrh".to_string())),
             )
             .is_err());
             // Shorter than the 8-character account prefix.
-            assert!(get_checkout_payout_base_url(
+            assert!(get_checkout_base_url(
                 SANDBOX_TEMPLATE,
                 Some(&Secret::new("cli_x46".to_string())),
             )
             .is_err());
             // Non-alphanumeric account prefix.
-            assert!(get_checkout_payout_base_url(
+            assert!(get_checkout_base_url(
                 SANDBOX_TEMPLATE,
                 Some(&Secret::new("cli_x46-hqyzrrrh".to_string())),
             )
@@ -274,11 +273,13 @@ mod tests {
             payment_address::{Address, AddressDetails},
             payment_method_data::DefaultPCIHolder,
             payouts::{
-                payout_method_data::{ApplePayDecrypt, Passthrough, PayoutMethodData, Wallet},
+                payout_method_data::{
+                    ApplePayDecrypt, GooglePayDecrypt, Passthrough, PayoutMethodData, Wallet,
+                },
                 payouts_types::{
-                    PayoutAddress, PayoutFlowData, PayoutFundsTransferType, PayoutSourceOfFunds,
-                    PayoutTransferRequest, PayoutTransferResponse, PayoutVendorAccountDetails,
-                    PayoutVendorDetails,
+                    PayoutAddress, PayoutFlowData, PayoutFundsTransferType, PayoutPurpose,
+                    PayoutSourceOfFunds, PayoutTransferRequest, PayoutTransferResponse,
+                    PayoutVendorAccountDetails, PayoutVendorDetails,
                 },
             },
             router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -416,6 +417,7 @@ mod tests {
                     payout_connector_metadata: None,
                     billing_descriptor: None,
                     funds_transfer_type: Some(PayoutFundsTransferType::AccountToAccount),
+                    purpose: None,
                     vendor_account_details,
                 },
                 response: Err(ErrorResponse::default()),
@@ -483,6 +485,24 @@ mod tests {
 
         fn apple_pay_token() -> PayoutMethodData<DefaultPCIHolder> {
             apple_pay_token_with_expiry("07", "2027")
+        }
+
+        fn google_pay_token_with_expiry(
+            expiry_month: &str,
+            expiry_year: &str,
+        ) -> PayoutMethodData<DefaultPCIHolder> {
+            PayoutMethodData::Wallet(Wallet::GooglePayDecrypt(GooglePayDecrypt {
+                application_primary_account_number: CardNumber::from_str("4543474002249996")
+                    .unwrap(),
+                expiry_month: Secret::new(expiry_month.to_string()),
+                expiry_year: Secret::new(expiry_year.to_string()),
+                card_holder_name: Some(Secret::new("Toby Arden".to_string())),
+                card_network: None,
+            }))
+        }
+
+        fn google_pay_token() -> PayoutMethodData<DefaultPCIHolder> {
+            google_pay_token_with_expiry("07", "2027")
         }
 
         #[test]
@@ -607,6 +627,93 @@ mod tests {
         }
 
         #[test]
+        fn serialized_google_pay_network_token_request() {
+            let req = router_data(
+                CONNECTOR_REFERENCE.to_string(),
+                Some(google_pay_token()),
+                Some(corporate_sender()),
+                None,
+            );
+            let (request, body) = build_request_body(&req);
+            let wire_body = serialized_wire_body(&request);
+
+            assert_eq!(
+                body.pointer("/destination/type"),
+                Some(&json!("network_token"))
+            );
+            assert_eq!(
+                body.pointer("/destination/token_type"),
+                Some(&json!("googlepay"))
+            );
+            assert_eq!(
+                wire_body.pointer("/destination/token"),
+                Some(&json!("4543474002249996"))
+            );
+            assert_eq!(
+                wire_body.pointer("/destination/expiry_month"),
+                Some(&json!(7))
+            );
+            assert_eq!(
+                wire_body.pointer("/destination/expiry_year"),
+                Some(&json!(2027))
+            );
+            assert_eq!(
+                wire_body.pointer("/destination/account_holder/first_name"),
+                Some(&json!("Toby"))
+            );
+            assert_eq!(
+                wire_body.pointer("/destination/account_holder/last_name"),
+                Some(&json!("Arden"))
+            );
+            assert_eq!(body.pointer("/amount"), Some(&json!(200)));
+            assert_eq!(body.pointer("/currency"), Some(&json!("USD")));
+            assert_eq!(
+                body.pointer("/instruction/funds_transfer_type"),
+                Some(&json!("AA"))
+            );
+        }
+
+        #[test]
+        fn google_pay_expiry_matches_apple_pay_mapping() {
+            let req = router_data(
+                CONNECTOR_REFERENCE.to_string(),
+                Some(google_pay_token_with_expiry("12", "27")),
+                Some(corporate_sender()),
+                None,
+            );
+            let (request, _) = build_request_body(&req);
+            let body = serialized_wire_body(&request);
+
+            assert_eq!(body.pointer("/destination/expiry_month"), Some(&json!(12)));
+            assert_eq!(body.pointer("/destination/expiry_year"), Some(&json!(2027)));
+        }
+
+        #[test]
+        fn invalid_google_pay_expiry_month_is_rejected() {
+            let connector = CheckoutPayouts::<DefaultPCIHolder>::new();
+            let connector_integration: BoxedConnectorIntegrationV2<
+                '_,
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest<DefaultPCIHolder>,
+                PayoutTransferResponse,
+            > = connector.get_connector_integration_v2();
+
+            for expiry_month in ["0", "13"] {
+                let req = router_data(
+                    CONNECTOR_REFERENCE.to_string(),
+                    Some(google_pay_token_with_expiry(expiry_month, "2027")),
+                    Some(corporate_sender()),
+                    None,
+                );
+                assert!(
+                    connector_integration.build_request_v2(&req).is_err(),
+                    "month {expiry_month} must be rejected"
+                );
+            }
+        }
+
+        #[test]
         fn client_id_resolves_into_request_url() {
             let req = router_data(
                 CONNECTOR_REFERENCE.to_string(),
@@ -639,6 +746,94 @@ mod tests {
                 body.pointer("/destination/account_holder/type"),
                 Some(&json!("individual"))
             );
+        }
+
+        #[test]
+        fn all_purposes_serialize_exactly_with_visa_funds_transfer_type() {
+            let purpose_mappings = [
+                (PayoutPurpose::FamilySupport, "family_support"),
+                (PayoutPurpose::Expatriation, "expatriation"),
+                (PayoutPurpose::TravelAndTourism, "travel_and_tourism"),
+                (PayoutPurpose::Education, "education"),
+                (PayoutPurpose::MedicalTreatment, "medical_treatment"),
+                (PayoutPurpose::EmergencyNeed, "emergency_need"),
+                (PayoutPurpose::Leisure, "leisure"),
+                (PayoutPurpose::Savings, "savings"),
+                (PayoutPurpose::Gifts, "gifts"),
+                (PayoutPurpose::Donations, "donations"),
+                (PayoutPurpose::FinancialServices, "financial_services"),
+                (PayoutPurpose::ItServices, "it_services"),
+                (PayoutPurpose::Investment, "investment"),
+                (PayoutPurpose::Insurance, "insurance"),
+                (PayoutPurpose::LoanPayment, "loan_payment"),
+                (PayoutPurpose::Pension, "pension"),
+                (PayoutPurpose::Royalties, "royalties"),
+                (PayoutPurpose::Other, "other"),
+                (PayoutPurpose::Income, "income"),
+            ];
+
+            for (purpose, expected_wire_value) in purpose_mappings {
+                let mut req = router_data(
+                    CONNECTOR_REFERENCE.to_string(),
+                    Some(apple_pay_token()),
+                    Some(corporate_sender()),
+                    None,
+                );
+                req.request.purpose = Some(purpose);
+                let (request, _) = build_request_body(&req);
+                let body = serialized_wire_body(&request);
+
+                assert_eq!(
+                    body.pointer("/instruction/purpose"),
+                    Some(&json!(expected_wire_value))
+                );
+                assert_eq!(
+                    body.pointer("/instruction/funds_transfer_type"),
+                    Some(&json!("AA"))
+                );
+            }
+        }
+
+        #[test]
+        fn purpose_serializes_with_mastercard_funds_transfer_type_unchanged() {
+            let mut req = router_data(
+                CONNECTOR_REFERENCE.to_string(),
+                Some(apple_pay_token()),
+                Some(corporate_sender()),
+                None,
+            );
+            req.request.purpose = Some(PayoutPurpose::FinancialServices);
+            req.request.funds_transfer_type =
+                Some(PayoutFundsTransferType::MastercardTransferToOwnAccount);
+            let (request, _) = build_request_body(&req);
+            let body = serialized_wire_body(&request);
+
+            assert_eq!(
+                body.pointer("/instruction/purpose"),
+                Some(&json!("financial_services"))
+            );
+            assert_eq!(
+                body.pointer("/instruction/funds_transfer_type"),
+                Some(&json!("C52"))
+            );
+        }
+
+        #[test]
+        fn absent_purpose_is_omitted_from_instruction() {
+            let req = router_data(
+                CONNECTOR_REFERENCE.to_string(),
+                Some(apple_pay_token()),
+                Some(corporate_sender()),
+                None,
+            );
+            let (request, _) = build_request_body(&req);
+            let body = serialized_wire_body(&request);
+            let instruction = body
+                .pointer("/instruction")
+                .expect("request must contain an instruction");
+
+            assert!(instruction.get("purpose").is_none());
+            assert_eq!(instruction.get("funds_transfer_type"), Some(&json!("AA")));
         }
 
         #[test]

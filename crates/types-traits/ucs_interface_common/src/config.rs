@@ -42,6 +42,7 @@ pub fn merge_config_with_override(
     }
 }
 
+// Caller-supplied URL overrides are intentional; see the design notes on `apply_url_overrides`.
 pub fn connectors_with_connector_config_overrides(
     connector_config: &ConnectorSpecificConfig,
     base_config: &configs::Config,
