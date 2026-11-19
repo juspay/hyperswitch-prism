@@ -63,6 +63,9 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::ecommpay::{
+    transformers as webhook_transformers, Ecommpay as EcommpayWebhook,
+};
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
@@ -818,11 +821,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 error_stack::report!(errors::WebhookError::WebhookVerificationSecretNotFound)
                     .attach_printable("Ecommpay callback verification needs a webhook secret")
             })?;
-        match ecommpay::parse_webhook_body(&request.body)? {
+        match webhook_transformers::parse_webhook_body(&request.body)? {
             // Chargeback callbacks carry no signature and are never authoritative.
-            ecommpay::EcommpayWebhookBody::Chargeback(_) => return Ok(false),
-            ecommpay::EcommpayWebhookBody::Token(_) | ecommpay::EcommpayWebhookBody::Payment(_) => {
-            }
+            webhook_transformers::EcommpayWebhookBody::Chargeback(_) => return Ok(false),
+            webhook_transformers::EcommpayWebhookBody::Token(_)
+            | webhook_transformers::EcommpayWebhookBody::Payment(_) => {}
         }
         let body: serde_json::Value = serde_json::from_slice(&request.body)
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
@@ -850,16 +853,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body = ecommpay::parse_webhook_body(&request.body)?;
-        Ok(ecommpay::webhook_event_type(&body))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let body = ecommpay::parse_webhook_body(&request.body)?;
-        ecommpay::webhook_reference(&body)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            EcommpayWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -869,12 +867,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        match ecommpay::parse_webhook_body(&request.body)? {
-            ecommpay::EcommpayWebhookBody::Payment(response) => {
-                ecommpay::payment_webhook_details(&response)
+        match webhook_transformers::parse_webhook_body(&request.body)? {
+            webhook_transformers::EcommpayWebhookBody::Payment(response) => {
+                webhook_transformers::payment_webhook_details(&response)
             }
-            ecommpay::EcommpayWebhookBody::Chargeback(_)
-            | ecommpay::EcommpayWebhookBody::Token(_) => Err(error_stack::report!(
+            webhook_transformers::EcommpayWebhookBody::Chargeback(_)
+            | webhook_transformers::EcommpayWebhookBody::Token(_) => Err(error_stack::report!(
                 errors::WebhookError::WebhookResourceObjectNotFound
             )
             .attach_printable("Ecommpay callback is not a payment callback")),
@@ -887,12 +885,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        match ecommpay::parse_webhook_body(&request.body)? {
-            ecommpay::EcommpayWebhookBody::Payment(response) => {
-                ecommpay::refund_webhook_details(&response)
+        match webhook_transformers::parse_webhook_body(&request.body)? {
+            webhook_transformers::EcommpayWebhookBody::Payment(response) => {
+                webhook_transformers::refund_webhook_details(&response)
             }
-            ecommpay::EcommpayWebhookBody::Chargeback(_)
-            | ecommpay::EcommpayWebhookBody::Token(_) => Err(error_stack::report!(
+            webhook_transformers::EcommpayWebhookBody::Chargeback(_)
+            | webhook_transformers::EcommpayWebhookBody::Token(_) => Err(error_stack::report!(
                 errors::WebhookError::WebhookResourceObjectNotFound
             )
             .attach_printable("Ecommpay callback is not a refund callback")),
