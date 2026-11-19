@@ -43,6 +43,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::payload::Payload as PayloadWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
@@ -733,14 +734,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: domain_types::connector_types::RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        let webhook_body: transformers::PayloadWebhookEvent = request
-            .body
-            .parse_struct("PayloadWebhookEvent")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(transformers::get_event_type_from_trigger(
-            webhook_body.trigger,
-        ))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            PayloadWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn get_webhook_resource_object(
