@@ -12,11 +12,13 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
+        MandateWebhookReference, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookReference,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
         SetupMandateRequestData, SupportedPaymentMethodsExt, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -234,6 +236,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
         EventType::try_from(event.r#type)
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let event: PproWebhookEvent = request
+            .body
+            .parse_struct("PproWebhookEvent")
+            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
+
+        let reference = match (event.r#type, event.data) {
+            (
+                PproWebhookType::PaymentChargeRefundPending
+                | PproWebhookType::PaymentChargeRefundSucceeded
+                | PproWebhookType::PaymentChargeRefundFailed,
+                PproWebhookData::Charge(charge),
+            ) => WebhookResourceReference::Refund(RefundWebhookReference {
+                connector_refund_id: charge.refund_id,
+                merchant_refund_id: charge.merchant_refund_reference,
+                connector_transaction_id: Some(charge.payment_charge_id),
+                merchant_transaction_id: charge.merchant_payment_charge_reference,
+            }),
+            (_, PproWebhookData::Charge(charge)) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(charge.payment_charge_id),
+                    merchant_transaction_id: charge.merchant_payment_charge_reference,
+                    connector_preprocessing_id: None,
+                })
+            }
+            (_, PproWebhookData::Agreement(agreement)) => {
+                WebhookResourceReference::Mandate(MandateWebhookReference {
+                    connector_mandate_id: Some(agreement.payment_agreement_id),
+                    merchant_transaction_id: None,
+                })
+            }
+        };
+
+        Ok(Some(reference))
     }
 
     fn process_payment_webhook(
