@@ -285,7 +285,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Trustly](connectors/trustly.md) | ⚠ | ⚠ | x | ⚠ | x | ? | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [TrustPay](connectors/trustpay.md) | ✓ | x | x | x | ✓ | ✓ | x | ⚠ | ? | x | x | ✓ | ? | ✓ | x | ✓ | x | x | x | x | x | x | x | x | x | ✓ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Trustpayments](connectors/trustpayments.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ⚠ | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Tsys](connectors/tsys.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | x | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [Tsys](connectors/tsys.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ? | ⚠ | ⚠ | ✓ | ? | ⚠ | x | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Tsys Transit](connectors/tsys_transit.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | x | x | x | ? | x | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x |
 | [Tsystransit](connectors/tsystransit.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | x | x | x | ? | x | x | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x |
 | [Twoc Twop Paco](connectors/twoc_twop_paco.md) | ? | ? | ? | ? | x | ? | ⚠ | ✓ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
