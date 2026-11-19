@@ -5,7 +5,8 @@ pub mod cashtocode;
 pub mod phonepe;
 pub mod ppro;
 pub mod rapyd;
+pub mod razorpay;
 pub use self::{
     adyen::Adyen, braintree::Braintree, calida::Calida, cashtocode::Cashtocode, phonepe::Phonepe,
-    ppro::Ppro, rapyd::Rapyd,
+    ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay,
 };
