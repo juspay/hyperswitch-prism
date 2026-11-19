@@ -241,6 +241,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
             | WalletDataPaymentMethod::PaymayaRedirect(_) | WalletDataPaymentMethod::PayhereRedirect {}
+            | WalletDataPaymentMethod::AliPayPlusRedirect {}
+            | WalletDataPaymentMethod::BoostRedirect {}
             | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
             | WalletDataPaymentMethod::Skrill(_)
             | WalletDataPaymentMethod::Neteller(_) => {

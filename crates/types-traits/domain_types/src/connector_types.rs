@@ -182,6 +182,7 @@ pub enum ConnectorEnum {
     Betterpayment,
     Ecommpay,
     Payhound,
+    Revpay,
     Kgp,
 }
 
@@ -591,6 +592,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
             grpc_api_types::payments::Connector::Payhound => Ok(Self::Payhound),
+            grpc_api_types::payments::Connector::Revpay => Ok(Self::Revpay),
             grpc_api_types::payments::Connector::Kgp => Ok(Self::Kgp),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -4693,6 +4695,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
                 payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
                 payment_method_data::WalletData::PayhereRedirect {} => Self::PayhereRedirect,
+                payment_method_data::WalletData::BoostRedirect {} => Self::BoostRedirect,
+                payment_method_data::WalletData::AliPayPlusRedirect {} => Self::AliPayPlusRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -6789,6 +6793,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Payhound(_) => Ok(Self::Payment(ConnectorEnum::Payhound)),
+            AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
             AuthType::Kgp(_) => Ok(Self::Payment(ConnectorEnum::Kgp)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),

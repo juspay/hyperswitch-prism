@@ -1193,6 +1193,17 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// revPAY (Revenue Group Berhad). There is no HTTP auth header — every
+    /// request carries its credentials in the body: `merchant_id` is the
+    /// revPAY `Revpay_Merchant_ID`, `merchant_key` the Merchant Key used only
+    /// to compute the in-body SHA-512 signature, and `key_index` the
+    /// `Key_Index` identifying that key. Names follow revPAY's vocabulary.
+    Revpay {
+        merchant_id: Secret<String>,
+        merchant_key: Secret<String>,
+        key_index: Secret<String>,
+        base_url: Option<String>,
+    },
     Kgp {
         api_key: Secret<String>,
         public_key: Option<Secret<String>>,
@@ -1662,6 +1673,11 @@ impl ConnectorSpecificConfig {
             Payhound {
                 api_key,
                 api_secret
+            },
+            Revpay {
+                merchant_id,
+                merchant_key,
+                key_index
             },
             Kgp { api_key },
             Imerchantsolutions { api_key },
@@ -2225,6 +2241,11 @@ impl ConnectorSpecificConfig {
                 Payhound {
                     api_key,
                     api_secret
+                },
+                Revpay {
+                    merchant_id,
+                    merchant_key,
+                    key_index
                 },
                 Kgp { api_key },
                 Imerchantsolutions { api_key },
@@ -3036,6 +3057,48 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: payhound.api_key.ok_or_else(err)?,
                 api_secret: payhound.api_secret.ok_or_else(err)?,
                 base_url: payhound.base_url,
+            }),
+            AuthType::Revpay(revpay) => Ok(Self::Revpay {
+                // Per-field errors name the exact missing credential in logs.
+                merchant_id: revpay.merchant_id.ok_or_else(|| {
+                    errors::IntegrationError::MissingRequiredField {
+                        field_name: "Revpay.merchant_id (revPAY Revpay_Merchant_ID)",
+                        context: errors::IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Configure merchant_id in the revPAY connector credentials"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "Revpay_Merchant_ID is required for every revPAY request and signature"
+                                    .to_string(),
+                            ),
+                        },
+                    }
+                })?,
+                merchant_key: revpay.merchant_key.ok_or_else(|| {
+                    errors::IntegrationError::MissingRequiredField {
+                        field_name: "Revpay.merchant_key (revPAY Merchant Key)",
+                        context: errors::IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Configure merchant_key in the revPAY connector credentials"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "The Merchant Key is required to sign requests and verify revPAY responses"
+                                    .to_string(),
+                            ),
+                        },
+                    }
+                })?,
+                // Key_Index defaults to "1" when omitted: revPAY issues merchant
+                // key #1 first (spec Appendix D) and single-key accounts always
+                // use index 1. A wrong index surfaces as revPAY code 3A.
+                key_index: revpay
+                    .key_index
+                    .unwrap_or_else(|| Secret::new("1".to_string())),
+                base_url: revpay.base_url,
             }),
             AuthType::Kgp(kgp) => Ok(Self::Kgp {
                 api_key: kgp.api_key.ok_or_else(err)?,
@@ -4522,6 +4585,24 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payhound {
                         api_key: api_key.clone(),
                         api_secret: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Revpay => match auth {
+                    // revPAY's credentials travel in the request body / signature,
+                    // not in headers: api_key = Merchant ID, key1 = Merchant Key
+                    // (signature secret), api_secret = Key_Index. The legacy
+                    // 3-slot `SignatureKey` header shape maps onto revPAY's
+                    // merchant_id / merchant_key / key_index config fields.
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Revpay {
+                        merchant_id: api_key.clone(),
+                        merchant_key: key1.clone(),
+                        key_index: api_secret.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
