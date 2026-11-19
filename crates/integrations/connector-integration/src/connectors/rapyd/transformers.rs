@@ -1580,20 +1580,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         RapydWalletDetails::GooglePayDecrypted(_)
                             | RapydWalletDetails::ApplePayDecrypted(_)
                     );
-                if is_initial_decrypted_wallet
-                    && item.router_data.request.setup_future_usage.is_some()
-                    && item.router_data.request.off_session == Some(true)
-                {
-                    return Err(IntegrationError::NotSupported {
-                        message: "Off-session initial decrypted wallet save".to_owned(),
-                        connector: "rapyd",
-                        context: utils::integration_ctx(
-                            "An initial decrypted wallet save requires the customer to be present",
-                            "Use a customer-present initial save or RepeatPayment for an existing saved payment method.",
-                        ),
-                    }
-                    .into());
-                }
                 if item
                     .router_data
                     .request
