@@ -446,7 +446,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             )
         };
 
-        let (code, message, typed) = if looks_like_jose {
+        let (code, message, typed, parsed_decline) = if looks_like_jose {
             match TwocTwopPacoAuthType::try_from(connector_config) {
                 Ok(auth) => {
                     match common_utils::crypto::jose::decrypt_then_verify(trimmed, &auth.jose_cfg) {
@@ -468,7 +468,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                                     with_error_response_body!(event_builder, parsed);
                                     let (code, message) =
                                         twoc_twop_paco::error_code_message(&api, &prior);
-                                    (code, message, typed)
+                                    (code, message, typed, true)
                                 }
                                 Err(err) => {
                                     tracing::warn!(
@@ -476,7 +476,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                                         "twoc_twop_paco: failed to parse decrypted error envelope"
                                     );
                                     let (code, message) = fallback("envelope parse failed");
-                                    (code, message, None)
+                                    (code, message, None, false)
                                 }
                             }
                         }
@@ -486,13 +486,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                                 "twoc_twop_paco: JOSE decrypt failed for error response"
                             );
                             let (code, message) = fallback("JOSE decrypt failed");
-                            (code, message, None)
+                            (code, message, None, false)
                         }
                     }
                 }
                 Err(_) => {
                     let (code, message) = fallback("connector auth config missing");
-                    (code, message, None)
+                    (code, message, None, false)
                 }
             }
         } else {
@@ -504,11 +504,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     );
                     with_error_response_body!(event_builder, parsed);
                     let (code, message) = parsed.flatten();
-                    (code, message, typed)
+                    (code, message, typed, true)
                 }
                 Err(_) => {
                     let (code, message) = fallback("response is neither JOSE nor recognised JSON");
-                    (code, message, None)
+                    (code, message, None, false)
                 }
             }
         };
@@ -518,7 +518,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code,
             message: message.clone(),
             reason: Some(message),
-            attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+            // Rate limits and unreadable bodies do not prove the payment failed;
+            // leave the status unset so the caller keeps the prior state.
+            attempt_status: (parsed_decline && res.status_code != 429)
+                .then_some(FlowStatus::Payment(AttemptStatus::Failure)),
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
