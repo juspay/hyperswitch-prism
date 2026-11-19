@@ -2195,9 +2195,10 @@ fn sync_refund_status(
             | DatatransPaymentStatus::ChallengeRequired => RefundStatus::Pending,
             DatatransPaymentStatus::Initialized
             | DatatransPaymentStatus::Authenticated
-            | DatatransPaymentStatus::Authorized
-            | DatatransPaymentStatus::Canceled
-            | DatatransPaymentStatus::Failed => RefundStatus::Failure,
+            | DatatransPaymentStatus::Authorized => RefundStatus::Pending,
+            DatatransPaymentStatus::Canceled | DatatransPaymentStatus::Failed => {
+                RefundStatus::Failure
+            }
         },
         DatatransTransactionType::Payment | DatatransTransactionType::CardCheck => {
             RefundStatus::Failure
