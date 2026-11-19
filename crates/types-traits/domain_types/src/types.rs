@@ -2740,17 +2740,27 @@ impl<
                 // INDONESIAN BANK TRANSFERS - Doku Integration
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Pix(pix_data) => {
-                    // Parse expiry_date from ISO 8601 string if provided
+                    // Parse expiry_date from ISO 8601 string if provided. A malformed value is
+                    // an error: dropping it would silently apply the connector's default expiry.
                     let expiry_date = pix_data
                         .expiry_date
                         .as_ref()
-                        .and_then(|date_str| {
+                        .map(|date_str| {
                             time::PrimitiveDateTime::parse(
                                 date_str,
                                 &time::format_description::well_known::Iso8601::DEFAULT,
                             )
-                            .ok()
-                        });
+                            .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "payment_method.pix.expiry_date",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "expiry_date must be an ISO 8601 date-time".to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            })
+                        })
+                        .transpose()?;
 
                     Ok(Self::BankTransfer(Box::new(
                         payment_method_data::BankTransferData::Pix {
@@ -2843,13 +2853,26 @@ impl<
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Boleto(boleto) => {
                     // Parse the merchant-supplied boleto due date from an ISO 8601 string if provided.
-                    let expiration_date = boleto.expiration_date.as_ref().and_then(|date_str| {
-                        time::PrimitiveDateTime::parse(
-                            date_str,
-                            &time::format_description::well_known::Iso8601::DEFAULT,
-                        )
-                        .ok()
-                    });
+                    // A malformed value is an error rather than silently using the default expiry.
+                    let expiration_date = boleto
+                        .expiration_date
+                        .as_ref()
+                        .map(|date_str| {
+                            time::PrimitiveDateTime::parse(
+                                date_str,
+                                &time::format_description::well_known::Iso8601::DEFAULT,
+                            )
+                            .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "payment_method.boleto.expiration_date",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "expiration_date must be an ISO 8601 date-time".to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            })
+                        })
+                        .transpose()?;
                     Ok(Self::Voucher(payment_method_data::VoucherData::Boleto(Box::new(
                         payment_method_data::BoletoVoucherData {
                             social_security_number: boleto.social_security_number.map(Secret::new),
