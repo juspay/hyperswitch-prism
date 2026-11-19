@@ -6,7 +6,7 @@ use base64::Engine;
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     consts,
-    crypto::{HmacSha256, SignMessage},
+    crypto::{HmacSha256, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -51,6 +51,9 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
 }
+
+/// Clock-skew allowance when checking the webhook JWT `exp` claim.
+const JWT_EXP_LEEWAY_SECS: i64 = 60;
 
 use domain_types::errors::IntegrationError;
 
@@ -241,12 +244,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Failed to decode JWT signature from base64url")?;
 
         // Verify HMAC-SHA256
-        let computed = HmacSha256
-            .sign_message(&secret.secret, message.as_bytes())
+        let is_signature_valid = HmacSha256
+            .verify_signature(&secret.secret, &signature, message.as_bytes())
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to sign JWT message with HMAC-SHA256")?;
+            .attach_printable("Failed to verify JWT signature with HMAC-SHA256")?;
+        if !is_signature_valid {
+            return Ok(false);
+        }
 
-        Ok(computed == signature)
+        // Reject tokens whose `exp` claim (seconds since epoch) has passed.
+        let Some(claims) = consts::BASE64_ENGINE_URL_SAFE_NO_PAD
+            .decode(payload)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        else {
+            return Ok(false);
+        };
+        let is_expired = claims
+            .get("exp")
+            .and_then(serde_json::Value::as_i64)
+            .is_some_and(|exp| {
+                exp.saturating_add(JWT_EXP_LEEWAY_SECS)
+                    < common_utils::date_time::now_unix_timestamp()
+            });
+
+        Ok(!is_expired)
     }
 
     fn get_event_type(
@@ -275,10 +297,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         match event.event_type {
             TamaraWebhookEvent::OrderRefunded => Ok(Some(WebhookResourceReference::Refund(
                 RefundWebhookReference {
-                    connector_refund_id: refund_id.clone(),
+                    connector_refund_id: refund_id,
                     merchant_refund_id: None,
                     connector_transaction_id: Some(event.order_id),
-                    merchant_transaction_id: refund_id,
+                    merchant_transaction_id: event.order_reference_id,
                 },
             ))),
             _ => Ok(Some(WebhookResourceReference::Payment(
@@ -310,10 +332,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_status: None,
             amount: None,
             connector_returned_payment_method_details: None,
-            resource_id: Some(ResponseId::ConnectorTransactionId(event.order_id.clone())),
+            resource_id: Some(ResponseId::ConnectorTransactionId(event.order_id)),
             status: AttemptStatus::from(event.event_type),
-            connector_response_reference_id: Some(event.order_id.clone()),
-            connector_request_reference_id: Some(event.order_id),
+            connector_response_reference_id: event.order_reference_id.clone(),
+            connector_request_reference_id: event.order_reference_id,
             mandate_reference: None,
             error_code: None,
             error_message: None,
