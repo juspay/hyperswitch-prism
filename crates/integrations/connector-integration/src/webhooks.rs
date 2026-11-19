@@ -11,6 +11,7 @@ pub mod dlocal;
 pub mod ecommpay;
 pub mod finix;
 pub mod flywire;
+pub mod givepayments;
 pub mod grabpay;
 pub mod hyperswitch;
 pub mod phonepe;
@@ -23,6 +24,6 @@ pub use self::{
     absa_sanlam::AbsaSanlam, adyen::Adyen, betterpayment::Betterpayment, bluesnap::Bluesnap,
     boost::Boost, braintree::Braintree, calida::Calida, cashtocode::Cashtocode,
     cryptopay::Cryptopay, dlocal::Dlocal, ecommpay::Ecommpay, finix::Finix, flywire::Flywire,
-    grabpay::Grabpay, hyperswitch::Hyperswitch, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,
-    razorpay::Razorpay, trustpay::Trustpay, worldpayxml::Worldpayxml,
+    givepayments::Givepayments, grabpay::Grabpay, hyperswitch::Hyperswitch, phonepe::Phonepe,
+    ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, trustpay::Trustpay, worldpayxml::Worldpayxml,
 };
