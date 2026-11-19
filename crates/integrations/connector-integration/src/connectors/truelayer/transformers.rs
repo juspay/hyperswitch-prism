@@ -1547,9 +1547,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let reference = item
             .router_data
             .request
-            .connector_transaction_id
+            .refund_id
             .chars()
-            .take(35)
+            .take(18)
             .collect::<String>();
 
         Ok(Self {
