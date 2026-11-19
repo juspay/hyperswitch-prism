@@ -311,9 +311,10 @@ impl From<PproPaymentStatus> for common_enums::AttemptStatus {
         match status {
             PproPaymentStatus::AuthorizationProcessing => Self::Pending,
             PproPaymentStatus::AuthenticationPending => Self::AuthenticationPending,
-            PproPaymentStatus::AuthorizationAsync
-            | PproPaymentStatus::CapturePending
-            | PproPaymentStatus::CaptureProcessing => Self::Authorized,
+            PproPaymentStatus::AuthorizationAsync => Self::Authorized,
+            PproPaymentStatus::CapturePending | PproPaymentStatus::CaptureProcessing => {
+                Self::CaptureInitiated
+            }
             PproPaymentStatus::Captured | PproPaymentStatus::Success => Self::Charged,
             PproPaymentStatus::Failed
             | PproPaymentStatus::Discarded

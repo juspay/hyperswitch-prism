@@ -257,7 +257,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        let status = common_enums::AttemptStatus::from(charge.payment_charge_status);
+        let status = match event.r#type {
+            PproWebhookType::PaymentChargeCaptureFailed => {
+                common_enums::AttemptStatus::CaptureFailed
+            }
+            PproWebhookType::PaymentChargeVoidFailed => common_enums::AttemptStatus::VoidFailed,
+            _ => common_enums::AttemptStatus::from(charge.payment_charge_status),
+        };
 
         let (error_code, error_message, error_reason) = match charge.failure.as_ref() {
             Some(failure) => (
@@ -319,7 +325,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        let status = common_enums::RefundStatus::from(charge.payment_charge_status);
+        let status = match event.r#type {
+            PproWebhookType::PaymentChargeRefundSucceeded => common_enums::RefundStatus::Success,
+            PproWebhookType::PaymentChargeRefundFailed => common_enums::RefundStatus::Failure,
+            PproWebhookType::PaymentChargeRefundPending => common_enums::RefundStatus::Pending,
+            _ => return Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound)),
+        };
 
         let (error_code, error_message) = match charge.failure.as_ref() {
             Some(failure) => (
@@ -333,7 +344,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             domain_types::connector_types::RefundWebhookDetailsResponse {
                 raw_connector_status: None,
                 connector_refund_id: charge.refund_id.clone(),
-                merchant_transaction_id: charge.merchant_payment_charge_reference.clone(),
+                merchant_transaction_id: charge.merchant_refund_reference.clone(),
                 status,
                 connector_response_reference_id: charge.merchant_refund_reference.clone(),
                 error_code,
