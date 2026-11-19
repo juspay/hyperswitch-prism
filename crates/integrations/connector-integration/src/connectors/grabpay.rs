@@ -22,7 +22,7 @@ use domain_types::{
         RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
         RefundsData, RefundsResponseData, RequestDetails, ResponseId,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        WebhookDetailsResponse,
     },
     errors::{self, IntegrationError, IntegrationErrorContext, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -50,10 +50,14 @@ use transformers::{
     GrabpayAuthorizeRequest, GrabpayAuthorizeResponse, GrabpayChargeCompleteResponse,
     GrabpayRefundRequest, GrabpayRefundResponse, GrabpayRefundSyncResponse,
     GrabpayServerSessionAuthenticationTokenRequest,
-    GrabpayServerSessionAuthenticationTokenResponse, GrabpayWebhookBody,
+    GrabpayServerSessionAuthenticationTokenResponse,
 };
 
 use super::macros;
+use crate::webhooks::grabpay::{
+    transformers::{self as webhook_transformers, GrabpayWebhookBody},
+    Grabpay as GrabpayWebhook,
+};
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 
 const CONTENT_TYPE: &str = "application/json";
@@ -933,22 +937,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let webhook_body: GrabpayWebhookBody = request
-            .body
-            .parse_struct("GrabpayWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        grabpay::grabpay_webhook_event_type(&webhook_body)
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let webhook_body: GrabpayWebhookBody = request
-            .body
-            .parse_struct("GrabpayWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        Ok(Some(webhook_body.webhook_reference()))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            GrabpayWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -968,7 +961,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ));
         }
 
-        let status = grabpay::grabpay_webhook_attempt_status(&webhook_body)?;
+        let status = webhook_transformers::grabpay_webhook_attempt_status(&webhook_body)?;
         let is_failure = status == enums::AttemptStatus::Failure;
         let reason = webhook_body.effective_reason();
         let connector_transaction_id = webhook_body.tx_id.clone().ok_or_else(|| {
@@ -1013,7 +1006,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ));
         }
 
-        let status = grabpay::grabpay_webhook_refund_status(&webhook_body)?;
+        let status = webhook_transformers::grabpay_webhook_refund_status(&webhook_body)?;
         let is_failure = status == enums::RefundStatus::Failure;
         let reason = webhook_body.effective_reason();
 
