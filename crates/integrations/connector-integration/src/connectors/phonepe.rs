@@ -40,6 +40,7 @@ use self::transformers::{
 };
 use super::macros;
 use crate::types::ResponseRouterData;
+use crate::webhooks::phonepe::{transformers as webhook_transformers, Phonepe as PhonepeWebhook};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::errors::IntegrationErrorContext;
@@ -109,7 +110,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         use hyperswitch_masking::Secret;
 
-        let webhook_request: phonepe::PhonepeWebhookRequest = request
+        let webhook_request: webhook_transformers::PhonepeWebhookRequest = request
             .body
             .parse_struct("PhonepeWebhookRequest")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -125,8 +126,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let salt_key =
             Secret::new(String::from_utf8_lossy(&connector_webhook_secret.secret).to_string());
 
-        let expected_checksum =
-            phonepe::compute_phonepe_webhook_checksum(base64_body, api_path, &salt_key, key_index)?;
+        let expected_checksum = webhook_transformers::compute_phonepe_webhook_checksum(
+            base64_body,
+            api_path,
+            &salt_key,
+            key_index,
+        )?;
 
         Ok(expected_checksum.into_bytes())
     }
@@ -160,7 +165,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let key_index = incoming_verify.split("###").nth(1).unwrap_or("1");
 
         // Parse the webhook body to get the base64-encoded payload
-        let webhook_request: phonepe::PhonepeWebhookRequest =
+        let webhook_request: webhook_transformers::PhonepeWebhookRequest =
             match request.body.parse_struct("PhonepeWebhookRequest") {
                 Ok(req) => req,
                 Err(e) => {
@@ -175,7 +180,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Secret::new(String::from_utf8_lossy(&connector_webhook_secret.secret).to_string());
 
         // Compute expected checksum
-        let expected_checksum = match phonepe::compute_phonepe_webhook_checksum(
+        let expected_checksum = match webhook_transformers::compute_phonepe_webhook_checksum(
             base64_body,
             api_path,
             &salt_key,
@@ -201,10 +206,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
-        Ok(phonepe::map_phonepe_webhook_state_to_event_type(
-            &payload.state,
-        ))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            PhonepeWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -214,9 +220,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<domain_types::connector_types::EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
+        let payload = webhook_transformers::decode_phonepe_webhook_payload(&request.body)?;
 
-        let status = phonepe::map_phonepe_webhook_state_to_attempt_status(&payload.state);
+        let status =
+            webhook_transformers::map_phonepe_webhook_state_to_attempt_status(&payload.state);
 
         let (error_code, error_message, error_reason) = if status == enums::AttemptStatus::Failure {
             let code = payload.response_code.clone();
@@ -280,7 +287,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
+        let payload = webhook_transformers::decode_phonepe_webhook_payload(&request.body)?;
         Ok(Box::new(payload))
     }
 }
