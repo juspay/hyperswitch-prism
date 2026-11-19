@@ -3447,7 +3447,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
         if matches!(void_post_refund_status, RefundStatus::Failure) {
             return Ok(Self {
                 resource_common_data: RefundFlowData {
-                    status: RefundStatus::Success,
+                    status: void_post_refund_status,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
@@ -3482,7 +3482,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
 
         Ok(Self {
             resource_common_data: RefundFlowData {
-                status: RefundStatus::Success,
+                status: void_post_refund_status,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(RefundsResponseData {
