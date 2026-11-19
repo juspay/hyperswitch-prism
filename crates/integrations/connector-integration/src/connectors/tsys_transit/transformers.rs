@@ -1420,6 +1420,7 @@ fn build_tsys_product_details(
             let missing_fields = collect_missing_value_keys!(
                 ("order_details.commodity_code", commodity_code),
                 ("order_details.unit_of_measure", measurement_unit),
+                ("order_details.unit_discount_amount", unit_discount_amount),
                 ("order_details.product_tax_name", product_tax_name),
                 ("order_details.product_tax_amount", product_tax_amount),
                 (
@@ -1436,12 +1437,14 @@ fn build_tsys_product_details(
         if matches!(card_network, Some(CardNetwork::Mastercard)) {
             let missing_fields = collect_missing_value_keys!(
                 ("order_details.unit_of_measure", measurement_unit),
+                ("order_details.unit_discount_amount", unit_discount_amount),
                 ("order_details.product_tax_name", product_tax_name),
                 ("order_details.product_tax_amount", product_tax_amount),
                 (
                     "order_details.product_tax_percentage",
                     product_tax_percentage
-                )
+                ),
+                ("order_details.unit_discount_amount", unit_discount_amount)
             );
 
             if !missing_fields.is_empty() {
@@ -1455,24 +1458,18 @@ fn build_tsys_product_details(
             price,
             quantity,
             measurement_unit,
-            // Discount details describe a discount; an item without one sends none, so its
-            // discount fields are only required when it has a discount.
-            product_discount_details: has_discount
-                .then(|| -> Result<_, Report<IntegrationError>> {
-                    Ok(TsysTransitProductDiscountDetails {
-                        product_discount_name: product_discount_name
-                            .ok_or(missing_field("order_details.discount_name"))?,
-                        product_discount_amount: unit_discount_amount
-                            .ok_or(missing_field("order_details.unit_discount_amount"))?,
-                        product_discount_percentage: product_discount_percentage
-                            .ok_or(missing_field("order_details.discount_percentage"))?,
-                        product_discount_type: product_discount_type
-                            .ok_or(missing_field("order_details.discount_type"))?,
-                        priority,
-                        stackable,
-                    })
-                })
-                .transpose()?,
+            product_discount_details: Some(TsysTransitProductDiscountDetails {
+                product_discount_name: product_discount_name
+                    .ok_or(missing_field("order_details.discount_name"))?,
+                product_discount_amount: unit_discount_amount
+                    .ok_or(missing_field("order_details.unit_discount_amount"))?,
+                product_discount_percentage: product_discount_percentage
+                    .ok_or(missing_field("order_details.discount_percentage"))?,
+                product_discount_type: product_discount_type
+                    .ok_or(missing_field("order_details.discount_type"))?,
+                priority,
+                stackable,
+            }),
             product_tax_details: Some(TsysTransitProductTaxDetails {
                 product_tax_name,
                 product_tax_amount,
