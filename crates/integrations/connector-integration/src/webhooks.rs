@@ -1,5 +1,6 @@
 pub mod absa_sanlam;
 pub mod adyen;
+pub mod authorizedotnet;
 pub mod betterpayment;
 pub mod bluesnap;
 pub mod boost;
@@ -30,11 +31,12 @@ pub mod tamara;
 pub mod trustpay;
 pub mod worldpayxml;
 pub use self::{
-    absa_sanlam::AbsaSanlam, adyen::Adyen, betterpayment::Betterpayment, bluesnap::Bluesnap,
-    boost::Boost, braintree::Braintree, calida::Calida, cashtocode::Cashtocode,
-    cryptopay::Cryptopay, dlocal::Dlocal, ecommpay::Ecommpay, finix::Finix, flywire::Flywire,
-    givepayments::Givepayments, grabpay::Grabpay, hyperswitch::Hyperswitch, maya::Maya,
-    nexixpay::Nexixpay, payhere::Payhere, payload::Payload, paypal::Paypal, phonepe::Phonepe,
-    ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot, revolut::Revolut, stripe::Stripe,
-    tamara::Tamara, trustpay::Trustpay, worldpayxml::Worldpayxml,
+    absa_sanlam::AbsaSanlam, adyen::Adyen, authorizedotnet::Authorizedotnet,
+    betterpayment::Betterpayment, bluesnap::Bluesnap, boost::Boost, braintree::Braintree,
+    calida::Calida, cashtocode::Cashtocode, cryptopay::Cryptopay, dlocal::Dlocal,
+    ecommpay::Ecommpay, finix::Finix, flywire::Flywire, givepayments::Givepayments,
+    grabpay::Grabpay, hyperswitch::Hyperswitch, maya::Maya, nexixpay::Nexixpay, payhere::Payhere,
+    payload::Payload, paypal::Paypal, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,
+    razorpay::Razorpay, reddot::Reddot, revolut::Revolut, stripe::Stripe, tamara::Tamara,
+    trustpay::Trustpay, worldpayxml::Worldpayxml,
 };
