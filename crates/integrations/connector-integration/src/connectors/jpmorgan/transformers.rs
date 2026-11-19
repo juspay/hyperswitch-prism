@@ -2947,7 +2947,8 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
             })),
             Some(
                 common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
-            ) | None => Ok(None),
+            )
+            | None => Ok(None),
             Some(common_enums::MitCategory::Installment) => {
                 Err(Self::unsupported("Installment merchant-initiated payments"))
             }
