@@ -154,7 +154,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 } else {
                     year_str
                 };
-                let exp_date = format!("{}{}", card_data.card_exp_month.peek(), formatted_year);
+                let exp_date = format!("{:0>2}{}", card_data.card_exp_month.peek(), formatted_year);
 
                 let worldpay_card = WorldpayvantivCardData {
                     card_type,
@@ -2719,7 +2719,7 @@ where
             } else {
                 year_str
             };
-            let exp_date = format!("{}{}", card_data.card_exp_month.peek(), formatted_year);
+            let exp_date = format!("{:0>2}{}", card_data.card_exp_month.peek(), formatted_year);
 
             let worldpay_card = WorldpayvantivCardData {
                 card_type,
@@ -3331,7 +3331,8 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                // A failed refund request, not a failed payment.
+                attempt_status: Some(FlowStatus::Refund(common_enums::RefundStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
