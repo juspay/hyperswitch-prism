@@ -378,15 +378,9 @@ pub(super) fn generate_xml<T: Serialize>(request: &T) -> Result<String, Report<I
     ))
 }
 
-/// `GetSoapXml::to_soap_xml` returns `String` (shared with other connectors), so an encoding
-/// error cannot be returned here. The fallback is deliberately malformed XML (mismatched end
-/// tag): the macro's `validate_xml_structure` rejects it with `RequestEncodingFailed` and
-/// nothing is sent. An empty `<Sale/>` would be well-formed and reach TSYS as a schema failure.
-pub(super) fn generate_xml_or_fallback<T: Serialize>(request: &T, root: &str) -> String {
-    generate_xml(request).unwrap_or_else(|error| {
-        tracing::error!(?error, root, "tsys_transit: failed to serialize request");
-        String::from("<SerializationFailed></NotSendable>")
-    })
+fn generate_xml_or_fallback<T: Serialize>(request: &T, fallback_root: &str) -> String {
+    let fallback = format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<{fallback_root}/>");
+    generate_xml(request).unwrap_or(fallback)
 }
 
 #[derive(Debug, Serialize)]
@@ -1650,14 +1644,6 @@ fn compute_commercial_card_context<
             )
         })
         .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
-        // Incomplete Level III line items downgrade the transaction to Level II rather than
-        // failing it; log why so the downgrade is not silent.
-        .map_err(|error| {
-            tracing::warn!(
-                ?error,
-                "tsys_transit: Level III product details incomplete, sending without them"
-            );
-        })
         .ok()
         .and_then(|items| items.into_iter().collect());
     let shipping_charges = l2_l3_data
@@ -1954,7 +1940,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
 ) -> Result<AuthorizeAssembly, Report<IntegrationError>> {
     let router_data = &item.router_data;
     let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
-    let mandate_dispatch = decode_mandate_dispatch(router_data.request.mandate_id.as_ref())?;
+    let mandate_dispatch = decode_mandate_dispatch(router_data.request.mandate_id.as_ref());
     let is_cit_setup = matches!(mandate_dispatch, MandateDispatch::None)
         && (router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
             || router_data.request.off_session == Some(true));
@@ -2341,46 +2327,27 @@ pub enum MandateDispatch {
     },
     None,
 }
-pub(super) fn decode_mandate_dispatch(
-    mandate_id: Option<&MandateIds>,
-) -> Result<MandateDispatch, Report<IntegrationError>> {
-    let Some(reference) = mandate_id.and_then(|m| m.mandate_reference_id.as_ref()) else {
-        return Ok(MandateDispatch::None);
+fn decode_mandate_dispatch(mandate_id: Option<&MandateIds>) -> MandateDispatch {
+    let Some(mandate_id) = mandate_id else {
+        return MandateDispatch::None;
     };
 
-    match reference {
-        MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
-            // A stored-credential reference that cannot be decoded must not go out as an
-            // MIT with no vault / NTID reference.
-            match connector_mandate_ids
-                .get_connector_mandate_id()
-                .as_deref()
-                .map(decode_mandate_id_string)
-            {
-                Some(dispatch @ MandateDispatch::Vault { .. }) => Ok(dispatch),
-                Some(MandateDispatch::Ntid { .. } | MandateDispatch::None) | None => {
-                    Err(IntegrationError::InvalidDataFormat {
-                        field_name: "mandate_reference.connector_mandate_id",
-                        context: IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Send connector_mandate_id as a TSYS vault reference (cust:<customer_code>:<wallet_id>), or use a network transaction id mandate"
-                                    .to_string(),
-                            ),
-                            doc_url: None,
-                            additional_context: None,
-                        },
-                    }
-                    .into())
-                }
-            }
+    if let Some(MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) =
+        mandate_id.mandate_reference_id.as_ref()
+    {
+        if let Some(raw) = connector_mandate_ids.get_connector_mandate_id() {
+            return decode_mandate_id_string(&raw);
         }
-        MandateReferenceId::NetworkMandateId(ntid) => Ok(MandateDispatch::Ntid {
-            ntid: ntid.network_transaction_id.clone(),
-        }),
-        MandateReferenceId::NetworkTokenWithNTI(network_token) => Ok(MandateDispatch::Ntid {
-            ntid: network_token.network_transaction_id.clone(),
-        }),
     }
+    if let Some(MandateReferenceId::NetworkMandateId(ntid)) =
+        mandate_id.mandate_reference_id.as_ref()
+    {
+        return MandateDispatch::Ntid {
+            ntid: ntid.network_transaction_id.clone(),
+        };
+    }
+
+    MandateDispatch::None
 }
 
 fn visa_card_on_file(card_network: Option<&CardNetwork>) -> Option<TsysTransitCardOnFile> {
@@ -3214,24 +3181,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             acquirer_reference_number: None,
         };
 
-        // The refund has already been executed at TSYS: an unparseable `returnedAmount` must not
-        // turn the success into an error (losing the refund id). It only feeds the integrity
-        // object, which falls back to the requested amount.
-        let refund_amount = response.returned_amount.as_ref().and_then(|amount| {
-            parse_ambiguous_transaction_amount(
-                &connector,
-                amount,
-                router_data.request.currency,
-                item.http_code,
-            )
-            .map_err(|error| {
-                tracing::warn!(
-                    ?error,
-                    "tsys_transit: could not parse refund returnedAmount"
-                );
+        let refund_amount = response
+            .returned_amount
+            .as_ref()
+            .map(|amount| {
+                parse_ambiguous_transaction_amount(
+                    &connector,
+                    amount,
+                    router_data.request.currency,
+                    item.http_code,
+                )
             })
-            .ok()
-        });
+            .transpose()?;
 
         Ok(Self {
             resource_common_data: RefundFlowData {
@@ -3442,7 +3403,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // arbitrary caller-supplied cancellation_reason (free text) is rejected
         // with "The value of element 'voidReason' is not valid." Ignore the
         // request value and always send a valid connector default.
-        let void_reason = DEFAULT_CANCELLATION_REASON.to_string();
+        let void_reason = router_data
+            .request
+            .cancellation_reason
+            .clone()
+            .unwrap_or_else(|| DEFAULT_CANCELLATION_REASON.to_string());
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3830,11 +3795,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.setup_future_usage,
             router_data.request.payment_channel.as_ref(),
         )?;
-        // `None` is e-commerce, as everywhere else in this connector (and the request is sent
-        // with cardDataSource=INTERNET).
         let is_ecommerce_payment = matches!(
             router_data.request.payment_channel,
-            Some(PaymentChannel::Ecommerce) | None
+            Some(PaymentChannel::Ecommerce)
         );
 
         let card = match &router_data.request.payment_method_data {
