@@ -296,6 +296,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("MayaWebhookBody")
             .change_context(errors::WebhookError::WebhookResourceObjectNotFound)?;
 
+        // A REFUNDED event is routed as a refund event (see `EventType::from`), so
+        // it must resolve to a refund reference. Maya's payment object carries no
+        // refund id, only the parent payment `id`.
+        if matches!(body.status, maya::MayaPaymentStatus::Refunded) {
+            return Ok(Some(WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    connector_refund_id: None,
+                    merchant_refund_id: None,
+                    connector_transaction_id: Some(body.id),
+                    merchant_transaction_id: body.request_reference_number,
+                },
+            )));
+        }
+
         Ok(Some(WebhookResourceReference::Payment(
             PaymentWebhookReference {
                 // Maya's payment `id` is the connector transaction id.
@@ -343,6 +357,38 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
+        let body: MayaWebhookBody = request
+            .body
+            .parse_struct("MayaWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        // Only REFUNDED maps to a refund event; anything else is not a refund webhook.
+        let status = match body.status {
+            maya::MayaPaymentStatus::Refunded => common_enums::RefundStatus::Success,
+            _ => return Err(errors::WebhookError::WebhookEventTypeNotFound.into()),
+        };
+
+        Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
+            // The payment object carries no refund id.
+            connector_refund_id: None,
+            merchant_transaction_id: body.request_reference_number,
+            status,
+            connector_response_reference_id: Some(body.id),
+            error_code: body.error_code,
+            error_message: body.error_message,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
         })
     }
 }
