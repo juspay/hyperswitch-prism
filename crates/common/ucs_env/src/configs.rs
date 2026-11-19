@@ -20,15 +20,16 @@ use domain_types::{
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
-use crate::{error::ConfigurationError, logger::config::Log};
+use crate::{
+    error::ConfigurationError,
+    logger::config::{Log, LogPatch},
+};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 #[derive(Debug, Deserialize, Serialize, Clone, config_patch_derive::Patch)]
 pub struct Config {
     pub common: Common,
     pub server: Server,
     pub metrics: MetricsServer,
-    /// Logging policy and destinations are operator-controlled, never request-controlled.
-    #[patch(ignore)]
     pub log: Log,
     pub proxy: ProxyConfig,
     pub connectors: Connectors,
@@ -75,7 +76,7 @@ pub struct Config {
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
     /// Pre-compiled log fields for golden log lines.
     /// Compiled at startup from `[log.fields.incoming]` and `[log.fields.outgoing]`.
-    /// Derived from operator-controlled logging configuration.
+    /// Recompiled per-request when `x-config-override` patches `log.fields`.
     #[serde(skip)]
     #[patch(ignore)]
     pub log_fields: Arc<CompiledLogFieldsConfig>,
