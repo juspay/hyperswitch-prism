@@ -6,6 +6,7 @@ mod test;
 
 use std::fmt::Debug;
 
+use common_enums::EventClass;
 use common_utils::{
     consts, crypto, errors::CustomResult, events, ext_traits::ByteSliceExt,
     types::StringMinorUnitForConnector,
@@ -16,14 +17,16 @@ use domain_types::{
         RepeatPayment, SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{
-        AcceptDisputeData, ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData,
-        DisputeResponseData, DisputeWebhookDetailsResponse, DisputeWebhookReference, EventContext,
-        EventType, PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ResponseId, SetupMandateRequestData, SubmitEvidenceData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        AcceptDisputeData, ConnectorSpecifications, ConnectorWebhookSecrets, DisputeDefendData,
+        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
+        DisputeWebhookReference, EventContext, EventType, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, PayoutWebhookDetailsResponse, PayoutWebhookReference, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, SubmitEvidenceData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -41,17 +44,17 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    is_chargeback_event, is_refund_event, CheckoutDisputeActionResponse,
+    is_chargeback_event, is_payout_webhook, is_refund_event, CheckoutDisputeActionResponse,
     CheckoutDisputeActionResponse as CheckoutEvidenceResponse,
     CheckoutDisputeActionResponse as CheckoutDefendDisputeResponse, CheckoutDisputeEmptyRequest,
     CheckoutDisputeEmptyRequest as CheckoutDefendDisputeRequest, CheckoutDisputeWebhookBody,
     CheckoutErrorResponse, CheckoutEvidenceRequest, CheckoutTokenRequest, CheckoutTokenResponse,
-    CheckoutWebhookBody, CheckoutWebhookEventTypeBody, PaymentCaptureRequest,
-    PaymentCaptureResponse, PaymentVoidRequest, PaymentVoidResponse, PaymentsRequest,
-    PaymentsRequest as SetupMandateRequest, PaymentsRequest as RepeatPaymentRequest,
-    PaymentsResponse, PaymentsResponse as SetupMandateResponse,
-    PaymentsResponse as RepeatPaymentResponse, PaymentsResponseEnum as PSyncResponse,
-    RSyncResponse, RefundRequest, RefundResponse,
+    CheckoutWebhookBody, CheckoutWebhookEventType, CheckoutWebhookEventTypeBody,
+    PaymentCaptureRequest, PaymentCaptureResponse, PaymentVoidRequest, PaymentVoidResponse,
+    PaymentsRequest, PaymentsRequest as SetupMandateRequest,
+    PaymentsRequest as RepeatPaymentRequest, PaymentsResponse,
+    PaymentsResponse as SetupMandateResponse, PaymentsResponse as RepeatPaymentResponse,
+    PaymentsResponseEnum as PSyncResponse, RSyncResponse, RefundRequest, RefundResponse,
 };
 
 use super::macros;
@@ -348,12 +351,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             return Ok(EventType::EndpointVerification);
         }
 
-        let body: CheckoutWebhookEventTypeBody = request
+        // Keep the stateless ParseEvent phase cheap and tolerant: the thin body is enough for
+        // every event except `payment_approved` / `payment_declined`, where the same event type is
+        // reused for card-payout flows and only the presence of `data.destination` distinguishes
+        // them. Parsing the full body for every event would also reject dispute bodies whose
+        // `data.amount` is optional.
+        let type_body: CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookEventTypeBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        Ok(EventType::from(body.transaction_type))
+        if matches!(
+            type_body.transaction_type,
+            CheckoutWebhookEventType::PaymentApproved | CheckoutWebhookEventType::PaymentDeclined
+        ) {
+            let body: CheckoutWebhookBody = request
+                .body
+                .parse_struct("CheckoutWebhookBody")
+                .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+            return Ok(EventType::from(&body));
+        }
+
+        Ok(EventType::from(type_body.transaction_type))
     }
 
     fn get_webhook_event_reference(
@@ -391,6 +410,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        if is_payout_webhook(&body) {
+            if body.data.id.trim().is_empty() {
+                return Err(error_stack::report!(
+                    domain_types::errors::WebhookError::WebhookMissingRequiredField {
+                        field: "data.id",
+                    }
+                ));
+            }
+
+            return Ok(Some(WebhookResourceReference::Payout(
+                PayoutWebhookReference {
+                    connector_payout_id: Some(body.data.id),
+                    merchant_payout_id: None,
+                },
+            )));
+        }
 
         if is_refund_event(&type_body.transaction_type) {
             return Ok(Some(WebhookResourceReference::Refund(
@@ -515,6 +551,48 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 
+    fn process_payout_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<domain_types::errors::WebhookError>>
+    {
+        let body: CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        if !is_payout_webhook(&body) || body.data.id.trim().is_empty() {
+            return Err(error_stack::report!(
+                domain_types::errors::WebhookError::WebhookBodyDecodingFailed
+            ));
+        }
+
+        let (status, error_code, error_message) = match EventType::from(&body) {
+            EventType::PayoutSuccess => (common_enums::PayoutStatus::Success, None, None),
+            EventType::PayoutFailure => (
+                common_enums::PayoutStatus::Failure,
+                body.data.response_code,
+                body.data.response_summary,
+            ),
+            _ => {
+                return Err(error_stack::report!(
+                    domain_types::errors::WebhookError::WebhookEventTypeNotFound
+                ))
+            }
+        };
+
+        Ok(PayoutWebhookDetailsResponse {
+            connector_payout_id: Some(body.data.id),
+            merchant_payout_id: None,
+            status,
+            error_code,
+            error_message,
+            status_code: 200,
+        })
+    }
+
     fn process_dispute_webhook(
         &self,
         request: RequestDetails,
@@ -575,6 +653,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 }
+
+static CHECKOUT_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] = &[
+    EventClass::Payments,
+    EventClass::Refunds,
+    EventClass::Disputes,
+    EventClass::Payouts,
+];
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Checkout<T>
+{
+    fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {
+        Some(CHECKOUT_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Checkout<T>
 {
