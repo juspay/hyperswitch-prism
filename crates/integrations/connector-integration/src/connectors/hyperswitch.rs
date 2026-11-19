@@ -16,7 +16,6 @@ use domain_types::{
     connector_types::{
         ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsResponseData,
         PaymentsSyncData, RepeatPaymentData, RequestDetails, WebhookDetailsResponse,
-        WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -38,6 +37,9 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::hyperswitch::{
+    transformers as webhook_transformers, Hyperswitch as HyperswitchWebhook,
+};
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 
 pub(crate) mod headers {
@@ -335,16 +337,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
-        Ok(hyperswitch::map_webhook_event_type(&body.event_type))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
-        hyperswitch::get_webhook_reference(&body)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            HyperswitchWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -354,8 +351,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
-        hyperswitch::build_webhook_payment_response(&body, &request.body)
+        let body = webhook_transformers::get_webhook_object_from_body(&request.body)?;
+        webhook_transformers::build_webhook_payment_response(&body, &request.body)
     }
 
     fn get_webhook_resource_object(
@@ -363,7 +360,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
+        let body = webhook_transformers::get_webhook_object_from_body(&request.body)?;
         let resource: Box<dyn hyperswitch_masking::ErasedMaskSerialize> = Box::new(body);
         Ok(resource)
     }
