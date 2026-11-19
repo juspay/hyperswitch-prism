@@ -269,6 +269,8 @@ fn comparable_response(response: &PaymentServiceGetResponse) -> Value {
 }
 
 #[tokio::test]
+// Verifies success responses stay identical while startup and request-level log
+// rules produce structured incoming/outgoing JSON with correctly masked secrets.
 async fn log_transformation_preserves_success_response_and_emits_masked_json() {
     let mock = MockConnector::start(
         StatusCode::OK,
@@ -288,6 +290,10 @@ async fn log_transformation_preserves_success_response_and_emits_masked_json() {
     for config_override in [
         None,
         Some(r#"{"proxy":{"idle_pool_connection_timeout":25}}"#),
+        Some(r#"{"log":{"console":{"enabled":true,"level":"DEBUG"}}}"#),
+        Some(
+            r#"{"log":{"fields":{"incoming":{"patch_marker":{"value":"request_override"}},"outgoing":{"patch_marker":{"value":"request_override"}}}},"proxy":{"idle_pool_connection_timeout":25}}"#,
+        ),
     ] {
         let (response, records) = payment_sync(&mock, true, config_override).await;
         assert_eq!(
@@ -309,10 +315,35 @@ async fn log_transformation_preserves_success_response_and_emits_masked_json() {
         let transformed = json!({"mapped": outgoing["api_details"], "masked": masked}).to_string();
         assert!(!transformed.contains("private_client_secret"));
         assert!(!transformed.contains("private_reference"));
+        if config_override.is_some_and(|patch| patch.contains("patch_marker")) {
+            assert_eq!(outgoing["patch_marker"], "request_override");
+            let incoming = golden_log(
+                &records,
+                "INCOMING_API",
+                "Golden Log Line (incoming - response)",
+            );
+            assert_eq!(incoming["patch_marker"], "request_override");
+        }
     }
+
+    // Disabling transformations must also work when response masking stays enabled.
+    let (response, records) =
+        payment_sync(&mock, true, Some(r#"{"log":{"fields":{"enabled":false}}}"#)).await;
+    assert_eq!(
+        comparable_response(&response),
+        comparable_response(&baseline)
+    );
+    assert!(records
+        .iter()
+        .all(|record| record.get("category").is_none()));
+    assert!(records.iter().any(|record| {
+        record.pointer("/response.masked_body/client_secret") == Some(&json!("***"))
+    }));
 }
 
 #[tokio::test]
+// Verifies logging preserves connector failures and records the connector HTTP
+// status separately from the successful gRPC envelope carrying error details.
 async fn log_transformation_preserves_connector_error_response() {
     let mock = MockConnector::start(
         StatusCode::NOT_FOUND,
@@ -336,10 +367,30 @@ async fn log_transformation_preserves_connector_error_response() {
 }
 
 #[test]
-fn log_transformation_config_remains_operator_controlled() {
+// Verifies log overrides merge and recompile rules, preserve the base config,
+// support the runtime toggle, and still reject internal or unknown config keys.
+fn log_transformation_override_recompiles_fields_without_changing_base_config() {
     let config = Arc::new(load_config(true));
+    let patch = r#"{"log":{"fields":{"enabled":false,"incoming":{"patch_marker":{"value":"request_override"}}}},"proxy":{"idle_pool_connection_timeout":25}}"#;
+    let patched =
+        extract_and_merge_config(Some(patch), &config).expect("logging override is supported");
+    assert!(!patched.log_fields.enabled);
+    assert_eq!(patched.proxy.idle_pool_connection_timeout, Some(25));
+    assert!(patched.log.fields.incoming.contains_key("patch_marker"));
+    assert_eq!(
+        patched.log_fields.incoming.rules.len(),
+        config.log_fields.incoming.rules.len() + 1
+    );
+    assert_eq!(patched.log.fields.outgoing, config.log.fields.outgoing);
+    assert!(config.log_fields.enabled);
+    assert!(!config.log.fields.incoming.contains_key("patch_marker"));
+    let enabled =
+        extract_and_merge_config(Some(r#"{"log":{"fields":{"enabled":true}}}"#), &patched)
+            .expect("logging can be enabled again");
+    assert!(enabled.log_fields.enabled);
+    assert!(enabled.log.fields.incoming.contains_key("patch_marker"));
     for patch in [
-        r#"{"log":{"fields":{"enabled":false}}}"#,
+        r#"{"log":{"unknown_field":true}}"#,
         r#"{"log_fields":{}}"#,
         r#"{"unknown_field":true}"#,
     ] {
