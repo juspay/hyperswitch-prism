@@ -173,7 +173,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        Ok(response.to_error_response(res.status_code))
+        let mut error = response.to_error_response(res.status_code);
+        error.attempt_status = None;
+        Ok(error)
     }
 }
 
