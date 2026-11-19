@@ -1405,9 +1405,9 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
                 target: "twoc_twop_paco",
                 paymentStatus = ?s,
                 paymentStep = ?st,
-                "twoc_twop_paco: unknown (paymentStatus, paymentStep) pair — defaulting refund to Failure"
+                "twoc_twop_paco: unknown (paymentStatus, paymentStep) pair — keeping refund Pending"
             );
-            RefundStatus::Failure
+            RefundStatus::Pending
         }
     }
 }
@@ -1908,8 +1908,12 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         let api_response = response.api_response.clone();
         let (status, txn_id, ref_id, prior) =
             extract_status(result, AttemptStatus::CaptureInitiated);
+        let status = match status {
+            AttemptStatus::Failure => AttemptStatus::CaptureFailed,
+            other => other,
+        };
 
-        if matches!(status, AttemptStatus::Failure) {
+        if matches!(status, AttemptStatus::CaptureFailed) {
             let (code, message) = error_code_message(&api_response, &prior);
             let error = ErrorResponse {
                 code,
@@ -2052,8 +2056,12 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         let api_response = response.api_response.clone();
         let (status, txn_id, ref_id, prior) =
             extract_status(result.as_ref(), AttemptStatus::VoidInitiated);
+        let status = match status {
+            AttemptStatus::Failure => AttemptStatus::VoidFailed,
+            other => other,
+        };
 
-        if matches!(status, AttemptStatus::Failure) {
+        if matches!(status, AttemptStatus::VoidFailed) {
             let (code, message) = error_code_message(&api_response, &prior);
             let error = ErrorResponse {
                 code,
@@ -2193,10 +2201,10 @@ pub struct TwocTwopPacoInquiryResponse {
     #[serde(default)]
     pub api_response: Option<PacoApiResponse>,
     #[serde(default, deserialize_with = "deserialize_inquiry_data")]
-    pub data: Option<PacoInquiryData>,
+    pub data: Vec<PacoInquiryData>,
 }
 
-fn deserialize_inquiry_data<'de, D>(deserializer: D) -> Result<Option<PacoInquiryData>, D::Error>
+fn deserialize_inquiry_data<'de, D>(deserializer: D) -> Result<Vec<PacoInquiryData>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -2209,9 +2217,9 @@ where
         Null,
     }
     match Option::<Repr>::deserialize(deserializer)? {
-        Some(Repr::List(mut v)) => Ok(v.drain(..).next()),
-        Some(Repr::Single(d)) => Ok(Some(*d)),
-        Some(Repr::Null) | None => Ok(None),
+        Some(Repr::List(values)) => Ok(values),
+        Some(Repr::Single(value)) => Ok(vec![*value]),
+        Some(Repr::Null) | None => Ok(Vec::new()),
     }
 }
 
@@ -2225,11 +2233,49 @@ pub struct PacoInquiryData {
     #[serde(default)]
     pub order_no: Option<String>,
     #[serde(default)]
+    pub refund_no: Option<String>,
+    #[serde(default)]
     pub approval_code: Option<String>,
     #[serde(default)]
     pub credit_card_authenticated_details: Option<PacoCreditCardAuthenticatedDetails>,
     #[serde(default)]
     pub prior_payment_response_details: Option<PacoPriorPaymentResponseDetails>,
+}
+
+impl TwocTwopPacoInquiryResponse {
+    fn payment_data(&self) -> Option<&PacoInquiryData> {
+        self.data.first()
+    }
+
+    fn refund_data(&self, connector_refund_id: &str) -> Option<&PacoInquiryData> {
+        self.data
+            .iter()
+            .find(|data| {
+                data.invoice_no2c2p.as_deref() == Some(connector_refund_id)
+                    || data.refund_no.as_deref() == Some(connector_refund_id)
+            })
+            .or_else(|| {
+                self.data.iter().find(|data| {
+                    data.payment_status_info.as_ref().is_some_and(|info| {
+                        matches!(
+                            &info.payment_status,
+                            PacoPaymentStatus::R | PacoPaymentStatus::RI
+                        ) || matches!(
+                            &info.payment_step,
+                            PacoPaymentStep::RF
+                                | PacoPaymentStep::RR
+                                | PacoPaymentStep::RS
+                                | PacoPaymentStep::RI
+                                | PacoPaymentStep::RP
+                                | PacoPaymentStep::RP2
+                                | PacoPaymentStep::RP3
+                                | PacoPaymentStep::RE
+                                | PacoPaymentStep::RX
+                        )
+                    })
+                })
+            })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2258,8 +2304,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
         // AttemptStatus collapses both into Charged, so euler needs this field to route
         // refund vs void.
         let settlement_status = parsed_response
-            .data
-            .as_ref()
+            .payment_data()
             .and_then(|d| d.payment_status_info.as_ref())
             .map(|psi| paco_status_to_settlement_status(&psi.payment_status));
         let router_data = Self::try_from(ResponseRouterData {
@@ -2303,24 +2348,16 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             http_code,
         } = item;
 
-        let info = response
-            .data
-            .as_ref()
-            .and_then(|d| d.payment_status_info.as_ref());
+        let data = response.payment_data();
+        let info = data.and_then(|d| d.payment_status_info.as_ref());
         let status = match info {
             Some(info) => map_attempt_status(&info.payment_status, &info.payment_step),
             None => AttemptStatus::Pending,
         };
-        let invoice = response
-            .data
-            .as_ref()
-            .and_then(|d| d.invoice_no2c2p.clone());
-        let order = response.data.as_ref().and_then(|d| d.order_no.clone());
-        let approval_code = response.data.as_ref().and_then(|d| d.approval_code.clone());
-        let prior = response
-            .data
-            .as_ref()
-            .and_then(|d| d.prior_payment_response_details.clone());
+        let invoice = data.and_then(|d| d.invoice_no2c2p.clone());
+        let order = data.and_then(|d| d.order_no.clone());
+        let approval_code = data.and_then(|d| d.approval_code.clone());
+        let prior = data.and_then(|d| d.prior_payment_response_details.clone());
 
         if matches!(status, AttemptStatus::Failure) {
             let (code, message) = error_code_message(&response.api_response, &prior);
@@ -2426,19 +2463,14 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             http_code,
         } = item;
 
-        let info = response
-            .data
-            .as_ref()
-            .and_then(|d| d.payment_status_info.as_ref());
+        let connector_refund_id = router_data.request.connector_refund_id.clone();
+        let data = response.refund_data(&connector_refund_id);
+        let info = data.and_then(|d| d.payment_status_info.as_ref());
         let refund_status = match info {
             Some(info) => map_refund_status(&info.payment_status, &info.payment_step),
             None => RefundStatus::Pending,
         };
-        let connector_refund_id = router_data.request.connector_refund_id.clone();
-        let prior = response
-            .data
-            .as_ref()
-            .and_then(|d| d.prior_payment_response_details.clone());
+        let prior = data.and_then(|d| d.prior_payment_response_details.clone());
 
         if refund_status == RefundStatus::Failure {
             let (code, message) = error_code_message(&response.api_response, &prior);
