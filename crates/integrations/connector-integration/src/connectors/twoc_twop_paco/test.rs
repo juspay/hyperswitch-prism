@@ -339,4 +339,27 @@ mod void_pc {
             assert!(response.error.is_some());
         }
     }
+
+    #[test]
+    fn order_no_falls_back_to_the_request_reference() {
+        let router_data = void_pc_router_data();
+        assert_eq!(
+            crate::connectors::twoc_twop_paco::transformers::paco_original_order_no(
+                &router_data.resource_common_data
+            ),
+            "ref_123"
+        );
+    }
+
+    #[test]
+    fn order_no_prefers_the_original_connector_order_id() {
+        let mut router_data = void_pc_router_data();
+        router_data.resource_common_data.connector_order_id = Some("original-order".to_string());
+        assert_eq!(
+            crate::connectors::twoc_twop_paco::transformers::paco_original_order_no(
+                &router_data.resource_common_data
+            ),
+            "original-order"
+        );
+    }
 }
