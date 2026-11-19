@@ -31,6 +31,35 @@ pub fn domain_proto_money_mapper(money: &Money) {
     let _ = domain_types::money::to_proto_money(money);
 }
 
+#[cfg(feature = "domain_order_money_preparation")]
+pub fn domain_order_money_preparation() {
+    let _ = domain_types::types::map_order_details(Default::default(), Currency::USD);
+}
+
+#[cfg(feature = "prepared_order_money_pass")]
+pub fn prepared_order_money_pass(item: &domain_types::payment_address::OrderDetailsWithAmount) {
+    let _ = ConnectorMinorUnitForConnector.convert(&item.money);
+    let _ = item
+        .line_total_money
+        .as_ref()
+        .map(|money| ConnectorMinorUnitForConnector.convert(money));
+    let _ = item
+        .line_discount_money
+        .as_ref()
+        .map(|money| ConnectorMinorUnitForConnector.convert(money));
+}
+
+#[cfg(feature = "legacy_order_amount_field")]
+pub fn legacy_order_amount_field(item: &domain_types::payment_address::OrderDetailsWithAmount) {
+    let _ = item.amount;
+}
+
+#[cfg(feature = "currencyless_order_mapper")]
+pub fn currencyless_order_mapper(proto: grpc_api_types::payments::OrderDetailsWithAmount) {
+    use domain_types::utils::ForeignTryFrom;
+    let _ = domain_types::payment_address::OrderDetailsWithAmount::foreign_try_from(proto);
+}
+
 #[cfg(feature = "percentage_ratio")]
 pub fn percentage_ratio() -> Option<common_utils::types::Percentage> {
     common_utils::types::Percentage::from_minor_unit_ratio(Default::default(), Default::default())
@@ -218,26 +247,51 @@ pub fn money_amount(money: &Money) {
 pub fn inferred_minor_field_read(
     item: &domain_types::payment_address::OrderDetailsWithAmount,
 ) -> i64 {
-    item.amount.0
+    item.get_total_amount().0
 }
 
 #[cfg(feature = "inferred_minor_field_write")]
 pub fn inferred_minor_field_write(
     item: &mut domain_types::payment_address::OrderDetailsWithAmount,
 ) {
-    item.amount.0 = 1;
+    if let Some(amount) = item.total_tax_amount.as_mut() {
+        amount.0 = 1;
+    }
 }
 
 #[cfg(feature = "inferred_minor_to_string")]
 pub fn inferred_minor_to_string(
     item: &domain_types::payment_address::OrderDetailsWithAmount,
 ) -> String {
-    item.amount.to_string()
+    item.get_total_amount().to_string()
 }
 
 #[cfg(feature = "inferred_minor_display")]
 pub fn inferred_minor_display(
     item: &domain_types::payment_address::OrderDetailsWithAmount,
 ) -> String {
-    format!("{}", item.amount)
+    format!("{}", item.get_total_amount())
+}
+
+#[cfg(feature = "inferred_minor_add")]
+pub fn inferred_minor_add(item: &mut domain_types::payment_address::OrderDetailsWithAmount) {
+    item.total_amount = Some(item.get_total_amount() + item.get_total_amount());
+}
+
+#[cfg(feature = "inferred_minor_mul")]
+pub fn inferred_minor_mul(item: &mut domain_types::payment_address::OrderDetailsWithAmount) {
+    item.total_amount = Some(item.get_total_amount() * 2_u16);
+}
+
+#[cfg(feature = "inferred_minor_sub")]
+pub fn inferred_minor_sub(
+    item: &mut domain_types::payment_address::OrderDetailsWithAmount,
+    other: &domain_types::payment_address::OrderDetailsWithAmount,
+) {
+    item.total_amount = Some(item.get_total_amount() - other.get_total_amount());
+}
+
+#[cfg(feature = "inferred_minor_sum")]
+pub fn inferred_minor_sum(item: &mut domain_types::payment_address::OrderDetailsWithAmount) {
+    item.total_amount = Some(std::iter::once(item.get_total_amount()).sum());
 }

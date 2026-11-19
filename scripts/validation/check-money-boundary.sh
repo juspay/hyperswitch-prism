@@ -55,12 +55,20 @@ percentage_ratio = []
 connector_integer_getter = []
 connector_integer_getter_pointer = []
 domain_proto_money_mapper = []
+domain_order_money_preparation = []
+prepared_order_money_pass = []
+legacy_order_amount_field = []
+currencyless_order_mapper = []
 string_major_getter = []
 string_two_decimal_getter = []
 inferred_minor_field_read = []
 inferred_minor_field_write = []
 inferred_minor_to_string = []
 inferred_minor_display = []
+inferred_minor_add = []
+inferred_minor_sub = []
+inferred_minor_mul = []
+inferred_minor_sum = []
 EOF
 
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$root/target}"
@@ -126,6 +134,10 @@ check percentage_ratio clippy::disallowed_methods
 check connector_integer_getter clippy::disallowed_methods
 check connector_integer_getter_pointer clippy::disallowed_methods
 check domain_proto_money_mapper E0603
+check domain_order_money_preparation E0603
+check prepared_order_money_pass pass
+check legacy_order_amount_field E0609
+check currencyless_order_mapper E0599
 check money_amount clippy::disallowed_methods
 check string_major_getter E0599
 check string_two_decimal_getter E0599
@@ -133,3 +145,7 @@ check inferred_minor_field_read E0616
 check inferred_minor_field_write E0616
 check inferred_minor_to_string E0599
 check inferred_minor_display E0277
+check inferred_minor_add E0369
+check inferred_minor_sub E0369
+check inferred_minor_mul E0369
+check inferred_minor_sum E0277

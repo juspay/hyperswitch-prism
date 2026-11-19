@@ -938,14 +938,24 @@ mod transformer_tests {
     use domain_types::{payment_address::OrderDetailsWithAmount, utils::ForeignTryFrom};
 
     fn order_detail(amount: i64) -> Result<OrderDetailsWithAmount, Box<dyn std::error::Error>> {
-        Ok(OrderDetailsWithAmount::foreign_try_from(
-            grpc_api_types::payments::OrderDetailsWithAmount {
-                product_name: "serialization fixture".to_owned(),
-                quantity: 1,
-                amount,
+        domain_types::frm::frm_types::PreRiskCheckRequest::foreign_try_from(
+            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: amount,
+                    currency: grpc_api_types::payments::Currency::Usd.into(),
+                }),
+                order_details: vec![grpc_api_types::payments::OrderDetailsWithAmount {
+                    product_name: "serialization fixture".to_owned(),
+                    quantity: 1,
+                    amount,
+                    ..Default::default()
+                }],
                 ..Default::default()
             },
-        )?)
+        )?
+        .order_details
+        .and_then(|mut items| items.pop())
+        .ok_or_else(|| "missing order-item fixture".into())
     }
 
     macro_rules! ensure_eq {

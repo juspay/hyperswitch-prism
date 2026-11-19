@@ -108,8 +108,12 @@ mod tests {
     }
 
     fn order_details() -> Vec<OrderDetailsWithAmount> {
-        vec![OrderDetailsWithAmount::foreign_try_from(
-            grpc_api_types::payments::OrderDetailsWithAmount {
+        PreRiskCheckRequest::foreign_try_from(grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+            amount: Some(grpc_api_types::payments::Money {
+                minor_amount: 30000,
+                currency: grpc_api_types::payments::Currency::Brl.into(),
+            }),
+            order_details: vec![grpc_api_types::payments::OrderDetailsWithAmount {
                 product_name: "Passagem São Paulo → Rio".to_owned(),
                 quantity: 2,
                 amount: 15000,
@@ -121,9 +125,12 @@ mod tests {
                 category: Some("travel".to_owned()),
                 sub_category: None,
                 ..Default::default()
-            },
-        )
-        .expect("valid order-item fixture")]
+            }],
+            ..Default::default()
+        })
+        .expect("valid order-item fixture")
+        .order_details
+        .expect("order items present")
     }
 
     fn pre_risk_check_request() -> PreRiskCheckRequest {
@@ -1195,8 +1202,7 @@ mod tests {
         for name in ["", "   "] {
             let mut details = order_details();
             details[0].product_name = name.to_owned();
-            let payment = common_utils::types::Money::zero(Currency::BRL);
-            let items = build_clear_sale_items(&payment, Some(&details), None).unwrap();
+            let items = build_clear_sale_items(Some(&details), None).unwrap();
             assert!(items.is_empty());
 
             let mut req = pre_risk_check_request();
@@ -1329,14 +1335,11 @@ mod tests {
     /// and not the line total). The unused `total_value` guard param is gone.
     #[test]
     fn build_clear_sale_items_uses_integer_quantity() {
-        let payment = common_utils::types::Money::zero(Currency::BRL);
-        let items = build_clear_sale_items(&payment, Some(&order_details()), Some(false)).unwrap();
+        let items = build_clear_sale_items(Some(&order_details()), Some(false)).unwrap();
         assert_eq!(items[0].amount, Some(2));
         assert_eq!(items[0].value, Some(FloatMajorUnit(150.0)));
-        assert!(build_clear_sale_items(&payment, None, None)
-            .unwrap()
-            .is_empty());
-        assert!(build_clear_sale_items(&payment, Some(&Vec::new()), None)
+        assert!(build_clear_sale_items(None, None).unwrap().is_empty());
+        assert!(build_clear_sale_items(Some(&Vec::new()), None)
             .unwrap()
             .is_empty());
     }

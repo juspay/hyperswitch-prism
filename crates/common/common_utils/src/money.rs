@@ -357,34 +357,6 @@ impl MinorUnit {
     }
 }
 
-impl Add for MinorUnit {
-    type Output = Self;
-    fn add(self, a2: Self) -> Self {
-        Self(self.0 + a2.0)
-    }
-}
-
-impl Sub for MinorUnit {
-    type Output = Self;
-    fn sub(self, a2: Self) -> Self {
-        Self(self.0 - a2.0)
-    }
-}
-
-impl Mul<u16> for MinorUnit {
-    type Output = Self;
-
-    fn mul(self, a2: u16) -> Self::Output {
-        Self(self.0 * i64::from(a2))
-    }
-}
-
-impl Sum for MinorUnit {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self(0), |a, b| a + b)
-    }
-}
-
 /// An integer minor-unit amount carried by a connector request or response.
 ///
 /// This is distinct from domain [`MinorUnit`]. Use

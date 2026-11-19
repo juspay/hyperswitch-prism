@@ -10,7 +10,7 @@ use crate::{
     },
     errors::IntegrationError,
     mandates::MandateAmountData,
-    payment_address::{OrderDetailsWithAmount, PaymentAddress},
+    payment_address::PaymentAddress,
     router_request_types::BrowserInformation,
     types::{Connectors, PaymentMethodDataAction},
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
@@ -190,8 +190,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             })
         })?;
 
-        // Preserve validation even though scalar order items no longer need currency.
-        let _currency = {
+        let currency = {
             let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
@@ -278,7 +277,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| crate::types::map_order_details(item, currency))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()
@@ -366,8 +365,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             })
         })?;
 
-        // Preserve validation even though scalar order items no longer need currency.
-        let _currency = {
+        let currency = {
             let grpc_currency = grpc_api_types::payments::Currency::try_from(amount.currency)
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
@@ -441,7 +439,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| crate::types::map_order_details(item, currency))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()

@@ -7779,7 +7779,7 @@ impl<F, Req> TryFrom<ResponseRouterData<DisputeObj, Self>>
 mod error_on_requires_action_tests {
     use common_utils::types::ConnectorMinorUnitForConnector;
     use domain_types::payment_method_data::DefaultPCIHolder;
-    use domain_types::{payment_address::OrderDetailsWithAmount, utils::ForeignTryFrom};
+    use domain_types::{frm::frm_types::PreRiskCheckRequest, utils::ForeignTryFrom};
 
     use super::{PaymentIntentRequest, StripeBillingAddress, StripeCaptureMethod};
 
@@ -7788,15 +7788,24 @@ mod error_on_requires_action_tests {
     fn request(
         error_on_requires_action: Option<bool>,
     ) -> Option<PaymentIntentRequest<DefaultPCIHolder>> {
-        let order_detail = OrderDetailsWithAmount::foreign_try_from(
-            grpc_api_types::payments::OrderDetailsWithAmount {
-                product_name: "serialization fixture".to_owned(),
-                quantity: 1,
-                amount: 1000,
+        let order_detail = PreRiskCheckRequest::foreign_try_from(
+            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 1000,
+                    currency: grpc_api_types::payments::Currency::Usd.into(),
+                }),
+                order_details: vec![grpc_api_types::payments::OrderDetailsWithAmount {
+                    product_name: "serialization fixture".to_owned(),
+                    quantity: 1,
+                    amount: 1000,
+                    ..Default::default()
+                }],
                 ..Default::default()
             },
         )
-        .ok()?;
+        .ok()?
+        .order_details?
+        .pop()?;
         Some(PaymentIntentRequest {
             amount: ConnectorMinorUnitForConnector.convert(&order_detail.get_unit_money(
                 &common_utils::types::Money::zero(common_enums::Currency::USD),

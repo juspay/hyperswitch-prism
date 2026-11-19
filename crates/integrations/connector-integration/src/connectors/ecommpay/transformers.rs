@@ -1789,9 +1789,10 @@ fn build_receipt_data<T: PaymentMethodDataTypes>(
     let positions = lines
         .iter()
         .map(|line| {
-            let line_total = common_utils::types::ConnectorMinorUnitForConnector
-                .convert(&line.get_unit_money(&request.money))
-                .checked_mul(line.quantity)
+            let line_total = line
+                .line_total_money
+                .as_ref()
+                .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
                 .ok_or_else(|| {
                     invalid_format(
                         "order_details",

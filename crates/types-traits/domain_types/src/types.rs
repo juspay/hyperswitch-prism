@@ -6425,58 +6425,69 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderDetailsWithAmount {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        item: grpc_api_types::payments::OrderDetailsWithAmount,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self {
-            product_name: item.product_name,
-            quantity: u16::try_from(item.quantity).change_context(
-                IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Quantity value is out of range for u16".to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                },
-            )?,
-            amount: common_utils::types::MinorUnit::new(item.amount),
-            tax_rate: item.tax_rate,
-            total_tax_amount: item
-                .total_tax_amount
-                .map(common_utils::types::MinorUnit::new),
-            requires_shipping: item.requires_shipping,
-            product_img_link: item.product_img_link,
-            product_id: item.product_id,
-            category: item.category,
-            sub_category: item.sub_category,
-            brand: item.brand,
-            description: item.description,
-            unit_of_measure: item.unit_of_measure,
-            product_type: item
-                .product_type
-                .and_then(|pt| grpc_api_types::payments::ProductType::try_from(pt).ok())
-                .map(|grpc_product_type| {
-                    common_enums::ProductType::foreign_from(grpc_product_type)
-                }),
-            product_tax_code: item.product_tax_code,
-            commodity_code: item.commodity_code,
-            sku: item.sku,
-            upc: item.upc,
-            unit_discount_amount: item
-                .unit_discount_amount
-                .map(common_utils::types::MinorUnit::new),
-            total_amount: item.total_amount.map(common_utils::types::MinorUnit::new),
-            discount_name: item.discount_name,
-            discount_percentage: item.discount_percentage,
-            discount_type: item.discount_type,
-            product_link: item.product_link,
-        })
-    }
+pub(crate) fn map_order_details(
+    item: grpc_api_types::payments::OrderDetailsWithAmount,
+    currency: common_enums::Currency,
+) -> Result<OrderDetailsWithAmount, error_stack::Report<IntegrationError>> {
+    let quantity =
+        u16::try_from(item.quantity).change_context(IntegrationError::InvalidDataFormat {
+            field_name: "unknown",
+            context: IntegrationErrorContext {
+                additional_context: Some("Quantity value is out of range for u16".to_string()),
+                ..Default::default()
+            },
+        })?;
+    Ok(OrderDetailsWithAmount {
+        product_name: item.product_name,
+        quantity,
+        money: common_utils::types::Money::from_minor_unit(
+            common_utils::types::MinorUnit::new(item.amount),
+            currency,
+        ),
+        line_total_money: item.amount.checked_mul(i64::from(quantity)).map(|amount| {
+            common_utils::types::Money::from_minor_unit(
+                common_utils::types::MinorUnit::new(amount),
+                currency,
+            )
+        }),
+        line_discount_money: item
+            .unit_discount_amount
+            .and_then(|amount| amount.checked_mul(i64::from(quantity)))
+            .map(|amount| {
+                common_utils::types::Money::from_minor_unit(
+                    common_utils::types::MinorUnit::new(amount),
+                    currency,
+                )
+            }),
+        tax_rate: item.tax_rate,
+        total_tax_amount: item
+            .total_tax_amount
+            .map(common_utils::types::MinorUnit::new),
+        requires_shipping: item.requires_shipping,
+        product_img_link: item.product_img_link,
+        product_id: item.product_id,
+        category: item.category,
+        sub_category: item.sub_category,
+        brand: item.brand,
+        description: item.description,
+        unit_of_measure: item.unit_of_measure,
+        product_type: item
+            .product_type
+            .and_then(|pt| grpc_api_types::payments::ProductType::try_from(pt).ok())
+            .map(common_enums::ProductType::foreign_from),
+        product_tax_code: item.product_tax_code,
+        commodity_code: item.commodity_code,
+        sku: item.sku,
+        upc: item.upc,
+        unit_discount_amount: item
+            .unit_discount_amount
+            .map(common_utils::types::MinorUnit::new),
+        total_amount: item.total_amount.map(common_utils::types::MinorUnit::new),
+        discount_name: item.discount_name,
+        discount_percentage: item.discount_percentage,
+        discount_type: item.discount_type,
+        product_link: item.product_link,
+    })
 }
 
 impl
@@ -6559,16 +6570,18 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             }
         };
 
+        let currency = crate::money::order_currency(value.amount)?;
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
             .map(|l2_l3| {
-                L2L3Data::foreign_try_from((
+                map_l2_l3_data(
                     l2_l3,
                     &address,
                     value.customer.as_ref(),
                     value.shipping_cost.map(common_utils::MinorUnit::new),
-                ))
+                    currency,
+                )
             })
             .transpose()?;
 
@@ -6587,7 +6600,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| map_order_details(item, currency))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -6690,16 +6703,18 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             }
         };
 
+        let currency = crate::money::order_currency(value.amount)?;
         let l2_l3_data = value
             .l2_l3_data
             .as_ref()
             .map(|l2_l3| {
-                L2L3Data::foreign_try_from((
+                map_l2_l3_data(
                     l2_l3,
                     &address,
                     value.customer.as_ref(),
                     value.shipping_cost,
-                ))
+                    currency,
+                )
             })
             .transpose()?;
 
@@ -6716,7 +6731,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             .map(|details| {
                 details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| map_order_details(item, currency))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -6808,7 +6823,13 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             .l2_l3_data
             .as_ref()
             .map(|l2_l3| {
-                L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref(), None))
+                map_l2_l3_data(
+                    l2_l3,
+                    &address,
+                    value.customer.as_ref(),
+                    None,
+                    crate::money::order_currency(value.amount)?,
+                )
             })
             .transpose()?;
 
@@ -6924,7 +6945,13 @@ impl
             .l2_l3_data
             .as_ref()
             .map(|l2_l3| {
-                L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref(), None))
+                map_l2_l3_data(
+                    l2_l3,
+                    &address,
+                    value.customer.as_ref(),
+                    None,
+                    crate::money::order_currency(value.amount)?,
+                )
             })
             .transpose()?;
 
@@ -7228,12 +7255,13 @@ impl
         };
 
         // Cart line items, when supplied.
+        let currency = crate::money::order_currency(value.amount)?;
         let order_details = (!value.order_details.is_empty())
             .then(|| {
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| map_order_details(item, currency))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -13771,7 +13799,13 @@ impl
             .l2_l3_data
             .as_ref()
             .map(|l2_l3| {
-                L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref(), None))
+                map_l2_l3_data(
+                    l2_l3,
+                    &address,
+                    value.customer.as_ref(),
+                    None,
+                    crate::money::order_currency(value.amount)?,
+                )
             })
             .transpose()?;
 
@@ -14268,101 +14302,86 @@ impl
     }
 }
 
-impl
-    ForeignTryFrom<(
-        &grpc_api_types::payments::L2l3Data,
-        &PaymentAddress,
-        Option<&grpc_api_types::payments::Customer>,
-        Option<common_utils::MinorUnit>,
-    )> for L2L3Data
-{
-    type Error = IntegrationError;
-    fn foreign_try_from(
-        (l2l3_data, payment_address, customer, fallback_shipping_cost): (
-            &grpc_api_types::payments::L2l3Data,
-            &PaymentAddress,
-            Option<&grpc_api_types::payments::Customer>,
-            Option<common_utils::MinorUnit>,
-        ),
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let order_info = l2l3_data
-            .order_info
+fn map_l2_l3_data(
+    l2l3_data: &grpc_api_types::payments::L2l3Data,
+    payment_address: &PaymentAddress,
+    customer: Option<&grpc_api_types::payments::Customer>,
+    fallback_shipping_cost: Option<common_utils::MinorUnit>,
+    currency: common_enums::Currency,
+) -> Result<L2L3Data, error_stack::Report<IntegrationError>> {
+    let order_info = l2l3_data
+        .order_info
+        .as_ref()
+        .map(|order| map_order_info(order, currency))
+        .transpose()?;
+
+    let mut tax_info = l2l3_data
+        .tax_info
+        .as_ref()
+        .map(TaxInfo::foreign_try_from)
+        .transpose()?;
+
+    if let Some(tax_info) = tax_info.as_mut() {
+        let shipping_cost = order_info
             .as_ref()
-            .map(OrderInfo::foreign_try_from)
-            .transpose()?;
-
-        let mut tax_info = l2l3_data
-            .tax_info
-            .as_ref()
-            .map(TaxInfo::foreign_try_from)
-            .transpose()?;
-
-        if let Some(tax_info) = tax_info.as_mut() {
-            let shipping_cost = order_info
-                .as_ref()
-                .and_then(|order| order.shipping_cost)
-                .or(fallback_shipping_cost);
-            tax_info.shipping_tax_percentage = tax_info
-                .shipping_amount_tax
-                .zip(shipping_cost)
-                .and_then(|(tax, shipping)| {
-                    common_utils::types::Percentage::from_minor_unit_ratio(tax, shipping)
-                });
-        }
-
-        let customer_info = customer.map(CustomerInfo::foreign_try_from).transpose()?;
-
-        let shipping_address = payment_address.get_shipping();
-        let billing_address = payment_address.get_payment_billing();
-
-        Ok(Self {
-            order_info,
-            tax_info,
-            customer_info,
-            billing_details: billing_address
-                .and_then(|address| address.address.as_ref())
-                .cloned(),
-            shipping_details: shipping_address
-                .and_then(|address| address.address.as_ref())
-                .cloned(),
-        })
+            .and_then(|order| order.shipping_cost)
+            .or(fallback_shipping_cost);
+        tax_info.shipping_tax_percentage = tax_info
+            .shipping_amount_tax
+            .zip(shipping_cost)
+            .and_then(|(tax, shipping)| {
+                common_utils::types::Percentage::from_minor_unit_ratio(tax, shipping)
+            });
     }
+
+    let customer_info = customer.map(CustomerInfo::foreign_try_from).transpose()?;
+
+    let shipping_address = payment_address.get_shipping();
+    let billing_address = payment_address.get_payment_billing();
+
+    Ok(L2L3Data {
+        order_info,
+        tax_info,
+        customer_info,
+        billing_details: billing_address
+            .and_then(|address| address.address.as_ref())
+            .cloned(),
+        shipping_details: shipping_address
+            .and_then(|address| address.address.as_ref())
+            .cloned(),
+    })
 }
 
-impl ForeignTryFrom<&grpc_api_types::payments::OrderInfo> for OrderInfo {
-    type Error = IntegrationError;
-    fn foreign_try_from(
-        value: &grpc_api_types::payments::OrderInfo,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let order_details = (!value.order_details.is_empty())
-            .then(|| {
-                value
-                    .order_details
-                    .clone()
-                    .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .transpose()?;
-
-        Ok(Self {
-            order_date: value.order_date.and_then(|ts| {
-                time::OffsetDateTime::from_unix_timestamp(ts)
-                    .ok()
-                    .map(|offset_dt| {
-                        time::PrimitiveDateTime::new(offset_dt.date(), offset_dt.time())
-                    })
-            }),
-            order_details,
-            merchant_order_reference_id: value.merchant_order_reference_id.clone(),
-            discount_amount: value
-                .discount_amount
-                .map(common_utils::types::MinorUnit::new),
-            shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
-            duty_amount: value.duty_amount.map(common_utils::types::MinorUnit::new),
-            order_commodity_code: value.order_commodity_code.clone(),
+fn map_order_info(
+    value: &grpc_api_types::payments::OrderInfo,
+    currency: common_enums::Currency,
+) -> Result<OrderInfo, error_stack::Report<IntegrationError>> {
+    let order_details = (!value.order_details.is_empty())
+        .then(|| {
+            value
+                .order_details
+                .clone()
+                .into_iter()
+                .map(|item| map_order_details(item, currency))
+                .collect::<Result<Vec<_>, _>>()
         })
-    }
+        .transpose()?;
+
+    Ok(OrderInfo {
+        order_date: value.order_date.and_then(|ts| {
+            time::OffsetDateTime::from_unix_timestamp(ts)
+                .ok()
+                .map(|offset_dt| time::PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
+        }),
+        order_details,
+        merchant_order_reference_id: value.merchant_order_reference_id.clone(),
+        discount_amount: value
+            .discount_amount
+            .map(common_utils::types::MinorUnit::new),
+        shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
+        duty_amount: value.duty_amount.map(common_utils::types::MinorUnit::new),
+        order_commodity_code: value.order_commodity_code.clone(),
+    })
 }
 
 impl ForeignTryFrom<&grpc_api_types::payments::TaxInfo> for TaxInfo {
@@ -15239,7 +15258,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
                 value
                     .order_details
                     .into_iter()
-                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .map(|item| map_order_details(item, currency))
                     .collect::<Result<Vec<_>, _>>()
             })
             .transpose()?;
@@ -21126,7 +21145,13 @@ impl
             .l2_l3_data
             .as_ref()
             .map(|l2_l3| {
-                L2L3Data::foreign_try_from((l2_l3, &address, value.customer.as_ref(), None))
+                map_l2_l3_data(
+                    l2_l3,
+                    &address,
+                    value.customer.as_ref(),
+                    None,
+                    crate::money::order_currency(value.amount)?,
+                )
             })
             .transpose()?;
         let customer_id = Option::<CustomerId>::foreign_try_from(value.customer.clone())?;

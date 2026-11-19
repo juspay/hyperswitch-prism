@@ -73,13 +73,9 @@ fn build_line_item(
     let merchant_product_identifier = detail.product_id.clone().or_else(|| detail.sku.clone());
 
     let transaction_discount_amount = detail
-        .get_unit_discount_money(payment)
+        .line_discount_money
         .as_ref()
-        .and_then(|unit_discount| {
-            common_utils::types::ConnectorMinorUnitForConnector
-                .convert(unit_discount)
-                .checked_mul(detail.quantity)
-        })
+        .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
         .filter(|discount| discount.is_greater_than(0));
 
     let line_item_taxes = detail

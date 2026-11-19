@@ -4607,13 +4607,25 @@ mod tests {
     use super::*;
 
     fn order_detail(amount: i64) -> OrderDetailsWithAmount {
-        OrderDetailsWithAmount::foreign_try_from(grpc_api_types::payments::OrderDetailsWithAmount {
-            product_name: "amount formatting fixture".to_owned(),
-            quantity: 1,
-            amount,
-            ..Default::default()
-        })
+        domain_types::frm::frm_types::PreRiskCheckRequest::foreign_try_from(
+            grpc_api_types::frm::FrmServicePreRiskCheckRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: amount,
+                    currency: grpc_api_types::payments::Currency::Eur.into(),
+                }),
+                order_details: vec![grpc_api_types::payments::OrderDetailsWithAmount {
+                    product_name: "amount formatting fixture".to_owned(),
+                    quantity: 1,
+                    amount,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        )
         .expect("valid order fixture")
+        .order_details
+        .and_then(|mut items| items.pop())
+        .expect("order item present")
     }
 
     fn minor_string(amount: i64) -> StringMinorUnit {

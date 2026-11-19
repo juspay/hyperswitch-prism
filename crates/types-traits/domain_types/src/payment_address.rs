@@ -633,14 +633,21 @@ pub struct RedirectionResponse {
     pub return_url_with_query_params: String,
 }
 
-#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, Clone)]
 pub struct OrderDetailsWithAmount {
     /// Name of the product that is being purchased
     pub product_name: String,
     /// The quantity of the product to be purchased
     pub quantity: u16,
-    /// the amount per quantity of product
-    pub amount: MinorUnit,
+    /// Unit price with the enclosing request's currency, bound at domain ingress.
+    #[serde(flatten)]
+    pub money: Money,
+    /// Unit amount times quantity; absent when unprepared or overflowing.
+    #[serde(skip)]
+    pub line_total_money: Option<Money>,
+    /// Unit discount times quantity; absent when missing, unprepared, or overflowing.
+    #[serde(skip)]
+    pub line_discount_money: Option<Money>,
     /// tax rate applicable to the product
     pub tax_rate: Option<f64>,
     /// total tax amount applicable to the product
@@ -714,7 +721,7 @@ impl OrderDetailsWithAmount {
 
     /// Line total: the explicit `total_amount` when present, else the unit `amount`.
     pub fn get_total_amount(&self) -> MinorUnit {
-        self.total_amount.unwrap_or(self.amount)
+        self.total_amount.unwrap_or_else(|| self.money.amount())
     }
 
     /// Product type (`item_type`/`type` on most connector line items).
@@ -736,7 +743,7 @@ impl OrderDetailsWithAmount {
 
     /// Unit price (`amount` is per-quantity, `unit_price` on most connector line items).
     pub fn get_unit_amount(&self) -> MinorUnit {
-        self.amount
+        self.money.amount()
     }
 
     /// Discount amount on the unit, in minor units (`discount_amount` on most connector
@@ -751,9 +758,9 @@ impl OrderDetailsWithAmount {
         self.total_tax_amount
     }
 
-    /// Uses the enclosing payment's currency for legacy scalar line-item amounts.
-    pub fn get_unit_money(&self, payment: &Money) -> Money {
-        common_utils::types::Money::from_minor_unit(self.amount, payment.currency())
+    /// The payment argument is retained for compatibility; unit currency is already bound.
+    pub fn get_unit_money(&self, _payment: &Money) -> Money {
+        self.money.clone()
     }
 
     pub fn get_total_money(&self, payment: &Money) -> Option<Money> {
