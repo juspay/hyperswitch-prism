@@ -3402,6 +3402,9 @@ message PaymentServiceCreateOrderRequest {
   // Future Usage
   optional FutureUsage setup_future_usage =
       11; // Store-for-later intent of the payment this order is created for. OFF_SESSION when the payment method will be stored for merchant-initiated charges.
+
+  // Use the same capture method when completing this order.
+  optional CaptureMethod capture_method = 12;
 }
 
 // Response message for create order operation

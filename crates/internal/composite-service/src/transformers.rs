@@ -176,6 +176,7 @@ impl
             // customer and store-for-later intent the Authorize does.
             customer: item.customer.clone(),
             setup_future_usage: item.setup_future_usage,
+            capture_method: item.capture_method,
         }
     }
 }
