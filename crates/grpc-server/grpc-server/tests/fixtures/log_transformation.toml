@@ -1,0 +1,19 @@
+[log.fields]
+enabled = true
+
+[log.fields.incoming]
+category = { value = "INCOMING_API" }
+provider = { source = "gateway" }
+"api_details.request" = { source = "request_body" }
+"api_details.response" = { source = "response_body" }
+"api_details.status_code" = { source = "res_code" }
+"api_details.missing" = { source = "field_that_does_not_exist" }
+timestamp = { source = "time" }
+
+[log.fields.outgoing]
+category = { value = "OUTGOING_API" }
+"api_details_DOT_url" = { source = "request_DOT_url" }
+"api_details.headers" = { source = "request.headers" }
+"api_details.response" = { source = "response.body" }
+"api_details.status_code" = { source = "res_code" }
+"api_details.missing" = { source = "field_that_does_not_exist" }
