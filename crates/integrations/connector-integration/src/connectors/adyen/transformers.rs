@@ -5354,7 +5354,10 @@ pub fn get_redirection_error_response(
         response.refusal_reason_code.as_deref(),
         response.refusal_reason.as_deref(),
     );
-    let error = {
+    let error = if status == AttemptStatus::Failure
+        || response.refusal_reason.is_some()
+        || response.refusal_reason_code.is_some()
+    {
         let (network_decline_code, network_error_message) = response
             .additional_data
             .as_ref()
@@ -5397,10 +5400,15 @@ pub fn get_redirection_error_response(
             raw_connector_request: None,
             typed_connector_request: None,
         })
+    } else {
+        None
     };
-    // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
-        resource_id: ResponseId::NoResponseId,
+        resource_id: response
+            .psp_reference
+            .clone()
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId),
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
@@ -8796,7 +8804,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .return_url
             .clone()
-            .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+            .filter(|url| !url.is_empty())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: Default::default(),
+            })?;
         validate_checkout_v72_return_url(&return_url)?;
 
         Ok(Self {
