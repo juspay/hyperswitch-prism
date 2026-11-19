@@ -7,6 +7,7 @@ pub mod braintree;
 pub mod calida;
 pub mod cashtocode;
 pub mod cryptopay;
+pub mod dlocal;
 pub mod flywire;
 pub mod phonepe;
 pub mod ppro;
@@ -17,6 +18,6 @@ pub mod worldpayxml;
 pub use self::{
     absa_sanlam::AbsaSanlam, adyen::Adyen, betterpayment::Betterpayment, bluesnap::Bluesnap,
     boost::Boost, braintree::Braintree, calida::Calida, cashtocode::Cashtocode,
-    cryptopay::Cryptopay, flywire::Flywire, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,
-    razorpay::Razorpay, trustpay::Trustpay, worldpayxml::Worldpayxml,
+    cryptopay::Cryptopay, dlocal::Dlocal, flywire::Flywire, phonepe::Phonepe, ppro::Ppro,
+    rapyd::Rapyd, razorpay::Razorpay, trustpay::Trustpay, worldpayxml::Worldpayxml,
 };

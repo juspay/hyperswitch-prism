@@ -13,10 +13,10 @@ use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
         ConnectorWebhookSecrets, EventContext, EventType, MandateReference, PaymentFlowData,
-        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, SetupMandateRequestData,
+        WebhookDetailsResponse,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
@@ -38,11 +38,11 @@ use transformers::{
     DlocalPaymentsResponse as DlocalPaymentsCaptureResponse,
     DlocalPaymentsResponse as DlocalPaymentsVoidResponse, DlocalRefundRequest,
     DlocalRepeatPaymentRequest, DlocalRepeatPaymentResponse, DlocalSetupMandateRequest,
-    DlocalSetupMandateResponse, DlocalWebhookBody, RefundResponse,
-    RefundResponse as RefundSyncResponse,
+    DlocalSetupMandateResponse, RefundResponse, RefundResponse as RefundSyncResponse,
 };
 
 use super::macros;
+use crate::webhooks::dlocal::{transformers::DlocalWebhookBody, Dlocal as DlocalWebhook};
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -174,31 +174,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let body: DlocalWebhookBody = request
-            .body
-            .parse_struct("DlocalWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        Ok(EventType::from(&body))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let body: DlocalWebhookBody = request
-            .body
-            .parse_struct("DlocalWebhookBody")
-            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                // dLocal payment `id` is the connector transaction id.
-                connector_transaction_id: Some(body.id),
-                // `order_id` is used for payment objects; `external_id` is used
-                // for enrollment objects.
-                merchant_transaction_id: body.order_id.or(body.external_id),
-                connector_preprocessing_id: None,
-            },
-        )))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            DlocalWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn get_webhook_resource_object(
