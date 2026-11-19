@@ -1,3 +1,4 @@
+pub mod absa_sanlam;
 pub mod adyen;
 pub mod braintree;
 pub mod calida;
@@ -10,7 +11,7 @@ pub mod razorpay;
 pub mod trustpay;
 pub mod worldpayxml;
 pub use self::{
-    adyen::Adyen, braintree::Braintree, calida::Calida, cashtocode::Cashtocode, flywire::Flywire,
-    phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, trustpay::Trustpay,
-    worldpayxml::Worldpayxml,
+    absa_sanlam::AbsaSanlam, adyen::Adyen, braintree::Braintree, calida::Calida,
+    cashtocode::Cashtocode, flywire::Flywire, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,
+    razorpay::Razorpay, trustpay::Trustpay, worldpayxml::Worldpayxml,
 };
