@@ -2843,7 +2843,7 @@ fn is_redirect_payment_method(payment_method_type: &StripePaymentMethodType) -> 
     }
 }
 
-fn validate_redirect_return_url(
+pub(crate) fn validate_redirect_return_url(
     payment_method_type: Option<&StripePaymentMethodType>,
     router_return_url: Option<&str>,
 ) -> Result<(), IntegrationError> {
@@ -7963,35 +7963,5 @@ mod dispute_network_details_tests {
             "a dispute with no network_details must parse"
         );
         assert!(object.and_then(|o| o.network_details).is_none());
-    }
-}
-
-#[cfg(test)]
-mod redirect_return_url_tests {
-    use super::{validate_redirect_return_url, StripePaymentMethodType};
-
-    #[test]
-    fn redirect_payment_method_without_return_url_is_refused() {
-        assert!(validate_redirect_return_url(Some(&StripePaymentMethodType::Ideal), None).is_err());
-        assert!(
-            validate_redirect_return_url(Some(&StripePaymentMethodType::Klarna), Some("  "))
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn redirect_payment_method_with_return_url_is_allowed() {
-        assert!(validate_redirect_return_url(
-            Some(&StripePaymentMethodType::Ideal),
-            Some("https://merchant.example/return"),
-        )
-        .is_ok());
-    }
-
-    #[test]
-    fn non_redirect_payment_method_without_return_url_is_allowed() {
-        assert!(validate_redirect_return_url(Some(&StripePaymentMethodType::Card), None).is_ok());
-        assert!(validate_redirect_return_url(Some(&StripePaymentMethodType::Sepa), None).is_ok());
-        assert!(validate_redirect_return_url(None, None).is_ok());
     }
 }
