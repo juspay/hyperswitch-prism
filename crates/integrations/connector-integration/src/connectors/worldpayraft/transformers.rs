@@ -459,9 +459,27 @@ fn get_local_datetime() -> String {
     )
 }
 
-/// Truncates a string to at most 16 characters (APITransactionID max length).
+/// Retains short references and derives an alphanumeric 80-bit identifier for longer ones.
 fn truncate_api_transaction_id(id: &str) -> String {
-    id.chars().take(16).collect()
+    if id.chars().count() <= 16 {
+        return id.to_string();
+    }
+    use sha2::Digest;
+    let digest = sha2::Sha256::digest(id.as_bytes());
+    const ALPHABET: &[u8; 32] = b"0123456789abcdefghijklmnopqrstuv";
+    let mut output = String::with_capacity(16);
+    let mut bits = 0_u16;
+    let mut remaining = 0_u8;
+    for byte in digest.iter().take(10) {
+        bits = (bits << 8) | u16::from(*byte);
+        remaining += 8;
+        while remaining >= 5 {
+            remaining -= 5;
+            let index = usize::from((bits >> remaining) & 31);
+            output.push(char::from(ALPHABET[index]));
+        }
+    }
+    output
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
