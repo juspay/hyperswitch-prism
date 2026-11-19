@@ -9,6 +9,10 @@ export const exampleConnector = {
   card: {
     card_number: "4111111111111111",
   },
+  threeDsChallenge: {
+    password: "synthetic-password",
+    frameSelector: "iframe:visible",
+  },
   overrides: {
     "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm":
       {

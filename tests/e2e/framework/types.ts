@@ -12,6 +12,15 @@ export type CardData = {
   card_cvc: string;
 };
 
+export type ThreeDsChallenge = {
+  username?: string;
+  password: string;
+  frameSelector?: string;
+  usernameSelector?: string;
+  passwordSelector?: string;
+  submitSelector?: string;
+};
+
 export type RequestOverride = {
   reason: string;
   omit?: readonly (readonly string[])[];
@@ -39,6 +48,7 @@ export type ConnectorDefinition<TScenarioId extends string = string> = {
   credentialKey?: string;
   credentialEntry?: string;
   card?: Partial<CardData>;
+  threeDsChallenge?: ThreeDsChallenge;
   overrides?: Partial<Record<TScenarioId, ScenarioOverrides>>;
   exclude?: Partial<Record<TScenarioId, { reason: string }>>;
 };

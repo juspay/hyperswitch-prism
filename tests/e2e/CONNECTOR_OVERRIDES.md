@@ -9,7 +9,10 @@ whole example.
 This document is the implementation contract for connector-specific differences.
 The shared scenario remains the source of truth for the journey, API-call order,
 base requests, and business assertions. A connector definition contains data
-only; it must not contain callbacks, HTTP calls, polling, or assertions.
+only; it must not contain callbacks, HTTP calls, polling, or assertions. A
+processor-hosted 3DS test challenge may declare synthetic challenge values and
+selectors in `threeDsChallenge`; the shared scenario still owns navigation,
+interaction order and final payment assertions.
 
 The framework implements this contract for every operation it currently exposes.
 Add an operation key only when its shared operation method is implemented; do
@@ -42,7 +45,7 @@ Group call IDs under their operation in connector data:
 
 ```ts
 overrides: {
-  "payments/create-confirm/card/recurring/connector-mandate/no3ds/setup-then-recurring": {
+  "payments/create-confirm/card/recurring/connector-mandate/no3ds/nonzero-amount-setup-mandate-then-recurring": {
     requests: {
       createPayment: {
         "mandate-setup": {

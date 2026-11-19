@@ -12,11 +12,11 @@ import {
 } from "../../../test-data.js";
 
 const scenario = scenarioFromFile(import.meta.url, {
-  title: "Force-sync an in-progress No3DS card payment",
+  title: "Force-sync an unfinished 3DS card payment",
   description:
-    "Authorize a manual-capture payment, submit an asynchronous capture so the payment is processing, then retrieve it with force_sync=true so HS performs PSync through UCS.",
+    "Create a 3DS payment that requires customer action, then retrieve it with force_sync=true so HS performs PSync through UCS before authentication is completed.",
   verifies:
-    "Verify the capture creates an eligible in-progress state before force sync, then check the exact synchronized payment identity, ownership, amount state and recorded UCS outcome.",
+    "Verify the exact customer-action precondition, generated action, payment identity, synchronized response, ownership and recorded UCS outcome.",
   requirements: {
     connectorAccount: {
       paymentMethodsEnabled: [
@@ -47,15 +47,15 @@ test(
     const browserInfo = createBrowserInfo();
 
     const payment = await report.step(
-      "Authorize payment for asynchronous capture",
+      "Create unfinished 3DS payment",
       async () => {
-        const response = await payments.createPayment("initial-payment", {
+        const response = await payments.createPayment("payment-for-sync", {
           profile_id: merchant.profileId,
           amount: 6000,
           currency: "USD",
           confirm: true,
-          authentication_type: "no_three_ds",
-          capture_method: "manual",
+          authentication_type: "three_ds",
+          capture_method: "automatic",
           payment_method: "card",
           payment_method_type: "credit",
           payment_method_data: { card: createCard(connector.card) },
@@ -69,13 +69,13 @@ test(
           order_details: orderDetails,
           return_url: testReturnUrl,
         });
-        const expectedPayment = expected("authorization-fields", {
-          status: "requires_capture",
+        const expectedPayment = expected("pre-sync-fields", {
+          status: "requires_customer_action",
           amount: 6000,
           currency: "USD",
           amount_capturable: 6000,
           amount_received: null,
-          capture_method: "manual",
+          capture_method: "automatic",
           connector: connector.id,
           merchant_id: merchant.merchantId,
           profile_id: merchant.profileId,
@@ -84,7 +84,7 @@ test(
           error_message: null,
         });
         await report.check(
-          "Authorization response",
+          "Pre-sync payment response",
           {
             actual: Object.fromEntries(
               Object.keys(expectedPayment).map((field) => [
@@ -96,76 +96,34 @@ test(
           },
           ({ actual, expected }) => expect(actual).toMatchObject(expected),
         );
+        await report.check(
+          "Customer action generated",
+          {
+            actual:
+              response.next_action !== null &&
+              typeof response.next_action === "object",
+            expected: true,
+          },
+          ({ actual, expected }) => expect(actual).toBe(expected),
+        );
         return response;
       },
     );
-
-    await report.step("Submit full capture", async () => {
-      const response = await payments.capturePayment(
-        "full-capture",
-        payment.payment_id,
-        { amount_to_capture: 6000 },
-      );
-      const expectedCapture = expected("capture-fields", {
-        status: "succeeded",
-        amount: 6000,
-        currency: "USD",
-        amount_capturable: 0,
-        amount_received: 6000,
-        capture_method: "manual",
-        connector: connector.id,
-        merchant_id: merchant.merchantId,
-        profile_id: merchant.profileId,
-        merchant_connector_id: merchant.merchantConnectorId,
-        error_code: null,
-        error_message: null,
-      });
-      await report.check(
-        "Capture response",
-        {
-          actual: Object.fromEntries(
-            Object.keys(expectedCapture).map((field) => [
-              field,
-              response[field],
-            ]),
-          ),
-          expected: expectedCapture,
-        },
-        ({ actual, expected }) => expect(actual).toMatchObject(expected),
-      );
-    });
-
-    await report.step("Verify capture is eligible for PSync", async () => {
-      const recorded = await payments.readRecordedPayment(payment.payment_id);
-      await report.check(
-        "In-progress capture outcome",
-        {
-          actual: recorded,
-          expected: expected("capture-recorded-outcome", {
-            gateway: "unified_connector_service",
-            attemptStatus: "charged",
-            connectorTransactionIdPresent: true,
-            customerRecordExists: true,
-          }),
-        },
-        ({ actual, expected }) => expect(actual).toEqual(expected),
-      );
-    });
 
     await report.step("Force-sync the payment", async () => {
       const response = await payments.retrievePayment(payment.payment_id, {
         force_sync: true,
       });
       const expectedSync = expected("payment-sync-fields", {
-        status: "succeeded",
+        status: "requires_customer_action",
         amount: 6000,
         currency: "USD",
-        amount_capturable: 0,
-        amount_received: 6000,
-        capture_method: "manual",
+        amount_capturable: 6000,
+        amount_received: null,
+        capture_method: "automatic",
         payment_method: "card",
         payment_method_type: "credit",
-        authentication_type: "no_three_ds",
+        authentication_type: "three_ds",
         connector: connector.id,
         merchant_id: merchant.merchantId,
         profile_id: merchant.profileId,
@@ -205,7 +163,7 @@ test(
           actual: recorded,
           expected: expected("payment-sync-recorded-outcome", {
             gateway: "unified_connector_service",
-            attemptStatus: "charged",
+            attemptStatus: "authentication_pending",
             connectorTransactionIdPresent: true,
             customerRecordExists: true,
           }),

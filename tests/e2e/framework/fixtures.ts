@@ -1,4 +1,4 @@
-import { test as base, type TestType } from "@playwright/test";
+import { test as base, type Page, type TestType } from "@playwright/test";
 import { HyperswitchClient } from "./hyperswitch-client.js";
 import { setupMerchant, type TestMerchant } from "./merchant-setup.js";
 import { PaymentOperations } from "./payment-operations.js";
@@ -9,6 +9,7 @@ import { ScenarioOverrideResolver } from "./scenario-overrides.js";
 import type { ConnectorDefinition, JsonObject, Scenario } from "./types.js";
 
 export type ScenarioFixtures = {
+  page: Page;
   connector: ConnectorDefinition;
   scenario: Scenario;
   merchant: Pick<

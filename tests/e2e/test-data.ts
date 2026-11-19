@@ -67,12 +67,14 @@ export function createCard(overrides: Partial<CardData> = {}): CardData {
 }
 
 const browserInfo = {
-  accept_header: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  accept_header:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   language: "en-US",
   screen_height: 1080,
   screen_width: 1920,
   color_depth: 24,
-  user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36",
+  user_agent:
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36",
   time_zone: 0,
   java_enabled: false,
   ip_address: "192.0.2.1",
@@ -80,4 +82,15 @@ const browserInfo = {
 
 export function createBrowserInfo(overrides: Partial<typeof browserInfo> = {}) {
   return { ...browserInfo, ...overrides };
+}
+
+export function createCustomerAcceptance() {
+  return {
+    acceptance_type: "online",
+    accepted_at: new Date().toISOString(),
+    online: {
+      ip_address: "192.0.2.1",
+      user_agent: "Synthetic E2E browser",
+    },
+  };
 }

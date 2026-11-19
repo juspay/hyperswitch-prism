@@ -114,7 +114,7 @@ Use native Playwright `expect` for equality, partial nested objects, arrays, ran
 
 Choose `toMatchObject` for partial nested objects and `toEqual` for exact object/array equality. A range can use `report.check("Amount received > 0", { actual: response.amount_received, expected: 0 }, ({ actual, expected }) => expect(actual).toBeGreaterThan(expected))`. Expected/actual values are explicitly selected for the report: do not attach entire payment responses, credentials or card data. Use boolean presence checks for sensitive references. The scenario still owns all matching logic.
 
-Nine shared specs are implemented: six one-time No3DS payment journeys, full void of an authorized payment, forced payment synchronization, and full-refund submission. Each manual-capture journey includes its own full capture, so it verifies the complete authorization-to-capture lifecycle. Adyen runs these cases; other connectors explicitly defer the new cases pending sandbox validation. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The comprehensive automatic inline-confirmation sequence is:
+Eleven shared specs are implemented: six one-time No3DS payment journeys, a completed browser 3DS payment, a nonzero mandate setup followed by an off-session recurring charge, full void of an authorized payment, forced payment synchronization, and full-refund submission. Each manual-capture journey includes its own full capture, so it verifies the complete authorization-to-capture lifecycle. Adyen runs ten applicable cases and explicitly excludes PSync because its redirect-completion sync requires customer-returned encoded data. Other connector exclusions document unsupported or not-yet-certified behavior. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The comprehensive automatic inline-confirmation sequence is:
 
 ```text
 POST /payments with confirm:true
@@ -123,7 +123,7 @@ Read the payment and its active attempt from the test HS database
   -> check gateway, attempt status, connector transaction ID presence and customer record existence
 ```
 
-`payments.readRecordedPayment(payment.payment_id)` returns the recorded `gateway`, `attemptStatus`, `connectorTransactionIdPresent`, and `customerRecordExists`. Customer existence is checked against the payment's merchant and customer ID; customer contact data is not read. The boolean is computed from `connector_transaction_id IS NOT NULL AND connector_transaction_id <> ''`; the identifier itself is not returned. Status is asserted in the spec rather than used to filter the query. The connection uses a read-only session; an existing stack should also supply SELECT-only credentials through `HS_DATABASE_URL` for least privilege. The local default remains the stack's database account.
+`payments.readRecordedPayment(payment.payment_id)` returns the recorded `gateway`, `attemptStatus`, `connectorTransactionIdPresent`, and `customerRecordExists`. `payments.readRecordedMandate(mandateId)` returns only mandate status/type, connector name, and boolean presence checks for processor and payment-method references. Customer contact data and generated reference values are not read into reports. Status is asserted in the spec rather than used to filter the query. Both queries use a read-only session; an existing stack should also supply SELECT-only credentials through `HS_DATABASE_URL` for least privilege. The local default remains the stack's database account.
 
 The database read does not trigger or prove a fresh processor PSync call. It requires the corresponding HS database schema.
 
@@ -151,12 +151,16 @@ scenarios/
 │   │   │   │   │   ├── manual-capture-create-confirm.spec.ts
 │   │   │   │   │   └── manual-capture-create-then-confirm.spec.ts
 │   │   │   │   └── three-ds/
+│   │   │   │       └── automatic-capture-create-confirm.spec.ts
 │   │   │   └── recurring/
+│   │   │       └── connector-mandate/
+│   │   │           └── no3ds/
+│   │   │               └── nonzero-amount-setup-mandate-then-recurring.spec.ts
 │   │   └── wallet/
 │   ├── incremental-authorization/
 │   │   └── increase-authorized-amount.planned.ts
 │   └── retrieve/
-│       └── force-sync-processing-payment.spec.ts
+│       └── force-sync-payment.spec.ts
 └── refunds/
     ├── create/
     │   ├── full-refund-captured-payment.spec.ts
@@ -165,7 +169,6 @@ scenarios/
     │   └── reverse-successful-refund-before-settlement.planned.ts
     └── sync/
 ```
-
 
 `automatic-capture-create-confirm.spec.ts` exercises a fully populated one-time inline-confirmation request. Manual-capture specs verify the authorized state and then perform a full capture in the same journey. Mutually exclusive journeys such as mandate setup and SDK checkout have separate specs.
 
@@ -185,8 +188,7 @@ Planned files and `.gitkeep` directories are extension placeholders, not impleme
 
 The planned inventory reserves saved-card repeat CIT, standalone mandate-setup CIT, partial capture, overcapture, incremental authorization, partial void, partial refund, refund reversal, recurring reference variants and webhook verification. Planned-file presence does not assert API or connector support.
 
-
-Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `refunds`, `expected`, and `report`.
+Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `refunds`, `expected`, `report`, and Playwright's `page` for actual browser journeys.
 
 Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario IDs only; each spec owns the metadata displayed in reports. Playwright runs every implemented scenario for each discovered synthetic merchant variant by default. A variant may exclude a scenario only with a nonempty reason. Keep merchant differences in `connectors/`; do not copy scenarios into connector directories. A variant name such as `merchant_01` is only a synthetic configuration label: setup creates a fresh merchant for every test.
 
@@ -241,15 +243,15 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | `examples/connector.ts` | Compile-checked reference for all supported connector configuration forms; never discovered or executed. |
 | `framework/connector-registry.ts` | Discover connector modules and validate duplicate IDs, scenario references, overrides and exclusions. |
 | `framework/connector.ts` | Derive and brand connector and synthetic merchant variant IDs from the module path. |
-| `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
+| `framework/types.ts` | Define scenario metadata and data-only connector configuration types, including processor-hosted 3DS challenge data. |
 | `framework/scenario.ts` | Build the catalog-bound resolver that derives a branded scenario ID from the executing spec path. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
-| `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose recorded-payment reads. |
+| `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose recorded-payment and mandate reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
 | `framework/hyperswitch-client.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
 | `framework/ucs-audit.ts` | Correlate and attach UCS's existing masked structured events; never attach raw logs. |
 | `framework/report.ts` | Group API steps, attach selected expected/actual values around native assertions, then attach correlated audit evidence, including on failure. |
-| `framework/payment-records.ts` | Read the payment gateway, active-attempt status, connector transaction ID presence and associated customer record existence from the dedicated test database. |
+| `framework/payment-records.ts` | Read report-safe payment and mandate state from the dedicated test database without returning generated reference values. |
 | `framework/connector-credentials.ts` | Load external sandbox credentials. |
 | `framework/configuration.ts` | Resolve runtime URLs and options. |
 | `stack/compose.yml` | Configure local services and readiness dependencies. |
