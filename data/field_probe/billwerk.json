@@ -479,7 +479,7 @@
     "create_client_authentication_token": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: return_url — Missing required field: return_url"
+        "error": "Stuck on field: customer. Billwerk checkout sessions require a customer handle to associate the session with a customer record. — Missing required field: customer. Billwerk checkout sessions require a customer handle to associate the session with a customer record."
       }
     },
     "create_order": {
