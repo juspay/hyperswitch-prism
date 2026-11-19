@@ -10,6 +10,9 @@ use transformers::{
 
 use super::macros;
 use crate::types::ResponseRouterData;
+use crate::webhooks::cryptopay::{
+    transformers as webhook_transformers, Cryptopay as CryptopayWebhook,
+};
 use hex::encode;
 
 use domain_types::{
@@ -386,16 +389,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let notif: cryptopay::CryptopayWebhookDetails = request
-            .body
-            .parse_struct("CryptopayWebhookDetails")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        match notif.data.status {
-            cryptopay::CryptopayPaymentStatus::Completed => Ok(EventType::PaymentIntentSuccess),
-            cryptopay::CryptopayPaymentStatus::Unresolved => Ok(EventType::PaymentActionRequired),
-            cryptopay::CryptopayPaymentStatus::Cancelled => Ok(EventType::PaymentIntentFailure),
-            _ => Ok(EventType::IncomingWebhookEventUnspecified),
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            CryptopayWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -405,7 +403,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let notif: cryptopay::CryptopayWebhookDetails = request
+        let notif: webhook_transformers::CryptopayWebhookDetails = request
             .body
             .parse_struct("CryptopayWebhookDetails")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;

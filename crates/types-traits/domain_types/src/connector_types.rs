@@ -291,6 +291,7 @@ pub enum PayoutConnectorEnum {
 #[strum(serialize_all = "snake_case")]
 pub enum WebhookConnectorEnum {
     Adyen,
+    Cryptopay,
     Boost,
     Bluesnap,
     Betterpayment,
@@ -313,6 +314,7 @@ impl From<WebhookConnectorEnum> for ConnectorEnum {
     fn from(connector: WebhookConnectorEnum) -> Self {
         match connector {
             WebhookConnectorEnum::Adyen => Self::Adyen,
+            WebhookConnectorEnum::Cryptopay => Self::Cryptopay,
             WebhookConnectorEnum::Boost => Self::Boost,
             WebhookConnectorEnum::Bluesnap => Self::Bluesnap,
             WebhookConnectorEnum::Betterpayment => Self::Betterpayment,
@@ -337,6 +339,7 @@ impl TryFrom<ConnectorEnum> for WebhookConnectorEnum {
     fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
         match value {
             ConnectorEnum::Adyen => Ok(Self::Adyen),
+            ConnectorEnum::Cryptopay => Ok(Self::Cryptopay),
             ConnectorEnum::Boost => Ok(Self::Boost),
             ConnectorEnum::Bluesnap => Ok(Self::Bluesnap),
             ConnectorEnum::Betterpayment => Ok(Self::Betterpayment),

@@ -10,6 +10,7 @@ use domain_types::{
 
 use crate::connectors::cryptopay::{CryptopayAmountConvertor, CryptopayRouterData};
 use crate::types::ResponseRouterData;
+use crate::webhooks::cryptopay::transformers::CryptopayWebhookDetails;
 use common_utils::{
     pii,
     types::{AmountConvertor, StringMajorUnit},
@@ -309,22 +310,6 @@ pub struct CryptopayPaymentResponseData {
     pub hosted_page_url: Option<Url>,
     pub created_at: Option<String>,
     pub expires_at: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CryptopayWebhookDetails {
-    #[serde(rename = "type")]
-    pub service_type: String,
-    pub event: WebhookEvent,
-    pub data: CryptopayPaymentResponseData,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WebhookEvent {
-    TransactionCreated,
-    TransactionConfirmed,
-    StatusChanged,
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
