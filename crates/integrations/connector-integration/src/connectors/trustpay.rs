@@ -36,6 +36,7 @@ use interfaces::{
 
 use serde::Serialize;
 use std::fmt::Debug;
+mod test;
 pub mod transformers;
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
