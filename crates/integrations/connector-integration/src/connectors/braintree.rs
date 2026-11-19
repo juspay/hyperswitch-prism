@@ -5,7 +5,7 @@ use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    crypto::{self, SignMessage},
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -312,20 +312,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &connector_webhook_secrets.secret,
         );
 
-        let signed_message = crypto::HmacSha1
-            .sign_message(sha1_hash_key.as_ref(), message)
+        // The bt_signature value is hex-encoded; a value that is not valid hex cannot match.
+        let Ok(signature) = hex::decode(extracted_signature) else {
+            return Ok(false);
+        };
+
+        crypto::HmacSha1
+            .verify_signature(sha1_hash_key.as_ref(), &signature, message)
             .inspect_err(|error| {
                 tracing::warn!(
                     target: "braintree_webhook",
                     ?error,
-                    "failed to compute the HMAC-SHA1 signature over the Braintree bt_payload"
+                    "failed to verify the HMAC-SHA1 signature over the Braintree bt_payload"
                 );
             })
-            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
-
-        let payload_sign = hex::encode(signed_message);
-
-        Ok(payload_sign.as_bytes().eq(extracted_signature.as_bytes()))
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
