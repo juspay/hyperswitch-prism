@@ -224,7 +224,7 @@ impl TryFrom<BankNames> for FPXTxnChannel {
 #[derive(Serialize, Debug, Clone)]
 pub struct FiuuMandateRequest {
     #[serde(rename = "0", serialize_with = "serialize_recurring_record")]
-    mandate_request: FiuuRecurringRecord,
+    mandate_request: Secret<FiuuRecurringRecord>,
 }
 
 #[derive(Debug, Clone)]
@@ -235,9 +235,10 @@ struct FiuuRecurringRecord {
 }
 
 fn serialize_recurring_record<S: serde::Serializer>(
-    record: &FiuuRecurringRecord,
+    record: &Secret<FiuuRecurringRecord>,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
+    let record = record.peek();
     let mut bytes = record.prefix.peek().as_bytes().to_vec();
     crypto::SignatureValue::update_signature(&record.amount, &mut |amount| {
         bytes.extend_from_slice(amount)
@@ -339,7 +340,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         let check_sum = calculate_check_sum(recurring_request)?;
         Ok(Self {
-            mandate_request: FiuuRecurringRecord {
+            mandate_request: Secret::new(FiuuRecurringRecord {
                 prefix: Secret::new(format!(
                     "{}|{}||{}|{}|{}|",
                     record_type,
@@ -355,7 +356,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     email.peek(),
                     check_sum.peek()
                 )),
-            },
+            }),
         })
     }
 }
