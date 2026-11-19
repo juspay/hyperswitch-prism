@@ -4848,6 +4848,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
             },
             // Webhook connectors share auth config with the payment connector of the same name.
             ConnectorVariant::Webhook(webhook_connector) => match webhook_connector {
+                WebhookConnectorEnum::Maya => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Maya)))
+                }
                 WebhookConnectorEnum::Givepayments => Self::foreign_try_from((
                     auth,
                     &ConnectorVariant::Payment(ConnectorEnum::Givepayments),
