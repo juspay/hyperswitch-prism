@@ -195,6 +195,29 @@ pub fn parse_expiry_month(month: &str, field_name: &'static str) -> Result<u8, E
         })
 }
 
+/// Format a two- or four-character expiry year as its two-character suffix.
+pub fn get_expiry_year_2_digit<'a>(
+    year: &'a str,
+    field_name: &'static str,
+) -> Result<&'a str, Error> {
+    match year.len() {
+        2 => Some(year),
+        4 => year.get(2..),
+        _ => None,
+    }
+    .ok_or_else(|| {
+        report!(IntegrationError::InvalidDataFormat {
+            field_name,
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "Expected the card expiry year in YY or YYYY format".to_owned()
+                ),
+                ..Default::default()
+            },
+        })
+    })
+}
+
 /// A card expiry year given as four digits, as a number.
 pub fn parse_expiry_year_four_digit(year: &str, field_name: &'static str) -> Result<u16, Error> {
     let year = year.trim();

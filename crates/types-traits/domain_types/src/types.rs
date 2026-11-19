@@ -9443,7 +9443,10 @@ impl From<&router_data::ErrorResponse> for grpc_payment_types::IssuerErrorDetail
 pub fn generate_payment_void_response(
     mut router_data_v2: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
 ) -> Result<PaymentServiceVoidResponse, error_stack::Report<ConnectorError>> {
-    complete_reported_payment_amounts(&mut router_data_v2.resource_common_data, &mut router_data_v2.response)?;
+    complete_reported_payment_amounts(
+        &mut router_data_v2.resource_common_data,
+        &mut router_data_v2.response,
+    )?;
     let transaction_response = router_data_v2.response;
 
     // Create state if either access token or connector customer is available
@@ -13712,7 +13715,10 @@ pub fn generate_payment_capture_response(
         PaymentsResponseData,
     >,
 ) -> Result<PaymentServiceCaptureResponse, error_stack::Report<ConnectorError>> {
-    complete_reported_payment_amounts(&mut router_data_v2.resource_common_data, &mut router_data_v2.response)?;
+    complete_reported_payment_amounts(
+        &mut router_data_v2.resource_common_data,
+        &mut router_data_v2.response,
+    )?;
     let transaction_response = router_data_v2.response;
 
     // Create state if either access token or connector customer is available
@@ -17873,7 +17879,10 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
     grpc_api_types::payments::RecurringPaymentServiceChargeResponse,
     error_stack::Report<ConnectorError>,
 > {
-    complete_reported_payment_amounts(&mut router_data_v2.resource_common_data, &mut router_data_v2.response)?;
+    complete_reported_payment_amounts(
+        &mut router_data_v2.resource_common_data,
+        &mut router_data_v2.response,
+    )?;
     let transaction_response = router_data_v2.response;
     let status = router_data_v2.resource_common_data.status;
     let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
