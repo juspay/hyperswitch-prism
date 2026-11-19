@@ -1,5 +1,6 @@
 mod transformers;
 use super::macros;
+use crate::webhooks::revolut::{transformers as webhook_transformers, Revolut as RevolutWebhook};
 
 use domain_types::{
     connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund},
@@ -245,32 +246,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let notif: revolut::RevolutWebhookBody = request
-            .body
-            .parse_struct("RevolutWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        match notif.event {
-            revolut::RevolutWebhookEvent::OrderCompleted => Ok(EventType::PaymentIntentSuccess),
-            revolut::RevolutWebhookEvent::OrderAuthorised => {
-                Ok(EventType::PaymentIntentAuthorizationSuccess)
-            }
-            revolut::RevolutWebhookEvent::OrderCancelled => Ok(EventType::PaymentIntentCancelled),
-            revolut::RevolutWebhookEvent::OrderFailed => Ok(EventType::PaymentIntentFailure),
-            revolut::RevolutWebhookEvent::OrderPaymentAuthenticated => {
-                Ok(EventType::PaymentIntentAuthorizationSuccess)
-            }
-            revolut::RevolutWebhookEvent::OrderPaymentDeclined => {
-                Ok(EventType::PaymentIntentAuthorizationFailure)
-            }
-            revolut::RevolutWebhookEvent::OrderPaymentFailed => Ok(EventType::PaymentIntentFailure),
-            revolut::RevolutWebhookEvent::PayoutInitiated => Ok(EventType::PayoutCreated),
-            revolut::RevolutWebhookEvent::PayoutCompleted => Ok(EventType::PayoutSuccess),
-            revolut::RevolutWebhookEvent::PayoutFailed => Ok(EventType::PayoutFailure),
-            revolut::RevolutWebhookEvent::DisputeActionRequired => Ok(EventType::DisputeOpened),
-            revolut::RevolutWebhookEvent::DisputeUnderReview => Ok(EventType::DisputeOpened),
-            revolut::RevolutWebhookEvent::DisputeWon => Ok(EventType::DisputeWon),
-            revolut::RevolutWebhookEvent::DisputeLost => Ok(EventType::DisputeLost),
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            RevolutWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -280,7 +260,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let notif: revolut::RevolutWebhookBody = request
+        let notif: webhook_transformers::RevolutWebhookBody = request
             .body
             .parse_struct("RevolutWebhookBody")
             .attach_printable("Failed to parse Revolut webhook body")
