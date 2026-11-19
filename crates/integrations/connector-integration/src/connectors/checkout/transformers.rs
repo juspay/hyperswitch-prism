@@ -4876,12 +4876,17 @@ pub enum CheckoutWebhookEventType {
     Unknown,
 }
 
-/// Thin body used to inspect the event type before selecting the body shape for
-/// webhook resource-reference extraction.
+/// Thin body used to classify events without requiring payment-specific fields.
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookEventTypeBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutWebhookEventType,
+    pub data: Option<CheckoutWebhookEventTypeData>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookEventTypeData {
+    pub destination: Option<CheckoutPayoutDestination>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4995,9 +5000,11 @@ pub fn is_payout_webhook(body: &CheckoutWebhookBody) -> bool {
     }
 }
 
-impl From<CheckoutWebhookEventType> for domain_types::connector_types::EventType {
-    fn from(event: CheckoutWebhookEventType) -> Self {
-        match event {
+impl From<CheckoutWebhookEventTypeBody> for domain_types::connector_types::EventType {
+    fn from(body: CheckoutWebhookEventTypeBody) -> Self {
+        let has_payout_destination = body.data.is_some_and(|data| data.destination.is_some());
+
+        match body.transaction_type {
             CheckoutWebhookEventType::AuthenticationStarted
             | CheckoutWebhookEventType::AuthenticationApproved
             | CheckoutWebhookEventType::AuthenticationAttempted => Self::PaymentActionRequired,
@@ -5006,9 +5013,15 @@ impl From<CheckoutWebhookEventType> for domain_types::connector_types::EventType
             | CheckoutWebhookEventType::PaymentAuthenticationFailed => {
                 Self::PaymentIntentAuthorizationFailure
             }
+            CheckoutWebhookEventType::PaymentApproved if has_payout_destination => {
+                Self::PayoutSuccess
+            }
             CheckoutWebhookEventType::PaymentApproved => Self::PaymentIntentAuthorizationSuccess,
             CheckoutWebhookEventType::PaymentCaptured => Self::PaymentIntentSuccess,
             CheckoutWebhookEventType::PayoutPaid => Self::PayoutSuccess,
+            CheckoutWebhookEventType::PaymentDeclined if has_payout_destination => {
+                Self::PayoutFailure
+            }
             CheckoutWebhookEventType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelFailure,
             CheckoutWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentCaptureFailure,
@@ -5037,19 +5050,6 @@ impl From<CheckoutWebhookEventType> for domain_types::connector_types::EventType
             CheckoutWebhookEventType::DisputeLost
             | CheckoutWebhookEventType::DisputeArbitrationLost => Self::DisputeLost,
             CheckoutWebhookEventType::Unknown => Self::IncomingWebhookEventUnspecified,
-        }
-    }
-}
-
-impl From<&CheckoutWebhookBody> for domain_types::connector_types::EventType {
-    fn from(body: &CheckoutWebhookBody) -> Self {
-        match (&body.transaction_type, is_payout_webhook(body)) {
-            (
-                CheckoutWebhookEventType::PaymentApproved | CheckoutWebhookEventType::PayoutPaid,
-                true,
-            ) => Self::PayoutSuccess,
-            (CheckoutWebhookEventType::PaymentDeclined, true) => Self::PayoutFailure,
-            _ => Self::from(body.transaction_type.clone()),
         }
     }
 }

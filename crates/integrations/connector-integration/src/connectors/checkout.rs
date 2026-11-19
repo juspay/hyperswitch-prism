@@ -49,12 +49,12 @@ use transformers::{
     CheckoutDisputeActionResponse as CheckoutDefendDisputeResponse, CheckoutDisputeEmptyRequest,
     CheckoutDisputeEmptyRequest as CheckoutDefendDisputeRequest, CheckoutDisputeWebhookBody,
     CheckoutErrorResponse, CheckoutEvidenceRequest, CheckoutTokenRequest, CheckoutTokenResponse,
-    CheckoutWebhookBody, CheckoutWebhookEventType, CheckoutWebhookEventTypeBody,
-    PaymentCaptureRequest, PaymentCaptureResponse, PaymentVoidRequest, PaymentVoidResponse,
-    PaymentsRequest, PaymentsRequest as SetupMandateRequest,
-    PaymentsRequest as RepeatPaymentRequest, PaymentsResponse,
-    PaymentsResponse as SetupMandateResponse, PaymentsResponse as RepeatPaymentResponse,
-    PaymentsResponseEnum as PSyncResponse, RSyncResponse, RefundRequest, RefundResponse,
+    CheckoutWebhookBody, CheckoutWebhookEventTypeBody, PaymentCaptureRequest,
+    PaymentCaptureResponse, PaymentVoidRequest, PaymentVoidResponse, PaymentsRequest,
+    PaymentsRequest as SetupMandateRequest, PaymentsRequest as RepeatPaymentRequest,
+    PaymentsResponse, PaymentsResponse as SetupMandateResponse,
+    PaymentsResponse as RepeatPaymentResponse, PaymentsResponseEnum as PSyncResponse,
+    RSyncResponse, RefundRequest, RefundResponse,
 };
 
 use super::macros;
@@ -351,28 +351,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             return Ok(EventType::EndpointVerification);
         }
 
-        // Keep the stateless ParseEvent phase cheap and tolerant: the thin body is enough for
-        // every event except `payment_approved` / `payment_declined`, where the same event type is
-        // reused for card-payout flows and only the presence of `data.destination` distinguishes
-        // them. Parsing the full body for every event would also reject dispute bodies whose
-        // `data.amount` is optional.
-        let type_body: CheckoutWebhookEventTypeBody = request
+        let body: CheckoutWebhookEventTypeBody = request
             .body
             .parse_struct("CheckoutWebhookEventTypeBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        if matches!(
-            type_body.transaction_type,
-            CheckoutWebhookEventType::PaymentApproved | CheckoutWebhookEventType::PaymentDeclined
-        ) {
-            let body: CheckoutWebhookBody = request
-                .body
-                .parse_struct("CheckoutWebhookBody")
-                .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
-            return Ok(EventType::from(&body));
-        }
-
-        Ok(EventType::from(type_body.transaction_type))
+        Ok(EventType::from(body))
     }
 
     fn get_webhook_event_reference(
@@ -569,7 +553,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ));
         }
 
-        let (status, error_code, error_message) = match EventType::from(&body) {
+        let event_body = CheckoutWebhookEventTypeBody {
+            transaction_type: body.transaction_type,
+            data: Some(transformers::CheckoutWebhookEventTypeData {
+                destination: body.data.destination,
+            }),
+        };
+        let (status, error_code, error_message) = match EventType::from(event_body) {
             EventType::PayoutSuccess => (common_enums::PayoutStatus::Success, None, None),
             EventType::PayoutFailure => (
                 common_enums::PayoutStatus::Failure,
