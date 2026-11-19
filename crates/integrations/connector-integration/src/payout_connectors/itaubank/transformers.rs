@@ -120,7 +120,7 @@ impl
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ItaubankAccessTokenResponse {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub token_type: Option<String>,
     // Token lifetime in seconds, as returned by Itaú OAuth.
     pub expires_in: Option<i64>,
@@ -143,7 +143,7 @@ impl TryFrom<ResponseRouterData<ItaubankAccessTokenResponse, Self>>
         let router_data = &item.router_data;
 
         let access_token_data = ServerAuthenticationTokenResponseData {
-            access_token: token_res.access_token.clone().into(),
+            access_token: token_res.access_token.clone(),
             token_type: token_res.token_type.clone(),
             expires_in: token_res.expires_in,
         };
