@@ -1145,6 +1145,7 @@ pub fn is_payout_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -
         TrustlyWebhookMethod::PayoutConfirmation
             | TrustlyWebhookMethod::PayoutFailed
             | TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Debit
             | TrustlyWebhookMethod::Cancel
     ) && is_payout_message_id(message_id)
 }
@@ -1160,8 +1161,11 @@ pub fn get_webhook_event(
         (TrustlyWebhookMethod::Credit, false) => {
             domain_types::connector_types::EventType::PayoutReversed
         }
-        (TrustlyWebhookMethod::Debit, _) => {
+        (TrustlyWebhookMethod::Debit, true) => {
             domain_types::connector_types::EventType::PaymentIntentFailure
+        }
+        (TrustlyWebhookMethod::Debit, false) => {
+            domain_types::connector_types::EventType::PayoutProcessing
         }
         (TrustlyWebhookMethod::Cancel, true) => {
             domain_types::connector_types::EventType::PaymentIntentCancelled
@@ -1240,10 +1244,11 @@ pub fn get_trustly_payout_webhook_status(
         TrustlyWebhookMethod::PayoutConfirmation => Ok(common_enums::PayoutStatus::Success),
         TrustlyWebhookMethod::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
         TrustlyWebhookMethod::Credit => Ok(common_enums::PayoutStatus::Reversed),
+        TrustlyWebhookMethod::Debit => Ok(common_enums::PayoutStatus::Initiated),
         TrustlyWebhookMethod::Cancel => Ok(common_enums::PayoutStatus::Cancelled),
-        TrustlyWebhookMethod::Debit
-        | TrustlyWebhookMethod::Account
-        | TrustlyWebhookMethod::Pending => Err(unexpected_webhook_event(event, "payout")),
+        TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => {
+            Err(unexpected_webhook_event(event, "payout"))
+        }
     }
 }
 
