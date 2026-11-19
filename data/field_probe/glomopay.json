@@ -78,7 +78,7 @@
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Glomopay Authorize does not support payment method variant: BankRedirect(Blik { blik_code: Some(\"777124\") })"
+        "error": "This feature is not implemented: Glomopay Authorize does not support payment method variant: BankRedirect(Blik { blik_code: Some(*** alloc::string::String ***) })"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -362,7 +362,7 @@
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Glomopay Authorize does not support payment method variant: Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }))"
+        "error": "This feature is not implemented: Glomopay Authorize does not support payment method variant: Wallet(PaypalSdk(PayPalWalletData { token: *** alloc::string::String *** }))"
       },
       "Paysera": {
         "status": "not_implemented",

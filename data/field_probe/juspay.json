@@ -245,7 +245,7 @@
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Blik { blik_code: Some(\"777124\") }"
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: Blik { blik_code: Some(*** alloc::string::String ***) }"
       },
       "Bluecode": {
         "status": "not_implemented",

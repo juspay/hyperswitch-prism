@@ -313,7 +313,7 @@
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by authorizedotnet"
+        "error": "Payment method BankRedirect(Blik { blik_code: Some(*** alloc::string::String ***) }) is not supported by authorizedotnet"
       },
       "Bluecode": {
         "status": "not_implemented",
