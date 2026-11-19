@@ -2991,12 +2991,11 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
         };
 
         let payments_response = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(
-                item.response
-                    .payment_id
-                    .map(|id| id.to_string())
-                    .unwrap_or_else(|| "unknown".to_string()),
-            ),
+            resource_id: item
+                .response
+                .payment_id
+                .map(|id| ResponseId::ConnectorTransactionId(id.to_string()))
+                .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone()),
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
@@ -3373,7 +3372,7 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
                 .response
                 .payment_id
                 .map(|id| id.to_string())
-                .unwrap_or_else(|| "unknown".to_string()),
+                .unwrap_or_else(|| item.router_data.request.connector_refund_id.clone()),
             refund_status: status,
             status_code: item.http_code,
             acquirer_reference_number: None,
