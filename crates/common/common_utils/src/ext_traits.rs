@@ -169,7 +169,7 @@ impl BytesExt for bytes::Bytes {
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| {
                 let variable_type = std::any::type_name::<T>();
-                format!("Unable to parse {variable_type} from bytes {self:?}")
+                format!("Unable to parse {variable_type} from bytes")
             })
     }
 }
@@ -196,7 +196,7 @@ impl ByteSliceExt for [u8] {
     {
         serde_json::from_slice(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8] {self:?}"))
+            .attach_printable_lazy(|| format!("Unable to parse {type_name} from bytes"))
     }
 }
 
@@ -288,7 +288,7 @@ where
         .change_context(errors::ParsingError::StructParseFailure("XML Response"))
         .attach_printable_lazy(|| {
             let variable_type = std::any::type_name::<T>();
-            format!("Unable to parse {variable_type} from XML response: {response}")
+            format!("Unable to parse {variable_type} from XML response")
         })
 }
 
@@ -305,7 +305,7 @@ impl ValueExt for serde_json::Value {
     where
         T: serde::de::DeserializeOwned,
     {
-        let debug = format!("Unable to parse {type_name} from serde_json::Value: {self:?}");
+        let debug = format!("Unable to parse {type_name} from serde_json::Value");
         serde_json::from_value::<T>(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| debug)
@@ -320,7 +320,9 @@ where
     where
         T: serde::de::DeserializeOwned,
     {
-        self.expose().parse_value(type_name)
+        serde_json::from_value(self.expose()).map_err(|_| {
+            error_stack::Report::new(errors::ParsingError::StructParseFailure(type_name))
+        })
     }
 }
 
@@ -564,6 +566,6 @@ impl<T> StringExt<T> for String {
     {
         serde_json::from_str::<T>(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from string {self:?}"))
+            .attach_printable_lazy(|| format!("Unable to parse {type_name} from string"))
     }
 }
