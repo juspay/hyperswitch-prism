@@ -375,11 +375,26 @@ fn hosted_duitnow_and_alipay_plus_response_preserves_gateway_redirect() {
         (json!({"ali_pay_plus_redirect": {}}), 36),
     ] {
         let router = authorize_router(method);
+        // A null Transaction_ID contributes zero bytes to the signed preimage.
+        let signature = generate_revpay_signature(
+            "test-key",
+            &[
+                &"MER00000000001",
+                &"",
+                &"09",
+                &"payment-unique-reference",
+                &"12.34",
+                &"MYR",
+            ],
+        );
         let response: RevpayPaymentsResponse = serde_json::from_value(json!({
+            "Revpay_Merchant_ID": "MER00000000001",
             "Payment_ID": payment_id,
             "Reference_Number": "payment-unique-reference",
             "Transaction_ID": null,
             "Amount": "12.34", "Currency": "MYR", "Response_Code": "09",
+            "Key_Index": 1,
+            "Signature": signature.peek(),
             "Bank_Redirect_URL": "https://stg-mpg.revpay-sandbox.com.my/v1/payment/intents/test"
         }))
         .unwrap();
@@ -512,4 +527,35 @@ fn inquiry_preserves_merchant_reference_despite_gateway_transaction_id() {
         }
         other => panic!("unexpected response: {other:?}"),
     }
+}
+
+#[test]
+fn unsigned_decline_response_is_not_trusted() {
+    let response: RevpayPaymentsResponse = serde_json::from_value(json!({
+        "Revpay_Merchant_ID": "MER00000000001",
+        "Transaction_ID": "gateway-id",
+        "Reference_Number": "payment-unique-reference",
+        "Amount": "12.34", "Currency": "MYR", "Response_Code": "76",
+        "Key_Index": 1
+    }))
+    .unwrap();
+    assert!(verify_payment_response_signature(&response, &config(), 200).is_err());
+}
+
+#[test]
+fn unsigned_authorize_response_is_rejected() {
+    let response: RevpayPaymentsResponse = serde_json::from_value(json!({
+        "Payment_ID": 37,
+        "Reference_Number": "payment-unique-reference",
+        "Transaction_ID": null,
+        "Amount": "12.34", "Currency": "MYR", "Response_Code": "09",
+        "Bank_Redirect_URL": "https://stg-mpg.revpay-sandbox.com.my/v1/payment/intents/test"
+    }))
+    .unwrap();
+    assert!(AuthorizeRouter::try_from(ResponseRouterData {
+        response,
+        router_data: authorize_router(json!({"duit_now": {}})),
+        http_code: 200,
+    })
+    .is_err());
 }
