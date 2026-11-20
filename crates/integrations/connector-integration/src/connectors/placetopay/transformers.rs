@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Void, VoidPC},
     connector_types::{
@@ -156,6 +156,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        if !item.router_data.request.is_auto_capture() {
+            return Err(IntegrationError::CaptureMethodNotSupported {
+                context: Default::default(),
+            }
+            .into());
+        }
         let browser_info = item.router_data.request.get_browser_info()?;
         let ip_address = browser_info.get_ip_address()?;
         let user_agent = browser_info.get_user_agent()?;
@@ -252,6 +258,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             internal_reference,
             action,
             authorization: None,
+            amount: None,
         })
     }
 }
@@ -306,6 +313,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             internal_reference,
             action,
             authorization: authorization.map(Secret::new),
+            amount: None,
         })
     }
 }
@@ -507,7 +515,15 @@ pub struct PlacetopayNextActionRequest {
     internal_reference: u64,
     action: PlacetopayNextAction,
     #[serde(skip_serializing_if = "Option::is_none")]
+    amount: Option<PlacetopayCaptureAmount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     authorization: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PlacetopayCaptureAmount {
+    currency: common_enums::Currency,
+    total: FloatMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -544,12 +560,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
+        if item
+            .router_data
+            .request
+            .capture_money
+            .amount()
+            .get_amount_as_i64()
+            <= 0
+        {
+            return Err(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            }
+            .into());
+        }
+        let amount = PlacetopayCaptureAmount {
+            currency: item.router_data.request.capture_money.currency(),
+            total: FloatMajorUnitForConnector
+                .convert(&item.router_data.request.capture_money)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
+        };
         let action = PlacetopayNextAction::Checkout;
         Ok(Self {
             auth,
             internal_reference,
             action,
             authorization: None,
+            amount: Some(amount),
         })
     }
 }
