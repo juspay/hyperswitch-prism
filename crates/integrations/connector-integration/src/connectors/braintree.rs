@@ -312,8 +312,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &connector_webhook_secrets.secret,
         );
 
-        let signature = hex::decode(extracted_signature)
-            .change_context(WebhookError::WebhookSignatureNotFound)?;
+        // The bt_signature value is hex-encoded; a value that is not valid hex cannot match.
+        let Ok(signature) = hex::decode(extracted_signature) else {
+            return Ok(false);
+        };
 
         crypto::HmacSha1
             .verify_signature(sha1_hash_key.as_ref(), &signature, message)
