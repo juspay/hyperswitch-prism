@@ -453,7 +453,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         // (`errMsg`, `prc`, `src`, `successcode` / `resultCode` /
         // `orderStatus`). This path is only reached for genuine
         // transport-level failures, whose bodies may not even be AsiaPay's
-        // shape (a WAF/gateway HTML page), so parse leniently: an unparseable
+        // shape (a WAF/gateway HTML page), so parse leniently: an unparsable
         // body degrades to the NO_ERROR_* sentinels instead of becoming a
         // hard deserialization error.
         let response: asiapay::AsiapayErrorResponse = serde_urlencoded::from_bytes(&res.response)
