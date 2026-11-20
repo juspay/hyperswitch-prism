@@ -2550,3 +2550,30 @@ mod tests {
         assert_eq!(actual_json, expected_json);
     }
 }
+
+#[cfg(test)]
+mod wallet_type_tests {
+    use domain_types::payment_method_data::{
+        EaseBuzzRedirection, QwikcilverWalletDirectData, WalletData,
+    };
+    use hyperswitch_masking::Secret;
+
+    use crate::connectors::razorpay::transformers::RazorpayWalletType;
+
+    #[test]
+    fn qwikcilver_wallet_is_not_sent_as_easebuzz() {
+        let wallet = WalletData::QwikcilverWalletDirect(Box::new(QwikcilverWalletDirectData {
+            wallet_number: Secret::new("1234".to_string()),
+        }));
+        assert!(RazorpayWalletType::try_from(&wallet).is_err());
+    }
+
+    #[test]
+    fn easebuzz_wallet_is_still_easebuzz() {
+        let wallet = WalletData::EaseBuzzRedirect(EaseBuzzRedirection {});
+        assert!(matches!(
+            RazorpayWalletType::try_from(&wallet),
+            Ok(RazorpayWalletType::EaseBuzz)
+        ));
+    }
+}

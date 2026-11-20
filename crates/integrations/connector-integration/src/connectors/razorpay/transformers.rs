@@ -306,10 +306,10 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             WalletData::BillDeskRedirect(_) => Ok(Self::BillDesk),
             WalletData::CashfreeRedirect(_) => Ok(Self::Cashfree),
             WalletData::PayURedirect(_) => Ok(Self::PayU),
-            WalletData::EaseBuzzRedirect(_) | WalletData::QwikcilverWalletDirect(_) => {
-                Ok(Self::EaseBuzz)
-            }
-            WalletData::AliPayQr(_)
+            WalletData::EaseBuzzRedirect(_) => Ok(Self::EaseBuzz),
+            // Qwikcilver is a different provider (its own connector); Razorpay has no such wallet.
+            WalletData::QwikcilverWalletDirect(_)
+            | WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
             | WalletData::BluecodeRedirect {}
