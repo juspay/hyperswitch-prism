@@ -82,21 +82,28 @@ pub enum TamaraPaymentStatus {
     Authorised,
     FullyCaptured,
     PartiallyCaptured,
+    FullyRefunded,
+    PartiallyRefunded,
     Canceled,
     Updated,
     Expired,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<TamaraPaymentStatus> for AttemptStatus {
     fn from(status: TamaraPaymentStatus) -> Self {
         match status {
             TamaraPaymentStatus::Authorised => Self::Authorized,
-            TamaraPaymentStatus::FullyCaptured | TamaraPaymentStatus::PartiallyCaptured => {
-                Self::Charged
-            }
+            TamaraPaymentStatus::FullyCaptured
+            | TamaraPaymentStatus::PartiallyCaptured
+            | TamaraPaymentStatus::FullyRefunded
+            | TamaraPaymentStatus::PartiallyRefunded => Self::Charged,
             TamaraPaymentStatus::Canceled | TamaraPaymentStatus::Updated => Self::Voided,
             TamaraPaymentStatus::Declined | TamaraPaymentStatus::Expired => Self::Failure,
-            TamaraPaymentStatus::New | TamaraPaymentStatus::Approved => Self::Pending,
+            TamaraPaymentStatus::New
+            | TamaraPaymentStatus::Approved
+            | TamaraPaymentStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -1085,7 +1092,9 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
 
     fn try_from(item: ResponseRouterData<TamaraRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let raw_connector_status = tamara_refund_raw_connector_status(&item.response.status);
-        let refund_status = RefundStatus::from(item.response.status);
+        // The order-details endpoint reports aggregate order state. One order may have
+        // multiple refunds, so it cannot establish this refund's terminal outcome.
+        let refund_status = RefundStatus::Pending;
 
         Ok(Self {
             resource_common_data: RefundFlowData {
@@ -1093,7 +1102,7 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
                 ..item.router_data.resource_common_data.clone()
             },
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.order_id.clone(),
+                connector_refund_id: item.router_data.request.connector_refund_id.clone(),
                 refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
@@ -1409,6 +1418,8 @@ pub enum TamaraWebhookEvent {
     OrderCaptured,
     OrderRefunded,
     OrderUpdated,
+    OrderDeclined,
+    OrderExpired,
     #[serde(other)]
     Unknown,
 }
@@ -1461,6 +1472,9 @@ impl From<TamaraWebhookEvent> for interfaces::webhooks::IncomingWebhookEvent {
             TamaraWebhookEvent::OrderCaptured => Self::PaymentIntentCaptureSuccess,
             TamaraWebhookEvent::OrderRefunded => Self::RefundSuccess,
             TamaraWebhookEvent::OrderUpdated => Self::PaymentIntentProcessing,
+            TamaraWebhookEvent::OrderDeclined | TamaraWebhookEvent::OrderExpired => {
+                Self::PaymentIntentFailure
+            }
             TamaraWebhookEvent::Unknown => Self::EventNotSupported,
         }
     }
@@ -1480,6 +1494,7 @@ impl From<TamaraWebhookEvent> for AttemptStatus {
             }
             TamaraWebhookEvent::OrderCaptured | TamaraWebhookEvent::OrderRefunded => Self::Charged,
             TamaraWebhookEvent::OrderCanceled => Self::Voided,
+            TamaraWebhookEvent::OrderDeclined | TamaraWebhookEvent::OrderExpired => Self::Failure,
             TamaraWebhookEvent::OrderUpdated | TamaraWebhookEvent::Unknown => Self::Pending,
         }
     }
@@ -1504,6 +1519,9 @@ impl From<TamaraWebhookEvent> for EventType {
             TamaraWebhookEvent::OrderCaptured => Self::PaymentIntentCaptureSuccess,
             TamaraWebhookEvent::OrderRefunded => Self::RefundSuccess,
             TamaraWebhookEvent::OrderUpdated => Self::PaymentIntentProcessing,
+            TamaraWebhookEvent::OrderDeclined | TamaraWebhookEvent::OrderExpired => {
+                Self::PaymentIntentFailure
+            }
             TamaraWebhookEvent::Unknown => Self::IncomingWebhookEventUnspecified,
         }
     }
