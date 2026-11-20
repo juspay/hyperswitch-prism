@@ -354,3 +354,6 @@ pub mod ecommpay;
 pub use self::ecommpay::Ecommpay;
 pub mod payhound;
 pub use self::payhound::Payhound;
+
+pub mod amex;
+pub use self::amex::Amex;

@@ -1,0 +1,643 @@
+{
+  "connector": "amex",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for amex"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for amex"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for amex"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for amex"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for amex"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for amex"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for amex"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for amex"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for amex"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for amex"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for amex"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by amex connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for amex"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for amex"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for amex"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for amex"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for amex"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for amex"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for amex"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for amex"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for amex"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for amex"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for amex"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for amex"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for amex"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for amex"
+      }
+    }
+  }
+}

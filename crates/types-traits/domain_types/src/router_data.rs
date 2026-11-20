@@ -1204,6 +1204,16 @@ pub enum ConnectorSpecificConfig {
         key_index: Secret<String>,
         base_url: Option<String>,
     },
+    /// American Express Payment Gateway (MPGS-family). HTTP Basic auth:
+    /// `Authorization: Basic base64("merchant.<merchant_id>:<shared_secret>")`.
+    /// `merchant_id` is the gateway merchant id (used as `merchant.<id>` for
+    /// the Basic-auth userid and in the `/merchant/{merchantId}/...` URL
+    /// path); `shared_secret` is the API password.
+    Amex {
+        merchant_id: Secret<String>,
+        shared_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 /// Config-patch key for a `ConnectorSpecificConfig` variant.
@@ -1672,6 +1682,10 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 merchant_key,
                 key_index
+            },
+            Amex {
+                merchant_id,
+                shared_secret
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -2236,6 +2250,10 @@ impl ConnectorSpecificConfig {
                     merchant_id,
                     merchant_key,
                     key_index
+                },
+                Amex {
+                    merchant_id,
+                    shared_secret
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -3088,6 +3106,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                     .key_index
                     .unwrap_or_else(|| Secret::new("1".to_string())),
                 base_url: revpay.base_url,
+            }),
+            AuthType::Amex(amex) => Ok(Self::Amex {
+                merchant_id: amex.merchant_id.ok_or_else(err)?,
+                shared_secret: amex.shared_secret.ok_or_else(err)?,
+                base_url: amex.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -4586,6 +4609,17 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         merchant_id: api_key.clone(),
                         merchant_key: key1.clone(),
                         key_index: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // Legacy x-auth path: BodyKey's two secret slots carry
+                // merchant_id (api_key) / shared_secret (key1) — HeaderKey has
+                // only one slot, not enough for Amex's Basic-auth pair.
+                ConnectorEnum::Amex => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Amex {
+                        merchant_id: api_key.clone(),
+                        shared_secret: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
