@@ -552,7 +552,8 @@
               "amount": {
                 "minor_amount": 1000,
                 "currency": "USD"
-              }
+              },
+              "return_url": "https://example.com/payment/return"
             }
           }
         },
@@ -564,7 +565,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"returnUrl\":\"https://example.com/return\"}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"returnUrl\":\"https://example.com/payment/return\"}"
         }
       }
     },
