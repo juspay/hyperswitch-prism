@@ -16,7 +16,7 @@ use domain_types::{
 };
 use error_stack::Report;
 use grpc_api_types::payments as grpc;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde_json::{json, Value};
 
 use super::{transformers::RapydPaymentsRequest, Rapyd, RapydRouterData};
@@ -81,23 +81,25 @@ fn payment_webhook_returns_payment_state_and_preserves_routing() -> TestResult {
 fn webhook_request(body: Vec<u8>) -> domain_types::connector_types::RequestDetails {
     domain_types::connector_types::RequestDetails {
         method: domain_types::connector_types::HttpMethod::Post,
-        uri: Some("/webhooks/merchant/rapyd/mca_test?x=a%2Fb&z=1".to_string()),
+        uri: Some(Secret::new(
+            "/webhooks/merchant/rapyd/mca_test?x=a%2Fb&z=1".to_string(),
+        )),
         headers: [
             ("Host", "hooks.example.com"),
             ("Salt", "test_salt"),
             ("Timestamp", "1700000000"),
             ("Signature", "MDg0MGEyNDc2ZWMzNDM4MzZhNDgzMTRhMmJhNjNiMjExNzE3N2FmMDAwNzg1MGRkY2E2MzQyY2I3NWFlN2Q4NQ=="),
         ]
-        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .map(|(key, value)| (key.to_string(), Secret::new(value.to_string())))
         .into(),
-        body,
-        query_params: Some("x=a%2Fb&z=1".to_string()),
+        body: Secret::new(body),
+        query_params: Some(Secret::new("x=a%2Fb&z=1".to_string())),
     }
 }
 
 fn webhook_secrets() -> domain_types::connector_types::ConnectorWebhookSecrets {
     domain_types::connector_types::ConnectorWebhookSecrets {
-        secret: br#"{"access_key":"test_access","secret_key":"test_secret"}"#.to_vec(),
+        secret: Secret::new(br#"{"access_key":"test_access","secret_key":"test_secret"}"#.to_vec()),
         additional_secret: None,
     }
 }
@@ -174,29 +176,37 @@ fn webhook_signature_authenticates_the_exact_callback_and_body() -> TestResult {
     }
 
     let mut absolute = request.clone();
-    absolute.uri = Some(format!(
-        "https://hooks.example.com{}",
-        absolute.uri.as_deref().ok_or("missing URI")?
-    ));
+    let relative_uri = absolute
+        .uri
+        .as_ref()
+        .map(PeekInterface::peek)
+        .ok_or("missing URI")?;
+    absolute.uri = Some(Secret::new(format!(
+        "https://hooks.example.com{relative_uri}"
+    )));
     absolute.headers.remove("Host");
     if !connector.verify_webhook_source(absolute, Some(webhook_secrets()), None)? {
         return Err("signature for the absolute callback URL was not verified".into());
     }
 
     let mut separate_query = request.clone();
-    separate_query.uri = Some("/webhooks/merchant/rapyd/mca_test".to_string());
+    separate_query.uri = Some(Secret::new("/webhooks/merchant/rapyd/mca_test".to_string()));
     if !connector.verify_webhook_source(separate_query, Some(webhook_secrets()), None)? {
         return Err("signature with separate query parameters was not verified".into());
     }
 
     let mut changed_url = request.clone();
-    changed_url.uri = Some("/webhooks/merchant/rapyd/another_account?x=a%2Fb&z=1".to_string());
+    changed_url.uri = Some(Secret::new(
+        "/webhooks/merchant/rapyd/another_account?x=a%2Fb&z=1".to_string(),
+    ));
     if connector.verify_webhook_source(changed_url, Some(webhook_secrets()), None)? {
         return Err("signature verified after the callback URL changed".into());
     }
 
     let mut changed = request;
-    changed.body.pop();
+    let mut changed_body = changed.body.peek().clone();
+    changed_body.pop();
+    changed.body = Secret::new(changed_body);
     if connector.verify_webhook_source(changed, Some(webhook_secrets()), None)? {
         return Err("signature verified after the raw body changed".into());
     }
@@ -228,7 +238,7 @@ fn webhook_verification_rejects_missing_or_invalid_inputs() -> TestResult {
         let mut invalid = request.clone();
         invalid
             .headers
-            .insert("Signature".to_string(), signature.to_string());
+            .insert("Signature".to_string(), Secret::new(signature.to_string()));
         if connector
             .verify_webhook_source(invalid, Some(webhook_secrets()), None)
             .is_ok()
@@ -241,7 +251,7 @@ fn webhook_verification_rejects_missing_or_invalid_inputs() -> TestResult {
         br#"{"access_key":"","secret_key":"test_secret"}"#,
     ] {
         let mut secrets = webhook_secrets();
-        secrets.secret = secret.to_vec();
+        secrets.secret = Secret::new(secret.to_vec());
         if connector
             .verify_webhook_source(request.clone(), Some(secrets), None)
             .is_ok()

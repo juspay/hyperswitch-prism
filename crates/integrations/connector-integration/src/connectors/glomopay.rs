@@ -523,6 +523,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let probe: GlomopayWebhookEntityProbe = request
             .body
+            .peek()
             .parse_struct("GlomopayWebhookEntityProbe")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to read entity_type from Glomopay webhook")?;
@@ -531,6 +532,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             "payment" => {
                 let payload: GlomopayWebhookPayload = request
                     .body
+                    .peek()
                     .parse_struct("GlomopayWebhookPayload")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable("Failed to parse Glomopay payment webhook event type")?;
@@ -539,6 +541,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             "refund" => {
                 let payload: GlomopayRefundWebhookPayload = request
                     .body
+                    .peek()
                     .parse_struct("GlomopayRefundWebhookPayload")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable("Failed to parse Glomopay refund webhook event type")?;
@@ -555,6 +558,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         let probe: GlomopayWebhookEntityProbe = request
             .body
+            .peek()
             .parse_struct("GlomopayWebhookEntityProbe")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to read entity_type from Glomopay webhook")?;
@@ -563,6 +567,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             "payment" => {
                 let payload: GlomopayWebhookPayload = request
                     .body
+                    .peek()
                     .parse_struct("GlomopayWebhookPayload")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable("Failed to parse Glomopay payment webhook for reference")?;
@@ -577,6 +582,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             "refund" => {
                 let payload: GlomopayRefundWebhookPayload = request
                     .body
+                    .peek()
                     .parse_struct("GlomopayRefundWebhookPayload")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)
                     .attach_printable("Failed to parse Glomopay refund webhook for reference")?;
@@ -605,10 +611,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let payload: GlomopayWebhookPayload = request
             .body
+            .peek()
             .parse_struct("GlomopayWebhookPayload")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse Glomopay payment webhook body")?;
-        Ok(payload.into_webhook_details_response(200, &request.body))
+        Ok(payload.into_webhook_details_response(200, request.body.peek()))
     }
 
     fn process_refund_webhook(
@@ -622,10 +629,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let payload: GlomopayRefundWebhookPayload = request
             .body
+            .peek()
             .parse_struct("GlomopayRefundWebhookPayload")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse Glomopay refund webhook body")?;
-        Ok(payload.into_refund_webhook_details_response(200, &request.body))
+        Ok(payload.into_refund_webhook_details_response(200, request.body.peek()))
     }
 
     fn get_webhook_resource_object(
@@ -635,6 +643,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let probe: GlomopayWebhookEntityProbe = request
             .body
+            .peek()
             .parse_struct("GlomopayWebhookEntityProbe")
             .change_context(WebhookError::WebhookResourceObjectNotFound)
             .attach_printable("Failed to read entity_type from Glomopay webhook")?;
@@ -643,6 +652,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             "refund" => {
                 let payload: GlomopayRefundWebhookPayload = request
                     .body
+                    .peek()
                     .parse_struct("GlomopayRefundWebhookPayload")
                     .change_context(WebhookError::WebhookResourceObjectNotFound)
                     .attach_printable("Failed to parse Glomopay refund webhook resource object")?;
@@ -651,6 +661,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => {
                 let payload: GlomopayWebhookPayload = request
                     .body
+                    .peek()
                     .parse_struct("GlomopayWebhookPayload")
                     .change_context(WebhookError::WebhookResourceObjectNotFound)
                     .attach_printable("Failed to parse Glomopay payment webhook resource object")?;

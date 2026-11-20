@@ -294,6 +294,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let signature = request
             .headers
             .get("cko-signature")
+            .map(PeekInterface::peek)
             .ok_or_else(|| {
                 error_stack::report!(domain_types::errors::WebhookError::WebhookSignatureNotFound)
             })
@@ -309,7 +310,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<domain_types::errors::WebhookError>> {
-        Ok(request.body.clone())
+        Ok(request.body.peek().clone())
     }
 
     fn verify_webhook_source(
@@ -321,7 +322,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // An empty HMAC key would verify a signature anyone can compute, so a
         // missing and an empty secret are refused alike.
         let connector_webhook_secrets = match connector_webhook_secret {
-            Some(secrets) if !secrets.secret.is_empty() => secrets,
+            Some(secrets) if !secrets.secret.peek().is_empty() => secrets,
             _ => {
                 return Err(error_stack::report!(
                     domain_types::errors::WebhookError::WebhookVerificationSecretNotFound
@@ -339,7 +340,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         use common_utils::crypto::VerifySignature;
         crypto::HmacSha256
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -347,12 +352,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<domain_types::errors::WebhookError>> {
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(EventType::EndpointVerification);
         }
 
         let body: CheckoutWebhookEventTypeBody = request
             .body
+            .peek()
             .parse_struct("CheckoutWebhookEventTypeBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -366,19 +372,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Option<WebhookResourceReference>,
         error_stack::Report<domain_types::errors::WebhookError>,
     > {
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(None);
         }
 
         // Peek at only the event type first to branch on the body shape.
         let type_body: CheckoutWebhookEventTypeBody = request
             .body
+            .peek()
             .parse_struct("CheckoutWebhookEventTypeBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         if is_chargeback_event(&type_body.transaction_type) {
             let body: CheckoutDisputeWebhookBody = request
                 .body
+                .peek()
                 .parse_struct("CheckoutDisputeWebhookBody")
                 .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -392,6 +400,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let body: CheckoutWebhookBody = request
             .body
+            .peek()
             .parse_struct("CheckoutWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -446,6 +455,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let body: CheckoutWebhookBody = request
             .body
+            .peek()
             .parse_struct("CheckoutWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -484,7 +494,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code,
             error_message,
             error_reason,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             captured_money: None,
@@ -503,6 +513,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let body: CheckoutWebhookBody = request
             .body
+            .peek()
             .parse_struct("CheckoutWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -529,7 +540,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: body.data.reference,
             error_code,
             error_message,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
         })
@@ -544,6 +555,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let body: CheckoutWebhookBody = request
             .body
+            .peek()
             .parse_struct("CheckoutWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -588,6 +600,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let body: CheckoutDisputeWebhookBody = request
             .body
+            .peek()
             .parse_struct("CheckoutDisputeWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -631,7 +644,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             dispute_message: body.data.category,
             connector_reason_code: body.data.reason_code,
             additional_details: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
         })

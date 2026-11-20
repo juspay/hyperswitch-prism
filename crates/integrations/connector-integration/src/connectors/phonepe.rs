@@ -24,7 +24,7 @@ use domain_types::{
     types::{ConnectorInfo, Connectors},
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -98,6 +98,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let signature_str = request
             .headers
             .get("x-verify")
+            .map(PeekInterface::peek)
             .ok_or(WebhookError::WebhookSignatureNotFound)?;
         Ok(signature_str.as_bytes().to_vec())
     }
@@ -107,23 +108,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: &RequestDetails,
         connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
-        use hyperswitch_masking::Secret;
-
         let webhook_request: phonepe::PhonepeWebhookRequest = request
             .body
+            .peek()
             .parse_struct("PhonepeWebhookRequest")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let base64_body = &webhook_request.response;
-        let api_path = request.uri.as_deref().unwrap_or("");
+        let api_path = request
+            .uri
+            .as_ref()
+            .map(|value| value.peek().as_str())
+            .unwrap_or("");
         let key_index = request
             .headers
             .get("x-verify")
+            .map(PeekInterface::peek)
             .and_then(|v| v.split("###").nth(1))
             .unwrap_or("1");
 
-        let salt_key =
-            Secret::new(String::from_utf8_lossy(&connector_webhook_secret.secret).to_string());
+        let salt_key = Secret::new(
+            String::from_utf8_lossy(connector_webhook_secret.secret.peek()).to_string(),
+        );
 
         let expected_checksum =
             phonepe::compute_phonepe_webhook_checksum(base64_body, api_path, &salt_key, key_index)?;
@@ -137,8 +143,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
-        use hyperswitch_masking::Secret;
-
         let connector_webhook_secret = match connector_webhook_secret {
             Some(secret) => secret,
             None => {
@@ -148,7 +152,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         // Extract the incoming X-VERIFY header value
-        let incoming_verify = match request.headers.get("x-verify") {
+        let incoming_verify = match request.headers.get("x-verify").map(PeekInterface::peek) {
             Some(v) => v.clone(),
             None => {
                 tracing::warn!("PhonePe webhook: X-VERIFY header missing");
@@ -161,7 +165,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Parse the webhook body to get the base64-encoded payload
         let webhook_request: phonepe::PhonepeWebhookRequest =
-            match request.body.parse_struct("PhonepeWebhookRequest") {
+            match request.body.peek().parse_struct("PhonepeWebhookRequest") {
                 Ok(req) => req,
                 Err(e) => {
                     tracing::warn!("PhonePe webhook: failed to parse body: {}", e);
@@ -170,9 +174,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             };
 
         let base64_body = &webhook_request.response;
-        let api_path = request.uri.as_deref().unwrap_or("");
-        let salt_key =
-            Secret::new(String::from_utf8_lossy(&connector_webhook_secret.secret).to_string());
+        let api_path = request
+            .uri
+            .as_ref()
+            .map(|value| value.peek().as_str())
+            .unwrap_or("");
+        let salt_key = Secret::new(
+            String::from_utf8_lossy(connector_webhook_secret.secret.peek()).to_string(),
+        );
 
         // Compute expected checksum
         let expected_checksum = match phonepe::compute_phonepe_webhook_checksum(
@@ -201,7 +210,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
+        let payload = phonepe::decode_phonepe_webhook_payload(request.body.peek())?;
         Ok(phonepe::map_phonepe_webhook_state_to_event_type(
             &payload.state,
         ))
@@ -214,7 +223,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<domain_types::connector_types::EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
+        let payload = phonepe::decode_phonepe_webhook_payload(request.body.peek())?;
 
         let status = phonepe::map_phonepe_webhook_state_to_attempt_status(&payload.state);
 
@@ -240,7 +249,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             error_code,
             error_message,
             error_reason,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             captured_money: None,
@@ -280,7 +289,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let payload = phonepe::decode_phonepe_webhook_payload(&request.body)?;
+        let payload = phonepe::decode_phonepe_webhook_payload(request.body.peek())?;
         Ok(Box::new(payload))
     }
 }

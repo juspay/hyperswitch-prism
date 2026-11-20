@@ -20,7 +20,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Maskable};
+use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding,
@@ -496,7 +496,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let body = String::from_utf8(request.body.clone())
+        let body = String::from_utf8(request.body.peek().clone())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let webhook_body: responses::PeachpaymentsIncomingWebhook = body
@@ -560,7 +560,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let body = String::from_utf8(request.body.clone())
+        let body = String::from_utf8(request.body.peek().clone())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let webhook_body: responses::PeachpaymentsIncomingWebhook = body
@@ -618,7 +618,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let body = String::from_utf8(request.body.clone())
+        let body = String::from_utf8(request.body.peek().clone())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let webhook_body: responses::PeachpaymentsIncomingWebhook = body
@@ -669,7 +669,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let body = String::from_utf8(request.body.clone())
+        let body = String::from_utf8(request.body.peek().clone())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let webhook_body: responses::PeachpaymentsIncomingWebhook = body

@@ -554,9 +554,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}"
+            "legacy_headers": {},
+            "body": "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -579,9 +579,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}"
+            "legacy_headers": {},
+            "body": "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

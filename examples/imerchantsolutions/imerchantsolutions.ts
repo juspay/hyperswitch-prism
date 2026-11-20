@@ -76,10 +76,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -88,10 +88,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

@@ -294,7 +294,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .headers
             .iter()
             .find(|(k, _)| k.eq_ignore_ascii_case(HYPERSWITCH_WEBHOOK_SIGNATURE_HEADER))
-            .map(|(_, v)| v.clone())
+            .map(|(_, v)| v.peek().clone())
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
         hex::decode(signature_hex).change_context(WebhookError::WebhookSignatureNotFound)
     }
@@ -305,7 +305,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         // Hyperswitch signs the raw request body verbatim.
-        Ok(request.body.clone())
+        Ok(request.body.peek().clone())
     }
 
     fn verify_webhook_source(
@@ -327,7 +327,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         let message = self.get_webhook_source_verification_message(&request, &secrets)?;
         Ok(crypto::HmacSha512
-            .verify_signature(&secrets.secret, &signature, &message)
+            .verify_signature(secrets.secret.peek(), &signature, &message)
             .unwrap_or(false))
     }
 
@@ -335,7 +335,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
+        let body = hyperswitch::get_webhook_object_from_body(request.body.peek())?;
         Ok(hyperswitch::map_webhook_event_type(&body.event_type))
     }
 
@@ -343,7 +343,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
+        let body = hyperswitch::get_webhook_object_from_body(request.body.peek())?;
         hyperswitch::get_webhook_reference(&body)
     }
 
@@ -354,8 +354,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
-        hyperswitch::build_webhook_payment_response(&body, &request.body)
+        let body = hyperswitch::get_webhook_object_from_body(request.body.peek())?;
+        hyperswitch::build_webhook_payment_response(&body, request.body.peek())
     }
 
     fn get_webhook_resource_object(
@@ -363,7 +363,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
+        let body = hyperswitch::get_webhook_object_from_body(request.body.peek())?;
         let resource: Box<dyn hyperswitch_masking::ErasedMaskSerialize> = Box::new(body);
         Ok(resource)
     }

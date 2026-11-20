@@ -1004,9 +1004,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+            "legacy_headers": {},
+            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -1029,9 +1029,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+            "legacy_headers": {},
+            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

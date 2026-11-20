@@ -132,10 +132,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -144,10 +144,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

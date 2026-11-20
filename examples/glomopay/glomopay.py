@@ -73,9 +73,9 @@ def _build_parse_event_request():
     return events_pb2.EventServiceParseRequest(
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
-            uri="https://example.com/webhook",  # URI of the request.
-            headers={},  # Headers of the HTTP request.
-            body="{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}".encode(),  # Body of the HTTP request.
+            legacy_headers={},  # Headers of the HTTP request.
+            body=payment_methods_pb2.SecretBytes(value="{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}".encode()),  # Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri=payment_methods_pb2.SecretString(value="https://example.com/webhook"),
         ),
     )
 

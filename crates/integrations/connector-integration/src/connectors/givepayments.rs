@@ -97,6 +97,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let signature = request
             .headers
             .get("gp-webhook-signature")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(errors::WebhookError::WebhookSignatureNotFound))
             .attach_printable("Missing incoming webhook signature for givepayments connector")?;
 
@@ -109,7 +110,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<errors::WebhookError>> {
-        let message = std::str::from_utf8(&request.body)
+        let message = std::str::from_utf8(request.body.peek())
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
             .attach_printable(
                 "Webhook source verification message parsing failed for givepayments connector",
@@ -142,7 +143,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
         algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Webhook source verification failed for givepayments connector")
     }
@@ -153,6 +158,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
         let webhook_body: GivepaymentsIncomingWebhookData = request
             .body
+            .peek()
             .parse_struct("GivepaymentsIncomingWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -168,6 +174,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let webhook_body: GivepaymentsIncomingWebhookData = request
             .body
+            .peek()
             .parse_struct("GivepaymentsIncomingWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -180,6 +187,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
         let webhook_body: GivepaymentsIncomingWebhookData = request
             .body
+            .peek()
             .parse_struct("GivepaymentsIncomingWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -213,6 +221,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let webhook_body: GivepaymentsIncomingWebhookData = request
             .body
+            .peek()
             .parse_struct("GivepaymentsIncomingWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -256,7 +265,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             captured_money: None,
@@ -274,6 +283,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let webhook_body: GivepaymentsIncomingWebhookData = request
             .body
+            .peek()
             .parse_struct("GivepaymentsIncomingWebhookData")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -296,7 +306,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: None,
             error_code: None,
             error_message: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
         })

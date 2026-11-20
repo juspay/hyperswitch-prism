@@ -35,7 +35,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use time::PrimitiveDateTime;
@@ -2845,7 +2845,7 @@ pub(super) fn get_matching_webhook_signature(
 pub(super) fn decode_from_request(
     request: &connector_types::RequestDetails,
 ) -> Result<Notification, Report<domain_types::errors::WebhookError>> {
-    let notif = get_webhook_object_from_body(&request.body)?;
+    let notif = get_webhook_object_from_body(request.body.peek())?;
     decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())
 }
 

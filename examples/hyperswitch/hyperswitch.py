@@ -40,9 +40,9 @@ def _build_parse_event_request():
     return events_pb2.EventServiceParseRequest(
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
-            uri="https://example.com/webhook",  # URI of the request.
-            headers={},  # Headers of the HTTP request.
-            body="{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}".encode(),  # Body of the HTTP request.
+            legacy_headers={},  # Headers of the HTTP request.
+            body=payment_methods_pb2.SecretBytes(value="{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}".encode()),  # Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri=payment_methods_pb2.SecretString(value="https://example.com/webhook"),
         ),
     )
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

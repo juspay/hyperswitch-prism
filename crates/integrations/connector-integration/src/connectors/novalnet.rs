@@ -32,7 +32,7 @@ use domain_types::{
     types::Connectors,
     utils::{self, ForeignTryFrom},
 };
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -654,7 +654,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
-        let notif_item = get_webhook_object_from_body(&request.body)?;
+        let notif_item = get_webhook_object_from_body(request.body.peek())?;
 
         hex::decode(notif_item.event.checksum)
             .change_context(WebhookError::WebhookVerificationSecretInvalid)
@@ -665,7 +665,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         connector_webhook_secrets: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
-        let notif = get_webhook_object_from_body(&request.body)?;
+        let notif = get_webhook_object_from_body(request.body.peek())?;
 
         let (amount, currency) = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
@@ -690,7 +690,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .map(|amount| amount.to_string())
             .unwrap_or("".to_string());
 
-        let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
+        let secret_auth = String::from_utf8(connector_webhook_secrets.secret.peek().to_vec())
             .change_context(WebhookError::WebhookVerificationSecretInvalid)
             .attach_printable("Could not convert webhook secret auth to UTF-8")?;
         let reversed_secret_auth = novalnet::reverse_string(&secret_auth);
@@ -755,7 +755,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        match algorithm.verify_signature(&connector_webhook_secrets.secret, &signature, &message) {
+        match algorithm.verify_signature(
+            connector_webhook_secrets.secret.peek(),
+            &signature,
+            &message,
+        ) {
             Ok(is_verified) => Ok(is_verified),
             Err(error) => {
                 tracing::warn!(
@@ -776,7 +780,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let notif = get_webhook_object_from_body(&request.body)?;
+        let notif = get_webhook_object_from_body(request.body.peek())?;
         // `event.tid` / `event.type` are inside the Novalnet checksum preimage
         // (spec: ### Webhook Authentication & Signature Verification) and decide the event class.
         // `event.parent_tid` (spec: ### IncomingWebhook, source_24: parentTid = event.parent_tid
@@ -830,7 +834,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let notif = get_webhook_object_from_body(&request.body)?;
+        let notif = get_webhook_object_from_body(request.body.peek())?;
 
         // Classified from the signed checksum preimage (event.type, result.status).
         // transaction.status is outside it, so it is passed under the lower-only rule: it can
@@ -850,7 +854,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let notif = get_webhook_object_from_body(&request.body)?;
+        let notif = get_webhook_object_from_body(request.body.peek())?;
 
         // capture_method from the original authorize resolves Authorized vs Charged for a
         // signed PAYMENT/SUCCESS without trusting the unsigned transaction.status (TH-17).
@@ -859,7 +863,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         response.map(|mut response| {
             response.raw_connector_response =
-                Some(String::from_utf8_lossy(&request.body).to_string());
+                Some(String::from_utf8_lossy(request.body.peek()).to_string());
             response
         })
     }
@@ -872,6 +876,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let notif: novalnet::NovalnetWebhookNotificationResponseRefunds = request
             .body
+            .peek()
             .parse_struct("NovalnetWebhookNotificationResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -880,7 +885,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         response.map(|mut response| {
             response.raw_connector_response =
-                Some(String::from_utf8_lossy(&request.body).to_string());
+                Some(String::from_utf8_lossy(request.body.peek()).to_string());
             response
         })
     }
@@ -892,7 +897,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let notif: transformers::NovalnetWebhookNotificationResponse =
-            get_webhook_object_from_body(&request.body)?;
+            get_webhook_object_from_body(request.body.peek())?;
         let (amount, currency, reason, reason_code) = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
                 (data.amount, data.currency, None, None)
@@ -930,7 +935,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .map_err(|e| e.change_context(WebhookError::WebhookProcessingFailed))?,
             connector_response_reference_id: None,
             dispute_message: reason,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
         })

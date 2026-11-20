@@ -710,9 +710,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
+            "legacy_headers": {},
+            "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -735,9 +735,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
+            "legacy_headers": {},
+            "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"Sale\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

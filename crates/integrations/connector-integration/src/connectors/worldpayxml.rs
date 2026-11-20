@@ -35,7 +35,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -121,20 +121,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_event_type(&self, request: RequestDetails) -> CustomResult<EventType, WebhookError> {
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(EventType::EndpointVerification);
         }
-        Ok(parse_webhook_body(&request.body)?.event_type())
+        Ok(parse_webhook_body(request.body.peek())?.event_type())
     }
 
     fn get_webhook_event_reference(
         &self,
         request: RequestDetails,
     ) -> CustomResult<Option<WebhookResourceReference>, WebhookError> {
-        if request.body.is_empty() {
+        if request.body.peek().is_empty() {
             return Ok(None);
         }
-        parse_webhook_body(&request.body)?.event_reference()
+        parse_webhook_body(request.body.peek())?.event_reference()
     }
 
     fn process_payment_webhook(
@@ -144,7 +144,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         event_context: Option<EventContext>,
     ) -> CustomResult<WebhookDetailsResponse, WebhookError> {
-        parse_webhook_body(&request.body)?.payment_details(event_context)
+        parse_webhook_body(request.body.peek())?.payment_details(event_context)
     }
 
     fn process_refund_webhook(
@@ -153,7 +153,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> CustomResult<RefundWebhookDetailsResponse, WebhookError> {
-        RefundWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+        RefundWebhookDetailsResponse::try_from(parse_webhook_body(request.body.peek())?)
     }
 
     fn process_dispute_webhook(
@@ -162,7 +162,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> CustomResult<DisputeWebhookDetailsResponse, WebhookError> {
-        DisputeWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+        DisputeWebhookDetailsResponse::try_from(parse_webhook_body(request.body.peek())?)
     }
 
     fn process_payout_webhook(
@@ -171,14 +171,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> CustomResult<PayoutWebhookDetailsResponse, WebhookError> {
-        PayoutWebhookDetailsResponse::try_from(parse_webhook_body(&request.body)?)
+        PayoutWebhookDetailsResponse::try_from(parse_webhook_body(request.body.peek())?)
     }
 
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, WebhookError> {
-        Ok(Box::new(parse_webhook_body(&request.body)?))
+        Ok(Box::new(parse_webhook_body(request.body.peek())?))
     }
 
     fn get_webhook_api_response(

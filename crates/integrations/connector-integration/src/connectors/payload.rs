@@ -26,7 +26,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -685,6 +685,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let signature = request
             .headers
             .get(headers::X_PAYLOAD_SIGNATURE)
+            .map(PeekInterface::peek)
             .map(|header_value| header_value.as_bytes().to_vec())
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
@@ -696,7 +697,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &domain_types::connector_types::RequestDetails,
         _connector_webhook_secret: &domain_types::connector_types::ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
-        Ok(request.body.to_vec())
+        Ok(request.body.peek().to_vec())
     }
 
     fn verify_webhook_source(
@@ -721,7 +722,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
         algorithm
-            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .verify_signature(
+                connector_webhook_secrets.secret.peek(),
+                &signature,
+                &message,
+            )
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -735,6 +740,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let webhook_body: transformers::PayloadWebhookEvent = request
             .body
+            .peek()
             .parse_struct("PayloadWebhookEvent")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -750,6 +756,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let webhook_body: transformers::PayloadWebhookEvent = request
             .body
+            .peek()
             .parse_struct("PayloadWebhookEvent")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 

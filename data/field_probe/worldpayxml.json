@@ -761,9 +761,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>"
+            "legacy_headers": {},
+            "body": "<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -786,9 +786,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>"
+            "legacy_headers": {},
+            "body": "<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

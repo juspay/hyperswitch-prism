@@ -33,7 +33,7 @@ use domain_types::{
     },
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -77,19 +77,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let security_header = request
             .headers
             .get("x-eorder-webhook-signature")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?
             .clone();
 
         let signature =
             hex::decode(security_header).change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
-        let parsed: serde_json::Value = serde_json::from_slice(&request.body)
+        let parsed: serde_json::Value = serde_json::from_slice(request.body.peek())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let sorted_payload = sort_and_minify_json(&parsed)
             .map_err(|e| report!(e).change_context(WebhookError::WebhookBodyDecodingFailed))?;
 
-        let key = ring::hmac::Key::new(ring::hmac::HMAC_SHA512, &connector_webhook_secrets);
+        let key = ring::hmac::Key::new(ring::hmac::HMAC_SHA512, connector_webhook_secrets.peek());
 
         let verify = ring::hmac::verify(&key, sorted_payload.as_bytes(), &signature)
             .map(|_| true)
@@ -105,9 +106,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let webhook_body: CalidaWebhookResponse = request
             .body
+            .peek()
             .parse_struct("CalidaWebhookResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable_lazy(|| "Failed to parse Calida payment webhook body structure")?;

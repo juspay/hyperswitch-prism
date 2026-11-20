@@ -334,8 +334,11 @@ fn webhook_request(body: Value) -> RequestDetails {
     RequestDetails {
         method: HttpMethod::Post,
         uri: None,
-        headers: HashMap::from([("content-type".to_owned(), "application/json".to_owned())]),
-        body: serde_json::to_vec(&body).expect("serialize"),
+        headers: HashMap::from([(
+            "content-type".to_owned(),
+            Secret::new("application/json".to_owned()),
+        )]),
+        body: Secret::new(serde_json::to_vec(&body).expect("serialize")),
         query_params: None,
     }
 }

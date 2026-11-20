@@ -21,6 +21,7 @@ import payments.EventClient
 import payments.IntegrationError
 import payments.ConnectorError
 import types.Payment.*
+import types.PaymentMethods.*
 import types.Events.*
 import types.SdkConfig.*
 
@@ -82,6 +83,24 @@ private val ADYEN_HEADERS = mapOf(
     "accept" to "*/*",
 )
 
+private fun webhookRequestDetails(body: String): RequestDetails =
+    RequestDetails.newBuilder()
+        .setMethod(HttpMethod.HTTP_METHOD_POST)
+        .setUri(SecretString.newBuilder().setValue("/webhooks/adyen").build())
+        .setHeaders(
+            SecretStringMap.newBuilder()
+                .putAllValues(ADYEN_HEADERS.mapValues { (_, value) ->
+                    SecretString.newBuilder().setValue(value).build()
+                })
+                .build()
+        )
+        .setBody(
+            SecretBytes.newBuilder()
+                .setValue(com.google.protobuf.ByteString.copyFromUtf8(body))
+                .build()
+        )
+        .build()
+
 // ── Webhook smoke test ─────────────────
 private fun buildConfig(): ConnectorConfig =
     ConnectorConfig.newBuilder()
@@ -100,14 +119,7 @@ fun testHandleEvent(): Boolean {
 
     val request = EventServiceHandleRequest.newBuilder()
         .setMerchantEventId("smoke_wh_adyen_auth")
-        .setRequestDetails(
-            RequestDetails.newBuilder()
-                .setMethod(HttpMethod.HTTP_METHOD_POST)
-                .setUri("/webhooks/adyen")
-                .putAllHeaders(ADYEN_HEADERS)
-                .setBody(com.google.protobuf.ByteString.copyFromUtf8(ADYEN_WEBHOOK_BODY))
-                .build()
-        )
+        .setRequestDetails(webhookRequestDetails(ADYEN_WEBHOOK_BODY))
         // capture_method: Adyen AUTHORISATION maps to AUTHORIZED (manual) or CAPTURED (automatic)
         .setEventContext(
             EventContext.newBuilder()
@@ -148,14 +160,7 @@ fun testParseEvent(): Boolean {
     val client = EventClient(buildConfig())
 
     val request = EventServiceParseRequest.newBuilder()
-        .setRequestDetails(
-            RequestDetails.newBuilder()
-                .setMethod(HttpMethod.HTTP_METHOD_POST)
-                .setUri("/webhooks/adyen")
-                .putAllHeaders(ADYEN_HEADERS)
-                .setBody(com.google.protobuf.ByteString.copyFromUtf8(ADYEN_WEBHOOK_BODY))
-                .build()
-        )
+        .setRequestDetails(webhookRequestDetails(ADYEN_WEBHOOK_BODY))
         .build()
 
     return try {
@@ -182,14 +187,7 @@ fun testMalformedBody(): Boolean {
     val client = EventClient(buildConfig())
 
     val request = EventServiceHandleRequest.newBuilder()
-        .setRequestDetails(
-            RequestDetails.newBuilder()
-                .setMethod(HttpMethod.HTTP_METHOD_POST)
-                .setUri("/webhooks/adyen")
-                .putAllHeaders(ADYEN_HEADERS)
-                .setBody(com.google.protobuf.ByteString.copyFromUtf8("not valid json {{{{"))
-                .build()
-        )
+        .setRequestDetails(webhookRequestDetails("not valid json {{{{"))
         .build()
 
     return try {
@@ -216,14 +214,7 @@ fun testUnknownEventCode(): Boolean {
     val unknownBody = ADYEN_WEBHOOK_BODY.replace("\"AUTHORISATION\"", "\"SOME_UNKNOWN_EVENT\"")
 
     val request = EventServiceHandleRequest.newBuilder()
-        .setRequestDetails(
-            RequestDetails.newBuilder()
-                .setMethod(HttpMethod.HTTP_METHOD_POST)
-                .setUri("/webhooks/adyen")
-                .putAllHeaders(ADYEN_HEADERS)
-                .setBody(com.google.protobuf.ByteString.copyFromUtf8(unknownBody))
-                .build()
-        )
+        .setRequestDetails(webhookRequestDetails(unknownBody))
         .build()
 
     return try {

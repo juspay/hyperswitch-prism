@@ -19,7 +19,7 @@ mod tests {
             method: HttpMethod::Post,
             uri: None,
             headers: HashMap::new(),
-            body: body.to_vec(),
+            body: Secret::new(body.to_vec()),
             query_params: None,
         }
     }
@@ -405,12 +405,15 @@ mod tests {
 
     fn make_signed_request(body: &[u8], signature: &str) -> RequestDetails {
         let mut headers = HashMap::new();
-        headers.insert("ppro-signature".to_string(), signature.to_string());
+        headers.insert(
+            "ppro-signature".to_string(),
+            Secret::new(signature.to_string()),
+        );
         RequestDetails {
             method: HttpMethod::Post,
             uri: None,
             headers,
-            body: body.to_vec(),
+            body: Secret::new(body.to_vec()),
             query_params: None,
         }
     }
@@ -441,12 +444,12 @@ mod tests {
         let signature = sign_ppro_webhook(secret, "1700000000", &body)?;
         // HTTP intermediaries may normalise header casing
         let mut headers = HashMap::new();
-        headers.insert("PPRO-SIGNATURE".to_string(), signature);
+        headers.insert("PPRO-SIGNATURE".to_string(), Secret::new(signature));
         let request = RequestDetails {
             method: HttpMethod::Post,
             uri: None,
             headers,
-            body: body.to_vec(),
+            body: Secret::new(body.to_vec()),
             query_params: None,
         };
 
@@ -622,7 +625,7 @@ mod tests {
         // With no connector config `webhook_secret`, the RPC `webhook_secrets`
         // field must be used (legacy callers can only set the RPC secret).
         let rpc_secrets = domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: b"my_webhook_secret".to_vec(),
+            secret: Secret::new(b"my_webhook_secret".to_vec()),
             additional_secret: None,
         };
         let result = connector.verify_webhook_source(request, Some(rpc_secrets), None);
@@ -641,7 +644,7 @@ mod tests {
         let mut headers = HashMap::new();
         headers.insert(
             "ppro-signature".to_string(),
-            "t=1700000000,s=deadbeef".to_string(),
+            Secret::new("t=1700000000,s=deadbeef".to_string()),
         );
         let elements =
             connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers)?;
@@ -655,7 +658,7 @@ mod tests {
         let mut headers = HashMap::new();
         headers.insert(
             "PPRO-Signature".to_string(),
-            "t=1700000000,s=deadbeef".to_string(),
+            Secret::new("t=1700000000,s=deadbeef".to_string()),
         );
         let result =
             connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);
@@ -676,7 +679,7 @@ mod tests {
         // Element without `=`
         headers.insert(
             "ppro-signature".to_string(),
-            "t=1700000000,deadbeef".to_string(),
+            Secret::new("t=1700000000,deadbeef".to_string()),
         );
         let result =
             connectors::ppro::transformers::get_ppro_signature_elements_from_header(&headers);

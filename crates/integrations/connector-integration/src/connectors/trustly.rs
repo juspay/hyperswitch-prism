@@ -18,7 +18,7 @@ use domain_types::{
     types::Connectors,
 };
 
-use hyperswitch_masking::{ExposeInterface, Maskable};
+use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -262,6 +262,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
         let webhook_body: TrustlyWebhookBody = request
             .body
+            .peek()
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -270,7 +271,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             None => return Ok(false),
         };
 
-        trustly::verify_webhook_signature(webhook_body, webhook_secret)
+        trustly::verify_webhook_signature(webhook_body, webhook_secret.peek())
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -284,6 +285,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let webhook_body: TrustlyWebhookBody = request
             .body
+            .peek()
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
         let message_id = webhook_body.params.data.messageid.clone();
@@ -303,6 +305,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let webhook_body: TrustlyWebhookBody = request
             .body
+            .peek()
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -358,9 +361,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<errors::WebhookError>,
     > {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let details: TrustlyWebhookBody = request
             .body
+            .peek()
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -405,9 +409,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::RefundWebhookDetailsResponse,
         error_stack::Report<errors::WebhookError>,
     > {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let details: TrustlyWebhookBody = request
             .body
+            .peek()
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -445,6 +450,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let details: TrustlyWebhookBody = request
             .body
+            .peek()
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -472,6 +478,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let details: TrustlyWebhookBody = request
             .body
+            .peek()
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
         Ok(Box::new(details))
@@ -485,6 +492,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<errors::WebhookError>> {
         let details: TrustlyWebhookBody = request
             .body
+            .peek()
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 

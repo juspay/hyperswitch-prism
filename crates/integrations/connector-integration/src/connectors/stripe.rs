@@ -295,10 +295,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // never passed through a lossy UTF-8 conversion, so the HMAC covers the bytes Stripe
         // signed and nothing else.
         let timestamp = header.timestamp.as_bytes();
-        let mut message = Vec::with_capacity(timestamp.len() + 1 + request.body.len());
+        let mut message = Vec::with_capacity(timestamp.len() + 1 + request.body.peek().len());
         message.extend_from_slice(timestamp);
         message.push(b'.');
-        message.extend_from_slice(&request.body);
+        message.extend_from_slice(request.body.peek());
         Ok(message)
     }
 
@@ -325,7 +325,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, Report<WebhookError>> {
         let connector_webhook_secrets = match connector_webhook_secret {
-            Some(secrets) if !secrets.secret.is_empty() => secrets,
+            Some(secrets) if !secrets.secret.peek().is_empty() => secrets,
             Some(_) | None => return Ok(false),
         };
 
@@ -340,7 +340,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 continue;
             };
             verified |= algorithm
-                .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+                .verify_signature(
+                    connector_webhook_secrets.secret.peek(),
+                    &signature,
+                    &message,
+                )
                 .change_context(WebhookError::WebhookSourceVerificationFailed)?;
         }
 
@@ -357,6 +361,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // its own decode/error variant rather than sharing `get_webhook_object_from_body`.
         let details: stripe::WebhookEventTypeBody = request
             .body
+            .peek()
             .parse_struct("WebhookEventTypeBody")
             .change_context(WebhookError::WebhookEventTypeNotFound)?;
         Ok(stripe::map_webhook_event_type(&details))
@@ -366,7 +371,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        let details = stripe::get_webhook_object_from_body(&request.body)
+        let details = stripe::get_webhook_object_from_body(request.body.peek())
             .change_context(WebhookError::WebhookReferenceIdNotFound)?;
         stripe::get_webhook_reference(&details)
     }
@@ -378,9 +383,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
-        let details = stripe::get_webhook_object_from_body(&request.body)
+        let details = stripe::get_webhook_object_from_body(request.body.peek())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        stripe::build_webhook_payment_response(&details, &request.body)
+        stripe::build_webhook_payment_response(&details, request.body.peek())
     }
 
     fn process_refund_webhook(
@@ -389,9 +394,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
-        let details = stripe::get_webhook_object_from_body(&request.body)
+        let details = stripe::get_webhook_object_from_body(request.body.peek())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        stripe::build_webhook_refund_response(&details, &request.body)
+        stripe::build_webhook_refund_response(&details, request.body.peek())
     }
 
     fn process_dispute_webhook(
@@ -400,16 +405,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
-        let details = stripe::get_webhook_object_from_body(&request.body)
+        let details = stripe::get_webhook_object_from_body(request.body.peek())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        stripe::build_webhook_dispute_response(&details, &request.body)
+        stripe::build_webhook_dispute_response(&details, request.body.peek())
     }
 
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
-        let details = stripe::get_webhook_object_from_body(&request.body)
+        let details = stripe::get_webhook_object_from_body(request.body.peek())
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(details.event_data.event_object))
     }

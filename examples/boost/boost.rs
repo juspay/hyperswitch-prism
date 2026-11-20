@@ -6,6 +6,7 @@
 // Run a scenario:  cargo run --example boost -- process_checkout_card
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::*;
+use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
@@ -57,9 +58,9 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}".as_bytes().to_vec(),  // Body of the HTTP request.
+            legacy_headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: Some(Secret::new("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}".as_bytes().to_vec())),  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
             ..Default::default()
         }),
         ..Default::default()
@@ -70,9 +71,9 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}".as_bytes().to_vec(),  // Body of the HTTP request.
+            legacy_headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: Some(Secret::new("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}".as_bytes().to_vec())),  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
             ..Default::default()
         }),
     }

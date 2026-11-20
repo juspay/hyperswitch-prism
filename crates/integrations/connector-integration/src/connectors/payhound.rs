@@ -71,7 +71,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -433,7 +433,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .get(PAYHOUND_HEADER_SIGNATURE_LOWER)
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))
             .attach_printable("payhound: incoming callback carried no X-MB-Signature header")?;
-        hex::decode(signature)
+        hex::decode(signature.peek())
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("payhound: X-MB-Signature is not valid lowercase hex")
     }
@@ -454,7 +454,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // The raw bytes as received are signed — deserializing and re-serializing would reorder
         // keys or change whitespace and break the digest.
-        payhound::payhound_callback_message(callback_id, &request.body)
+        payhound::payhound_callback_message(callback_id.peek(), request.body.peek())
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("payhound: failed to build the callback verification message")
     }
@@ -473,7 +473,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 (Some(ConnectorSpecificConfig::Payhound { api_secret, .. }), _) => {
                     api_secret.peek().as_bytes().to_vec()
                 }
-                (_, Some(secrets)) => secrets.secret.clone(),
+                (_, Some(secrets)) => secrets.secret.peek().clone(),
                 (_, None) => return Err(report!(WebhookError::WebhookVerificationSecretNotFound))
                     .attach_printable(
                     "payhound: neither Payhound connector credentials nor a configured webhook \
@@ -484,7 +484,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Both helpers derive everything from the request itself, so the secret bundle handed to
         // them exists only to satisfy the trait signature.
         let webhook_secrets = ConnectorWebhookSecrets {
-            secret: secret.clone(),
+            secret: Secret::new(secret.clone()),
             additional_secret: None,
         };
 
@@ -510,6 +510,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // event is derived from its status.
         let invoice: PayhoundInvoiceResponse = request
             .body
+            .peek()
             .parse_struct("PayhoundInvoiceResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -533,6 +534,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         let invoice: PayhoundInvoiceResponse = request
             .body
+            .peek()
             .parse_struct("PayhoundInvoiceResponse")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
@@ -554,6 +556,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let invoice: PayhoundInvoiceResponse = request
             .body
+            .peek()
             .parse_struct("PayhoundInvoiceResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -562,7 +565,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Keeps an unrecognised status diagnosable: `#[serde(other)]` discards the literal value,
         // so the raw body is the only place it survives.
-        response.raw_connector_response = Some(String::from_utf8_lossy(&request.body).to_string());
+        response.raw_connector_response =
+            Some(String::from_utf8_lossy(request.body.peek()).to_string());
         Ok(response)
     }
 }

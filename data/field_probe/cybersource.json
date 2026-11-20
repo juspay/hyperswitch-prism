@@ -1214,9 +1214,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{}"
+            "legacy_headers": {},
+            "body": "{}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -1262,9 +1262,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{}"
+            "legacy_headers": {},
+            "body": "{}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

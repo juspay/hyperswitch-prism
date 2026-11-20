@@ -36,7 +36,9 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Mask, Maskable, Secret};
+use hyperswitch_masking::{
+    ExposeInterface, ExposeOptionInterface, Mask, Maskable, PeekInterface, Secret,
+};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -160,6 +162,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let payload: paypal::PaypalWebooksEventType = request
             .body
+            .peek()
             .parse_struct("PaypalWebooksEventType")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -167,6 +170,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             paypal::PaypalWebhookEventType::CustomerDisputeResolved => Some(
                 request
                     .body
+                    .peek()
                     .parse_struct::<paypal::DisputeOutcome>("PaypalDisputeOutcome")
                     .change_context(WebhookError::WebhookEventTypeNotFound)?
                     .outcome_code,
@@ -187,12 +191,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
-        let request_body_copy = request.body.clone();
-        let details: paypal::PaypalWebhooksBody =
-            request
-                .body
-                .parse_struct("PaypalWebhooksBody")
-                .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let request_body_copy = request.body.peek().clone();
+        let details: paypal::PaypalWebhooksBody = request
+            .body
+            .peek()
+            .parse_struct("PaypalWebhooksBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let status = get_paypal_payment_webhook_status(details.event_type);
 
@@ -239,12 +243,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::RefundWebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
-        let request_body_copy = request.body.clone();
-        let details: paypal::PaypalWebhooksBody =
-            request
-                .body
-                .parse_struct("PaypalWebhooksBody")
-                .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let request_body_copy = request.body.peek().clone();
+        let details: paypal::PaypalWebhooksBody = request
+            .body
+            .peek()
+            .parse_struct("PaypalWebhooksBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let (connector_refund_id, refund_status) = match (details.resource, details.event_type) {
             (
@@ -284,12 +288,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::DisputeWebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
-        let request_body_copy = request.body.clone();
-        let details: paypal::PaypalWebhooksBody =
-            request
-                .body
-                .parse_struct("PaypalWebhooksBody")
-                .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let request_body_copy = request.body.peek().clone();
+        let details: paypal::PaypalWebhooksBody = request
+            .body
+            .peek()
+            .parse_struct("PaypalWebhooksBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let dispute = match details.resource {
             paypal::PaypalResource::PaypalDisputeWebhooks(payload) => payload,
@@ -358,11 +362,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let details: paypal::PaypalWebhooksBody =
-            request
-                .body
-                .parse_struct("PaypalWebhooksBody")
-                .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let details: paypal::PaypalWebhooksBody = request
+            .body
+            .peek()
+            .parse_struct("PaypalWebhooksBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         let resource: Box<dyn hyperswitch_masking::ErasedMaskSerialize> = Box::new(details);
         Ok(resource)
     }

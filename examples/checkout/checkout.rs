@@ -174,9 +174,9 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            legacy_headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: Some(Secret::new("{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}".as_bytes().to_vec())),  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
             ..Default::default()
         }),
         ..Default::default()
@@ -187,9 +187,9 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            legacy_headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: Some(Secret::new("{\"id\":\"evt_dj6tpkmbhew3bnl4n7sxzrfmsi\",\"type\":\"payment_captured\",\"version\":\"1.0.6\",\"created_on\":\"2020-08-17T14:12:59Z\",\"data\":{\"id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_id\":\"act_y3oqhf46pyzuxjbcn2giaqnb44\",\"amount\":999,\"currency\":\"USD\",\"approved\":true,\"status\":\"Captured\",\"auth_code\":\"956084\",\"response_code\":\"10000\",\"response_summary\":\"Approved\",\"reference\":\"ORD-5023-4E89\",\"payment_id\":\"pay_y3oqhf46pyzuxjbcn2giaqnb44\",\"action_type\":\"Capture\",\"processed_on\":\"2020-08-17T14:12:59Z\",\"processing\":{\"acquirer_transaction_id\":\"866461431360025\",\"acquirer_reference_number\":\"00260971375618446482438\"}},\"_links\":{\"self\":{\"href\":\"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi\"}}}".as_bytes().to_vec())),  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
             ..Default::default()
         }),
     }

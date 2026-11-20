@@ -40,10 +40,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -52,10 +52,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

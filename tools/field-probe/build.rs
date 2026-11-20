@@ -474,7 +474,7 @@ fn generate_parse_event_probe(f: &mut fs::File) {
     writeln!(f, "        let mut req = base_parse_event_request();").unwrap();
     writeln!(
         f,
-        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = webhook_body.to_vec(); rd }});"
+        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = Some(Secret::new(webhook_body.to_vec())); rd }});"
     )
     .unwrap();
     writeln!(
@@ -560,7 +560,7 @@ fn generate_handle_event_probe(f: &mut fs::File) {
     writeln!(f, "        let mut req = base_handle_event_request();").unwrap();
     writeln!(
         f,
-        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = webhook_body.to_vec(); rd }});"
+        "        req.request_details = req.request_details.map(|mut rd| {{ rd.body = Some(Secret::new(webhook_body.to_vec())); rd }});"
     )
     .unwrap();
     writeln!(

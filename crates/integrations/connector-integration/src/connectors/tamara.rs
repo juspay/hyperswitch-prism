@@ -29,7 +29,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification,
@@ -150,7 +150,7 @@ macros::create_all_prerequisites!(
 /// or by parsing the URI's query string.
 fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String> {
     if let Some(ref qp) = request.query_params {
-        if let Some(val) = url::form_urlencoded::parse(qp.as_bytes())
+        if let Some(val) = url::form_urlencoded::parse(qp.peek().as_bytes())
             .find(|(k, _)| k == param_name)
             .map(|(_, v)| v.into_owned())
         {
@@ -158,7 +158,7 @@ fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String>
         }
     }
     request.uri.as_ref().and_then(|uri_str| {
-        uri_str.split('?').nth(1).and_then(|query_str| {
+        uri_str.peek().split('?').nth(1).and_then(|query_str| {
             url::form_urlencoded::parse(query_str.as_bytes())
                 .find(|(k, _)| k == param_name)
                 .map(|(_, v)| v.into_owned())
@@ -205,6 +205,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let token = request
             .headers
             .get("authorization")
+            .map(PeekInterface::peek)
             .and_then(|h| h.strip_prefix("Bearer ").map(String::from))
             .or_else(|| get_query_param(&request, "tamaraToken"))
             .ok_or_else(|| {
@@ -242,7 +243,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Verify HMAC-SHA256
         let computed = HmacSha256
-            .sign_message(&secret.secret, message.as_bytes())
+            .sign_message(secret.secret.peek(), message.as_bytes())
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to sign JWT message with HMAC-SHA256")?;
 
@@ -255,6 +256,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
         let event: TamaraWebhookEventType = request
             .body
+            .peek()
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -267,6 +269,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
         let event: TamaraWebhookEventType = request
             .body
+            .peek()
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -303,6 +306,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let event: TamaraWebhookEventType = request
             .body
+            .peek()
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -318,7 +322,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             captured_money: None,
@@ -339,6 +343,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let event: TamaraWebhookEventType = request
             .body
+            .peek()
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -353,7 +358,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector_response_reference_id: None,
                 error_code: None,
                 error_message: None,
-                raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+                raw_connector_response: Some(
+                    String::from_utf8_lossy(request.body.peek()).to_string(),
+                ),
                 status_code: 200,
                 response_headers: None,
             },

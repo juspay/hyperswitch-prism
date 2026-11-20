@@ -245,9 +245,9 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
         merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}")  // Body of the HTTP request.
+            putAllLegacyHeaders(mapOf())  // Headers of the HTTP request.
+            bodyBuilder.value = com.google.protobuf.ByteString.copyFromUtf8("{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}")  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uriBuilder.value = "https://example.com/webhook"
         }
     }.build()
     val response = client.handle_event(request)
@@ -260,9 +260,9 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = EventServiceParseRequest.newBuilder().apply {
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}")  // Body of the HTTP request.
+            putAllLegacyHeaders(mapOf())  // Headers of the HTTP request.
+            bodyBuilder.value = com.google.protobuf.ByteString.copyFromUtf8("{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}")  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uriBuilder.value = "https://example.com/webhook"
         }
     }.build()
     val response = client.parse_event(request)

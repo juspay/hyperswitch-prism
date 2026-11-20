@@ -585,7 +585,7 @@ impl GetIntegrityObject<VerifyWebhookSourceIntegrityObject> for VerifyWebhookSou
         let webhook_id = self
             .merchant_secret
             .as_ref()
-            .and_then(|secrets| std::str::from_utf8(&secrets.secret).ok())
+            .and_then(|secrets| std::str::from_utf8(secrets.secret.peek()).ok())
             .unwrap_or_default()
             .to_string();
         VerifyWebhookSourceIntegrityObject { webhook_id }

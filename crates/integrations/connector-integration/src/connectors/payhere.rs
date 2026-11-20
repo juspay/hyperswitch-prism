@@ -22,7 +22,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, decode::BodyDecoding,
     verification::ConnectorSourceVerificationSecrets,
@@ -175,10 +175,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = PayhereAuthType::try_from(&connector_account_details)
             .change_context(errors::WebhookError::WebhookVerificationSecretInvalid)?;
         let merchant_secret = auth.merchant_secret.expose();
-        let payload: PayhereWebhookPayload =
-            serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body).map_err(|_| {
-                error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
-            })?;
+        let payload: PayhereWebhookPayload = serde_urlencoded::from_bytes::<PayhereWebhookPayload>(
+            request.body.peek(),
+        )
+        .map_err(|_| error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed))?;
 
         let hash_secret = common_utils::crypto::Md5
             .generate_digest(merchant_secret.as_bytes())
@@ -210,10 +210,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let payload: PayhereWebhookPayload =
-            serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body).map_err(|_| {
-                error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound)
-            })?;
+        let payload: PayhereWebhookPayload = serde_urlencoded::from_bytes::<PayhereWebhookPayload>(
+            request.body.peek(),
+        )
+        .map_err(|_| error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound))?;
 
         match payload.status_code {
             2 => Ok(EventType::PaymentIntentSuccess),
@@ -230,10 +230,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        let payload: PayhereWebhookPayload =
-            serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body).map_err(|_| {
-                error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound)
-            })?;
+        let payload: PayhereWebhookPayload = serde_urlencoded::from_bytes::<PayhereWebhookPayload>(
+            request.body.peek(),
+        )
+        .map_err(|_| error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound))?;
 
         Ok(WebhookDetailsResponse {
             raw_connector_status: None,
@@ -633,7 +633,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String> {
     request.query_params.as_ref().and_then(|query_params| {
-        serde_json::from_str::<serde_json::Value>(query_params)
+        serde_json::from_str::<serde_json::Value>(query_params.peek())
             .ok()
             .and_then(|value| {
                 value
@@ -643,7 +643,7 @@ fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String>
                     .map(str::to_owned)
             })
             .or_else(|| {
-                url::form_urlencoded::parse(query_params.as_bytes())
+                url::form_urlencoded::parse(query_params.peek().as_bytes())
                     .find(|(key, _)| key == param_name)
                     .map(|(_, value)| value.into_owned())
             })

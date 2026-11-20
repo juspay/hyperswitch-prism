@@ -779,7 +779,8 @@ fn webhook_response_exposes_amount_and_only_successful_capture() {
             headers: Default::default(),
             body: webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE)
                 .replace("Response_Code=00", &format!("Response_Code={code}"))
-                .into_bytes(),
+                .into_bytes()
+                .into(),
             query_params: None,
         };
         let response = connector

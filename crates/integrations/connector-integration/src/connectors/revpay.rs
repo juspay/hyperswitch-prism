@@ -26,7 +26,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -459,7 +459,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
         let auth = revpay::RevpayAuthType::try_from(&connector_account_details)
             .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
 
-        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(WebhookError::WebhookSourceVerificationFailed)?;
 
         // Signature AND key-index equality; `false` (never a panic) on any
@@ -471,7 +471,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(WebhookError::WebhookEventTypeNotFound)?;
         Ok(body.event_type())
     }
@@ -480,7 +480,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(WebhookError::WebhookReferenceIdNotFound)?;
         Ok(Some(WebhookResourceReference::Payment(
             PaymentWebhookReference {
@@ -498,7 +498,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(body))
     }
@@ -510,7 +510,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(&request.body)
+        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(request.body.peek())
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let status = body.attempt_status();
@@ -534,7 +534,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
             error_code: failure.as_ref().map(|(code, _)| code.clone()),
             error_message: failure.map(|(_, message)| message),
             error_reason: None,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             captured_money: if status == common_enums::AttemptStatus::Charged {

@@ -843,9 +843,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD"
+            "legacy_headers": {},
+            "body": "transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -868,9 +868,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD"
+            "legacy_headers": {},
+            "body": "transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

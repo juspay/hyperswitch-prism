@@ -555,9 +555,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"type\":\"Invoice\",\"event\":\"status_changed\",\"data\":{\"id\":\"probe_invoice_001\",\"status\":\"completed\",\"price_amount\":\"10.00\",\"price_currency\":\"USD\",\"name\":\"probe_charge\"}}"
+            "legacy_headers": {},
+            "body": "{\"type\":\"Invoice\",\"event\":\"status_changed\",\"data\":{\"id\":\"probe_invoice_001\",\"status\":\"completed\",\"price_amount\":\"10.00\",\"price_currency\":\"USD\",\"name\":\"probe_charge\"}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -580,9 +580,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"type\":\"Invoice\",\"event\":\"status_changed\",\"data\":{\"id\":\"probe_invoice_001\",\"status\":\"completed\",\"price_amount\":\"10.00\",\"price_currency\":\"USD\",\"name\":\"probe_charge\"}}"
+            "legacy_headers": {},
+            "body": "{\"type\":\"Invoice\",\"event\":\"status_changed\",\"data\":{\"id\":\"probe_invoice_001\",\"status\":\"completed\",\"price_amount\":\"10.00\",\"price_currency\":\"USD\",\"name\":\"probe_charge\"}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

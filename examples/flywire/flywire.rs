@@ -104,9 +104,9 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            legacy_headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: Some(Secret::new("{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}".as_bytes().to_vec())),  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
             ..Default::default()
         }),
         ..Default::default()
@@ -117,9 +117,9 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            legacy_headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: Some(Secret::new("{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}".as_bytes().to_vec())),  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
             ..Default::default()
         }),
     }

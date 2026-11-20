@@ -589,9 +589,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+            "legacy_headers": {},
+            "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -614,9 +614,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+            "legacy_headers": {},
+            "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

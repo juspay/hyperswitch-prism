@@ -512,10 +512,9 @@ pub(crate) fn base_verify_redirect_request() -> PaymentServiceVerifyRedirectResp
         merchant_order_id: Some("probe_order_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post as i32,
-            uri: Some("https://example.com/redirect".to_string()),
-            headers: Default::default(),
-            body: b"{}".to_vec(),
-            query_params: None,
+            uri: Some(Secret::new("https://example.com/redirect".to_string())),
+            body: Some(Secret::new(b"{}".to_vec())),
+            ..Default::default()
         }),
         ..Default::default()
     }
@@ -525,10 +524,9 @@ pub(crate) fn base_parse_event_request() -> grpc_api_types::payments::EventServi
     grpc_api_types::payments::EventServiceParseRequest {
         request_details: Some(RequestDetails {
             method: HttpMethod::Post as i32,
-            uri: Some("https://example.com/webhook".to_string()),
-            headers: Default::default(),
-            body: b"{}".to_vec(),
-            query_params: None,
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
+            body: Some(Secret::new(b"{}".to_vec())),
+            ..Default::default()
         }),
     }
 }
@@ -538,10 +536,9 @@ pub(crate) fn base_handle_event_request() -> EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post as i32,
-            uri: Some("https://example.com/webhook".to_string()),
-            headers: Default::default(),
-            body: b"{}".to_vec(),
-            query_params: None,
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
+            body: Some(Secret::new(b"{}".to_vec())),
+            ..Default::default()
         }),
         ..Default::default()
     }

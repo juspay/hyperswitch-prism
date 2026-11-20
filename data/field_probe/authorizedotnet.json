@@ -1072,9 +1072,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
+            "legacy_headers": {},
+            "body": "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -1097,9 +1097,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
+            "legacy_headers": {},
+            "body": "{\"webhookId\":\"probe_webhook_001\",\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {

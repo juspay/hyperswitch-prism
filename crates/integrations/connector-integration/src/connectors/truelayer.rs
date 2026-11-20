@@ -25,7 +25,7 @@ use domain_types::{
     utils::base64_decode,
 };
 use hyperswitch_masking::ExposeInterface;
-use hyperswitch_masking::{Mask, Maskable};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -681,7 +681,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         )?;
 
-        let tl_signature = tl_signature_header.as_str();
+        let tl_signature = tl_signature_header.peek().as_str();
         let parts: Vec<&str> = tl_signature.splitn(3, '.').collect();
         let header_b64 = parts.first().ok_or(IntegrationError::InvalidDataFormat {
             field_name: "tl-signature",
@@ -768,6 +768,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let webhook_body: truelayer::TruelayerWebhookEventTypeBody = request
             .body
+            .peek()
             .parse_struct("TruelayerPayoutsWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -783,6 +784,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let event_type_body: truelayer::TruelayerWebhookEventTypeBody = request
             .body
+            .peek()
             .parse_struct("TruelayerWebhookEventTypeBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -793,6 +795,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | truelayer::TruelayerWebhookEventType::PayoutFailed => {
                 let payout_body: truelayer::TruelayerPayoutWebhookBody = request
                     .body
+                    .peek()
                     .parse_struct("TruelayerPayoutWebhookBody")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -815,6 +818,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | truelayer::TruelayerWebhookEventType::PaymentFundsReceived => {
                 let webhook_body: truelayer::TruelayerWebhookBody = request
                     .body
+                    .peek()
                     .parse_struct("TruelayerWebhookBody")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -832,6 +836,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | truelayer::TruelayerWebhookEventType::RefundFailed => {
                 let webhook_body: truelayer::TruelayerWebhookBody = request
                     .body
+                    .peek()
                     .parse_struct("TruelayerWebhookBody")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -861,9 +866,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let details: truelayer::TruelayerWebhookBody = request
             .body
+            .peek()
             .parse_struct("TruelayerWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -921,9 +927,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         domain_types::connector_types::RefundWebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
-        let request_body_copy = request.body.clone();
+        let request_body_copy = request.body.peek().clone();
         let details: truelayer::TruelayerWebhookBody = request
             .body
+            .peek()
             .parse_struct("TruelayerWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -967,6 +974,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         let details: truelayer::TruelayerPayoutWebhookBody = request
             .body
+            .peek()
             .parse_struct("TruelayerPayoutWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -1000,6 +1008,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let event_type_body: truelayer::TruelayerWebhookEventTypeBody = request
             .body
+            .peek()
             .parse_struct("TruelayerWebhookEventTypeBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -1008,6 +1017,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | truelayer::TruelayerWebhookEventType::PayoutFailed => {
                 let details: truelayer::TruelayerPayoutWebhookBody = request
                     .body
+                    .peek()
                     .parse_struct("TruelayerPayoutWebhookBody")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)?;
                 Ok(Box::new(details))
@@ -1030,6 +1040,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | truelayer::TruelayerWebhookEventType::Unknown => {
                 let details: truelayer::TruelayerWebhookBody = request
                     .body
+                    .peek()
                     .parse_struct("TruelayerWebhooksBody")
                     .change_context(WebhookError::WebhookBodyDecodingFailed)?;
                 Ok(Box::new(details))

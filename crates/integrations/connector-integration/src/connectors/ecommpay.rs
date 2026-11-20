@@ -24,6 +24,8 @@
 
 pub mod transformers;
 
+use hyperswitch_masking::PeekInterface;
+
 use std::fmt::Debug;
 
 use base64::Engine;
@@ -813,18 +815,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Only the configured webhook secret verifies a callback; the API
         // secret_key from the connector config is never substituted for it.
         let secrets = connector_webhook_secret
-            .filter(|secrets| !secrets.secret.is_empty())
+            .filter(|secrets| !secrets.secret.peek().is_empty())
             .ok_or_else(|| {
                 error_stack::report!(errors::WebhookError::WebhookVerificationSecretNotFound)
                     .attach_printable("Ecommpay callback verification needs a webhook secret")
             })?;
-        match ecommpay::parse_webhook_body(&request.body)? {
+        match ecommpay::parse_webhook_body(request.body.peek())? {
             // Chargeback callbacks carry no signature and are never authoritative.
             ecommpay::EcommpayWebhookBody::Chargeback(_) => return Ok(false),
             ecommpay::EcommpayWebhookBody::Token(_) | ecommpay::EcommpayWebhookBody::Payment(_) => {
             }
         }
-        let body: serde_json::Value = serde_json::from_slice(&request.body)
+        let body: serde_json::Value = serde_json::from_slice(request.body.peek())
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
         let Some(received) = body
             .get("signature")
@@ -835,7 +837,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         let preimage = ecommpay::ecommpay_canonical_string(&body);
         // Constant-time comparison; a computation error is a non-match, never a pass.
-        match crypto::HmacSha512.verify_signature(&secrets.secret, &received, preimage.as_bytes()) {
+        match crypto::HmacSha512.verify_signature(
+            secrets.secret.peek(),
+            &received,
+            preimage.as_bytes(),
+        ) {
             Ok(verified) => Ok(verified),
             Err(_) => {
                 tracing::warn!(
@@ -850,7 +856,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body = ecommpay::parse_webhook_body(&request.body)?;
+        let body = ecommpay::parse_webhook_body(request.body.peek())?;
         Ok(ecommpay::webhook_event_type(&body))
     }
 
@@ -858,7 +864,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let body = ecommpay::parse_webhook_body(&request.body)?;
+        let body = ecommpay::parse_webhook_body(request.body.peek())?;
         ecommpay::webhook_reference(&body)
     }
 
@@ -869,7 +875,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        match ecommpay::parse_webhook_body(&request.body)? {
+        match ecommpay::parse_webhook_body(request.body.peek())? {
             ecommpay::EcommpayWebhookBody::Payment(response) => {
                 ecommpay::payment_webhook_details(&response)
             }
@@ -887,7 +893,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        match ecommpay::parse_webhook_body(&request.body)? {
+        match ecommpay::parse_webhook_body(request.body.peek())? {
             ecommpay::EcommpayWebhookBody::Payment(response) => {
                 ecommpay::refund_webhook_details(&response)
             }

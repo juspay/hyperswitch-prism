@@ -30,7 +30,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -297,11 +297,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
-        let signature = request.headers.get("x-gp-signature").ok_or_else(|| {
-            error_stack::report!(WebhookError::WebhookSignatureNotFound).attach_printable(
-                "x-gp-signature header is missing from the GlobalPay webhook request",
-            )
-        })?;
+        let signature = request
+            .headers
+            .get("x-gp-signature")
+            .map(PeekInterface::peek)
+            .ok_or_else(|| {
+                error_stack::report!(WebhookError::WebhookSignatureNotFound).attach_printable(
+                    "x-gp-signature header is missing from the GlobalPay webhook request",
+                )
+            })?;
         Ok(signature.as_bytes().to_vec())
     }
 
@@ -310,13 +314,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
-        let secret = std::str::from_utf8(&connector_webhook_secret.secret)
+        let secret = std::str::from_utf8(connector_webhook_secret.secret.peek())
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("GlobalPay webhook secret bytes are not valid UTF-8")?;
 
         // Normalise through serde_json::Value so the key order is deterministic.
         let body_value: serde_json::Value = request
             .body
+            .peek()
             .parse_struct("GlobalpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable(
@@ -368,6 +373,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let body: globalpay::GlobalpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GlobalpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse GlobalPay webhook body for event type detection")?;
@@ -408,6 +414,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
         let body: globalpay::GlobalpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GlobalpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable(
@@ -440,10 +447,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let raw_body = String::from_utf8_lossy(&request.body).to_string();
+        let raw_body = String::from_utf8_lossy(request.body.peek()).to_string();
 
         let body: globalpay::GlobalpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GlobalpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable(
@@ -480,10 +488,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let raw_body = String::from_utf8_lossy(&request.body).to_string();
+        let raw_body = String::from_utf8_lossy(request.body.peek()).to_string();
 
         let body: globalpay::GlobalpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GlobalpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse GlobalPay webhook body in process_refund_webhook")?;
@@ -511,6 +520,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     {
         let body: globalpay::GlobalpayWebhookBody = request
             .body
+            .peek()
             .parse_struct("GlobalpayWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse GlobalPay webhook body for resource object")?;

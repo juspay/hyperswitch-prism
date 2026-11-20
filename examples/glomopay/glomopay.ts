@@ -72,10 +72,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -84,10 +84,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"entity_type\":\"payment\",\"event_type\":\"in_progress\",\"data\":{\"id\":\"payt_686f7cc3pe69T\",\"payin_id\":\"order_686f7c8c7txqj\",\"status\":\"active\",\"payment_amount\":374580,\"payment_currency\":\"AED\",\"converted_amount\":102000,\"converted_currency\":\"USD\",\"requested_amount\":100000,\"requested_currency\":\"USD\",\"fees\":{\"txn_fee\":{\"currency\":\"USD\",\"amount\":1000},\"fx_fee\":{\"currency\":\"USD\",\"amount\":1000},\"referral_fee\":{\"currency\":\"USD\",\"amount\":0}},\"error_code\":null,\"error_description\":null,\"error_message\":null,\"funds_available\":false}}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

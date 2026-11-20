@@ -2074,12 +2074,12 @@ pub(super) fn parse_finix_webhook_body(
 /// Ports HS `decode_finix_signature` (finix.rs); header lookup is
 /// case-insensitive because the gRPC surface transports headers as a plain map.
 pub(super) fn decode_finix_signature(
-    headers: &HashMap<String, String>,
+    headers: &HashMap<String, Secret<String>>,
 ) -> Result<FinixWebhookSignature, error_stack::Report<WebhookError>> {
     let security_header = headers
         .iter()
         .find(|(name, _)| name.eq_ignore_ascii_case("finix-signature"))
-        .map(|(_, value)| value.as_str())
+        .map(|(_, value)| value.peek().as_str())
         .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
 
     let map: HashMap<&str, &str> = security_header

@@ -275,7 +275,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let notification = nexixpay::parse_nexixpay_webhook(request.body.peek())?;
         nexixpay::get_nexixpay_webhook_event_type(&notification.operation)
             .ok_or_else(|| WebhookError::WebhookEventTypeNotFound.into())
     }
@@ -284,7 +284,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let notification = nexixpay::parse_nexixpay_webhook(request.body.peek())?;
         let operation = notification.operation;
         Ok(
             match nexixpay::get_nexixpay_webhook_event_type(&operation) {
@@ -317,7 +317,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
-        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let notification = nexixpay::parse_nexixpay_webhook(request.body.peek())?;
         let operation = notification.operation;
         match nexixpay::get_nexixpay_webhook_event_type(&operation) {
             Some(event) if event.is_payment_event() => {}
@@ -367,7 +367,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
-        let notification = nexixpay::parse_nexixpay_webhook(&request.body)?;
+        let notification = nexixpay::parse_nexixpay_webhook(request.body.peek())?;
         let operation = notification.operation;
         match nexixpay::get_nexixpay_webhook_event_type(&operation) {
             Some(event) if event.is_refund_event() => {}

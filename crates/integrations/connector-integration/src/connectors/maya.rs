@@ -17,7 +17,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding,
@@ -281,6 +281,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
         let body: MayaWebhookBody = request
             .body
+            .peek()
             .parse_struct("MayaWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -293,6 +294,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
         let body: MayaWebhookBody = request
             .body
+            .peek()
             .parse_struct("MayaWebhookBody")
             .change_context(errors::WebhookError::WebhookResourceObjectNotFound)?;
 
@@ -317,6 +319,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
         let body: MayaWebhookBody = request
             .body
+            .peek()
             .parse_struct("MayaWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -336,7 +339,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: body.error_code,
             error_message: body.error_message.clone(),
             error_reason: body.error_message,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
             captured_money: None,
@@ -630,7 +633,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
     ) -> CustomResult<Vec<u8>, errors::IntegrationError> {
         // Maya does not encode/sign redirect bodies; pass through unchanged.
-        Ok(request.body.clone())
+        Ok(request.body.peek().clone())
     }
 
     fn verify_redirect_response_source(

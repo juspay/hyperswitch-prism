@@ -128,6 +128,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
         let event: transformers::RapydIncomingWebhook = request
             .body
+            .peek()
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookEventTypeNotFound)?;
         event.try_into()
@@ -139,6 +140,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
         let event: transformers::RapydIncomingWebhook = request
             .body
+            .peek()
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookReferenceIdNotFound)?;
         use transformers::RapydWebhookEventType;
@@ -188,9 +190,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
         let event: transformers::RapydIncomingWebhook = request
             .body
+            .peek()
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        event.payment_data()?.into_response(&request.body)
+        event.payment_data()?.into_response(request.body.peek())
     }
 
     fn process_refund_webhook(
@@ -201,6 +204,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
         let event: transformers::RapydIncomingWebhook = request
             .body
+            .peek()
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         use transformers::{RapydWebhookEventType, RefundStatus};
@@ -224,7 +228,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: None,
             error_code: None,
             error_message,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).into_owned()),
             status_code: 200,
             response_headers: None,
         })
@@ -238,6 +242,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
         let event: transformers::RapydIncomingWebhook = request
             .body
+            .peek()
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         let data = event.dispute_data()?;
@@ -259,7 +264,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             stage: common_enums::DisputeStage::Dispute,
             connector_response_reference_id: None,
             dispute_message: data.dispute_reason_description,
-            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).into_owned()),
             status_code: 200,
             response_headers: None,
             connector_reason_code: None,
@@ -279,7 +284,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .map(|(_, value)| value)
             .ok_or(WebhookError::WebhookSignatureNotFound)?;
         let encoded_hex = BASE64_ENGINE_URL_SAFE
-            .decode(signature)
+            .decode(signature.peek())
             .change_context(WebhookError::WebhookSourceVerificationFailed)?;
         hex::decode(encoded_hex).change_context(WebhookError::WebhookSourceVerificationFailed)
     }
@@ -289,7 +294,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, Report<WebhookError>> {
-        let auth: RapydAuthType = serde_json::from_slice(&connector_webhook_secret.secret)
+        let auth: RapydAuthType = serde_json::from_slice(connector_webhook_secret.secret.peek())
             .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
         build_webhook_verification_message(request, &auth)
     }
@@ -302,7 +307,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<bool, Report<WebhookError>> {
         let secrets =
             connector_webhook_secret.ok_or(WebhookError::WebhookVerificationSecretNotFound)?;
-        let auth: RapydAuthType = serde_json::from_slice(&secrets.secret)
+        let auth: RapydAuthType = serde_json::from_slice(secrets.secret.peek())
             .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
         let message = build_webhook_verification_message(&request, &auth)?;
         let signature = self.get_webhook_source_verification_signature(&request, &secrets)?;
@@ -324,12 +329,13 @@ fn build_webhook_verification_message(
             .headers
             .iter()
             .find(|(name, _)| name.eq_ignore_ascii_case(key))
-            .map(|(_, value)| value.as_str())
+            .map(|(_, value)| value.peek().as_str())
             .ok_or(WebhookError::WebhookMissingRequiredField { field: key })
     };
     let uri = request
         .uri
-        .as_deref()
+        .as_ref()
+        .map(PeekInterface::peek)
         .filter(|uri| !uri.is_empty())
         .ok_or(WebhookError::WebhookMissingRequiredField { field: "uri" })?;
     let mut url = if uri.starts_with("https://") || uri.starts_with("http://") {
@@ -343,7 +349,8 @@ fn build_webhook_verification_message(
     if !uri.contains('?') {
         if let Some(query) = request
             .query_params
-            .as_deref()
+            .as_ref()
+            .map(PeekInterface::peek)
             .filter(|query| !query.is_empty())
         {
             url.push('?');
@@ -358,7 +365,7 @@ fn build_webhook_verification_message(
         auth.secret_key.peek(),
     )
     .into_bytes();
-    message.extend_from_slice(&request.body);
+    message.extend_from_slice(request.body.peek());
     Ok(message)
 }
 

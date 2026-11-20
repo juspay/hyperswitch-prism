@@ -142,7 +142,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         use common_utils::crypto::{HmacSha256, SignMessage};
         HmacSha256
-            .sign_message(&connector_webhook_secret.secret, &message)
+            .sign_message(connector_webhook_secret.secret.peek(), &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to sign webhook message with HMAC-SHA256")
             .map(|expected_signature| expected_signature.eq(&signature))
@@ -156,6 +156,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let signature_str = request
             .headers
             .get("bls-signature")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
         hex::decode(signature_str).change_context(WebhookError::WebhookSignatureNotFound)
@@ -169,9 +170,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let timestamp = request
             .headers
             .get("bls-ipn-timestamp")
+            .map(PeekInterface::peek)
             .ok_or_else(|| report!(WebhookError::WebhookSourceVerificationFailed))?;
 
-        let body_str = String::from_utf8_lossy(&request.body);
+        let body_str = String::from_utf8_lossy(request.body.peek());
 
         Ok(format!("{timestamp}{body_str}").into_bytes())
     }
@@ -184,12 +186,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: domain_types::connector_types::RequestDetails,
     ) -> CustomResult<domain_types::connector_types::EventType, WebhookError> {
-        match serde_urlencoded::from_bytes::<transformers::BluesnapWebhookBody>(&request.body) {
+        match serde_urlencoded::from_bytes::<transformers::BluesnapWebhookBody>(request.body.peek())
+        {
             Ok(webhook_body) => match webhook_body.transaction_type {
                 transformers::BluesnapWebhookEvent::Chargeback
                 | transformers::BluesnapWebhookEvent::ChargebackStatusChanged => {
                     let dispute_body: transformers::BluesnapDisputeWebhookBody =
-                        serde_urlencoded::from_bytes(&request.body)
+                        serde_urlencoded::from_bytes(request.body.peek())
                             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
                     transformers::map_chargeback_status_to_event_type(&dispute_body.cb_status)
@@ -200,7 +203,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
             Err(_) => {
                 let dispute_body: transformers::BluesnapDisputeWebhookBody =
-                    serde_urlencoded::from_bytes(&request.body)
+                    serde_urlencoded::from_bytes(request.body.peek())
                         .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
                 transformers::map_chargeback_status_to_event_type(&dispute_body.cb_status)
@@ -216,7 +219,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _event_context: Option<EventContext>,
     ) -> CustomResult<domain_types::connector_types::WebhookDetailsResponse, WebhookError> {
         let webhook_body: transformers::BluesnapWebhookBody =
-            serde_urlencoded::from_bytes(&request.body)
+            serde_urlencoded::from_bytes(request.body.peek())
                 .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let status = match webhook_body.transaction_type {
@@ -272,7 +275,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<domain_types::connector_types::RefundWebhookDetailsResponse, WebhookError>
     {
         let webhook_body: transformers::BluesnapWebhookBody =
-            serde_urlencoded::from_bytes(&request.body)
+            serde_urlencoded::from_bytes(request.body.peek())
                 .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let connector_refund_id = webhook_body

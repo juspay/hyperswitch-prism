@@ -35,7 +35,8 @@ fn pending_refund_webhooks_report_processing_and_preserve_refund_reference() {
   </notify>
 </paymentService>"#
             )
-            .into_bytes(),
+            .into_bytes()
+            .into(),
             query_params: None,
         };
 

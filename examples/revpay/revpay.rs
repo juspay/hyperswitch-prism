@@ -6,6 +6,7 @@
 // Run a scenario:  cargo run --example revpay -- process_checkout_card
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::*;
+use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
@@ -44,9 +45,9 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05".as_bytes().to_vec(),  // Body of the HTTP request.
+            legacy_headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: Some(Secret::new("Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05".as_bytes().to_vec())),  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
             ..Default::default()
         }),
         ..Default::default()
@@ -57,9 +58,9 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05".as_bytes().to_vec(),  // Body of the HTTP request.
+            legacy_headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: Some(Secret::new("Revpay_Merchant_ID=MER00000000001&Payment_ID=2&Bank_Code=MB2U&Transaction_ID=RT000000007222&Reference_Number=RF201774111&Bank_Reference_Number=BR000001&Amount=52.40&Currency=MYR&Transaction_Description=Order+RF201774111&Fraud_Score=0&Response_Code=00&Error_Description=&Key_Index=1&Signature=fc8d556ae2e4fa12836e1192a4f0a793a9672af1d2348da502ef299a6b5169f4402fb6bb282a9e097fe1253b4bfd4f2fa365b7d593b564c585fc79b6c302ecad&Request_Datetime=2020-01-01+12%3A00%3A00&Response_Datetime=2020-01-01+12%3A00%3A05".as_bytes().to_vec())),  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri: Some(Secret::new("https://example.com/webhook".to_string())),
             ..Default::default()
         }),
     }

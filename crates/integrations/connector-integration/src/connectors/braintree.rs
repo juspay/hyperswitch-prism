@@ -265,7 +265,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
         })?;
 
-        let notif = braintree::get_webhook_object_from_body(&request.body)
+        let notif = braintree::get_webhook_object_from_body(request.body.peek())
             .inspect_err(|error| {
                 tracing::warn!(
                     target: "braintree_webhook",
@@ -309,7 +309,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Signing key is the SHA1 digest of the private key (`secret`), then HMAC-SHA1 over the payload.
         let sha1_hash_key = ring::digest::digest(
             &ring::digest::SHA1_FOR_LEGACY_USE_ONLY,
-            &connector_webhook_secrets.secret,
+            connector_webhook_secrets.secret.peek(),
         );
 
         let signed_message = crypto::HmacSha1
@@ -348,7 +348,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
         let notif = braintree::decode_from_request(&request)?;
-        braintree::build_webhook_dispute_response(&notif, &request.body)
+        braintree::build_webhook_dispute_response(&notif, request.body.peek())
     }
 
     fn get_webhook_resource_object(

@@ -40,7 +40,7 @@ use domain_types::{
     },
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{Mask, Maskable};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -943,7 +943,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let payload = transformers::get_webhook_object_from_body(request.body)?;
+        let payload = transformers::get_webhook_object_from_body(request.body.peek())?;
 
         if payload.refund.is_some() {
             Ok(EventType::RefundSuccess)
@@ -959,8 +959,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let request_body_copy = request.body.clone();
-        let payload = transformers::get_webhook_object_from_body(request.body)?;
+        let request_body_copy = request.body.peek().clone();
+        let payload = transformers::get_webhook_object_from_body(request.body.peek())?;
 
         let notif = payload
             .payment
@@ -997,8 +997,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let request_body_copy = request.body.clone();
-        let payload = transformers::get_webhook_object_from_body(request.body)?;
+        let request_body_copy = request.body.peek().clone();
+        let payload = transformers::get_webhook_object_from_body(request.body.peek())?;
 
         let notif = payload
             .refund

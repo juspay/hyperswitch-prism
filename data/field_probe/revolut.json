@@ -3431,9 +3431,9 @@
           "merchant_event_id": "probe_event_001",
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"probe_order_001\"}"
+            "legacy_headers": {},
+            "body": "{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"probe_order_001\"}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
@@ -3456,9 +3456,9 @@
         "proto_request": {
           "request_details": {
             "method": "HTTP_METHOD_POST",
-            "uri": "https://example.com/webhook",
-            "headers": {},
-            "body": "{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"probe_order_001\"}"
+            "legacy_headers": {},
+            "body": "{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"probe_order_001\"}",
+            "uri": "https://example.com/webhook"
           }
         },
         "sample": {
