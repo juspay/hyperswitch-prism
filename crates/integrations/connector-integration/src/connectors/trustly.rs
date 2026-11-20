@@ -1,3 +1,4 @@
+mod test;
 pub mod transformers;
 
 use std::{self, fmt::Debug};
@@ -270,7 +271,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             None => return Ok(false),
         };
 
-        trustly::verify_webhook_signature(webhook_body, webhook_secret)
+        trustly::verify_webhook_signature(webhook_body, &request.body, webhook_secret)
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
