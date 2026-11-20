@@ -343,15 +343,7 @@ impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
                     .online_payment_cryptogram
                     .clone(),
             ),
-            device_manufacturer_identifier: Some(
-                decrypted_data
-                    .get_device_manufacturer_identifier()
-                    .change_context(IntegrationError::MissingRequiredField {
-                        field_name:
-                            "payment_method_data.wallet.apple_pay.device_manufacturer_identifier",
-                        context: Default::default(),
-                    })?,
-            ),
+            device_manufacturer_identifier: decrypted_data.device_manufacturer_identifier.clone(),
             card_brand: Revolv3CardBrand::from_wallet_network(
                 &apple_pay_data.payment_method.network,
             ),
