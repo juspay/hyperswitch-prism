@@ -39,10 +39,10 @@ function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
         "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"id\":\"378d8ec6e305f469b009cb4e2deedf93\",\"status\":\"completed\",\"address\":\"lAeMbkpHia8FVuKczQKUrv9uMzv7uClHZi\",\"merchant_currency\":\"EUR\",\"merchant_amount\":\"266.45\",\"invoice_currency\":\"BTC\",\"invoice_amount\":\"0.88613839\",\"paid_currency\":\"BTC\",\"paid_amount\":\"0.88613839\",\"reference\":\"probe_ref\",\"invoice_url\":\"/invoices/378d8ec6e305f469b009cb4e2deedf93\",\"create_time\":1398871897.0,\"valid_until_time\":1398872497.0}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"id\":\"378d8ec6e305f469b009cb4e2deedf93\",\"status\":\"completed\",\"address\":\"lAeMbkpHia8FVuKczQKUrv9uMzv7uClHZi\",\"merchant_currency\":\"EUR\",\"merchant_amount\":\"266.45\",\"invoice_currency\":\"BTC\",\"invoice_amount\":\"0.88613839\",\"paid_currency\":\"BTC\",\"paid_amount\":\"0.88613839\",\"reference\":\"probe_ref\",\"invoice_url\":\"/invoices/378d8ec6e305f469b009cb4e2deedf93\",\"create_time\":1398871897.0,\"valid_until_time\":1398872497.0}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }
@@ -51,10 +51,10 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
     return {
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
+            "legacyHeaders": {  // Headers of the HTTP request.
             },
-            "body": new Uint8Array(Buffer.from("{\"id\":\"378d8ec6e305f469b009cb4e2deedf93\",\"status\":\"completed\",\"address\":\"lAeMbkpHia8FVuKczQKUrv9uMzv7uClHZi\",\"merchant_currency\":\"EUR\",\"merchant_amount\":\"266.45\",\"invoice_currency\":\"BTC\",\"invoice_amount\":\"0.88613839\",\"paid_currency\":\"BTC\",\"paid_amount\":\"0.88613839\",\"reference\":\"probe_ref\",\"invoice_url\":\"/invoices/378d8ec6e305f469b009cb4e2deedf93\",\"create_time\":1398871897.0,\"valid_until_time\":1398872497.0}", "utf-8"))  // Body of the HTTP request.
+            "body": {"value": new Uint8Array(Buffer.from("{\"id\":\"378d8ec6e305f469b009cb4e2deedf93\",\"status\":\"completed\",\"address\":\"lAeMbkpHia8FVuKczQKUrv9uMzv7uClHZi\",\"merchant_currency\":\"EUR\",\"merchant_amount\":\"266.45\",\"invoice_currency\":\"BTC\",\"invoice_amount\":\"0.88613839\",\"paid_currency\":\"BTC\",\"paid_amount\":\"0.88613839\",\"reference\":\"probe_ref\",\"invoice_url\":\"/invoices/378d8ec6e305f469b009cb4e2deedf93\",\"create_time\":1398871897.0,\"valid_until_time\":1398872497.0}", "utf-8"))},  // Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            "uri": {"value": "https://example.com/webhook"}
         }
     };
 }

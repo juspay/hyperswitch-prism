@@ -82,9 +82,9 @@ def _build_parse_event_request():
     return events_pb2.EventServiceParseRequest(
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
-            uri="https://example.com/webhook",  # URI of the request.
-            headers={},  # Headers of the HTTP request.
-            body="<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>".encode(),  # Body of the HTTP request.
+            legacy_headers={},  # Headers of the HTTP request.
+            body=payment_methods_pb2.SecretBytes(value="<paymentService version=\"1.4\" merchantCode=\"MERCHANT\"><notify><orderStatusEvent orderCode=\"order_001\"><payment><lastEvent>CAPTURED</lastEvent><amount value=\"1000\" currencyCode=\"EUR\" exponent=\"2\"/></payment></orderStatusEvent></notify></paymentService>".encode()),  # Secret-typed replacements. Presence takes precedence over the legacy field, including an explicitly empty body, map, URI or query string.
+            uri=payment_methods_pb2.SecretString(value="https://example.com/webhook"),
         ),
     )
 
