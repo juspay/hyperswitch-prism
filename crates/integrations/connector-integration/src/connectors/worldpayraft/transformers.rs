@@ -515,6 +515,41 @@ pub(super) fn parse_connector_transaction_id(
     }
 }
 
+/// Builds `"{prefix}|{AuthorizationNumber}|{RetrievalREFNumber}|{SystemTraceNumber}"` from a
+/// response's trace numbers; missing parts are left empty and no trace block gives `""`.
+/// Capture, Void and Refund are built from these numbers, so an approved response that lacks
+/// any of them is logged: the payment cannot be captured, voided or refunded by id.
+pub(super) fn build_connector_transaction_id(
+    prefix: &str,
+    trace_numbers: Option<(Option<&str>, Option<&str>, Option<&str>)>,
+    approved: bool,
+    flow: &'static str,
+) -> String {
+    let is_complete = trace_numbers.is_some_and(|(auth_num, retrieval_ref, sys_trace)| {
+        [auth_num, retrieval_ref, sys_trace]
+            .iter()
+            .all(|part| part.is_some_and(|value| !value.trim().is_empty()))
+    });
+    if approved && !is_complete {
+        tracing::warn!(
+            flow,
+            has_trace_block = trace_numbers.is_some(),
+            "worldpayraft: approved response is missing reference trace numbers; \
+             capture/void/refund by connector_transaction_id will fail"
+        );
+    }
+    trace_numbers
+        .map(|(auth_num, retrieval_ref, sys_trace)| {
+            format!(
+                "{prefix}|{}|{}|{}",
+                auth_num.unwrap_or(""),
+                retrieval_ref.unwrap_or(""),
+                sys_trace.unwrap_or("")
+            )
+        })
+        .unwrap_or_default()
+}
+
 fn map_payment_status(return_code: &str, response_code: &str) -> bool {
     return_code == RETURN_CODE_SUCCESS && response_code == RESPONSE_CODE_SUCCESS
 }
@@ -2128,16 +2163,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } else {
             TXN_TYPE_CREDIT
         };
-        let connector_transaction_id = inner
-            .reference_trace_numbers
-            .as_ref()
-            .map(|trace| {
-                let auth_num = trace.authorization_number.as_deref().unwrap_or("");
-                let retrieval_ref = trace.retrieval_ref_number.as_deref().unwrap_or("");
-                let sys_trace = trace.system_trace_number.as_deref().unwrap_or("");
-                format!("{prefix}|{auth_num}|{retrieval_ref}|{sys_trace}")
-            })
-            .unwrap_or_default();
+        let connector_transaction_id = build_connector_transaction_id(
+            prefix,
+            inner.reference_trace_numbers.as_ref().map(|trace| {
+                (
+                    trace.authorization_number.as_deref(),
+                    trace.retrieval_ref_number.as_deref(),
+                    trace.system_trace_number.as_deref(),
+                )
+            }),
+            status != AttemptStatus::Failure,
+            "Authorize",
+        );
 
         let metadata = WorldpayraftConnectorMetadata::from_authorize_response(
             &item.router_data.request,
@@ -3259,16 +3296,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // connector_transaction_id = "C|{AuthorizationNumber}|{RetrievalREFNumber}|{SystemTraceNumber}"
         // SetupMandate is always treated as a credit-path operation
-        let connector_transaction_id = response
-            .reference_trace_numbers
-            .as_ref()
-            .map(|trace| {
-                let auth_num = trace.authorization_number.as_deref().unwrap_or("");
-                let retrieval_ref = trace.retrieval_ref_number.as_deref().unwrap_or("");
-                let sys_trace = trace.system_trace_number.as_deref().unwrap_or("");
-                format!("{TXN_TYPE_CREDIT}|{auth_num}|{retrieval_ref}|{sys_trace}")
-            })
-            .unwrap_or_default();
+        let connector_transaction_id = build_connector_transaction_id(
+            TXN_TYPE_CREDIT,
+            response.reference_trace_numbers.as_ref().map(|trace| {
+                (
+                    trace.authorization_number.as_deref(),
+                    trace.retrieval_ref_number.as_deref(),
+                    trace.system_trace_number.as_deref(),
+                )
+            }),
+            status != AttemptStatus::Failure,
+            "SetupMandate",
+        );
         let mandate_reference = response
             .encryption_token_data
             .as_ref()
@@ -3597,16 +3636,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         );
 
         // RepeatPayment is always credit; encode with TXN_TYPE_CREDIT prefix
-        let connector_transaction_id = response
-            .reference_trace_numbers
-            .as_ref()
-            .map(|trace| {
-                let auth_num = trace.authorization_number.as_deref().unwrap_or("");
-                let retrieval_ref = trace.retrieval_ref_number.as_deref().unwrap_or("");
-                let sys_trace = trace.system_trace_number.as_deref().unwrap_or("");
-                format!("{TXN_TYPE_CREDIT}|{auth_num}|{retrieval_ref}|{sys_trace}")
-            })
-            .unwrap_or_default();
+        let connector_transaction_id = build_connector_transaction_id(
+            TXN_TYPE_CREDIT,
+            response.reference_trace_numbers.as_ref().map(|trace| {
+                (
+                    trace.authorization_number.as_deref(),
+                    trace.retrieval_ref_number.as_deref(),
+                    trace.system_trace_number.as_deref(),
+                )
+            }),
+            status != AttemptStatus::Failure,
+            "RepeatPayment",
+        );
 
         let metadata = WorldpayraftConnectorMetadata::from_repeat_payment_response(
             &item.router_data.request,
