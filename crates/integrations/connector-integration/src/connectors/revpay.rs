@@ -14,9 +14,9 @@ use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
         ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
-        WebhookDetailsResponse, WebhookResourceReference,
+        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RequestDetails,
+        ResponseId, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -32,7 +32,7 @@ use interfaces::{
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types,
     decode::BodyDecoding,
-    verification::SourceVerification,
+    verification::{ConnectorSourceVerificationSecrets, SourceVerification},
     webhooks::{IncomingWebhook, IncomingWebhookFlowError},
 };
 use serde::Serialize;
@@ -576,6 +576,120 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Revpay<T>
 {
+    fn verify_redirect_response_source(
+        &self,
+        request: &RequestDetails,
+        secrets: Option<ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<bool, IntegrationError> {
+        let body = parse_revpay_redirect_response(request)?;
+        let merchant_key = match secrets {
+            Some(ConnectorSourceVerificationSecrets::RedirectResponseSecret(secret)) => {
+                secret.secret
+            }
+            _ => return Ok(false),
+        };
+        Ok(body.verifies_with_merchant_key(&merchant_key))
+    }
+
+    fn process_redirect_response(
+        &self,
+        request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
+        let body = parse_revpay_redirect_response(request)?;
+        let failure = body.failure_details();
+        let money = body
+            .money()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "Amount",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "revPAY redirect Amount must use the documented two-decimal format"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        Ok(RedirectDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                body.reference_number.clone(),
+            )),
+            status: Some(body.attempt_status()),
+            response_money: Some(money),
+            // The compatibility layer exposes this as merchant_order_id, so
+            // keep the merchant Reference_Number rather than Transaction_ID.
+            connector_response_reference_id: Some(body.reference_number.clone()),
+            error_code: failure.as_ref().map(|(code, _)| code.clone()),
+            error_message: failure.as_ref().map(|(_, message)| message.clone()),
+            error_reason: failure.map(|(_, message)| message),
+            raw_connector_response: request.query_params.clone(),
+            connector_feature_data: None,
+        })
+    }
+}
+
+fn parse_revpay_redirect_response(
+    request: &RequestDetails,
+) -> CustomResult<revpay::RevpayWebhookBody, IntegrationError> {
+    let query = request.query_params.as_deref().ok_or_else(|| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "request_details.query_params",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "revPAY returns the payment result as Return_URL query parameters".to_string(),
+                ),
+                ..Default::default()
+            },
+        })
+    })?;
+
+    // Euler serializes callback query parameters as a JSON object, while the
+    // HTTP flow can also provide the original form-encoded query string.
+    let form = match serde_json::from_str::<serde_json::Value>(query) {
+        Ok(serde_json::Value::Object(values)) => {
+            let mut serializer = url::form_urlencoded::Serializer::new(String::new());
+            for (key, value) in values {
+                let value = value.as_str().ok_or_else(|| {
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "request_details.query_params",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(format!(
+                                "revPAY redirect field `{key}` must be a string"
+                            )),
+                            ..Default::default()
+                        },
+                    })
+                })?;
+                serializer.append_pair(&key, value);
+            }
+            serializer.finish()
+        }
+        Ok(_) => {
+            return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "request_details.query_params",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "revPAY redirect parameters must be a JSON object or form query"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }))
+        }
+        Err(_) => query.to_string(),
+    };
+
+    serde_urlencoded::from_str(&form).change_context(IntegrationError::InvalidDataFormat {
+        field_name: "request_details.query_params",
+        context: IntegrationErrorContext {
+            additional_context: Some(
+                "revPAY redirect parameters do not match the documented callback schema"
+                    .to_string(),
+            ),
+            ..Default::default()
+        },
+    })
 }
 
 // ===== SOURCE VERIFICATION IMPLEMENTATION =====
