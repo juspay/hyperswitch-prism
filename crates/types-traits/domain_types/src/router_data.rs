@@ -513,6 +513,7 @@ pub enum ConnectorSpecificConfig {
         access_key: Secret<String>,
         secret_key: Secret<String>,
         country_of_incorporation: Option<common_enums::CountryAlpha2>,
+        statement_descriptor: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Authipay {
@@ -2583,6 +2584,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                     })
                     .transpose()?,
                 base_url: rapyd.base_url,
+                statement_descriptor: rapyd.statement_descriptor,
             }),
             AuthType::AbsaSanlam(absa_sanlam) => Ok(Self::AbsaSanlam {
                 api_key: absa_sanlam.api_key.ok_or_else(err)?,
@@ -3531,6 +3533,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         // Legacy credentials do not carry merchant onboarding metadata.
                         // Fresh payment-method objects require typed Rapyd configuration.
                         country_of_incorporation: None,
+                        statement_descriptor: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

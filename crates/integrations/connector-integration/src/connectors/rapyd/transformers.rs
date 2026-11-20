@@ -710,6 +710,10 @@ pub struct RapydPaymentsRequest<
     pub address: Option<Address>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub statement_descriptor: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ewallet: Option<Secret<String>>,
     /// Inline customer used when saving a payment method.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<RapydInlineCustomer>,
@@ -724,6 +728,28 @@ pub struct RapydPaymentsRequest<
     /// emitted on the current MIT path.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initiation_type: Option<RapydInitiationType>,
+}
+
+fn ewallet_from_metadata(
+    metadata: Option<&common_utils::pii::SecretSerdeValue>,
+) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
+    metadata
+        .and_then(|metadata| metadata.peek().get("ewallet"))
+        .map(|value| {
+            value
+                .as_str()
+                .map(|wallet| Secret::new(wallet.to_owned()))
+                .ok_or_else(|| {
+                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "metadata.ewallet",
+                        context: utils::integration_ctx(
+                            "The payment wallet identifier must be a string",
+                            "Set metadata.ewallet to a string, or omit it.",
+                        ),
+                    })
+                })
+        })
+        .transpose()
 }
 
 /// Inline customer object embedded in a `/v1/payments` call. Both fields
@@ -1222,6 +1248,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             .into());
         }
+        let ConnectorSpecificConfig::Rapyd {
+            statement_descriptor,
+            ..
+        } = &item.router_data.connector_config
+        else {
+            return Err(IntegrationError::InvalidConnectorConfig {
+                config: "rapyd",
+                context: utils::integration_ctx(
+                    "The connector configuration is not for Rapyd",
+                    "Use Rapyd connector configuration.",
+                ),
+            }
+            .into());
+        };
         let return_url = item.router_data.request.get_router_return_url()?;
         let amount = item
             .connector
@@ -1696,6 +1736,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: item.router_data.request.email.clone(),
+            statement_descriptor: statement_descriptor.clone(),
+            ewallet: ewallet_from_metadata(item.router_data.request.metadata.as_ref())?,
             customer,
             save_payment_method,
             initiation_type,
@@ -2541,6 +2583,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let return_url = request.get_router_return_url()?;
 
+        let ConnectorSpecificConfig::Rapyd {
+            statement_descriptor,
+            ..
+        } = &router_data.connector_config
+        else {
+            return Err(IntegrationError::InvalidConnectorConfig {
+                config: "rapyd",
+                context: utils::integration_ctx(
+                    "The connector configuration is not for Rapyd",
+                    "Use Rapyd connector configuration.",
+                ),
+            }
+            .into());
+        };
+
         Ok(Self {
             amount,
             currency: request.currency,
@@ -2565,6 +2622,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: request.email.clone(),
+            statement_descriptor: statement_descriptor.clone(),
+            ewallet: ewallet_from_metadata(request.metadata.as_ref())?,
             save_payment_method: Some(true),
             initiation_type: Some(purpose.initiation_type),
         })
@@ -2727,6 +2786,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             })?;
 
+        let ConnectorSpecificConfig::Rapyd {
+            statement_descriptor,
+            ..
+        } = &router_data.connector_config
+        else {
+            return Err(IntegrationError::InvalidConnectorConfig {
+                config: "rapyd",
+                context: utils::integration_ctx(
+                    "The connector configuration is not for Rapyd",
+                    "Use Rapyd connector configuration.",
+                ),
+            }
+            .into());
+        };
+
         Ok(Self {
             amount,
             currency: request.currency,
@@ -2759,6 +2833,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: request.email.clone(),
+            statement_descriptor: statement_descriptor.clone(),
+            ewallet: ewallet_from_metadata(request.metadata.as_ref())?,
         })
     }
 }
