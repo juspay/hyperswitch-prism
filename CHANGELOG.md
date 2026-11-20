@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.20.1
+
+### Features
+
+- **connector:** Worldpay Raft COF fix for amex and mastercard. ([#2900](https://github.com/juspay/connector-service/pull/2900)) ([`e359fe4`](https://github.com/juspay/connector-service/commit/e359fe45ea28ec393a27411c748ab4490e0a8ede))
+
+### Bug Fixes
+
+- **checkout:** Avoid indexed JSON writes in webhook tests ([#2896](https://github.com/juspay/connector-service/pull/2896)) ([`c0662ac`](https://github.com/juspay/connector-service/commit/c0662ac3d57bea49dfce155a61a0c8e145dd4b67))
+- **connector:** [Revolv3] Make device manufacturer ID optional ([#2865](https://github.com/juspay/connector-service/pull/2865)) ([`5c7daf8`](https://github.com/juspay/connector-service/commit/5c7daf8a05a0bb812e09787fc64a43fb259db01b))
+- **logging:** Restore overrides and add regression coverage ([#2776](https://github.com/juspay/connector-service/pull/2776)) ([`7be4b5d`](https://github.com/juspay/connector-service/commit/7be4b5dd81c842cf85564125cb0fdd181631d69e))
+
+**Full Changelog:** [`2026.11.20.0...2026.11.20.1`](https://github.com/juspay/connector-service/compare/2026.11.20.0...2026.11.20.1)
+
+- - -
+
 ## 2026.11.20.0
 
 ### Features
