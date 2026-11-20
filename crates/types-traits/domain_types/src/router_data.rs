@@ -368,6 +368,17 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    /// Netcetera 3DS Server. Transport auth is mTLS; the certificate pair is optional
+    /// because an external vault (e.g. VGS) may terminate TLS on the outbound route.
+    /// The base URL is the shared 3DS Server host, with an optional per-request override.
+    Netcetera {
+        certificate: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        base_url: Option<String>,
+        merchant_configuration_id: Option<String>,
+        three_ds_requestor_id: Option<String>,
+        three_ds_requestor_name: Option<String>,
+    },
     Imerchantsolutions {
         api_key: Secret<String>,
         merchant_id: Option<Secret<String>>,
@@ -1676,6 +1687,7 @@ impl ConnectorSpecificConfig {
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
+            Netcetera {},
             TwocTwopPaco {
                 access_token,
                 office_id,
@@ -2240,6 +2252,7 @@ impl ConnectorSpecificConfig {
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
+                Netcetera {},
                 TwocTwopPaco {
                     access_token,
                     office_id,
@@ -2988,6 +3001,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Paydotcom(paydotcom) => Ok(Self::Paydotcom {
                 api_key: paydotcom.api_key.ok_or_else(err)?,
                 base_url: paydotcom.base_url,
+            }),
+            AuthType::Netcetera(netcetera) => Ok(Self::Netcetera {
+                certificate: netcetera.certificate,
+                private_key: netcetera.private_key,
+                base_url: netcetera.base_url,
+                merchant_configuration_id: netcetera.merchant_configuration_id,
+                three_ds_requestor_id: netcetera.three_ds_requestor_id,
+                three_ds_requestor_name: netcetera.three_ds_requestor_name,
             }),
             AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
                 api_key: saferpay.api_key.ok_or_else(err)?,
@@ -4669,13 +4690,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // is not used for Qwikcilver — configure via the proto
                 // QwikcilverConfig path instead.
                 ConnectorEnum::Qwikcilver => Err(err().into()),
-                // Netcetera is an authentication-only (3DS) no-key connector (mTLS is
-                // handled on the VGS outbound route, merchant fields ride
-                // `connector_feature_data`). Its `connector_config` is set to
-                // `ConnectorSpecificConfig::NoKey` via the `X_AUTH = "NoKey"` shortcut in
-                // `request.rs`, so it never flows through this deprecated auth-credentials
-                // -> config conversion (same opt-out as Qwikcilver above).
-                ConnectorEnum::Netcetera => Err(err().into()),
                 // Flywire requires `recipient_id` (drives currency, payout target
                 // and required institutional fields), which the legacy BodyKey
                 // creds path cannot supply. Configure Flywire via the proto
@@ -4737,6 +4751,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
             },
             connector_types::ConnectorVariant::Authenticator(connector_enum) => {
                 match connector_enum {
+                    // Legacy credential headers cannot represent NetceteraConfig.
+                    connector_types::AuthenticatorConnectorEnum::Netcetera => Err(err().into()),
                     connector_types::AuthenticatorConnectorEnum::Plaid => match auth {
                         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Plaid {
                             client_id: api_key.clone(),

@@ -773,8 +773,9 @@ macro_rules! implement_connector_operation {
         // the call site wouldn't resolve to `run_holder_flow`'s own generic
         // parameter). Any further entries are secondary families, tried before it
         // at `DefaultPCIHolder` — write those exactly as they're used (e.g.
-        // `FrmConnectorData`).
-        connector_data_types: [$connector_data:ident $(, $extra_connector_data_type:ty)* $(,)?],
+        // `FrmConnectorData`). Additional generic families use `+` and are
+        // instantiated with the same holder on both direct and injector paths.
+        connector_data_types: [$connector_data:ident $(+ $additional_connector_data:ident)* $(, $extra_connector_data_type:ty)* $(,)?],
         all_keys_required: $all_keys_required:expr,
         has_payment_method_data: option
     ) => {
@@ -991,7 +992,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$connector_data<domain_types::payment_method_data::VaultTokenHolder>]
+                        [$($additional_connector_data<domain_types::payment_method_data::VaultTokenHolder>,)* $connector_data<domain_types::payment_method_data::VaultTokenHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::VaultTokenHolder>(
@@ -1020,7 +1021,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $($additional_connector_data<domain_types::payment_method_data::DefaultPCIHolder>,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1050,7 +1051,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $($additional_connector_data<domain_types::payment_method_data::DefaultPCIHolder>,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1082,7 +1083,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $($additional_connector_data<domain_types::payment_method_data::DefaultPCIHolder>,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
@@ -1129,7 +1130,7 @@ macro_rules! implement_connector_operation {
 
                     let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
-                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                        [$($extra_connector_data_type,)* $($additional_connector_data<domain_types::payment_method_data::DefaultPCIHolder>,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
                     ))?;
 
                     run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(

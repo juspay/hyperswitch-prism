@@ -273,6 +273,45 @@ mod tests {
         format!(r#"{{"config":{{"Stripe":{{"api_key":"{}"}}}}}}"#, api_key)
     }
 
+    #[test]
+    fn typed_netcetera_config_resolves_as_an_authenticator() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(
+            consts::X_AUTHENTICATOR_CONNECTOR_NAME,
+            "netcetera".parse().unwrap(),
+        );
+        metadata.insert(
+            consts::X_CONNECTOR_CONFIG,
+            r#"{"config":{"Netcetera":{"merchant_configuration_id":"synthetic-configuration"}}}"#
+                .parse()
+                .unwrap(),
+        );
+        let (connector, config) = connector_and_config_from_metadata(&metadata)
+            .expect("typed Netcetera config should resolve without local VGS credentials");
+        assert_eq!(
+            connector,
+            connector_types::ConnectorVariant::Authenticator(
+                connector_types::AuthenticatorConnectorEnum::Netcetera
+            )
+        );
+        match config {
+            ConnectorSpecificConfig::Netcetera {
+                certificate,
+                private_key,
+                merchant_configuration_id,
+                ..
+            } => {
+                assert!(certificate.is_none());
+                assert!(private_key.is_none());
+                assert_eq!(
+                    merchant_configuration_id.as_deref(),
+                    Some("synthetic-configuration")
+                );
+            }
+            _ => panic!("expected Netcetera config"),
+        }
+    }
+
     /// Build a MetadataMap with a typed `X-Connector-Config` JSON header for Stripe.
     fn metadata_with_typed_config(api_key: &str) -> MetadataMap {
         let mut metadata = MetadataMap::new();

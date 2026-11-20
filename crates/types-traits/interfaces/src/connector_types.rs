@@ -209,6 +209,9 @@ pub trait AuthenticatorServiceTrait<T: PaymentMethodDataTypes>:
     + PaymentTokenV2<T>
     + GetPaymentMethodV2
     + PaymentMethodEligibilityV2
+    + PaymentPreAuthenticateV2<T>
+    + PaymentAuthenticateV2<T>
+    + PaymentPostAuthenticateV2<T>
 {
 }
 
@@ -221,10 +224,8 @@ pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 pub type BoxedPayoutConnector<T = domain_types::payment_method_data::DefaultPCIHolder> =
     Box<&'static (dyn PayoutServiceTrait<T> + Sync)>;
 
-pub type BoxedAuthenticatorConnector = Box<
-    &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
-                  + Sync),
->;
+pub type BoxedAuthenticatorConnector<T = domain_types::payment_method_data::DefaultPCIHolder> =
+    Box<&'static (dyn AuthenticatorServiceTrait<T> + Sync)>;
 
 /// Validate the common PSync contract used by connectors whose lookup requires a
 /// connector-generated transaction id.

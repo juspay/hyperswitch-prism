@@ -12,7 +12,7 @@
 //!
 //! If a connector needs a real implementation, add it in the connector's own file.
 
-use crate::connectors::*;
+use crate::{authenticator_connectors::Netcetera, connectors::*};
 use common_utils::{request::Request, CustomResult};
 use domain_types::{
     connector_flow::{

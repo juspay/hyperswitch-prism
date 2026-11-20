@@ -1,8 +1,8 @@
 //! Three-phase check for connector integration-test coverage.
 //!
 //! **Phase 1 — connector list parity**
-//! Verifies that every `.rs` file in `crates/integrations/connector-integration/src/connectors/`
-//! (excluding `macros.rs`) has a matching directory in
+//! Verifies that every payment connector and standalone 3DS authenticator in
+//! `crates/integrations/connector-integration/src/` has a matching directory in
 //! `tests/regression/src/connector_specs/`, and vice-versa.
 //! Exits non-zero if the two sets diverge.
 //!
@@ -38,7 +38,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use integration_tests::harness::scenario_api::all_known_suites;
@@ -265,6 +265,45 @@ fn known_proto_suites() -> Vec<String> {
 // main
 // ---------------------------------------------------------------------------
 
+fn source_files(dir: &Path) -> BTreeMap<String, PathBuf> {
+    fs::read_dir(dir)
+        .expect("failed to read connector source directory")
+        .map(|entry| entry.expect("failed to read connector source entry"))
+        .filter_map(|entry| {
+            let path = entry.path();
+            if path.extension().is_some_and(|extension| extension == "rs") {
+                let name = path.file_stem()?.to_str()?.to_string();
+                if name != "macros" {
+                    return Some((name, path));
+                }
+            }
+            None
+        })
+        .collect()
+}
+
+fn integration_sources(src_root: &Path) -> BTreeMap<String, PathBuf> {
+    let mut sources = source_files(&src_root.join("connectors"));
+    // Standalone 3DS authenticators serve the same authentication suites as
+    // payment connectors. Account-linking authenticators remain outside this
+    // payment/3DS coverage check unless they implement one of these flows.
+    for (name, path) in source_files(&src_root.join("authenticator_connectors")) {
+        let src = fs::read_to_string(&path).expect("failed to read authenticator source");
+        if extract_declared_flows(&src).iter().any(|flow| {
+            matches!(
+                flow.as_str(),
+                "PreAuthenticate" | "Authenticate" | "PostAuthenticate"
+            )
+        }) {
+            assert!(
+                sources.insert(name, path).is_none(),
+                "duplicate connector source"
+            );
+        }
+    }
+    sources
+}
+
 fn main() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     // CARGO_MANIFEST_DIR = .../tests/regression
@@ -276,7 +315,7 @@ fn main() {
         .unwrap()
         .to_path_buf();
 
-    let connectors_src = root.join("crates/integrations/connector-integration/src/connectors");
+    let connectors_src = root.join("crates/integrations/connector-integration/src");
     let specs_root = root.join("tests/regression/src/connector_specs");
     let suites_root = root.join("tests/regression/src/global_suites");
 
@@ -290,21 +329,8 @@ fn main() {
     println!("{}", "=".repeat(80));
     println!();
 
-    // Connector names from integration .rs files (exclude macros.rs).
-    let integration_connectors: BTreeSet<String> = fs::read_dir(&connectors_src)
-        .expect("failed to read connectors src dir")
-        .flatten()
-        .filter_map(|e| {
-            let path = e.path();
-            if path.extension().map(|x| x == "rs").unwrap_or(false) {
-                let stem = path.file_stem()?.to_str()?.to_string();
-                if stem != "macros" {
-                    return Some(stem);
-                }
-            }
-            None
-        })
-        .collect();
+    let sources = integration_sources(&connectors_src);
+    let integration_connectors: BTreeSet<String> = sources.keys().cloned().collect();
 
     // Connector names from connector_specs/ subdirectories.
     let spec_connectors: BTreeSet<String> = fs::read_dir(&specs_root)
@@ -381,9 +407,9 @@ fn main() {
     let mut unknown_flows: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for connector in &connectors {
-        let src_path = connectors_src.join(format!("{connector}.rs"));
+        let src_path = &sources[connector];
 
-        let src = match fs::read_to_string(&src_path) {
+        let src = match fs::read_to_string(src_path) {
             Ok(s) => s,
             Err(_) => {
                 unverifiable.push(connector.clone());
@@ -781,4 +807,42 @@ fn main() {
 
     println!();
     println!("All checks passed. OK.");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn discovers_payment_and_3ds_sources_without_requiring_specs_for_account_linking() {
+        let root = tempfile::tempdir().expect("temporary source root");
+        let payments = root.path().join("connectors");
+        let authenticators = root.path().join("authenticator_connectors");
+        fs::create_dir(&payments).expect("payment source directory");
+        fs::create_dir(&authenticators).expect("authenticator source directory");
+        fs::write(payments.join("synthetic_payment.rs"), "").expect("payment source");
+        fs::write(payments.join("macros.rs"), "").expect("macro helpers");
+        let auth_path = authenticators.join("synthetic_3ds.rs");
+        fs::write(
+            &auth_path,
+            "impl ConnectorIntegrationV2<Authenticate, Data> for Authenticator {}",
+        )
+        .expect("3DS authenticator source");
+        fs::write(
+            authenticators.join("synthetic_linking.rs"),
+            "impl ConnectorIntegrationV2<ClientAuthenticationToken, Data> for Authenticator {}",
+        )
+        .expect("account-linking source");
+
+        let sources = integration_sources(root.path());
+        assert_eq!(sources.len(), 2);
+        assert!(sources.contains_key("synthetic_payment"));
+        assert_eq!(sources["synthetic_3ds"], auth_path);
+
+        // A move must not leave discovery or Phase 2 pointing at the old folder.
+        fs::rename(&auth_path, payments.join("synthetic_3ds.rs")).expect("move source");
+        let sources = integration_sources(root.path());
+        assert_eq!(sources.len(), 2);
+        assert_eq!(sources["synthetic_3ds"], payments.join("synthetic_3ds.rs"));
+    }
 }

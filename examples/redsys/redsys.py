@@ -54,7 +54,7 @@ def _build_authenticate_request():
             message_version="2.1.0",  # 3DS Message Version (e.g., "2.1.0", "2.2.0").
             ds_transaction_id="probe-ds-txn-001",  # Directory Server Transaction ID (DS Trans ID).
         ),
-        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+        return_url="https://example.com/3ds-return",  # URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         continue_redirection_url="https://example.com/3ds-continue",
         browser_info=payment_pb2.BrowserInformation(  # Contextual Information.
             color_depth=24,  # Display Information.
