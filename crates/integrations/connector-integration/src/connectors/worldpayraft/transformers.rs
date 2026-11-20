@@ -1281,7 +1281,7 @@ pub struct WorldpayraftCardAuthInner<T: PaymentMethodDataTypes> {
     pub proc_flags_indicators: Option<WorldpayraftProcFlags>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reference_trace_numbers: Option<WorldpayraftCardAuthTraceNumbers>,
-    #[serde(rename = "UserDefinedData", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     user_defined_data: Option<WorldpayraftUserDefinedData>,
     #[serde(flatten)]
     pub brand_specific_data: WorldpayraftBrandSpecificData,
