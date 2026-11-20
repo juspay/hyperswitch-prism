@@ -180,7 +180,7 @@ const ISO_SUCCESS_CODES: [&str; 7] = [
     "3D1", // 3D Secure authentication attempted
     "HP0", // HostedPay success
     "TK0", // Token success
-    "SP4", // Split payment success
+    "SP4", // SPI preprocessing complete (3DS redirect pending)
     "FC0", // Fraud check success
 ];
 
@@ -888,10 +888,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let three_d_secure = match router_data.resource_common_data.auth_type {
-            common_enums::AuthenticationType::ThreeDs => Some(true),
-            common_enums::AuthenticationType::NoThreeDs => Some(false),
-        };
+        // No 3DS challenge/SPI redirect handling exists for this connector (Authorize also sends
+        // false); requesting 3DS here would return a challenge step that can never complete.
+        let three_d_secure = Some(false);
 
         match &request_data.payment_method_data {
             domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
@@ -1098,10 +1097,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             context: Default::default(),
         })?;
 
-        let three_d_secure = match router_data.resource_common_data.auth_type {
-            common_enums::AuthenticationType::ThreeDs => Some(true),
-            common_enums::AuthenticationType::NoThreeDs => Some(false),
-        };
+        // No 3DS challenge/SPI redirect handling exists for this connector (Authorize also sends
+        // false); requesting 3DS here would return a challenge step that can never complete.
+        let three_d_secure = Some(false);
 
         match &request_data.payment_method_data {
             domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
