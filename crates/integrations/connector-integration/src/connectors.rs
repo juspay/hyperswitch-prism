@@ -341,6 +341,9 @@ pub use self::globalpayments_heartland::GlobalpaymentsHeartland;
 pub mod merchante;
 pub use self::merchante::Merchante;
 
+pub mod revpay;
+pub use self::revpay::Revpay;
+
 pub mod betterpayment;
 pub use self::betterpayment::Betterpayment;
 
@@ -349,3 +352,5 @@ pub use self::reddot::Reddot;
 
 pub mod ecommpay;
 pub use self::ecommpay::Ecommpay;
+pub mod payhound;
+pub use self::payhound::Payhound;

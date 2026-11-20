@@ -44,7 +44,8 @@ pub use superposition_config::{
 pub use types::{
     AmountConvertor, ConnectorMinorUnit, ConnectorMinorUnitForConnector, FloatMajorUnit,
     FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector, Money, StringMajorUnit,
-    StringMajorUnitForConnector, StringMinorUnit, StringTwoDecimalUnit,
+    StringMajorUnitForConnector, StringMajorUnitWithTwoDecimals,
+    StringMajorUnitWithTwoDecimalsForConnector, StringMinorUnit, StringTwoDecimalUnit,
     StringTwoDecimalUnitForConnector,
 };
 pub mod connector_request_kafka;
@@ -152,6 +153,14 @@ pub mod date_time {
     /// no second one to drift from it.
     pub fn now_unix_millis() -> i64 {
         i64::try_from(now().assume_utc().unix_timestamp_nanos() / 1_000_000).unwrap_or(i64::MAX)
+    }
+
+    /// Return the UNIX timestamp of the current date and time in UTC, in microseconds.
+    ///
+    /// Derived from [`now`] like [`now_unix_millis`]. Returned unsaturated so a caller that
+    /// needs a narrower integer decides how an out-of-range value fails.
+    pub fn now_unix_micros() -> i128 {
+        now().assume_utc().unix_timestamp_nanos() / 1_000
     }
 
     /// Calculate execution time for a async block in milliseconds

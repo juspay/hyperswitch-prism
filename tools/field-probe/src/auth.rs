@@ -870,6 +870,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: k(),
             base_url: None,
         },
+        ConnectorEnum::Payhound => ConnectorSpecificConfig::Payhound {
+            api_key: k(),
+            api_secret: k(),
+            base_url: None,
+        },
         ConnectorEnum::JpmorganOrbital => ConnectorSpecificConfig::JpmorganOrbital {
             username: k(),
             password: k(),
@@ -909,6 +914,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: k(),
             app_secret: k(),
             merchant_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Revpay => ConnectorSpecificConfig::Revpay {
+            merchant_id: k(),
+            merchant_key: k(),
+            key_index: k(),
             base_url: None,
         },
         ConnectorEnum::Betterpayment => ConnectorSpecificConfig::Betterpayment {
