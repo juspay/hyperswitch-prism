@@ -4843,6 +4843,8 @@ pub enum CheckoutWebhookEventType {
     PaymentApproved,
     PaymentCaptured,
     PaymentDeclined,
+    #[serde(rename = "payment_paid")]
+    PayoutPaid,
     PaymentRefunded,
     PaymentRefundDeclined,
     PaymentAuthenticationFailed,
@@ -4874,12 +4876,23 @@ pub enum CheckoutWebhookEventType {
     Unknown,
 }
 
-/// Thin body used by `get_event_type` — deserialises only the `type` field so we
-/// avoid pulling in the full data payload during the stateless ParseEvent phase.
+/// Thin body used to classify events without requiring payment-specific fields.
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookEventTypeBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutWebhookEventType,
+    pub data: Option<CheckoutWebhookEventTypeData>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookEventTypeData {
+    pub destination: Option<CheckoutPayoutDestination>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutPayoutDestination {
+    #[serde(rename = "type")]
+    pub payout_destination_type: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4893,6 +4906,8 @@ pub struct CheckoutWebhookData {
     pub response_code: Option<String>,
     pub response_summary: Option<String>,
     pub auth_code: Option<String>,
+    /// Destination supplied on card-payout payment events.
+    pub destination: Option<CheckoutPayoutDestination>,
     /// Scheme transaction identifier (network transaction id) carried by
     /// `payment_approved` / `payment_declined` / `card_verified` events.
     pub scheme_id: Option<String>,
@@ -4975,9 +4990,21 @@ pub fn is_chargeback_event(event_code: &CheckoutWebhookEventType) -> bool {
     )
 }
 
-impl From<CheckoutWebhookEventType> for domain_types::connector_types::EventType {
-    fn from(event: CheckoutWebhookEventType) -> Self {
-        match event {
+pub fn is_payout_webhook(body: &CheckoutWebhookBody) -> bool {
+    match &body.transaction_type {
+        CheckoutWebhookEventType::PayoutPaid => true,
+        CheckoutWebhookEventType::PaymentApproved | CheckoutWebhookEventType::PaymentDeclined => {
+            body.data.destination.is_some()
+        }
+        _ => false,
+    }
+}
+
+impl From<CheckoutWebhookEventTypeBody> for domain_types::connector_types::EventType {
+    fn from(body: CheckoutWebhookEventTypeBody) -> Self {
+        let has_payout_destination = body.data.is_some_and(|data| data.destination.is_some());
+
+        match body.transaction_type {
             CheckoutWebhookEventType::AuthenticationStarted
             | CheckoutWebhookEventType::AuthenticationApproved
             | CheckoutWebhookEventType::AuthenticationAttempted => Self::PaymentActionRequired,
@@ -4986,8 +5013,15 @@ impl From<CheckoutWebhookEventType> for domain_types::connector_types::EventType
             | CheckoutWebhookEventType::PaymentAuthenticationFailed => {
                 Self::PaymentIntentAuthorizationFailure
             }
+            CheckoutWebhookEventType::PaymentApproved if has_payout_destination => {
+                Self::PayoutSuccess
+            }
             CheckoutWebhookEventType::PaymentApproved => Self::PaymentIntentAuthorizationSuccess,
             CheckoutWebhookEventType::PaymentCaptured => Self::PaymentIntentSuccess,
+            CheckoutWebhookEventType::PayoutPaid => Self::PayoutSuccess,
+            CheckoutWebhookEventType::PaymentDeclined if has_payout_destination => {
+                Self::PayoutFailure
+            }
             CheckoutWebhookEventType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelFailure,
             CheckoutWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentCaptureFailure,
@@ -5046,7 +5080,8 @@ impl TryFrom<CheckoutWebhookEventType> for common_enums::AttemptStatus {
             | CheckoutWebhookEventType::PaymentRetryScheduled => Ok(Self::Pending),
             CheckoutWebhookEventType::PaymentVoided => Ok(Self::Voided),
             CheckoutWebhookEventType::PaymentVoidDeclined => Ok(Self::VoidFailed),
-            CheckoutWebhookEventType::PaymentRefunded
+            CheckoutWebhookEventType::PayoutPaid
+            | CheckoutWebhookEventType::PaymentRefunded
             | CheckoutWebhookEventType::PaymentRefundDeclined
             | CheckoutWebhookEventType::PaymentRefundPending
             | CheckoutWebhookEventType::DisputeReceived
@@ -5108,6 +5143,7 @@ impl TryFrom<CheckoutWebhookEventType> for common_enums::RefundStatus {
             | CheckoutWebhookEventType::DisputeArbitrationWon
             | CheckoutWebhookEventType::DisputeWon
             | CheckoutWebhookEventType::DisputeLost
+            | CheckoutWebhookEventType::PayoutPaid
             | CheckoutWebhookEventType::Unknown => Err(error_stack::report!(
                 domain_types::errors::WebhookError::WebhookEventTypeNotFound
             )),
