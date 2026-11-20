@@ -1873,11 +1873,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .and_then(|id| id.mandate_reference_id.as_ref());
         let network_reference = WorldpayraftNetworkReference::try_from(mandate)?;
         let network_transaction_id = network_reference.network_transaction_id;
-        let transaction_link_id = network_reference.transaction_link_id;
         let kind = WorldpayraftPaymentKind::for_authorize(
             request,
             request.is_stored_credential.unwrap_or(false),
         );
+        // A subsequent Mastercard CIT receives its original TLID in the
+        // authorization's connector metadata. MITs use the network mandate
+        // reference so an intervening MIT cannot replace the original TLID.
+        let metadata_transaction_link_id = if kind == WorldpayraftPaymentKind::StoredCredentialCit {
+            WorldpayraftConnectorMetadata::try_from(request.connector_feature_data.as_ref())?
+                .transaction_link_id
+        } else {
+            None
+        };
+        let transaction_link_id = network_reference
+            .transaction_link_id
+            .or(metadata_transaction_link_id.as_deref());
         let network_token_cryptogram = match (network_token, kind) {
             (Some(_), WorldpayraftPaymentKind::Mit) => {
                 if !matches!(mandate, Some(MandateReferenceId::NetworkTokenWithNTI(_))) {
@@ -1982,15 +1993,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         let reference_trace_numbers = mastercard_cof_trace_numbers(
             network.as_ref(),
-            kind == WorldpayraftPaymentKind::Mit,
+            matches!(
+                kind,
+                WorldpayraftPaymentKind::Mit | WorldpayraftPaymentKind::StoredCredentialCit
+            ),
             transaction_link_id,
         )?;
 
         let requires_avs = request.enable_avs_check == Some(true)
             || (wallet.is_some() && network == Some(CardNetwork::Visa));
         // Subsequent COF authorizations omit CVV, but still carry AVS when requested.
-        let address_verification_data = if !is_debit && (requires_avs || wallet.is_some())
-        {
+        let address_verification_data = if !is_debit && (requires_avs || wallet.is_some()) {
             let billing = router_data
                 .resource_common_data
                 .get_optional_billing()
