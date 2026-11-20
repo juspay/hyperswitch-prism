@@ -693,15 +693,8 @@ impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<BamboraPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Status mapping following hyperswitch pattern
-        // Only check approved field for refund
-        let is_approved = item.response.approved == "1";
-
-        let refund_status = if is_approved {
-            RefundStatus::Success
-        } else {
-            RefundStatus::Failure
-        };
+        let refund_status =
+            bambora_refund_status(&item.response.approved, &item.response.payment_type);
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -715,6 +708,18 @@ impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
     }
 }
 
+/// An approved transaction is a successful refund, except a void-refund (`VR`): that is
+/// the refund being reversed, so the refund did not happen.
+pub(super) fn bambora_refund_status(
+    approved: &str,
+    payment_type: &BamboraPaymentType,
+) -> RefundStatus {
+    match (approved == "1", payment_type) {
+        (false, _) | (true, BamboraPaymentType::VoidRefund) => RefundStatus::Failure,
+        (true, _) => RefundStatus::Success,
+    }
+}
+
 // Refund Sync (RSync) Implementation
 
 impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
@@ -725,15 +730,8 @@ impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<BamboraPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Status mapping following hyperswitch pattern
-        // Only check approved field for refund sync
-        let is_approved = item.response.approved == "1";
-
-        let refund_status = if is_approved {
-            RefundStatus::Success
-        } else {
-            RefundStatus::Failure
-        };
+        let refund_status =
+            bambora_refund_status(&item.response.approved, &item.response.payment_type);
 
         Ok(Self {
             response: Ok(RefundsResponseData {
