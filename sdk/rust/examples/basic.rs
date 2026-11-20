@@ -147,11 +147,12 @@ fn demo_low_level(
             eprintln!("  URL:    {}", url);
             eprintln!("  Method: {:?}", method);
             eprintln!("  Headers: {:?}", headers.keys().collect::<Vec<_>>());
+            // Only the length: the body carries the card number and CVC in cleartext.
             if let Some(b) = body {
-                eprintln!("  Body Length: {} bytes", b.len());
-                if let Ok(body_str) = String::from_utf8(b) {
-                    eprintln!("  Body (UTF-8):\n{}\n", body_str);
-                }
+                eprintln!(
+                    "  Body Length: {} bytes (not printed: contains card data)",
+                    b.len()
+                );
             }
         }
         Ok(None) => {
