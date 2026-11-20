@@ -1778,7 +1778,14 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
             .gateway_response
             .transaction_processing_details
             .as_ref()
-            .map(|txn| txn.transaction_id.clone());
+            .map(|txn| txn.transaction_id.clone())
+            .or_else(|| {
+                item.router_data
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .ok()
+            });
         let resource_id = connector_transaction_id
             .clone()
             .map(ResponseId::ConnectorTransactionId)
@@ -2398,26 +2405,11 @@ impl TryFrom<ResponseRouterData<FiservcommercehubAuthorizeResponse, Self>>
             &item.response.gateway_response.transaction_state,
         );
 
-        let response = match authorization_status {
-            common_enums::AuthorizationStatus::Success
-            | common_enums::AuthorizationStatus::Processing
-            | common_enums::AuthorizationStatus::Unresolved => {
-                Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                    status: authorization_status,
-                    connector_authorization_id: Some(txn.transaction_id.clone()),
-                    status_code: item.http_code,
-                })
-            }
-            common_enums::AuthorizationStatus::Failure => build_payment_response(
-                AttemptStatus::Failure,
-                item.http_code,
-                ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-                Some(txn.transaction_id.clone()),
-                txn.order_id.clone(),
-                item.response.payment_tokens.as_ref(),
-                item.response.payment_receipt.as_ref(),
-            ),
-        };
+        let response = Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+            status: authorization_status,
+            connector_authorization_id: Some(txn.transaction_id.clone()),
+            status_code: item.http_code,
+        });
 
         Ok(Self {
             response,
