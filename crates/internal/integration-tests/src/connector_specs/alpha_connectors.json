@@ -6,6 +6,9 @@
   "connectors": {
     "absa_sanlam": {},
     "affirm": {},
+    "asiapay": {
+      "reason": "No AsiaPay (PayDollar) sandbox merchant credentials (merchant_id, merchant-API login_id/password, secure_hash_secret) are configured in CI, so live sandbox certification cannot run. The connector implements DPC Authorize (payType N/H, 3DS 2.0 params, SHA-256 secureHash signing), Capture, Void, Refund, PSync/RSync (Merchant API Query) with in-band error parsing and Data Feed webhooks (signature verify + OK ACK) per developer.asiapay.com docs; no live behavior is verified yet. Remove this entry once credentials are added so CI starts certifying it."
+    },
     "axisbank": {},
     "betterpayment": {
       "reason": "Betterpayment sandbox credentials (api_key, api_password, and webhook_key) are not configured in CI, so live Wero certification cannot run. Connector regression tests and spec coverage checks pass; live sandbox behavior remains unverified. Remove this entry once CI credentials are configured so certification runs."

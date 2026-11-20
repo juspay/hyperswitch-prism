@@ -1,0 +1,38 @@
+{
+  "PaymentService/Authorize": {
+    "asiapay_line_pay_native_form": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 10000,
+          "currency": "TWD"
+        },
+        "payment_method": {
+          "line_pay_redirect": {}
+        },
+        "capture_method": "AUTOMATIC",
+        "auth_type": "NO_THREE_DS",
+        "return_url": "https://example.com/payment/return",
+        "description": "LINE Pay native form fixture",
+        "test_mode": true
+      },
+      "assert": {
+        "status": {
+          "equals": "AUTHENTICATION_PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "redirection_data.html.html_data": {
+          "must_exist": true
+        }
+      },
+      "required_payment_method": "line_pay_redirect",
+      "depends_on": [],
+      "display_name": "LINE Pay produces a local CPTB auto-submit HTML form; gateway confirmation requires PSync/Data Feed"
+    }
+  }
+}

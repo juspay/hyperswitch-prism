@@ -112,6 +112,7 @@ message PaymentMethod {
     // --- GRABPAY WALLET ---
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
     NetellerRedirectWallet neteller_redirect = 188;      // Neteller
+    LinePayRedirectWallet line_pay_redirect = 194;           // LINE Pay
     PayhereRedirectWallet payhere_redirect = 189;        // PayHere redirect wallet
 
     // --- DEPRECATED REDIRECT WALLETS ---
@@ -240,6 +241,7 @@ message PaymentMethod {
 
 message GrabpayRedirectWallet {}
 message PayhereRedirectWallet {}
+message LinePayRedirectWallet {}
 
 // ============================================================================
 // PAYMENT METHOD CATEGORIES

@@ -1,0 +1,49 @@
+{
+  "connector": "asiapay",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "PaymentService/VerifyRedirectResponse",
+    "RefundService/Get"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "line_pay_redirect"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_fail_payment": "Native Authorize only creates the browser form; card declines happen after the gateway/browser interaction and cannot be asserted as a synchronous Authorize error.",
+      "no3ds_manual_capture_incremental_auth": "AsiaPay does not implement IncrementalAuthorization."
+    },
+    "PaymentService/Get": {
+      "sync_payment": "The harness must first complete the native gateway form in a browser to obtain a payment eligible for Query.",
+      "sync_payment_with_handle_response": "The harness must first complete the native gateway form in a browser to obtain a payment eligible for Query."
+    },
+    "PaymentService/Capture": {
+      "capture_full_amount": "Requires a manually authorized AsiaPay payment and its real PayRef; native Authorize alone is AuthenticationPending.",
+      "capture_partial_amount": "Requires a manually authorized AsiaPay payment and its real PayRef; native Authorize alone is AuthenticationPending.",
+      "capture_with_merchant_order_id": "Requires a manually authorized AsiaPay payment and its real PayRef; native Authorize alone is AuthenticationPending."
+    },
+    "PaymentService/Void": {
+      "void_authorized_payment": "Requires browser completion of a manual-capture payment and its real PayRef.",
+      "void_without_cancellation_reason": "Requires browser completion of a manual-capture payment and its real PayRef.",
+      "void_with_amount": "Requires browser completion of a manual-capture payment and its real PayRef."
+    },
+    "PaymentService/Refund": {
+      "refund_full_amount": "Requires browser completion and a real captured PayRef; the harness cannot drive the native gateway form.",
+      "refund_partial_amount": "Requires browser completion and a real captured PayRef; the harness cannot drive the native gateway form.",
+      "refund_with_reason": "Requires browser completion and a real captured PayRef; the harness cannot drive the native gateway form."
+    },
+    "PaymentService/VerifyRedirectResponse": {
+      "verify_redirect_fail_tampered": "AsiaPay return parameters are unsigned and deliberately source_verified=false; a gateway signature-validation error is not applicable. PSync or a verified Data Feed remains authoritative."
+    },
+    "RefundService/Get": {
+      "refund_sync": "Requires a manually completed captured payment and refund, including real gateway identifiers.",
+      "RefundService/Get": "Requires a manually completed captured payment and refund, including real gateway identifiers.",
+      "refund_sync_with_reason": "Requires a manually completed captured payment and refund, including real gateway identifiers."
+    }
+  }
+}

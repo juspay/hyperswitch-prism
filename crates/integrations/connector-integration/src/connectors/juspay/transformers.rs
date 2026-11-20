@@ -669,6 +669,7 @@ fn wallet_to_juspay(
         )),
         WalletData::BluecodeRedirect {}
         | WalletData::DanaRedirect {}
+        | WalletData::LinePayRedirect {}
         | WalletData::GrabpayRedirect {}
         | WalletData::MbWayRedirect(_)
         | WalletData::MobilePayRedirect(_)

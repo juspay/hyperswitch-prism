@@ -181,6 +181,7 @@ pub enum ConnectorEnum {
     Payhere,
     Betterpayment,
     Ecommpay,
+    Asiapay,
 }
 
 // snake case for enum variants
@@ -585,6 +586,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
             grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
+            grpc_api_types::payments::Connector::Asiapay => Ok(Self::Asiapay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -4510,6 +4512,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::ApplePayThirdPartySdk
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
+                payment_method_data::WalletData::LinePayRedirect {} => Self::LinePayRedirect,
                 payment_method_data::WalletData::GrabpayRedirect {} => Self::GrabpayRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
@@ -6592,6 +6595,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
+            AuthType::Asiapay(_) => Ok(Self::Payment(ConnectorEnum::Asiapay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {

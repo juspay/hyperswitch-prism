@@ -767,6 +767,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::LinePayRedirect {}
                 | WalletData::GrabpayRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)

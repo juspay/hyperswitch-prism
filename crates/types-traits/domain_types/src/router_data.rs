@@ -1180,6 +1180,19 @@ pub enum ConnectorSpecificConfig {
         secret_key: Secret<String>,
         base_url: Option<String>,
     },
+    /// AsiaPay (PayDollar) DPC integration.
+    /// `merchant_id` = `merchantId`, sent on every payment and merchant-API call.
+    /// `login_id` / `password` = Merchant API credentials (Capture/Void/Refund/Query).
+    /// `secure_hash_secret` = Secure Hash key for request signing and data-feed
+    /// verification; never transmitted.
+    Asiapay {
+        merchant_id: Secret<String>,
+        login_id: Secret<String>,
+        password: Secret<String>,
+        secure_hash_secret: Secret<String>,
+        secure_hash_algorithm: Option<String>,
+        base_url: Option<String>,
+    },
 }
 
 /// Config-patch key for a `ConnectorSpecificConfig` variant.
@@ -1639,6 +1652,12 @@ impl ConnectorSpecificConfig {
             Ecommpay {
                 project_id,
                 secret_key
+            },
+            Asiapay {
+                merchant_id,
+                login_id,
+                password,
+                secure_hash_secret
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -2194,6 +2213,12 @@ impl ConnectorSpecificConfig {
                 Ecommpay {
                     project_id,
                     secret_key
+                },
+                Asiapay {
+                    merchant_id,
+                    login_id,
+                    password,
+                    secure_hash_secret
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2971,6 +2996,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 project_id: ecommpay.project_id.ok_or_else(err)?,
                 secret_key: ecommpay.secret_key.ok_or_else(err)?,
                 base_url: ecommpay.base_url,
+            }),
+            AuthType::Asiapay(asiapay) => Ok(Self::Asiapay {
+                merchant_id: asiapay.merchant_id.ok_or_else(err)?,
+                login_id: asiapay.login_id.ok_or_else(err)?,
+                password: asiapay.password.ok_or_else(err)?,
+                secure_hash_secret: asiapay.secure_hash_secret.ok_or_else(err)?,
+                secure_hash_algorithm: asiapay.secure_hash_algorithm,
+                base_url: asiapay.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -4427,6 +4460,22 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
                         secret_key: api_key.clone(),
                         project_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Asiapay => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Asiapay {
+                        merchant_id: api_key.clone(),
+                        login_id: key1.clone(),
+                        password: api_secret.clone(),
+                        secure_hash_secret: key2.clone(),
+                        secure_hash_algorithm: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

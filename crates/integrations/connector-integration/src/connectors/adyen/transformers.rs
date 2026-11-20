@@ -1892,6 +1892,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::CashappQr(_)
             | WalletData::Mifinity(_)
             | WalletData::BluecodeRedirect { .. }
+            | WalletData::LinePayRedirect {}
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
             | WalletData::SatispayIntent(_)
