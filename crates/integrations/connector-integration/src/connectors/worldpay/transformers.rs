@@ -871,10 +871,9 @@ impl From<&EventType> for enums::AttemptStatus {
             EventType::SentForSettlement => Self::Charged,
             EventType::Settled => Self::Charged,
             EventType::Authorized => Self::Authorized,
-            EventType::Refused
-            | EventType::SettlementFailed
-            | EventType::Expired
-            | EventType::Cancelled => Self::Failure,
+            EventType::Refused | EventType::SettlementFailed | EventType::Expired => Self::Failure,
+            // `cancelled` is the last event after a successful void of the authorization.
+            EventType::Cancelled => Self::Voided,
             EventType::SentForRefund | EventType::RefundFailed | EventType::Refunded => {
                 Self::Charged
             }
