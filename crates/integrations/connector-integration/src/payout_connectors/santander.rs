@@ -354,7 +354,7 @@ impl
                 );
                 let mut result = RouterDataV2 {
                     response: Ok(ServerAuthenticationTokenResponseData {
-                        access_token: token_res.access_token.into(),
+                        access_token: token_res.access_token,
                         token_type: token_res.token_type,
                         expires_in: token_res.expires_in,
                     }),
