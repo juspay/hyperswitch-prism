@@ -1079,24 +1079,6 @@ impl TryFrom<ResponseRouterData<PproRSyncResponse, Self>>
                     common_enums::RefundStatus::Pending
                 }
             }
-        } else if refunds.iter().any(|r| {
-            matches!(
-                r.status,
-                PproRefundStatus::Refunded | PproRefundStatus::RefundSettled
-            )
-        }) {
-            common_enums::RefundStatus::Success
-        } else if !refunds.is_empty()
-            && refunds.iter().all(|r| {
-                matches!(
-                    r.status,
-                    PproRefundStatus::Failed
-                        | PproRefundStatus::Rejected
-                        | PproRefundStatus::Declined
-                )
-            })
-        {
-            common_enums::RefundStatus::Failure
         } else {
             common_enums::RefundStatus::Pending
         };
