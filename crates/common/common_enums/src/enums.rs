@@ -2342,6 +2342,7 @@ pub enum EventClass {
     Payments,
     Refunds,
     Disputes,
+    Payouts,
 }
 
 #[derive(

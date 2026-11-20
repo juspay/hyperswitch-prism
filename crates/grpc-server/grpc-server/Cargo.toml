@@ -141,3 +141,7 @@ deja = [
 
 [lints]
 workspace = true
+
+[[test]]
+name = "log_transformation_regression"
+required-features = ["log-transformations"]
