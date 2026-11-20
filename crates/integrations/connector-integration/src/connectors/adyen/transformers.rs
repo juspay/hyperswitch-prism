@@ -2071,12 +2071,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             BankRedirectData::Bizum { .. } => Ok(Self::Bizum),
             BankRedirectData::Blik { blik_code } => Ok(Self::Blik(Box::new(BlikRedirectionData {
-                blik_code: Secret::new(blik_code.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
+                blik_code: blik_code
+                    .clone()
+                    .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "blik_code",
                         context: Default::default(),
-                    },
-                )?),
+                    })?,
             }))),
             BankRedirectData::Eps { bank_name, .. } => {
                 Ok(Self::Eps(Box::new(BankRedirectionWithIssuer {
@@ -2364,7 +2364,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Self::Klarna)
             }
             PayLaterData::KlarnaSdk { token } => {
-                if token.is_empty() {
+                if token.peek().is_empty() {
                     return Err(IntegrationError::MissingRequiredField {
                         field_name: "token",
                         context: Default::default(),

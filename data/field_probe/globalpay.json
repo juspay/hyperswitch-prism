@@ -1306,6 +1306,32 @@
         "error": "This feature is not implemented: Payment method not supported for SetupMandate. GlobalPay SetupMandate POST /payment-methods only supports card payment methods; received an unsupported payment method type"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: GlobalPay PaymentMethodToken only supports mandate/recurring tokenization. Both a mandate signal (customer_acceptance or setup_mandate_details) and setup_future_usage=OffSession are required to tokenize a card via GlobalPay POST /payment-methods"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: GlobalPay PaymentMethodToken only supports mandate/recurring tokenization. Both a mandate signal (customer_acceptance or setup_mandate_details) and setup_future_usage=OffSession are required to tokenize a card via GlobalPay POST /payment-methods"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: GlobalPay PaymentMethodToken only supports mandate/recurring tokenization. Both a mandate signal (customer_acceptance or setup_mandate_details) and setup_future_usage=OffSession are required to tokenize a card via GlobalPay POST /payment-methods"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: GlobalPay PaymentMethodToken only supports mandate/recurring tokenization. Both a mandate signal (customer_acceptance or setup_mandate_details) and setup_future_usage=OffSession are required to tokenize a card via GlobalPay POST /payment-methods"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: GlobalPay PaymentMethodToken only supports mandate/recurring tokenization. Both a mandate signal (customer_acceptance or setup_mandate_details) and setup_future_usage=OffSession are required to tokenize a card via GlobalPay POST /payment-methods"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: GlobalPay PaymentMethodToken only supports mandate/recurring tokenization. Both a mandate signal (customer_acceptance or setup_mandate_details) and setup_future_usage=OffSession are required to tokenize a card via GlobalPay POST /payment-methods"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"
