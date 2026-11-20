@@ -2696,8 +2696,8 @@ fn get_payment_status_from_psync_response(
 ) -> AttemptStatus {
     let transaction_type = item.transaction_type.to_lowercase();
     // Using a static string instead of an enum since `transaction_status` is returned as a plain string,
-    // e.g. "Credit Card Sale Void"
-    if transaction_type.contains("auth") && transaction_type.contains("void") {
+    // e.g. "Credit Card Sale Void". Check "void" first: void types also contain "sale"/"auth".
+    if transaction_type.contains("void") {
         match item.transaction_status {
             Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Voided,
             Some(TsysTransitTransactionStatus::Decline)
@@ -2719,9 +2719,9 @@ fn get_payment_status_from_psync_response(
                     AttemptStatus::Charged
                 }
             }
-            Some(TsysTransitTransactionStatus::Decline)
-            | Some(TsysTransitTransactionStatus::Cancel)
-            | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::Failure,
+            Some(TsysTransitTransactionStatus::Decline) => AttemptStatus::Failure,
+            Some(TsysTransitTransactionStatus::Cancel)
+            | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::Voided,
             None => AttemptStatus::Unspecified,
         }
     } else if transaction_type.contains("auth") {
@@ -2738,9 +2738,9 @@ fn get_payment_status_from_psync_response(
                     AttemptStatus::Authorized
                 }
             }
-            Some(TsysTransitTransactionStatus::Decline)
-            | Some(TsysTransitTransactionStatus::Cancel)
-            | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::AuthorizationFailed,
+            Some(TsysTransitTransactionStatus::Decline) => AttemptStatus::AuthorizationFailed,
+            Some(TsysTransitTransactionStatus::Cancel)
+            | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::Voided,
             None => AttemptStatus::Unspecified,
         }
     } else {
