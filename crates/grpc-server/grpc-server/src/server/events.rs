@@ -1129,10 +1129,26 @@ async fn verify_webhook_source_external(
                 response_data.verify_webhook_status,
                 VerifyWebhookStatus::SourceVerified
             )),
-            Err(error) => Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
-                domain_types::errors::ConnectorError::ConnectorErrorResponse(Box::new(error)),
-            ))),
+            Err(error) => {
+                tracing::trace!(
+                    target: "webhook",
+                    connector = connector_data.connector.id(),
+                    failure_kind = "connector_response",
+                    "External webhook verification failed"
+                );
+                Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                    domain_types::errors::ConnectorError::ConnectorErrorResponse(Box::new(error)),
+                )))
+            }
         },
-        Err(error) => Err(error.to_grpc_error()),
+        Err(error) => {
+            tracing::trace!(
+                target: "webhook",
+                connector = connector_data.connector.id(),
+                failure_kind = "execution",
+                "External webhook verification failed"
+            );
+            Err(error.to_grpc_error())
+        }
     }
 }
