@@ -3773,7 +3773,14 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
         Ok(Self {
             method,
             uri: value.uri,
-            headers: value.headers,
+            // HTTP header names are case-insensitive. Callers forward them in whatever case
+            // they received (`Cko-Signature`, `x-signature`), so normalise once here and
+            // connectors look them up in lowercase.
+            headers: value
+                .headers
+                .into_iter()
+                .map(|(name, value)| (name.to_ascii_lowercase(), value))
+                .collect(),
             body: value.body,
             query_params: value.query_params,
         })
