@@ -8,7 +8,7 @@ invocation. It is a plain trait impl:
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for {ConnectorName}<T>
+    interfaces::webhooks::IncomingWebhook for {ConnectorName}<T>
 {
     // ... method overrides ...
 }
@@ -364,7 +364,7 @@ default `b"{}"` will not deserialise into any real payload type — override it 
 body (see `connectors/givepayments.rs` for a full one) whenever you implement webhooks.
 
 Separately, `check_connector_specs.rs` Phase 2B is deterministic and merge-relevant: if a
-connector's `crates/internal/integration-tests/src/connector_specs/<name>/specs.json` lists
+connector's `tests/regression/src/connector_specs/<name>/specs.json` lists
 `"EventService/HandleEvent"` in `supported_suites`, it **must** also have
 `connector_specs/<name>/webhook_payload.json`, or the check fails. Declaring the suite and
 skipping the fixture is a hard error; not declaring the suite imposes no requirement.
@@ -373,7 +373,7 @@ skipping the fixture is a hard error; not declaring the suite imposes no require
 
 ## Implementation Checklist
 
-- [ ] `impl connector_types::IncomingWebhook for {ConnectorName}<T>` exists (it is required by
+- [ ] `impl interfaces::webhooks::IncomingWebhook for {ConnectorName}<T>` exists (it is required by
       `ConnectorServiceTrait` — an empty block is the correct "no webhooks" stub)
 - [ ] `get_event_type` overridden and stateless (no secrets, no context)
 - [ ] `get_webhook_event_reference` overridden — the default `Ok(None)` is a silent failure

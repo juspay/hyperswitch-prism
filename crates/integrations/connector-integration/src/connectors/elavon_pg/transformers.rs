@@ -221,11 +221,13 @@ pub enum ElavonPgCredentialOnFileType {
 impl From<Option<common_enums::MitCategory>> for ElavonPgCredentialOnFileType {
     fn from(mit_category: Option<common_enums::MitCategory>) -> Self {
         match mit_category {
-            None | Some(common_enums::MitCategory::Recurring) => Self::Recurring,
+            Some(common_enums::MitCategory::Recurring) => Self::Recurring,
             Some(common_enums::MitCategory::Subscription) => Self::Subscription,
             Some(common_enums::MitCategory::Installment) => Self::Installment,
-            // EPG has no type for a retry, and a retry has no timetable of its own.
-            Some(
+            // With no category there is no timetable to claim. EPG has no type for a retry, and a
+            // retry has no timetable of its own.
+            None
+            | Some(
                 common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
             ) => Self::Unscheduled,
         }
@@ -1751,7 +1753,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount)
+            .convert(&request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -2029,7 +2031,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount)
+            .convert(&request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -2249,9 +2251,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // EPG never made.
         if router_data
             .request
-            .amount
+            .money
             .as_ref()
-            .is_some_and(|money| money.amount > MinorUnit::zero())
+            .is_some_and(|money| money.amount() > MinorUnit::zero())
         {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "Non-zero amount on SetupMandate".to_string(),
@@ -2360,7 +2362,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount)
+            .convert(&request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -2641,7 +2643,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.amount_to_capture)
+            .convert(&request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -2875,7 +2877,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&request.refund_amount)
+            .convert(&request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(

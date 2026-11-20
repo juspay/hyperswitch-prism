@@ -43,7 +43,6 @@ use grpc_api_types::payments::{
     EventServiceParseRequest, EventServiceParseResponse, NotifyConnectorRequest,
     NotifyConnectorResponse,
 };
-use hyperswitch_masking::Secret;
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use ucs_env::{
     configs::Config,
@@ -1058,16 +1057,10 @@ async fn verify_webhook_source_external(
         connector_response_headers: None,
     };
 
-    let merchant_secret =
-        webhook_secrets.unwrap_or_else(|| domain_types::connector_types::ConnectorWebhookSecrets {
-            secret: Secret::new(b"default_secret".to_vec()),
-            additional_secret: None,
-        });
-
     let verify_webhook_request = VerifyWebhookSourceRequestData {
         webhook_headers: request_details.headers.clone(),
         webhook_body: request_details.body.clone(),
-        merchant_secret,
+        merchant_secret: webhook_secrets,
         webhook_uri: request_details.uri.clone(),
     };
 
@@ -1147,6 +1140,25 @@ async fn verify_webhook_source_external(
                 false
             }
         }),
+        // Missing or malformed connector-required verification configuration is a
+        // request error, not an unsuccessful signature check. Preserve this error
+        // instead of hiding it behind source_verified=false.
+        Err(e)
+            if matches!(
+                e.current_context(),
+                domain_types::errors::ConnectorFlowError::Request(
+                    domain_types::errors::IntegrationError::MissingRequiredField {
+                        field_name: "webhook_secrets.secret",
+                        ..
+                    } | domain_types::errors::IntegrationError::InvalidDataFormat {
+                        field_name: "webhook_secrets.secret",
+                        ..
+                    }
+                )
+            ) =>
+        {
+            Err(e.to_grpc_error())
+        }
         Err(e) => {
             tracing::warn!(
                 target: "webhook",

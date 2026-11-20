@@ -1,7 +1,12 @@
 pub mod transformers;
 
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::panic)]
+mod test;
+
 use std::fmt::Debug;
 
+use common_enums::EventClass;
 use common_utils::{
     consts, crypto, errors::CustomResult, events, ext_traits::ByteSliceExt,
     types::StringMinorUnitForConnector,
@@ -12,14 +17,16 @@ use domain_types::{
         RepeatPayment, SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{
-        AcceptDisputeData, ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData,
-        DisputeResponseData, DisputeWebhookDetailsResponse, DisputeWebhookReference, EventContext,
-        EventType, PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ResponseId, SetupMandateRequestData, SubmitEvidenceData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        AcceptDisputeData, ConnectorSpecifications, ConnectorWebhookSecrets, DisputeDefendData,
+        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
+        DisputeWebhookReference, EventContext, EventType, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, PayoutWebhookDetailsResponse, PayoutWebhookReference, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, SubmitEvidenceData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -30,14 +37,14 @@ use domain_types::{
     utils::convert_amount_for_webhook,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
 use transformers::{
-    is_chargeback_event, is_refund_event, CheckoutDisputeActionResponse,
+    is_chargeback_event, is_payout_webhook, is_refund_event, CheckoutDisputeActionResponse,
     CheckoutDisputeActionResponse as CheckoutEvidenceResponse,
     CheckoutDisputeActionResponse as CheckoutDefendDisputeResponse, CheckoutDisputeEmptyRequest,
     CheckoutDisputeEmptyRequest as CheckoutDefendDisputeRequest, CheckoutDisputeWebhookBody,
@@ -68,6 +75,8 @@ pub(crate) mod headers {
 }
 
 const CHECKOUT_API_DOC_URL: &str = "https://api-reference.checkout.com/";
+const CHECKOUT_API_ENDPOINTS_DOC_URL: &str =
+    "https://www.checkout.com/docs/developer-resources/api/api-endpoints";
 
 /// Checkout's own `error_type` for a rejected secret key; a `401` arrives with an empty body.
 const CHECKOUT_INVALID_API_KEY_ERROR_TYPE: &str = "invalid_api_key";
@@ -120,6 +129,73 @@ fn checkout_error_attempt_status(
             400..=499 => Some(common_enums::AttemptStatus::VoidFailed),
             _ => None,
         },
+    }
+}
+
+pub const OPTIONAL_CLIENT_ID: &str = "{{optional_client_id}}";
+
+pub fn resolve_checkout_base_url(configured_base_url: &str, optional_client_id: &str) -> String {
+    configured_base_url.replace(OPTIONAL_CLIENT_ID, optional_client_id)
+}
+
+/// Resolves the Checkout base URL shared by payment and payout requests.
+///
+/// When the configured URL contains `{{optional_client_id}}`, the first eight characters after
+/// `cli_` form the account-specific subdomain. Without a client ID, the placeholder is removed to
+/// preserve the shared host; a malformed ID returns an error instead of silently selecting another
+/// host. URLs without the placeholder keep their configured host. The returned URL has no trailing
+/// slash so callers can consistently append `/payments` and other paths.
+///
+/// See [Checkout's API endpoint documentation](https://www.checkout.com/docs/developer-resources/api/api-endpoints).
+pub fn get_checkout_base_url(
+    configured_base_url: &str,
+    client_id: Option<&Secret<String>>,
+) -> CustomResult<String, IntegrationError> {
+    let resolved_base_url = if configured_base_url.contains(OPTIONAL_CLIENT_ID) {
+        let optional_client_id = client_id
+            .map(|client_id| {
+                client_id
+                    .peek()
+                    .strip_prefix("cli_")
+                    .and_then(|value| value.get(..8))
+                    .filter(|value| value.bytes().all(|byte| byte.is_ascii_alphanumeric()))
+                    .map(|prefix| format!("{prefix}."))
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "checkout.connector_config.connector_client_id",
+                            context: domain_types::errors::IntegrationErrorContext {
+                                suggested_action: Some(
+                                    "Provide the complete Checkout client ID (`cli_...`) in the connector configuration"
+                                        .to_owned(),
+                                ),
+                                additional_context: Some(
+                                    "Client ID must look like `cli_<id>`; its eight-character \
+                                     account prefix forms the Checkout API subdomain"
+                                        .to_owned(),
+                                ),
+                                doc_url: Some(CHECKOUT_API_ENDPOINTS_DOC_URL.to_owned()),
+                            },
+                        })
+                    })
+            })
+            .transpose()?
+            .unwrap_or_default();
+
+        resolve_checkout_base_url(configured_base_url, &optional_client_id)
+    } else {
+        configured_base_url.to_string()
+    };
+
+    Ok(resolved_base_url.trim_end_matches('/').to_string())
+}
+
+fn get_checkout_client_id(connector_config: &ConnectorSpecificConfig) -> Option<&Secret<String>> {
+    match connector_config {
+        ConnectorSpecificConfig::Checkout {
+            connector_client_id,
+            ..
+        } => connector_client_id.as_ref(),
+        _ => None,
     }
 }
 
@@ -204,7 +280,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 /// at-least-once; replay protection stays with the caller's de-duplication on
 /// the event `id` (`evt_...`).
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Checkout<T>
+    interfaces::webhooks::IncomingWebhook for Checkout<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"id":"evt_dj6tpkmbhew3bnl4n7sxzrfmsi","type":"payment_captured","version":"1.0.6","created_on":"2020-08-17T14:12:59Z","data":{"id":"pay_y3oqhf46pyzuxjbcn2giaqnb44","action_id":"act_y3oqhf46pyzuxjbcn2giaqnb44","amount":999,"currency":"USD","approved":true,"status":"Captured","auth_code":"956084","response_code":"10000","response_summary":"Approved","reference":"ORD-5023-4E89","payment_id":"pay_y3oqhf46pyzuxjbcn2giaqnb44","action_type":"Capture","processed_on":"2020-08-17T14:12:59Z","processing":{"acquirer_transaction_id":"866461431360025","acquirer_reference_number":"00260971375618446482438"}},"_links":{"self":{"href":"https://api.sandbox.checkout.com/workflows/events/evt_dj6tpkmbhew3bnl4n7sxzrfmsi"}}}"#
@@ -286,7 +362,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("CheckoutWebhookEventTypeBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        Ok(EventType::from(body.transaction_type))
+        Ok(EventType::from(body))
     }
 
     fn get_webhook_event_reference(
@@ -327,6 +403,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .peek()
             .parse_struct("CheckoutWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        if is_payout_webhook(&body) {
+            if body.data.id.trim().is_empty() {
+                return Err(error_stack::report!(
+                    domain_types::errors::WebhookError::WebhookMissingRequiredField {
+                        field: "data.id",
+                    }
+                ));
+            }
+
+            return Ok(Some(WebhookResourceReference::Payout(
+                PayoutWebhookReference {
+                    connector_payout_id: Some(body.data.id),
+                    merchant_payout_id: None,
+                },
+            )));
+        }
 
         if is_refund_event(&type_body.transaction_type) {
             return Ok(Some(WebhookResourceReference::Refund(
@@ -404,7 +497,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(request.body.peek()).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: body.data.scheme_id,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -453,6 +546,49 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 
+    fn process_payout_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<PayoutWebhookDetailsResponse, error_stack::Report<domain_types::errors::WebhookError>>
+    {
+        let body: CheckoutWebhookBody = request
+            .body
+            .peek()
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let event_body = CheckoutWebhookEventTypeBody {
+            transaction_type: body.transaction_type,
+            data: Some(transformers::CheckoutWebhookEventTypeData {
+                destination: body.data.destination,
+            }),
+        };
+        let (status, error_code, error_message) = match EventType::from(event_body) {
+            EventType::PayoutSuccess => (common_enums::PayoutStatus::Success, None, None),
+            EventType::PayoutFailure => (
+                common_enums::PayoutStatus::Failure,
+                body.data.response_code,
+                body.data.response_summary,
+            ),
+            _ => {
+                return Err(error_stack::report!(
+                    domain_types::errors::WebhookError::WebhookEventTypeNotFound
+                ))
+            }
+        };
+
+        Ok(PayoutWebhookDetailsResponse {
+            connector_payout_id: Some(body.data.id),
+            merchant_payout_id: None,
+            status,
+            error_code,
+            error_message,
+            status_code: 200,
+        })
+    }
+
     fn process_dispute_webhook(
         &self,
         request: RequestDetails,
@@ -491,10 +627,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = convert_amount_for_webhook(
             &StringMinorUnitForConnector,
-            &common_utils::types::Money {
-                amount: dispute_amount,
+            &domain_types::utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                dispute_amount,
                 currency,
-            },
+            )?,
         )?;
 
         Ok(DisputeWebhookDetailsResponse {
@@ -513,6 +650,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 }
+
+static CHECKOUT_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] = &[
+    EventClass::Payments,
+    EventClass::Refunds,
+    EventClass::Disputes,
+    EventClass::Payouts,
+];
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Checkout<T>
+{
+    fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {
+        Some(CHECKOUT_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Checkout<T>
 {
@@ -709,25 +862,34 @@ macros::create_all_prerequisites!(
             Ok(error)
         }
 
-        pub fn connector_base_url_payments<'a, F, Req, Res>(
+        pub fn connector_base_url_payments<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> CustomResult<String, IntegrationError> {
+            get_checkout_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+                get_checkout_client_id(&req.connector_config),
+            )
         }
 
-        pub fn connector_base_url_refunds<'a, F, Req, Res>(
+        pub fn connector_base_url_refunds<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> CustomResult<String, IntegrationError> {
+            get_checkout_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+                get_checkout_client_id(&req.connector_config),
+            )
         }
 
-        pub fn connector_base_url_disputes<'a, F, Req, Res>(
+        pub fn connector_base_url_disputes<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, DisputeFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.checkout.base_url
+            req: &RouterDataV2<F, DisputeFlowData, Req, Res>,
+        ) -> CustomResult<String, IntegrationError> {
+            get_checkout_base_url(
+                &req.resource_common_data.connectors.checkout.base_url,
+                get_checkout_client_id(&req.connector_config),
+            )
         }
     }
 );
@@ -769,6 +931,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )])
     }
 
+    /// Returns the configured URL **unresolved** — it may still contain the
+    /// `{{optional_client_id}}` placeholder. The `ConnectorCommon` trait returns `&str`, so
+    /// resolution cannot happen here (it allocates). Payment and payout requests resolve this
+    /// value through [`get_checkout_base_url`] with the optional connector client ID. Never use
+    /// this raw value to build a request URL directly.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.checkout.base_url.as_ref()
     }
@@ -915,7 +1082,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)))
+            Ok(format!("{}/payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -956,7 +1123,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)))
+            Ok(format!("{}/payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -996,9 +1163,8 @@ macros::macro_connector_implementation!(
                 SyncRequestType::SinglePaymentSync => ""
 };
             Ok(format!(
-                "{}{}{}{}",
-                self.connector_base_url_payments(req),
-                "payments/",
+                "{}/payments/{}{}",
+                self.connector_base_url_payments(req)?,
                 req.request
                     .connector_transaction_id
                     .get_connector_transaction_id()
@@ -1068,7 +1234,7 @@ macros::macro_connector_implementation!(
                     },
                 }.into())
 };
-            Ok(format!("{}payments/{}/captures", self.connector_base_url_payments(req), connector_tx_id))
+            Ok(format!("{}/payments/{}/captures", self.connector_base_url_payments(req)?, connector_tx_id))
         }
         fn get_error_response_v2(
             &self,
@@ -1111,7 +1277,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_tx_id = &req.request.connector_transaction_id;
-            Ok(format!("{}payments/{}/refunds", self.connector_base_url_refunds(req), connector_tx_id))
+            Ok(format!("{}/payments/{}/refunds", self.connector_base_url_refunds(req)?, connector_tx_id))
         }
     }
 );
@@ -1140,8 +1306,8 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let connector_tx_id = &req.request.connector_transaction_id;
             Ok(format!(
-                "{}payments/{}/actions",
-                self.connector_base_url_refunds(req),
+                "{}/payments/{}/actions",
+                self.connector_base_url_refunds(req)?,
                 connector_tx_id
             ))
         }
@@ -1178,7 +1344,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_tx_id = req.request.connector_transaction_id.clone();
-            Ok(format!("{}payments/{}/voids", self.connector_base_url_payments(req), connector_tx_id))
+            Ok(format!("{}/payments/{}/voids", self.connector_base_url_payments(req)?, connector_tx_id))
         }
         fn get_error_response_v2(
             &self,
@@ -1220,7 +1386,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}payments", self.connector_base_url_payments(req)))
+            Ok(format!("{}/payments", self.connector_base_url_payments(req)?))
         }
         fn get_error_response_v2(
             &self,
@@ -1235,7 +1401,7 @@ macros::macro_connector_implementation!(
 
 // Connector-decryption head: hand Checkout the raw Apple Pay / Google Pay payload and get a
 // single-use `tok_...` back. The Authorize / SetupMandate tail then spends that token as
-// `source.type = "token"` (see the `WalletSource` `From` impl in transformers.rs).
+// `source.type = "token"` (see `WalletSource::new` in transformers.rs).
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Checkout,
@@ -1259,7 +1425,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}tokens", self.connector_base_url_payments(req)))
+            Ok(format!("{}/tokens", self.connector_base_url_payments(req)?))
         }
     }
 );
@@ -1291,8 +1457,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}disputes/{}/accept",
-                self.connector_base_url_disputes(req),
+                "{}/disputes/{}/accept",
+                self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
         }
@@ -1327,8 +1493,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}disputes/{}/evidence",
-                self.connector_base_url_disputes(req),
+                "{}/disputes/{}/evidence",
+                self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
         }
@@ -1365,8 +1531,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}disputes/{}/evidence",
-                self.connector_base_url_disputes(req),
+                "{}/disputes/{}/evidence",
+                self.connector_base_url_disputes(req)?,
                 req.request.connector_dispute_id
             ))
         }

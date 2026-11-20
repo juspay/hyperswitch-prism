@@ -61,7 +61,7 @@ macros take. Check any name you are unsure of with
 | DefendDispute | none (unproven) | Same -- no dispute suite_spec. |
 
 Rows marked *(unproven)* have no `suite_spec.json` under
-`crates/internal/integration-tests/src/global_suites/`; they are inferred from request
+`tests/regression/src/global_suites/`; they are inferred from request
 type shape and rpc placement. Do not harden them into rules.
 
 Full dependency graph and resolution algorithm: `references/flow-dependencies.md`

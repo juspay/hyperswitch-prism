@@ -31,6 +31,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+revpay.base_url = "https://stg-mpg.revpay-sandbox.com.my"
 betterpayment.base_url = "https://testapi.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"
 payhere.base_url = "https://sandbox.payhere.lk"
@@ -48,6 +49,7 @@ worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransa
 reddot.base_url = "https://secure-dev.reddotpayment.com"
 # Merchant API family (refund + merchant enquiry) — RDP serves it on a separate host
 reddot.secondary_base_url = "https://test.reddotpayment.com"
+payhound.base_url = "https://sandbox-api.payhound.com"
 grabpay.base_url = "https://partner-api.stg-myteksi.com/grabpay/partner/v2"
 maya.base_url = "https://pg-sandbox.paymaya.com"
 boost.base_url = "https://stage-api.boostconnect.biz/gateway"
@@ -114,7 +116,7 @@ razorpayv2.base_url = "https://api.razorpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 xendit.base_url = "https://api.xendit.co/"
-checkout.base_url = "https://api.sandbox.checkout.com/"
+checkout.base_url = "https://{{optional_client_id}}api.sandbox.checkout.com"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 phonepe.base_url = "https://api-preprod.phonepe.com/apis/hermes/"
 cashfree.base_url = "https://sandbox.cashfree.com/"

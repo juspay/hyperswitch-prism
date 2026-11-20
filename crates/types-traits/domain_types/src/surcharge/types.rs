@@ -119,8 +119,8 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceSurchargeRefundIn
                 },
             }));
         }
-        let currency = grpc_api_types::payments::Currency::try_from(amount.currency)
-            .change_context(IntegrationError::InvalidDataFormat {
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
                 field_name: "currency",
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -128,12 +128,12 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceSurchargeRefundIn
                     ),
                     ..Default::default()
                 },
-            })?;
+            },
+        )?;
         Ok(Self {
             merchant_surcharge_refund_id: value.merchant_surcharge_refund_id,
             connector_surcharge_id: value.connector_surcharge_id,
-            amount: MinorUnit::new(amount.minor_amount),
-            currency: common_enums::Currency::foreign_try_from(currency)?,
+            money: crate::money::from_proto_money(amount)?,
         })
     }
 }
@@ -198,7 +198,7 @@ pub fn generate_surcharge_refund_init_response(
     let reference = data.request.merchant_surcharge_refund_id.clone();
     match data.response {
         Ok(response) => {
-            let currency = response.currency.unwrap_or(data.request.currency);
+            let currency = response.currency.unwrap_or(data.request.money.currency());
             Ok(
                 grpc_api_types::surcharge::SurchargeServiceSurchargeRefundInitResponse {
                     merchant_surcharge_refund_id: reference,
@@ -315,19 +315,15 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
             })
         })?;
 
-        let currency = {
-            let curr = grpc_api_types::payments::Currency::try_from(amount.currency)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "currency",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Invalid currency in surcharge request".to_owned(),
-                        ),
-                        ..Default::default()
-                    },
-                })?;
-            common_enums::Currency::foreign_try_from(curr)?
-        };
+        grpc_api_types::payments::Currency::try_from(amount.currency).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Invalid currency in surcharge request".to_owned()),
+                    ..Default::default()
+                },
+            },
+        )?;
 
         let country = value
             .country
@@ -364,8 +360,7 @@ impl ForeignTryFrom<grpc_api_types::surcharge::SurchargeServiceCalculateRequest>
         })?;
 
         Ok(Self {
-            amount: MinorUnit::new(amount.minor_amount),
-            currency,
+            money: crate::money::from_proto_money(amount)?,
             previous_connector_surcharge_id: value.previous_connector_surcharge_id,
             surcharge_strategy,
             card_bin: value.card_bin,

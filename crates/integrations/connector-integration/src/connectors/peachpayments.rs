@@ -486,7 +486,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Peachpayments<T>
+    interfaces::webhooks::IncomingWebhook for Peachpayments<T>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"webhookId":"probe_wh_001","webhookType":"PAYMENT","transaction":{"transactionId":"probe_txn_001","referenceId":"probe_ref_001","transactionResult":"ACK","transactionType":"DEBIT","paymentMethod":"probe_pm"}}"#
@@ -605,7 +605,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: None,
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

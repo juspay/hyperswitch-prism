@@ -537,7 +537,8 @@ pub struct MandateRevokeIntegrityObject {
 pub struct VerifyWebhookSourceRequestData {
     pub webhook_headers: std::collections::HashMap<String, Secret<String>>,
     pub webhook_body: Secret<Vec<u8>>,
-    pub merchant_secret: ConnectorWebhookSecrets,
+    /// Optional because public-key verification connectors do not require a shared secret.
+    pub merchant_secret: Option<ConnectorWebhookSecrets>,
     pub webhook_uri: Option<Secret<String>>,
 }
 

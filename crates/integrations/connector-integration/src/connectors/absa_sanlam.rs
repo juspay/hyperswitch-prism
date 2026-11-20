@@ -73,7 +73,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for AbsaSanlam<T>
+    interfaces::webhooks::IncomingWebhook for AbsaSanlam<T>
 {
     fn get_webhook_source_verification_signature(
         &self,

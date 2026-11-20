@@ -60,7 +60,7 @@ or `BodyDecoding`. Do not write those impls for a payout-only connector.
 
 **No `config/superposition.toml` entry and no `connector_specs/<connector>/specs.json` entry are
 required.** Three independent reasons, all in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`:
+`tests/regression/src/bin/check_connector_specs.rs`:
 
 1. `main()` enumerates connectors by reading
    `crates/integrations/connector-integration/src/connectors/` only — a connector under
@@ -677,7 +677,7 @@ request designed to carry it.
    (`crates/types-traits/domain_types/src/payouts/payouts_types.rs`).
 9. **No `config/superposition.toml` entry and no `connector_specs/<connector>/specs.json` entry.**
    `PayoutService` is in `IGNORE_SERVICES` in both
-   `crates/internal/integration-tests/src/bin/check_connector_specs.rs` and `check_coverage.rs`, and
+   `tests/regression/src/bin/check_connector_specs.rs` and `check_coverage.rs`, and
    `flow_to_suites()` maps every payout flow to `None`, so payouts sit outside the merge-blocking
    certification gate.
 
@@ -763,7 +763,7 @@ return `connector_flow_not_implemented`. Trustly's own happy path returns
 `PayoutStatus::RequiresCreation` with the account handle in `payout_connector_metadata`. The in-repo
 gRPC-level harness is `crates/grpc-server/grpc-server/tests/payout_flows_test.rs`; there is no
 `connector_specs` suite for payouts, since `PayoutService` is in `IGNORE_SERVICES` in
-`crates/internal/integration-tests/src/bin/check_connector_specs.rs`.
+`tests/regression/src/bin/check_connector_specs.rs`.
 
 ## Cross-References
 

@@ -9,12 +9,14 @@ mod tests {
     use cards::CardNumber;
     use common_enums::{AttemptStatus, AuthenticationType, PaymentMethod};
     use domain_types::{
-        connector_types::{PaymentFlowData, PaymentsAuthorizeData},
+        connector_types::{PaymentCreateOrderData, PaymentFlowData, PaymentsAuthorizeData},
         payment_address::{Address, PhoneDetails},
         payment_method_data::{Card, DefaultPCIHolder, PaymentMethodData, RawCardNumber},
         router_data::ConnectorSpecificConfig,
         router_request_types::BrowserInformation,
         router_response_types::Response,
+        types::AuthorizationRequest,
+        utils::ForeignTryFrom,
     };
     use interfaces::{
         connector_integration_v2::ConnectorIntegrationV2,
@@ -22,18 +24,51 @@ mod tests {
     };
     use serde_json::{json, to_value};
 
+    fn authorization_data() -> PaymentsAuthorizeData<DefaultPCIHolder> {
+        PaymentsAuthorizeData::foreign_try_from((
+            AuthorizationRequest::from(grpc_api_types::payments::PaymentServiceAuthorizeRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 1000,
+                    currency: grpc_api_types::payments::Currency::Usd.into(),
+                }),
+                payment_method: Some(grpc_api_types::payments::PaymentMethod {
+                    payment_method: Some(
+                        grpc_api_types::payments::payment_method::PaymentMethod::Card(
+                            Default::default(),
+                        ),
+                    ),
+                }),
+                ..Default::default()
+            }),
+            PaymentMethodData::Card(Default::default()),
+        ))
+        .expect("valid authorization fixture")
+    }
+
+    fn create_order_data() -> PaymentCreateOrderData {
+        PaymentCreateOrderData::foreign_try_from(
+            grpc_api_types::payments::PaymentServiceCreateOrderRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 1000,
+                    currency: grpc_api_types::payments::Currency::Usd.into(),
+                }),
+                ..Default::default()
+            },
+        )
+        .expect("valid create-order fixture")
+    }
+
     use crate::connectors::Razorpay;
 
     mod authorize {
+        use super::authorization_data;
         use std::str::FromStr;
 
         use cards::CardNumber;
         use common_enums::{
             AttemptStatus, AuthenticationType, Currency, PaymentMethod, PaymentMethodType,
         };
-        use common_utils::{
-            id_type::MerchantId, pii::Email, request::RequestContent, types::MinorUnit,
-        };
+        use common_utils::{id_type::MerchantId, pii::Email, request::RequestContent};
         use domain_types::{
             connector_types::{PaymentFlowData, PaymentsAuthorizeData},
             payment_address::{Address, PaymentAddress, PhoneDetails},
@@ -86,10 +121,10 @@ mod tests {
                     ),
                     auth_type: AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_capturable: None,
-                    amount: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    capturable_money: None,
+                    money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: Some("order_QMSVrXxHS9sBmu".to_string()),
@@ -154,12 +189,9 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    money: authorization_data().money,
                     order_tax_amount: None,
-                    surcharge_amount: None,
+                    surcharge_money: None,
                     email: Some(email.clone()),
                     customer_name: None,
                     currency: Currency::USD,
@@ -230,6 +262,7 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    sender_details: None,
                     business_country: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
@@ -311,8 +344,8 @@ mod tests {
                     address: PaymentAddress::new(None, None, None, None),
                     auth_type: AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: Some("order_missing".to_string()),
@@ -340,8 +373,8 @@ mod tests {
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
-                    amount_capturable: None,
-                    amount: None,
+                    capturable_money: None,
+                    money: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     connector_returned_payment_method_details: None,
@@ -377,12 +410,9 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    money: authorization_data().money,
                     order_tax_amount: None,
-                    surcharge_amount: None,
+                    surcharge_money: None,
                     email: None,
                     customer_name: None,
                     currency: Currency::USD,
@@ -431,6 +461,7 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    sender_details: None,
                     business_country: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
@@ -486,8 +517,8 @@ mod tests {
                     address: PaymentAddress::new(None, None, None, None),
                     auth_type: AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: Some("invalid_id".to_string()),
@@ -515,8 +546,8 @@ mod tests {
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
-                    amount_capturable: None,
-                    amount: None,
+                    capturable_money: None,
+                    money: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     connector_returned_payment_method_details: None,
@@ -552,12 +583,9 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    money: authorization_data().money,
                     order_tax_amount: None,
-                    surcharge_amount: None,
+                    surcharge_money: None,
                     email: Some(email),
                     customer_name: None,
                     currency: Currency::USD,
@@ -606,6 +634,7 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    sender_details: None,
                     business_country: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
@@ -643,7 +672,7 @@ mod tests {
             use std::str::FromStr;
 
             use common_enums::Currency;
-            use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+            use common_utils::{id_type::MerchantId, pii::Email};
             use domain_types::{
                 connector_types::PaymentFlowData,
                 payment_address::PaymentAddress,
@@ -683,8 +712,8 @@ mod tests {
                     ),
                     auth_type: AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: Some("order_QMsUrrLPdwNxPG".to_string()),
@@ -712,8 +741,8 @@ mod tests {
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
-                    amount_capturable: None,
-                    amount: None,
+                    capturable_money: None,
+                    money: None,
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
@@ -751,12 +780,9 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    money: authorization_data().money,
                     order_tax_amount: None,
-                    surcharge_amount: None,
+                    surcharge_money: None,
                     email: Some(email),
                     customer_name: None,
                     currency: Currency::USD,
@@ -827,6 +853,7 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    sender_details: None,
                     business_country: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
@@ -1042,7 +1069,7 @@ mod tests {
         use std::str::FromStr;
 
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email};
         use domain_types::{
             connector_types::PaymentFlowData,
             payment_address::PaymentAddress,
@@ -1083,9 +1110,9 @@ mod tests {
                 ),
                 auth_type: AuthenticationType::NoThreeDs,
                 connector_feature_data: None,
-                amount: None,
-                amount_captured: None,
-                amount_authorized: None,
+                money: None,
+                captured_money: None,
+                authorized_money: None,
                 access_token: None,
                 session_token: None,
                 reference_id: Some("order_QMsUrrLPdwNxPG".to_string()),
@@ -1113,7 +1140,7 @@ mod tests {
                 connector_response: None,
                 recurring_mandate_payment_data: None,
                 order_details: None,
-                amount_capturable: None,
+                capturable_money: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
                 connector_returned_payment_method_details: None,
@@ -1149,12 +1176,9 @@ mod tests {
                     card_holder_name: Some("Test User".to_string().into()),
                     co_badged_card_data: None,
                 }),
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                money: authorization_data().money,
                 order_tax_amount: None,
-                surcharge_amount: None,
+                surcharge_money: None,
                 email: Some(email),
                 customer_name: None,
                 currency: Currency::USD,
@@ -1223,6 +1247,7 @@ mod tests {
                 partner_merchant_identifier_details: None,
                 is_account_funding_transaction: None,
                 recipient_details: None,
+                sender_details: None,
                 business_country: None,
                 enable_avs_check: None,
                 enable_account_name_verification: None,
@@ -1274,7 +1299,7 @@ mod tests {
         use std::str::FromStr;
 
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email};
         use domain_types::{
             connector_types::PaymentFlowData,
             payment_address::PaymentAddress,
@@ -1315,9 +1340,9 @@ mod tests {
                 ),
                 auth_type: AuthenticationType::NoThreeDs,
                 connector_feature_data: None,
-                amount: None,
-                amount_captured: None,
-                amount_authorized: None,
+                money: None,
+                captured_money: None,
+                authorized_money: None,
                 access_token: None,
                 session_token: None,
                 reference_id: Some("order_QMsUrrLPdwNxPG".to_string()),
@@ -1342,7 +1367,7 @@ mod tests {
                 connector_response_headers: None,
                 raw_connector_request: None,
                 typed_connector_request: None,
-                amount_capturable: None,
+                capturable_money: None,
                 connector_response: None,
                 recurring_mandate_payment_data: None,
                 order_details: None,
@@ -1381,12 +1406,9 @@ mod tests {
                     card_holder_name: Some("Test User".to_string().into()),
                     co_badged_card_data: None,
                 }),
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                money: authorization_data().money,
                 order_tax_amount: None,
-                surcharge_amount: None,
+                surcharge_money: None,
                 email: Some(email),
                 customer_name: None,
                 currency: Currency::USD,
@@ -1455,6 +1477,7 @@ mod tests {
                 partner_merchant_identifier_details: None,
                 is_account_funding_transaction: None,
                 recipient_details: None,
+                sender_details: None,
                 business_country: None,
                 enable_avs_check: None,
                 enable_account_name_verification: None,
@@ -1493,6 +1516,7 @@ mod tests {
     }
 
     mod order {
+        use super::{authorization_data, create_order_data};
 
         use common_utils::{pii::Email, request::RequestContent};
         use domain_types::{
@@ -1509,7 +1533,7 @@ mod tests {
         #[test]
         fn test_build_request_valid_order() {
             use common_enums::Currency;
-            use common_utils::{id_type::MerchantId, request::RequestContent, types::MinorUnit};
+            use common_utils::{id_type::MerchantId, request::RequestContent};
             use domain_types::{
                 connector_types::PaymentCreateOrderData,
                 payment_address::PaymentAddress,
@@ -1549,10 +1573,10 @@ mod tests {
                     ),
                     auth_type: common_enums::AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_capturable: None,
-                    amount: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    capturable_money: None,
+                    money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: None,
@@ -1593,10 +1617,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentCreateOrderData {
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    money: create_order_data().money,
                     currency: Currency::USD,
                     integrity_object: None,
                     metadata: None,
@@ -1659,7 +1680,7 @@ mod tests {
         #[test]
         fn test_build_request_missing() {
             use common_enums::Currency;
-            use common_utils::{id_type::MerchantId, types::MinorUnit};
+            use common_utils::id_type::MerchantId;
             use domain_types::{
                 connector_types::PaymentCreateOrderData,
                 payment_address::PaymentAddress,
@@ -1686,10 +1707,10 @@ mod tests {
                     address: PaymentAddress::default(),
                     auth_type: common_enums::AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_capturable: None,
-                    amount: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    capturable_money: None,
+                    money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: Some("order_QMsUrrLPdwNxPG".to_string()),
@@ -1730,10 +1751,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentCreateOrderData {
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(0),
-                        currency: Currency::USD,
-                    },
+                    money: common_utils::types::Money::zero(Currency::USD),
                     currency: Currency::USD,
                     integrity_object: None,
                     metadata: None,
@@ -1797,7 +1815,7 @@ mod tests {
             use common_enums::{
                 AttemptStatus, AuthenticationType, Currency, PaymentMethod, PaymentMethodType,
             };
-            use common_utils::{id_type::MerchantId, types::MinorUnit};
+            use common_utils::id_type::MerchantId;
             use domain_types::{
                 connector_types::{PaymentFlowData, PaymentsAuthorizeData},
                 payment_address::PaymentAddress,
@@ -1826,10 +1844,10 @@ mod tests {
                     address: PaymentAddress::new(None, None, None, None),
                     auth_type: AuthenticationType::NoThreeDs,
                     connector_feature_data: None,
-                    amount_captured: None,
-                    amount_capturable: None,
-                    amount: None,
-                    amount_authorized: None,
+                    captured_money: None,
+                    capturable_money: None,
+                    money: None,
+                    authorized_money: None,
                     access_token: None,
                     session_token: None,
                     reference_id: Some("order_QMsUrrLPdwNxPG".to_string()),
@@ -1892,12 +1910,9 @@ mod tests {
                         card_holder_name: Some("Test User".to_string().into()),
                         co_badged_card_data: None,
                     }),
-                    amount: common_utils::types::Money {
-                        amount: MinorUnit::new(1000),
-                        currency: Currency::USD,
-                    },
+                    money: authorization_data().money,
                     order_tax_amount: None,
-                    surcharge_amount: None,
+                    surcharge_money: None,
                     email: None,
                     customer_name: None,
                     currency: Currency::USD,
@@ -1946,6 +1961,7 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    sender_details: None,
                     business_country: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
@@ -1982,7 +1998,7 @@ mod tests {
     #[test]
     fn test_handle_response_v2_valid_order_response() {
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email};
         use domain_types::{
             connector_types::{PaymentCreateOrderData, PaymentFlowData},
             payment_address::PaymentAddress,
@@ -2022,9 +2038,9 @@ mod tests {
                 ),
                 auth_type: AuthenticationType::NoThreeDs,
                 connector_feature_data: None,
-                amount: None,
-                amount_captured: None,
-                amount_authorized: None,
+                money: None,
+                captured_money: None,
+                authorized_money: None,
                 access_token: None,
                 session_token: None,
                 reference_id: None,
@@ -2052,7 +2068,7 @@ mod tests {
                 connector_response: None,
                 recurring_mandate_payment_data: None,
                 order_details: None,
-                amount_capturable: None,
+                capturable_money: None,
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
@@ -2066,10 +2082,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                money: create_order_data().money,
                 currency: Currency::USD,
                 integrity_object: None,
                 metadata: None,
@@ -2130,7 +2143,7 @@ mod tests {
     #[test]
     fn test_handle_response_missing() {
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email};
         use domain_types::{
             connector_types::PaymentCreateOrderData,
             payment_address::PaymentAddress,
@@ -2171,10 +2184,10 @@ mod tests {
                 ),
                 auth_type: AuthenticationType::NoThreeDs,
                 connector_feature_data: None,
-                amount: None,
-                amount_captured: None,
-                amount_capturable: None,
-                amount_authorized: None,
+                money: None,
+                captured_money: None,
+                capturable_money: None,
+                authorized_money: None,
                 access_token: None,
                 session_token: None,
                 reference_id: None,
@@ -2215,10 +2228,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                money: create_order_data().money,
                 currency: Currency::USD,
                 integrity_object: None,
                 metadata: None,
@@ -2268,7 +2278,7 @@ mod tests {
     #[test]
     fn test_handle_response_invalid() {
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email};
         use domain_types::{
             connector_types::PaymentCreateOrderData,
             payment_address::PaymentAddress,
@@ -2309,10 +2319,10 @@ mod tests {
                 ),
                 auth_type: AuthenticationType::NoThreeDs,
                 connector_feature_data: None,
-                amount: None,
-                amount_captured: None,
-                amount_capturable: None,
-                amount_authorized: None,
+                money: None,
+                captured_money: None,
+                capturable_money: None,
+                authorized_money: None,
                 access_token: None,
                 session_token: None,
                 reference_id: None,
@@ -2353,10 +2363,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentCreateOrderData {
-                amount: common_utils::types::Money {
-                    amount: MinorUnit::new(1000),
-                    currency: Currency::USD,
-                },
+                money: create_order_data().money,
                 currency: Currency::USD,
                 integrity_object: None,
                 metadata: None,
@@ -2429,7 +2436,7 @@ mod tests {
             <dyn ConnectorServiceTrait<DefaultPCIHolder> + Sync as ConnectorIntegrationV2<
                 domain_types::connector_flow::CreateOrder,
                 PaymentFlowData,
-                domain_types::connector_types::PaymentCreateOrderData,
+                PaymentCreateOrderData,
                 domain_types::connector_types::PaymentCreateOrderResponse,
             >>::get_error_response_v2(
                 &**connector,
@@ -2476,7 +2483,7 @@ mod tests {
             <dyn ConnectorServiceTrait<DefaultPCIHolder> + Sync as ConnectorIntegrationV2<
                 domain_types::connector_flow::CreateOrder,
                 PaymentFlowData,
-                domain_types::connector_types::PaymentCreateOrderData,
+                PaymentCreateOrderData,
                 domain_types::connector_types::PaymentCreateOrderResponse,
             >>::get_error_response_v2(
                 &**connector,
@@ -2510,7 +2517,7 @@ mod tests {
             <dyn ConnectorServiceTrait<DefaultPCIHolder> + Sync as ConnectorIntegrationV2<
                 domain_types::connector_flow::CreateOrder,
                 PaymentFlowData,
-                domain_types::connector_types::PaymentCreateOrderData,
+                PaymentCreateOrderData,
                 domain_types::connector_types::PaymentCreateOrderResponse,
             >>::get_error_response_v2(
                 &**connector,

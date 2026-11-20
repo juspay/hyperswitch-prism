@@ -317,8 +317,8 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<AuthoriseIntegrityObject>
 
     fn get_request_integrity_object(&self) -> AuthoriseIntegrityObject {
         AuthoriseIntegrityObject {
-            amount: self.amount.amount,
-            currency: self.amount.currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
         }
     }
 
@@ -339,7 +339,7 @@ impl GetIntegrityObject<CreateOrderIntegrityObject> for PaymentCreateOrderData {
 
     fn get_request_integrity_object(&self) -> CreateOrderIntegrityObject {
         CreateOrderIntegrityObject {
-            amount: self.amount.amount,
+            amount: self.money.amount(),
             currency: self.currency,
         }
     }
@@ -354,7 +354,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<SetupMandateIntegrityObject>
 
     fn get_request_integrity_object(&self) -> SetupMandateIntegrityObject {
         SetupMandateIntegrityObject {
-            amount: self.amount.as_ref().map(|amount| amount.amount),
+            amount: self.money.as_ref().map(|amount| amount.amount()),
             currency: self.currency,
         }
     }
@@ -367,8 +367,8 @@ impl GetIntegrityObject<PaymentSynIntegrityObject> for PaymentsSyncData {
 
     fn get_request_integrity_object(&self) -> PaymentSynIntegrityObject {
         PaymentSynIntegrityObject {
-            amount: self.amount.amount,
-            currency: self.amount.currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
         }
     }
 
@@ -412,8 +412,8 @@ impl GetIntegrityObject<RefundIntegrityObject> for RefundsData {
 
     fn get_request_integrity_object(&self) -> RefundIntegrityObject {
         RefundIntegrityObject {
-            refund_amount: self.refund_amount.amount,
-            currency: self.refund_amount.currency,
+            refund_amount: self.refund_money.amount(),
+            currency: self.refund_money.currency(),
         }
     }
 }
@@ -425,8 +425,8 @@ impl GetIntegrityObject<CaptureIntegrityObject> for PaymentsCaptureData {
 
     fn get_request_integrity_object(&self) -> CaptureIntegrityObject {
         CaptureIntegrityObject {
-            amount_to_capture: self.amount_to_capture.amount,
-            currency: self.amount_to_capture.currency,
+            amount_to_capture: self.capture_money.amount(),
+            currency: self.capture_money.currency(),
         }
     }
 
@@ -512,8 +512,8 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<RepeatPaymentIntegrityObject>
 
     fn get_request_integrity_object(&self) -> RepeatPaymentIntegrityObject {
         RepeatPaymentIntegrityObject {
-            amount: self.amount.amount,
-            currency: self.amount.currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
             mandate_reference: match &self.mandate_reference {
                 domain_types::connector_types::MandateReferenceId::ConnectorMandateId(
                     mandate_ref,
@@ -582,8 +582,12 @@ impl GetIntegrityObject<VerifyWebhookSourceIntegrityObject> for VerifyWebhookSou
 
     fn get_request_integrity_object(&self) -> VerifyWebhookSourceIntegrityObject {
         // Extract webhook_id from merchant_secret (for PayPal, webhook_id is stored in secret)
-        let webhook_id =
-            String::from_utf8(self.merchant_secret.secret.peek().to_vec()).unwrap_or_default();
+        let webhook_id = self
+            .merchant_secret
+            .as_ref()
+            .and_then(|secrets| std::str::from_utf8(secrets.secret.peek()).ok())
+            .unwrap_or_default()
+            .to_string();
         VerifyWebhookSourceIntegrityObject { webhook_id }
     }
 }
@@ -597,7 +601,7 @@ impl GetIntegrityObject<SessionTokenIntegrityObject>
 
     fn get_request_integrity_object(&self) -> SessionTokenIntegrityObject {
         SessionTokenIntegrityObject {
-            amount: self.amount.amount,
+            amount: self.money.amount(),
             currency: self.currency,
         }
     }
@@ -648,7 +652,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PaymentMethodTokenIntegrityOb
 
     fn get_request_integrity_object(&self) -> PaymentMethodTokenIntegrityObject {
         PaymentMethodTokenIntegrityObject {
-            amount: self.amount.amount,
+            amount: self.money.amount(),
             currency: self.currency,
         }
     }
@@ -668,7 +672,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PreAuthenticateIntegrityObjec
 
     fn get_request_integrity_object(&self) -> PreAuthenticateIntegrityObject {
         PreAuthenticateIntegrityObject {
-            amount: self.amount.amount,
+            amount: self.money.amount(),
             currency: self.currency.unwrap_or_default(),
         }
     }
@@ -683,7 +687,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<AuthenticateIntegrityObject>
 
     fn get_request_integrity_object(&self) -> AuthenticateIntegrityObject {
         AuthenticateIntegrityObject {
-            amount: self.amount.amount,
+            amount: self.money.amount(),
             currency: self.currency.unwrap_or_default(),
         }
     }
@@ -698,7 +702,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PostAuthenticateIntegrityObje
 
     fn get_request_integrity_object(&self) -> PostAuthenticateIntegrityObject {
         PostAuthenticateIntegrityObject {
-            amount: self.amount.amount,
+            amount: self.money.amount(),
             currency: self.currency.unwrap_or_default(),
         }
     }
@@ -729,8 +733,8 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutCreateIntegrityObject>
 
     fn get_request_integrity_object(&self) -> PayoutCreateIntegrityObject {
         PayoutCreateIntegrityObject {
-            amount: self.amount,
-            currency: self.source_currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
         }
     }
 }
@@ -1510,8 +1514,8 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutTransferIntegrityObject
 
     fn get_request_integrity_object(&self) -> PayoutTransferIntegrityObject {
         PayoutTransferIntegrityObject {
-            amount: self.amount,
-            currency: self.source_currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
         }
     }
 }
@@ -1611,8 +1615,8 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<PayoutEligibilityIntegrityObj
 
     fn get_request_integrity_object(&self) -> PayoutEligibilityIntegrityObject {
         PayoutEligibilityIntegrityObject {
-            amount: self.amount.amount,
-            currency: self.amount.currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
         }
     }
 }
@@ -1624,8 +1628,8 @@ impl GetIntegrityObject<SurchargeCalculateIntegrityObject> for SurchargeCalculat
 
     fn get_request_integrity_object(&self) -> SurchargeCalculateIntegrityObject {
         SurchargeCalculateIntegrityObject {
-            amount: self.amount,
-            currency: self.currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
         }
     }
 }
@@ -1637,8 +1641,8 @@ impl GetIntegrityObject<SurchargeRefundInitIntegrityObject> for SurchargeRefundI
     fn get_request_integrity_object(&self) -> SurchargeRefundInitIntegrityObject {
         SurchargeRefundInitIntegrityObject {
             connector_surcharge_id: self.connector_surcharge_id.clone(),
-            amount: self.amount,
-            currency: self.currency,
+            amount: self.money.amount(),
+            currency: self.money.currency(),
         }
     }
 }
@@ -1689,7 +1693,7 @@ impl GetIntegrityObject<RechargeIntegrityObject> for RechargeRequestData {
 
     fn get_request_integrity_object(&self) -> RechargeIntegrityObject {
         RechargeIntegrityObject {
-            amount: self.amount.amount,
+            amount: self.money.amount(),
             currency: self.currency,
         }
     }

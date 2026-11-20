@@ -3,7 +3,7 @@
 ## What the data is
 
 `data/field_probe/*.json` (one file per connector) is produced by a **static, no-network** probe
-(`crates/internal/field-probe`, `make field-probe`) that, for every `connector × flow × payment-method`,
+(`tools/field-probe`, `make field-probe`) that, for every `connector × flow × payment-method`,
 calls the connector's request transformer in-process and records a `status`. The files are **git-tracked**,
 so any past state is reconstructable with `git show <rev>:data/field_probe/<c>.json` — no re-probe needed.
 

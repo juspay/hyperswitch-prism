@@ -280,6 +280,29 @@ pub struct NmiShippingDetails {
     shipping_email: Option<common_utils::pii::Email>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct NmiBillingDescriptor {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor_phone: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor_city: Option<Secret<String>>,
+}
+
+impl From<&domain_types::connector_types::BillingDescriptor> for NmiBillingDescriptor {
+    fn from(billing_descriptor: &domain_types::connector_types::BillingDescriptor) -> Self {
+        Self {
+            descriptor: billing_descriptor
+                .statement_descriptor
+                .clone()
+                .map(Secret::new),
+            descriptor_phone: billing_descriptor.phone.clone(),
+            descriptor_city: billing_descriptor.city.clone(),
+        }
+    }
+}
+
 // ===== PAYMENT REQUEST =====
 
 #[derive(Debug, Serialize)]
@@ -324,6 +347,9 @@ pub struct NmiPaymentsRequest<T: PaymentMethodDataTypes> {
     three_ds_version: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     directory_server_id: Option<Secret<String>>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 // Implementation for NmiRouterData wrapper (needed by macros)
@@ -415,7 +441,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
             let converter = FloatMajorUnitForConnector;
             let amount = converter
-                .convert(&router_data.request.amount)
+                .convert(&router_data.request.money)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
@@ -451,6 +477,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cvv,
                 three_ds_version: three_ds_data.three_ds_version,
                 directory_server_id: three_ds_data.directory_server_id,
+                billing_descriptor: router_data
+                    .request
+                    .billing_descriptor
+                    .as_ref()
+                    .map(NmiBillingDescriptor::from),
             })
         } else {
             // Regular authorization flow
@@ -515,7 +546,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
             let converter = FloatMajorUnitForConnector;
             let amount = converter
-                .convert(&router_data.request.amount)
+                .convert(&router_data.request.money)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?;
@@ -603,6 +634,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cvv: None,
                 three_ds_version: None,
                 directory_server_id: None,
+                billing_descriptor: router_data
+                    .request
+                    .billing_descriptor
+                    .as_ref()
+                    .map(NmiBillingDescriptor::from),
             })
         }
     }
@@ -966,7 +1002,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount from minor to major units using framework converter
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&router_data.request.amount_to_capture)
+            .convert(&router_data.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1079,7 +1115,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Convert amount from minor to major units using framework converter
         let converter = FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&router_data.request.refund_amount)
+            .convert(&router_data.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -1493,7 +1529,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     .change_context(ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
                     })?;
-                let amount_data = item.router_data.request.amount.amount;
+                let amount_data = item.router_data.request.money.amount();
                 let currency_data = item.router_data.request.currency.ok_or(
                     ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
@@ -1616,6 +1652,9 @@ pub struct NmiSetupMandateRequest<
     country: Option<common_enums::CountryAlpha2>,
     #[serde(flatten)]
     shipping_details: NmiShippingDetails,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 /// Payment method for SetupMandate - supports Card and ACH
@@ -1694,9 +1733,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Hyperswitch parity: NMI SetupMandate (Validate) only supports zero amount.
         if router_data
             .request
-            .amount
+            .money
             .as_ref()
-            .map(|money| money.amount)
+            .map(|money| money.amount())
             .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
         {
             return Err(IntegrationError::NotSupported {
@@ -1778,6 +1817,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 shipping_country: common_data.get_optional_shipping_country(),
                 shipping_email: common_data.get_optional_shipping_email(),
             },
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(NmiBillingDescriptor::from),
         })
     }
 }
@@ -1904,6 +1948,9 @@ pub struct NmiRepeatPaymentRequest {
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     shipping_details: Option<NmiShippingDetails>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse;
@@ -1956,7 +2003,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let amount = FloatMajorUnitForConnector
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
@@ -2002,6 +2049,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 shipping_country: common_data.get_optional_shipping_country(),
                 shipping_email: common_data.get_optional_shipping_email(),
             }),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(NmiBillingDescriptor::from),
         })
     }
 }

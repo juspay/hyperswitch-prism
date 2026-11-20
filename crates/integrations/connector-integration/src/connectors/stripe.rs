@@ -263,7 +263,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Stripe<T>
+    interfaces::webhooks::IncomingWebhook for Stripe<T>
 {
     /// The first `v1` signature of the header, hex-decoded. `verify_webhook_source` does not
     /// stop at the first one: it checks every `v1` candidate.

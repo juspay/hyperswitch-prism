@@ -119,7 +119,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         amount: item
                             .connector
                             .amount_converter
-                            .convert(&item.router_data.request.amount)
+                            .convert(&item.router_data.request.money)
                             .change_context(IntegrationError::RequestEncodingFailed {
                                 context: Default::default(),
                             })?,
@@ -233,6 +233,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::AliPayPlusRedirect {}
+                | WalletData::BoostRedirect {}
                 | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)

@@ -218,7 +218,7 @@ impl PayherePaymentsRequest {
             },
         )?;
 
-        let amount = common_utils::types::AmountConvertor::convert(&common_utils::types::StringMajorUnitForConnector, &router_data.request.amount)
+        let amount = common_utils::types::AmountConvertor::convert(&common_utils::types::StringMajorUnitForConnector, &router_data.request.money)
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 suggested_action: Some(
@@ -728,7 +728,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // payment_id that /merchant/v1/payment/refund requires.
         let payment_id = router_data.request.connector_transaction_id.clone();
 
-        let amount = common_utils::types::AmountConvertor::convert(&common_utils::types::StringMajorUnitForConnector, &router_data.request.refund_amount)
+        let amount = common_utils::types::AmountConvertor::convert(&common_utils::types::StringMajorUnitForConnector, &router_data.request.refund_money)
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 suggested_action: Some(

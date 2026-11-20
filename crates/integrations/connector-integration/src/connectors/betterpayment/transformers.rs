@@ -242,7 +242,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
 
-        let amount = utils::convert_amount(item.connector.amount_converter, &request.amount)
+        let amount = utils::convert_amount(item.connector.amount_converter, &request.money)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: integration_error_context(
                     PAYMENT_DOC_URL,
@@ -303,7 +303,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     payment_type: BetterpaymentPaymentType::Wero,
                     order_id,
                     amount,
-                    currency: request.amount.currency,
+                    currency: request.money.currency(),
                     merchant_reference: request.merchant_order_id.clone(),
                     postback_url: Some(postback_url),
                     success_url: Some(return_url.clone()),
@@ -612,7 +612,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let amount = utils::convert_amount(
             item.connector.amount_converter,
-            &item.router_data.request.refund_amount,
+            &item.router_data.request.refund_money,
         )
         .change_context(errors::IntegrationError::AmountConversionFailed {
             context: integration_error_context(

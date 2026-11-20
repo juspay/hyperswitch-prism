@@ -79,10 +79,9 @@ where
             Ok(cfg) => {
                 req.extensions_mut().insert(cfg);
             }
-            Err(e) => {
-                let error_response = create_error_response(&format!(
-                    "Failed to merge config with override config: {e:?}"
-                ));
+            Err(_) => {
+                tracing::warn!("Rejected invalid config override");
+                let error_response = create_error_response("Invalid config override");
                 let fut = async move { Ok(error_response) };
                 return Box::pin(fut);
             }

@@ -675,7 +675,7 @@ macros::macro_connector_implementation!(
 
 // Webhook implementation
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Payload<T>
+    interfaces::webhooks::IncomingWebhook for Payload<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
