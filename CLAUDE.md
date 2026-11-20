@@ -67,7 +67,7 @@ Three overlapping copies of the same procedures exist. In order of precedence:
 - **Credentials** resolve in this order: `CONNECTOR_AUTH_FILE_PATH` → `UCS_CREDS_PATH` →
   `creds.json` at repo root. `creds_dummy.json` is the placeholder template; never commit real creds. Entries must use
   the **flat** shape mirroring the connector's `*Config` proto message — the legacy `connector_account_details` shape is
-  rejected by `crates/internal/connector-creds` (a GRACE run aborts with `ABORT_CREDS`).
+  rejected by `tests/support/connector-creds` (a GRACE run aborts with `ABORT_CREDS`).
 - **Other crates**: `crates/grpc-server/grpc-server` (server), `crates/types-traits/grpc-api-types`
   (protos under `proto/`), `crates/types-traits/domain_types`, `crates/common/`, `crates/internal/`.
 - Generated coverage matrix: `docs-generated/all_connector.md` (via `make docs`).

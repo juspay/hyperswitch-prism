@@ -252,14 +252,14 @@ A single header carries both connector identity and auth, so no `x-connector` /
 `x-auth` pair is needed. Its value is
 `{"config":{"<PascalConnector>":{ ...auth fields... }}}`, where `<PascalConnector>`
 is the connector name with only its first letter upper-cased
-(`pascal_connector_name` in `crates/internal/connector-creds/src/lib.rs`), e.g.
+(`pascal_connector_name` in `tests/support/connector-creds/src/lib.rs`), e.g.
 `stripe` -> `Stripe`, `paynearme` -> `Paynearme`.
 
 ```bash
 grpcurl -plaintext -H "x-connector-config: $CFG" ...
 ```
 
-`crates/internal/connector-creds` is what builds `$CFG` for the test harness
+`tests/support/connector-creds` is what builds `$CFG` for the test harness
 (`build_wrapped_config`): it takes the connector's `creds.json` entry (first
 element if the entry is an array), drops `metadata`, unwraps any `{"value": "..."}`
 into the bare string, and wraps the rest under the PascalCase key. **Read the entry

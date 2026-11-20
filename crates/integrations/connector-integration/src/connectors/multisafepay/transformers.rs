@@ -127,6 +127,8 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)
@@ -215,6 +217,7 @@ fn card_network_to_gateway(network: &common_enums::CardNetwork) -> Option<Gatewa
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
         | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::MyDebit
         | common_enums::CardNetwork::AirPlus
         | common_enums::CardNetwork::Aurore
         | common_enums::CardNetwork::EftposAustralia
@@ -348,6 +351,8 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)

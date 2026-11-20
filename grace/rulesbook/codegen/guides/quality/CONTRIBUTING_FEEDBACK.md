@@ -796,7 +796,7 @@ use domain_types::utils;
 //       -> Result<T, Report<IntegrationError>>
 let amount: StringMajorUnit = utils::convert_amount(
     &StringMajorUnitForConnector,
-    router_data.request.minor_amount,
+    router_data.request.amount.amount,
     router_data.request.currency,
 )?;
 ```
