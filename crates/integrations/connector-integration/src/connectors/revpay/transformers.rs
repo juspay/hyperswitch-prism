@@ -1157,7 +1157,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
             mandate_reference: None,
             network_txn_id: None,
             network_txn_link_id: None,
-            connector_response_reference_id: response.transaction_id.clone(),
+            connector_response_reference_id: response.reference_number.clone(),
             incremental_authorization_allowed: None,
             splits: None,
             status_code: item.http_code,
@@ -1334,7 +1334,7 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
 
         // Keep the same merchant reference even when RevPay returns a gateway ID.
         let resource_id = router_data.request.connector_transaction_id.clone();
-        let connector_response_reference_id = response.transaction_id.clone();
+        let connector_response_reference_id = response.reference_number.clone();
 
         // Integrity object: the inquiry echoes the AUTHORIZE-side Amount /
         // Currency, so prefer the echoed values (parsed back through the same
