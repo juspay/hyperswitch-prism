@@ -2150,6 +2150,8 @@ message NexixpayClientAuthenticationResponse {
 
 // Revolut SDK initialization data — order_id and token for Revolut Pay widget initialization
 message RevolutClientAuthenticationResponse {
+  // Persist and reuse as connector_feature_data.customer_id on subsequent sessions.
+  optional string customer_id = 3;
   // The order ID created on Revolut
   string order_id = 1;
   // The client authentication token for SDK initialization

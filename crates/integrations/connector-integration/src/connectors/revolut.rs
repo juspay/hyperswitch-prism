@@ -2,12 +2,14 @@ mod transformers;
 use super::macros;
 
 use domain_types::{
-    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void},
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RequestDetails, WebhookDetailsResponse,
+        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
+        RefundsData, RefundsResponseData, RequestDetails, ResponseId, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -249,6 +251,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("RevolutWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        if notif
+            .merchant_order_ext_ref
+            .as_deref()
+            .is_some_and(|reference| reference.starts_with(revolut::REFUND_REFERENCE_PREFIX))
+        {
+            return match notif.event {
+                revolut::RevolutWebhookEvent::OrderCompleted => Ok(EventType::RefundSuccess),
+                revolut::RevolutWebhookEvent::OrderCancelled
+                | revolut::RevolutWebhookEvent::OrderFailed
+                | revolut::RevolutWebhookEvent::OrderPaymentDeclined
+                | revolut::RevolutWebhookEvent::OrderPaymentFailed => Ok(EventType::RefundFailure),
+                _ => Err(WebhookError::WebhookEventTypeNotFound.into()),
+            };
+        }
         match notif.event {
             revolut::RevolutWebhookEvent::OrderCompleted => Ok(EventType::PaymentIntentSuccess),
             revolut::RevolutWebhookEvent::OrderAuthorised => {
@@ -271,6 +287,84 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             revolut::RevolutWebhookEvent::DisputeWon => Ok(EventType::DisputeWon),
             revolut::RevolutWebhookEvent::DisputeLost => Ok(EventType::DisputeLost),
         }
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let body: revolut::RevolutWebhookBody = request
+            .body
+            .parse_struct("RevolutWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        if !matches!(
+            body.event,
+            revolut::RevolutWebhookEvent::OrderCompleted
+                | revolut::RevolutWebhookEvent::OrderAuthorised
+                | revolut::RevolutWebhookEvent::OrderCancelled
+                | revolut::RevolutWebhookEvent::OrderFailed
+                | revolut::RevolutWebhookEvent::OrderPaymentAuthenticated
+                | revolut::RevolutWebhookEvent::OrderPaymentDeclined
+                | revolut::RevolutWebhookEvent::OrderPaymentFailed
+        ) {
+            return Ok(None);
+        }
+        let refund_reference = body
+            .merchant_order_ext_ref
+            .as_deref()
+            .and_then(|reference| reference.strip_prefix(revolut::REFUND_REFERENCE_PREFIX));
+        Ok(Some(if let Some(reference) = refund_reference {
+            WebhookResourceReference::Refund(RefundWebhookReference {
+                connector_refund_id: Some(body.order_id),
+                merchant_refund_id: Some(reference.to_owned()),
+                connector_transaction_id: None,
+                merchant_transaction_id: None,
+            })
+        } else {
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id: Some(body.order_id),
+                merchant_transaction_id: body.merchant_order_ext_ref,
+                connector_preprocessing_id: None,
+            })
+        }))
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let body: revolut::RevolutWebhookBody = request
+            .body
+            .parse_struct("RevolutWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let reference = body
+            .merchant_order_ext_ref
+            .as_deref()
+            .and_then(|reference| reference.strip_prefix(revolut::REFUND_REFERENCE_PREFIX))
+            .ok_or(WebhookError::WebhookEventTypeNotFound)?;
+        let status = match body.event {
+            revolut::RevolutWebhookEvent::OrderCompleted => common_enums::RefundStatus::Success,
+            revolut::RevolutWebhookEvent::OrderCancelled
+            | revolut::RevolutWebhookEvent::OrderFailed
+            | revolut::RevolutWebhookEvent::OrderPaymentDeclined
+            | revolut::RevolutWebhookEvent::OrderPaymentFailed => {
+                common_enums::RefundStatus::Failure
+            }
+            _ => return Err(WebhookError::WebhookEventTypeNotFound.into()),
+        };
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(body.order_id),
+            merchant_transaction_id: None,
+            connector_response_reference_id: Some(reference.to_owned()),
+            status,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            status_code: 200,
+            response_headers: None,
+        })
     }
 
     fn process_payment_webhook(
@@ -718,7 +812,6 @@ macros::macro_connector_flow_status_impls!(
         RepeatPayment,
         MandateRevoke,
         ServerSessionAuthenticationToken,
-        Void,
         CreateConnectorCustomer,
         GetConnectorCustomer,
     ],
@@ -728,3 +821,338 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
     ],
 );
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Revolut<T>
+{
+}
+
+// Cancel returns HTTP 200 without an order body. Do not run it through the
+// order JSON decoder, and never interpret an HTTP error as cancellation.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+    for Revolut<T>
+{
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(req)
+    }
+    fn get_url(
+        &self,
+        req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+    ) -> CustomResult<String, IntegrationError> {
+        let order_id = uuid::Uuid::parse_str(&req.request.connector_transaction_id)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "connector_transaction_id",
+                context: Default::default(),
+            })?;
+        Ok(format!(
+            "{}/api/orders/{order_id}/cancel",
+            self.connector_base_url(req)
+        ))
+    }
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder, config)
+    }
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        _event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ConnectorError,
+    > {
+        if res.status_code != 200 {
+            return Err(ConnectorError::response_handling_failed(res.status_code).into());
+        }
+        Ok(RouterDataV2 {
+            resource_common_data: PaymentFlowData {
+                status: AttemptStatus::Voided,
+                ..data.resource_common_data.clone()
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    data.request.connector_transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: res.status_code,
+                splits: None,
+                payment_account_reference: None,
+            }),
+            ..data.clone()
+        })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    use domain_types::{connector_types::HttpMethod, payment_method_data::DefaultPCIHolder};
+    use interfaces::connector_types::IncomingWebhook;
+
+    fn webhook(event: &str, reference: Option<&str>) -> RequestDetails {
+        RequestDetails {
+            method: HttpMethod::Post,
+            uri: None,
+            headers: Default::default(),
+            query_params: None,
+            body: serde_json::to_vec(&serde_json::json!({
+                "event": event, "order_id": "revolut-order-id", "merchant_order_ext_ref": reference
+            }))
+            .unwrap(),
+        }
+    }
+
+    #[test]
+    fn refund_events_are_routed_and_correlated_to_the_refund_not_the_payment() {
+        let connector = Revolut::<DefaultPCIHolder>::new();
+        for event in [
+            "ORDER_COMPLETED",
+            "ORDER_FAILED",
+            "ORDER_CANCELLED",
+            "ORDER_PAYMENT_FAILED",
+            "ORDER_PAYMENT_DECLINED",
+        ] {
+            let request = webhook(event, Some("prism:revolut:refund:refund-123"));
+            let success = event == "ORDER_COMPLETED";
+            assert_eq!(
+                connector.get_event_type(request.clone()).unwrap(),
+                if success {
+                    EventType::RefundSuccess
+                } else {
+                    EventType::RefundFailure
+                }
+            );
+            let details = connector
+                .process_refund_webhook(request.clone(), None, None)
+                .unwrap();
+            assert_eq!(
+                details.status,
+                if success {
+                    common_enums::RefundStatus::Success
+                } else {
+                    common_enums::RefundStatus::Failure
+                }
+            );
+            assert_eq!(
+                details.connector_refund_id.as_deref(),
+                Some("revolut-order-id")
+            );
+            assert_eq!(
+                details.connector_response_reference_id.as_deref(),
+                Some("refund-123")
+            );
+            assert!(matches!(
+                connector.get_webhook_event_reference(request).unwrap(),
+                Some(WebhookResourceReference::Refund(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn normal_payment_events_are_not_misclassified_as_refunds() {
+        let connector = Revolut::<DefaultPCIHolder>::new();
+        for reference in [None, Some("payment-123"), Some("refund-123")] {
+            let request = webhook("ORDER_COMPLETED", reference);
+            assert_eq!(
+                connector.get_event_type(request.clone()).unwrap(),
+                EventType::PaymentIntentSuccess
+            );
+            assert!(connector
+                .process_refund_webhook(request.clone(), None, None)
+                .is_err());
+            assert!(matches!(
+                connector.get_webhook_event_reference(request).unwrap(),
+                Some(WebhookResourceReference::Payment(_))
+            ));
+        }
+    }
+    fn void_data() -> RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData> {
+        use domain_types::{payment_address::PaymentAddress, types::Connectors};
+        use std::sync::Arc;
+        RouterDataV2 {
+            flow: PhantomData,
+            resource_common_data: PaymentFlowData {
+                merchant_id: common_utils::id_type::MerchantId::default(),
+                customer_id: None,
+                connector_customer: None,
+                payment_id: "pay_123".to_string(),
+                attempt_id: "attempt_123".to_string(),
+                status: AttemptStatus::Charged,
+                payment_method: common_enums::PaymentMethod::Card,
+                payment_method_type: None,
+                description: None,
+                return_url: None,
+                address: PaymentAddress::default(),
+                auth_type: common_enums::AuthenticationType::NoThreeDs,
+                connector_feature_data: None,
+                amount_captured: None,
+                amount_capturable: None,
+                amount: None,
+                access_token: None,
+                session_token: None,
+                reference_id: None,
+                connector_order_id: None,
+                preprocessing_id: None,
+                connector_api_version: None,
+                connector_request_reference_id: "ref_123".to_string(),
+                test_mode: Some(true),
+                connector_http_status_code: None,
+                connector_response_headers: None,
+                external_latency: None,
+                connectors: Arc::new(Connectors::default()),
+                raw_connector_response: None,
+                typed_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+                vault_headers: None,
+                connector_response: None,
+                recurring_mandate_payment_data: None,
+                order_details: None,
+                amount_authorized: None,
+                l2_l3_data: None,
+                merchant_request_id: None,
+                sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
+                settlement_status: None,
+                raw_connector_status: None,
+            },
+            connector_config: ConnectorSpecificConfig::Revolut {
+                secret_api_key: hyperswitch_masking::Secret::new("test-key".into()),
+                signing_secret: None,
+                base_url: None,
+            },
+            request: PaymentVoidData {
+                connector_transaction_id: "123e4567-e89b-12d3-a456-426614174000".into(),
+                payment_method_data: None,
+                cancellation_reason: None,
+                integrity_object: None,
+                raw_connector_response: None,
+                browser_info: None,
+                amount: None,
+                currency: None,
+                connector_feature_data: None,
+                metadata: None,
+                merchant_order_id: None,
+                split_payments: None,
+            },
+            response: Err(ErrorResponse::default()),
+        }
+    }
+
+    #[test]
+    fn cancellation_posts_to_the_existing_order_and_accepts_empty_success() {
+        let connector = Revolut::<DefaultPCIHolder>::new();
+        let data = void_data();
+        let request = connector.build_request_v2(&data).unwrap().unwrap();
+        assert_eq!(request.method, common_utils::request::Method::Post);
+        assert!(request
+            .url
+            .ends_with("/api/orders/123e4567-e89b-12d3-a456-426614174000/cancel"));
+        let result = connector
+            .handle_response_v2(
+                &data,
+                None,
+                Response {
+                    status_code: 200,
+                    response: bytes::Bytes::new(),
+                    headers: None,
+                },
+            )
+            .unwrap();
+        assert_eq!(result.resource_common_data.status, AttemptStatus::Voided);
+        match result.response.unwrap() {
+            PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(id),
+                ..
+            } => assert_eq!(id, data.request.connector_transaction_id),
+            _ => panic!("expected cancelled order ID"),
+        }
+        assert!(connector
+            .handle_response_v2(
+                &data,
+                None,
+                Response {
+                    status_code: 422,
+                    response: bytes::Bytes::new(),
+                    headers: None,
+                }
+            )
+            .is_err());
+        let mut invalid = data;
+        invalid.request.connector_transaction_id = "../another-order".into();
+        assert!(connector.get_url(&invalid).is_err());
+    }
+    #[test]
+    fn authorize_wire_request_reuses_customer_and_forwards_checkout_options() {
+        use domain_types::{
+            payment_method_data::PaymentMethodData, types::AuthorizationRequest,
+            utils::ForeignTryFrom,
+        };
+        use hyperswitch_masking::Secret;
+        use serde_json::json;
+        let connector = Revolut::<DefaultPCIHolder>::new();
+        let proto = grpc_api_types::payments::PaymentServiceAuthorizeRequest {
+            payment_method: Some(grpc_api_types::payments::PaymentMethod {
+                payment_method: Some(grpc_api_types::payments::payment_method::PaymentMethod::Card(Default::default())),
+            }),
+            amount: Some(grpc_api_types::payments::Money {
+                minor_amount: 100, currency: grpc_api_types::payments::Currency::Gbp.into(),
+            }),
+            connector_feature_data: Some(Secret::new(json!({
+                "customer_id": "fallback-customer", "location_id": "store-id", "expire_pending_after": "PT30M"
+            }).to_string())),
+            ..Default::default()
+        };
+        let request = PaymentsAuthorizeData::<DefaultPCIHolder>::foreign_try_from((
+            AuthorizationRequest::from(proto),
+            PaymentMethodData::Reward,
+        ))
+        .unwrap();
+        let base = void_data();
+        let mut data = RouterDataV2 {
+            flow: PhantomData::<Authorize>,
+            resource_common_data: base.resource_common_data,
+            connector_config: base.connector_config,
+            request,
+            response: Err(ErrorResponse::default()),
+        };
+        data.resource_common_data.connector_customer = Some("existing-customer".into());
+        let transform = |data| {
+            RevolutOrderCreateRequest::try_from(RevolutRouterData {
+                connector: connector.clone(),
+                router_data: data,
+            })
+        };
+        let body = serde_json::to_value(transform(data.clone()).unwrap()).unwrap();
+        assert_eq!(body["customer"], json!({"id": "existing-customer"}));
+        assert_eq!(body["location_id"], "store-id");
+        assert_eq!(body["expire_pending_after"], "PT30M");
+        data.resource_common_data.connector_customer = None;
+        let body = serde_json::to_value(transform(data.clone()).unwrap()).unwrap();
+        assert_eq!(body["customer"], json!({"id": "fallback-customer"}));
+        data.request.connector_feature_data = None;
+        let body = serde_json::to_value(transform(data.clone()).unwrap()).unwrap();
+        assert!(body.get("customer").is_none());
+        assert!(body.get("location_id").is_none());
+        assert!(body.get("expire_pending_after").is_none());
+        data.resource_common_data.connector_request_reference_id =
+            "prism:revolut:refund:reserved".into();
+        assert!(transform(data).is_err());
+    }
+}
