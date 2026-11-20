@@ -4,29 +4,43 @@
 ########################################
 # 1. Base image with necessary tools
 ########################################
-FROM public.ecr.aws/docker/library/rust:slim-bookworm AS base
+# Migrated to Alpine 3.21 for SCA compliance (zero CVEs), matching unified-authentication-service.
+FROM public.ecr.aws/docker/library/rust:alpine3.21 AS base
 
 # Install system dependencies and clean up.
-# clang/libclang-dev: zstd-sys (pulled by rdkafka's `zstd` feature, which the
-# deja Kafka sink needs for compression.type=zstd) generates its bindings with
-# bindgen, which loads libclang at build time.
-RUN apt-get update \
-    && apt-get install -y \
-       pkg-config \
-       libssl-dev \
-       g++ \
-       make \
+# - build-base, musl-dev, pkgconf: C/C++ compilation tools
+# - openssl-dev, openssl-libs-static: OpenSSL headers and static libraries
+# - zlib-dev, zlib-static: zlib dependencies (upgrades to 1.4-r0 for CVE-2026-4738)
+# - perl, clang, clang-dev: zstd-sys / bindgen build-time requirement
+# - protobuf-dev, protoc: gRPC protobuf compilation
+# - libpq-dev: PostgreSQL client library headers
+# - bash: needed by rdkafka-sys configure script
+# - findutils: provides GNU find for -printf support
+# - sccache: fast compilation caching
+RUN apk --no-cache upgrade \
+    && apk add --no-cache \
+       build-base \
+       musl-dev \
+       pkgconf \
+       openssl-dev \
+       openssl-libs-static \
+       zlib-dev \
+       zlib-static \
        perl \
        clang \
-       libclang-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+       clang-dev \
+       protobuf-dev \
+       protoc \
+       libpq-dev \
+       bash \
+       findutils \
+       sccache
 
-# Install cargo-chef and sccache for dependency caching. sccache installs from
-# its own Cargo.lock: resolved fresh it needs `zip ^0.6`, every version of
-# which is yanked, and the install fails.
-RUN cargo install cargo-chef --version ^0.1 \
-    && cargo install sccache --locked
+# Dynamic linking on musl enables dlopen for bindgen/libclang and produces dynamically linked binary
+ENV RUSTFLAGS="-C target-feature=-crt-static"
+
+# Install cargo-chef for dependency caching
+RUN cargo install cargo-chef --version ^0.1
 
 ########################################
 # 2. Planner stage (cargo-chef)
@@ -76,14 +90,6 @@ ENV SCCACHE_CACHE_SIZE=5G
 RUN --mount=type=cache,target=/sccache \
     cargo chef cook --profile ${CARGO_BUILD_PROFILE} --features kafka,connector-request-kafka,otel,log-transformations,deja --recipe-path recipe.json -p grpc-server
 
-# Install additional build-time dependencies
-RUN apt-get update \
-    && apt-get install -y \
-       protobuf-compiler \
-       libpq-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 # Build only the binary shipped by the runtime stage; skips test/SDK crates.
 COPY . .
 RUN --mount=type=cache,target=/sccache \
@@ -102,7 +108,7 @@ RUN PROFILE_DIR="$([ "${CARGO_BUILD_PROFILE}" = "dev" ] && echo debug || echo "$
     && cp "/app/target/${PROFILE_DIR}/grpc-server" /app/dist/grpc-server \
     && cp "$(find /app/target -type f -name connector_service_descriptor.bin -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)" /app/dist/
 
-# Shared libraries the binary needs at runtime; the distroless runtime must
+# Shared libraries the binary needs at runtime; the Alpine runtime must
 # provide every one of them (check this output when changing features).
 RUN ldd /app/dist/grpc-server
 
@@ -112,13 +118,22 @@ RUN sccache --show-stats
 ########################################
 # 4. Runtime stage
 ########################################
-# Distroless Debian 13 (glibc + OpenSSL + libgcc/libstdc++, no shell, no apt,
-# non-root uid 65532). The binary is built on bookworm (glibc 2.36) and runs on
-# trixie (glibc 2.41). Bookworm has no fixes for the curl/glibc/util-linux/krb5
-# CVEs, so the runtime ships none of those packages. curl and libpq-dev are
-# gone: nothing in the workspace links libpq, and the in-pod connector probe
-# should use `kubectl debug` with an ephemeral container instead of curl.
-FROM gcr.io/distroless/cc-debian13:nonroot AS runtime
+# Alpine 3.21 runtime for SCA compliance (zero CVEs), matching unified-authentication-service.
+# Packages upgraded to latest patch releases (e.g. zlib 1.4-r0).
+FROM public.ecr.aws/docker/library/alpine:3.21 AS runtime
+
+RUN apk --no-cache upgrade \
+    && apk add --no-cache \
+       ca-certificates \
+       tzdata \
+       libpq \
+       libssl3 \
+       libcrypto3 \
+       libgcc \
+       libstdc++
+
+# Create non-root user (uid 65532 matches standard nonroot convention)
+RUN adduser -D -u 65532 -s /sbin/nologin rustuser
 
 COPY --from=builder --chown=65532:65532 /app/dist/grpc-server /app/bin/grpc-server
 COPY --from=builder --chown=65532:65532 /app/config/development.toml /app/config/development.toml
