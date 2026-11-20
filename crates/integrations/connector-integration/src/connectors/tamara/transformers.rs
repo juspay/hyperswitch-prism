@@ -94,9 +94,13 @@ impl From<TamaraPaymentStatus> for AttemptStatus {
             TamaraPaymentStatus::FullyCaptured | TamaraPaymentStatus::PartiallyCaptured => {
                 Self::Charged
             }
-            TamaraPaymentStatus::Canceled | TamaraPaymentStatus::Updated => Self::Voided,
+            TamaraPaymentStatus::Canceled => Self::Voided,
             TamaraPaymentStatus::Declined | TamaraPaymentStatus::Expired => Self::Failure,
-            TamaraPaymentStatus::New | TamaraPaymentStatus::Approved => Self::Pending,
+            // `updated` is informational (order modified, as the OrderUpdated webhook says),
+            // not a cancellation.
+            TamaraPaymentStatus::New
+            | TamaraPaymentStatus::Approved
+            | TamaraPaymentStatus::Updated => Self::Pending,
         }
     }
 }
@@ -130,9 +134,9 @@ impl From<TamaraRefundStatus> for RefundStatus {
             | TamaraRefundStatus::Authorised => Self::Pending,
             TamaraRefundStatus::Declined
             | TamaraRefundStatus::Expired
-            | TamaraRefundStatus::Canceled
-            | TamaraRefundStatus::Updated => Self::Failure,
-            TamaraRefundStatus::New => Self::Pending,
+            | TamaraRefundStatus::Canceled => Self::Failure,
+            // `updated` is informational (order modified), not a failed refund.
+            TamaraRefundStatus::New | TamaraRefundStatus::Updated => Self::Pending,
         }
     }
 }
