@@ -13,15 +13,16 @@ use domain_types::{
         Void, VoidPC,
     },
     connector_types::{
-        ContinueRedirectionResponse, DisputeWebhookDetailsResponse, DisputeWebhookReference,
-        EventContext, EventType, MandateReference, MandateReferenceId, PaymentFlowData,
-        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
+        ContinueRedirectionResponse, CustomerInfo, DisputeWebhookDetailsResponse,
+        DisputeWebhookReference, EventContext, EventType, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, PayoutWebhookDetailsResponse,
         PayoutWebhookReference, RawConnectorStatus, RecipientAccount, RecipientBankAccount,
         RecipientDetails, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
         RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        SenderAddress, SenderDetails, SetupMandateRequestData, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::{
@@ -1167,6 +1168,7 @@ fn build_worldpayxml_recipient_party(
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("recipient_details.address"))?;
+    let country = *address.get_country()?;
 
     let account_reference = recipient_details
         .account
@@ -1179,15 +1181,21 @@ fn build_worldpayxml_recipient_party(
         account_reference,
         full_name: requests::WorldpayxmlFullName {
             first: address.get_first_name()?.clone(),
+            middle: None,
             last: address.get_last_name()?.clone(),
         },
         funding_address: requests::WorldpayxmlFundingAddress {
             address1: address.get_line1()?.clone(),
             address2: address.get_optional_line2(),
+            address3: address.line3.clone(),
             postal_code: address.get_optional_zip(),
             city: address.get_city()?.clone().expose(),
-            state: address.get_state()?.clone(),
-            country_code: *address.get_country()?,
+            state: get_worldpayxml_funding_state(
+                address.get_optional_state(),
+                country,
+                "recipient_details.address.state",
+            )?,
+            country_code: country,
         },
         funding_data: recipient_details
             .phone_number
@@ -1209,18 +1217,89 @@ fn build_worldpayxml_recipient_party(
     })
 }
 
-fn build_worldpayxml_sender_party<
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
->(
-    router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
+/// Worldpay has no company-name element, so a corporate sender's name is spread over the
+/// `fullName` parts: first word, middle words, last word. AFT requires both a first and a last
+/// name, so a one-word name is rejected.
+fn get_worldpayxml_company_full_name(
+    company_name: &Secret<String>,
+) -> Result<requests::WorldpayxmlFullName, Report<IntegrationError>> {
+    let words: Vec<&str> = company_name.peek().split_whitespace().collect();
+    match words.as_slice() {
+        [] | [_] => Err(IntegrationError::InvalidDataFormat {
+            field_name: "sender_details.company_name",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "For AFT, both a first name and a second name of the company is mandatory"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Pass the full registered company name (for example, \"Acme Ltd\")."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into()),
+        [first, middle @ .., last] => Ok(requests::WorldpayxmlFullName {
+            first: Secret::new((*first).to_string()),
+            middle: (!middle.is_empty()).then(|| Secret::new(middle.join(" "))),
+            last: Secret::new((*last).to_string()),
+        }),
+    }
+}
+
+/// Worldpay needs a state only for US and CA addresses, as its 2-letter code; elsewhere it is
+/// sent when given.
+fn get_worldpayxml_funding_state(
+    state: Option<Secret<String>>,
+    country: common_enums::CountryAlpha2,
+    field_name: &'static str,
+) -> Result<Option<Secret<String>>, Report<IntegrationError>> {
+    let convert_to_code: fn(&str) -> String = match country {
+        common_enums::CountryAlpha2::US => domain_types::utils::convert_us_state_to_code,
+        common_enums::CountryAlpha2::CA => domain_types::utils::convert_canada_state_to_code,
+        _ => return Ok(state),
+    };
+    state
+        .map(|state| Some(Secret::new(convert_to_code(state.peek()))))
+        .ok_or_else(utils::missing_field_err(field_name))
+}
+
+fn build_worldpayxml_sender_funding_address(
+    address: &SenderAddress,
+) -> Result<requests::WorldpayxmlFundingAddress, Report<IntegrationError>> {
+    let country_code = address
+        .country
+        .ok_or_else(utils::missing_field_err("sender_details.address.country"))?;
+    Ok(requests::WorldpayxmlFundingAddress {
+        address1: address
+            .line1
+            .clone()
+            .ok_or_else(utils::missing_field_err("sender_details.address.line1"))?,
+        address2: address.line2.clone(),
+        address3: address.line3.clone(),
+        postal_code: address.zip.clone(),
+        city: address
+            .city
+            .clone()
+            .ok_or_else(utils::missing_field_err("sender_details.address.city"))?
+            .expose(),
+        state: get_worldpayxml_funding_state(
+            address.state.clone(),
+            country_code,
+            "sender_details.address.state",
+        )?,
+        country_code,
+    })
+}
+
+/// Pre-`sender_details` behaviour, kept verbatim for backward compatibility: the sender is the
+/// individual on the billing address, with the date of birth taken from the customer.
+fn build_worldpayxml_sender_party_from_billing(
+    resource_common_data: &PaymentFlowData,
+    customer_date_of_birth: Option<Secret<time::Date>>,
     card_number: Secret<String>,
 ) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
-    let resource_common_data = &router_data.resource_common_data;
     Ok(requests::WorldpayxmlFundingParty {
         party_type: requests::WorldpayxmlFundingPartyType::Sender,
         account_reference: requests::WorldpayxmlAccountReference {
@@ -1229,25 +1308,119 @@ fn build_worldpayxml_sender_party<
         },
         full_name: requests::WorldpayxmlFullName {
             first: resource_common_data.get_billing_first_name()?,
+            middle: None,
             last: resource_common_data.get_billing_last_name()?,
         },
         funding_address: requests::WorldpayxmlFundingAddress {
             address1: resource_common_data.get_billing_line1()?,
             address2: resource_common_data.get_optional_billing_line2(),
+            address3: resource_common_data.get_optional_billing_line3(),
             postal_code: resource_common_data.get_optional_billing_zip(),
             city: resource_common_data.get_billing_city()?.expose(),
-            state: resource_common_data.get_billing_state()?,
+            state: Some(resource_common_data.get_billing_state()?),
             country_code: resource_common_data.get_billing_country()?,
         },
         funding_data: Some(requests::WorldpayxmlFundingData {
-            birth_date: router_data
-                .request
-                .customer
-                .as_ref()
-                .and_then(|customer| customer.date_of_birth.clone())
-                .map(requests::WorldpayxmlBirthDate::from),
+            birth_date: customer_date_of_birth.map(requests::WorldpayxmlBirthDate::from),
             telephone_number: resource_common_data.get_optional_billing_phone_number(),
         }),
+        tax_id: None,
+    })
+}
+
+/// Builds the sender `fundingParty` from `sender_details` when present. Without
+/// `sender_details`, falls back to the pre-existing billing-address path, unchanged.
+pub(super) fn build_worldpayxml_sender_party(
+    resource_common_data: &PaymentFlowData,
+    sender_details: Option<&SenderDetails>,
+    customer: Option<&CustomerInfo>,
+    card_number: Secret<String>,
+) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
+    let customer_date_of_birth = customer.and_then(|customer| customer.date_of_birth.clone());
+
+    match sender_details {
+        // for backwards compatibility, if sender_details is not provided, we will use the billing address to build the sender party
+        None => build_worldpayxml_sender_party_from_billing(
+            resource_common_data,
+            customer_date_of_birth,
+            card_number,
+        ),
+        Some(sender_details) => build_worldpayxml_sender_party_from_sender_details(
+            resource_common_data,
+            sender_details,
+            customer_date_of_birth,
+            card_number,
+        ),
+    }
+}
+
+fn build_worldpayxml_sender_party_from_sender_details(
+    resource_common_data: &PaymentFlowData,
+    sender_details: &SenderDetails,
+    customer_date_of_birth: Option<Secret<time::Date>>,
+    card_number: Secret<String>,
+) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
+    let (full_name, funding_address, funding_data) = match sender_details {
+        SenderDetails::Individual(individual) => (
+            requests::WorldpayxmlFullName {
+                first: individual
+                    .first_name
+                    .clone()
+                    .ok_or_else(utils::missing_field_err(
+                        "sender_details.individual.first_name",
+                    ))?,
+                middle: None,
+                last: individual
+                    .last_name
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
+            },
+            individual
+                .address
+                .as_ref()
+                .ok_or_else(utils::missing_field_err("sender_details.address"))
+                .and_then(build_worldpayxml_sender_funding_address)?,
+            Some(requests::WorldpayxmlFundingData {
+                // For backward compatibility, fall back to the customer's date of birth, which was
+                // the only source of the sender's date of birth before sender details were added.
+                birth_date: individual
+                    .date_of_birth
+                    .clone()
+                    .or(customer_date_of_birth)
+                    .map(requests::WorldpayxmlBirthDate::from),
+                telephone_number: individual
+                    .phone_number
+                    .clone()
+                    .or_else(|| resource_common_data.get_optional_billing_phone_number()),
+            }),
+        ),
+        SenderDetails::Corporate(corporate) => (
+            get_worldpayxml_company_full_name(corporate.company_name.as_ref().ok_or_else(
+                utils::missing_field_err("sender_details.corporate.company_name"),
+            )?)?,
+            corporate
+                .address
+                .as_ref()
+                .ok_or_else(utils::missing_field_err("sender_details.address"))
+                .and_then(build_worldpayxml_sender_funding_address)?,
+            corporate.phone_number.clone().map(|telephone_number| {
+                requests::WorldpayxmlFundingData {
+                    birth_date: None,
+                    telephone_number: Some(telephone_number),
+                }
+            }),
+        ),
+    };
+
+    Ok(requests::WorldpayxmlFundingParty {
+        party_type: requests::WorldpayxmlFundingPartyType::Sender,
+        account_reference: requests::WorldpayxmlAccountReference {
+            account_type: WORLDPAYXML_ACCOUNT_TYPE_CARD.to_string(),
+            value: card_number,
+        },
+        full_name,
+        funding_address,
+        funding_data,
         tax_id: None,
     })
 }
@@ -1321,7 +1494,12 @@ fn build_worldpayxml_funding_transfer<
                 category: WORLDPAYXML_FUNDING_CATEGORY.to_string(),
                 payment_purpose: payment_purpose.to_string(),
                 funding_party: vec![
-                    build_worldpayxml_sender_party(router_data, card_number)?,
+                    build_worldpayxml_sender_party(
+                        &router_data.resource_common_data,
+                        router_data.request.sender_details.as_ref(),
+                        router_data.request.customer.as_ref(),
+                        card_number,
+                    )?,
                     build_worldpayxml_recipient_party(
                         router_data.request.recipient_details.as_ref(),
                         router_data.request.business_country,
@@ -1544,7 +1722,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         info_3d_secure,
                     }),
                     shopper: Some(requests::WorldpayxmlShopper {
-                        shopper_email_address: router_data.request.email.clone(),
+                        // The sender's email only fills in for a missing shopper email.
+                        shopper_email_address: router_data.request.email.clone().or_else(|| {
+                            router_data
+                                .request
+                                .sender_details
+                                .as_ref()
+                                .and_then(SenderDetails::get_email)
+                                .cloned()
+                        }),
                         authenticated_shopper_id,
                         browser: router_data
                             .request
@@ -2385,21 +2571,23 @@ impl responses::WorldpayxmlWebhookBody {
     ) -> CustomResult<WebhookDetailsResponse, WebhookError> {
         let event = self.notify.order_status_event;
         let payment = event.payment;
-        let event_context = if payment.last_event == WorldpayxmlLastEvent::Authorised {
-            event_context.ok_or(WebhookError::WebhookMissingRequiredContext {
-                field: "capture_method",
-                origin: "payment authorize",
-            })?
+        let capture_method = if payment.last_event == WorldpayxmlLastEvent::Authorised {
+            event_context
+                .ok_or(WebhookError::WebhookMissingRequiredContext {
+                    field: "capture_method",
+                    origin: "payment authorize",
+                })?
+                .capture_method
         } else {
-            event_context.unwrap_or_default()
+            event_context.and_then(|context| context.capture_method)
         };
         let status = map_worldpayxml_authorize_status(
             &payment.last_event,
             !matches!(
-                event_context.capture_method,
+                capture_method,
                 Some(CaptureMethod::Manual | CaptureMethod::ManualMultiple)
             ),
-            event_context.previous_status.as_ref(),
+            None,
             200,
         )
         .change_context(WebhookError::WebhookProcessingFailed)?;

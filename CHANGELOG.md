@@ -19,6 +19,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.20.0
+
+### Features
+
+- **connector:**
+  - [Worldpayvantiv] add MIT repeat payments and align response mappings ([#2761](https://github.com/juspay/connector-service/pull/2761)) ([`a5d7160`](https://github.com/juspay/connector-service/commit/a5d71604ac82ada8cd92bdac5e524a4f880036db))
+  - [Checkout] support card payout webhooks ([#2766](https://github.com/juspay/connector-service/pull/2766)) ([`b7668e9`](https://github.com/juspay/connector-service/commit/b7668e93ae09a521afce956a4014902b440a05b6))
+
+### Bug Fixes
+
+- **connector:** [Rapyd] preserve stored-card purpose ([#2762](https://github.com/juspay/connector-service/pull/2762)) ([`4a91683`](https://github.com/juspay/connector-service/commit/4a91683186af23affd81eb840a657a237659a6ee))
+
+**Full Changelog:** [`2026.11.18.2...2026.11.20.0`](https://github.com/juspay/connector-service/compare/2026.11.18.2...2026.11.20.0)
+
+- - -
+
+## 2026.11.18.2
+
+### Features
+
+- **connector:** Revpay Addition ([#2593](https://github.com/juspay/connector-service/pull/2593)) ([`69645b9`](https://github.com/juspay/connector-service/commit/69645b9ec3b79d7c205a360e59ba4fc3904f2b64))
+
+### Bug Fixes
+
+- **connector:** [TwoCTwoP_PACO] use priorPaymentResponseDetails in PSync/RSync inquiry responses ([#2765](https://github.com/juspay/connector-service/pull/2765)) ([`7f35e6e`](https://github.com/juspay/connector-service/commit/7f35e6e0b6293bca41775bd6e71ac4aca18bcb51))
+- **webhooks:** Reverts Preserve Worldpay attempt context ([#2764](https://github.com/juspay/connector-service/pull/2764)) ([`403df70`](https://github.com/juspay/connector-service/commit/403df7094a5a9b4aa6c59d2511241ed4e0f94d4e))
+
+### Revert
+
+- **flywire:** Restore cards-only checkout sessions ([#2763](https://github.com/juspay/connector-service/pull/2763)) ([`60b4a66`](https://github.com/juspay/connector-service/commit/60b4a663942ec75c42584ff3808a248e9fd4d5ca))
+
+**Full Changelog:** [`2026.11.18.1...2026.11.18.2`](https://github.com/juspay/connector-service/compare/2026.11.18.1...2026.11.18.2)
+
+- - -
+
+## 2026.11.18.1
+
+### Features
+
+- **framework:** Add typed sender_details for AFT in checkout and worldpayXML ([#2590](https://github.com/juspay/connector-service/pull/2590)) ([`b211435`](https://github.com/juspay/connector-service/commit/b21143579f18d282856c486d7dd72ec83b3b79c0))
+
+### Bug Fixes
+
+- **connector:** [ClearSale] add Superposition environment routing and lenient metadata decoding ([#2760](https://github.com/juspay/connector-service/pull/2760)) ([`74286d7`](https://github.com/juspay/connector-service/commit/74286d720e1d99ceb5959ad7b05a397d3a1513ed))
+
+**Full Changelog:** [`2026.11.18.0...2026.11.18.1`](https://github.com/juspay/connector-service/compare/2026.11.18.0...2026.11.18.1)
+
+- - -
+
+## 2026.11.18.0
+
+### Features
+
+- **nuvei:** Map airline journeys and format travel dates ([#2699](https://github.com/juspay/connector-service/pull/2699)) ([`5cea535`](https://github.com/juspay/connector-service/commit/5cea5359df1f8486bf6292eb7d6aaf108a5ba16d))
+
+### Bug Fixes
+
+- **vault:** [Proxy] xml vault proxy version bump changes ([#2751](https://github.com/juspay/connector-service/pull/2751)) ([`8d8309c`](https://github.com/juspay/connector-service/commit/8d8309cea3f6bb2a60924b00d0eb2fb37e7fac03))
+
+**Full Changelog:** [`2026.11.17.1...2026.11.18.0`](https://github.com/juspay/connector-service/compare/2026.11.17.1...2026.11.18.0)
+
+- - -
+
+## 2026.11.17.1
+
+### Features
+
+- **payouts:** Add Checkout Google Pay and purpose support ([#2753](https://github.com/juspay/connector-service/pull/2753)) ([`4a3a59b`](https://github.com/juspay/connector-service/commit/4a3a59bca18f4691e81953f40deee6a4e51f3145))
+
+**Full Changelog:** [`2026.11.17.0...2026.11.17.1`](https://github.com/juspay/connector-service/compare/2026.11.17.0...2026.11.17.1)
+
+- - -
+
 ## 2026.11.17.0
 
 ### Features

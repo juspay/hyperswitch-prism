@@ -11,14 +11,15 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, Void,
+        VoidPC,
     },
     connector_types::{
         ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RequestDetails, WebhookDetailsResponse,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -33,8 +34,8 @@ use interfaces::{
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
         ConnectorServiceTrait, PaymentAuthorizeV2, PaymentCapture, PaymentSyncV2,
-        PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2, ValidationTrait,
-        VerifyRedirectResponse,
+        PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2, RepeatPaymentV2,
+        ValidationTrait, VerifyRedirectResponse,
     },
     decode::BodyDecoding,
     verification::SourceVerification,
@@ -43,17 +44,21 @@ use interfaces::{
 use serde::Serialize;
 
 use self::transformers::{
-    CnpOnlineResponse, VantivSyncResponse, WorldpayvantivAuthType, WorldpayvantivPaymentsRequest,
-    BASE64_ENGINE,
+    CnpOnlineResponse, VantivSyncResponse, WorldpayvantivAuthType, WorldpayvantivAuthorizeRequest,
+    WorldpayvantivPaymentsRequest, WorldpayvantivRepeatPaymentRequest,
+    WorldpayvantivRepeatPaymentResponse, BASE64_ENGINE,
 };
 
-use super::macros;
+use super::macros::{self, GetSoapXml};
 use crate::{finalize_connector_response, types::ResponseRouterData, utils, with_response_body};
-use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
+use domain_types::errors::{
+    ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
+};
 use error_stack::report;
 
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const CONTENT_TYPE: &str = "Content-Type";
 }
 
 /// Helper function to unwrap JSON-wrapped XML responses
@@ -275,6 +280,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
 }
 
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    RepeatPaymentV2<T> for Worldpayvantiv<T>
+{
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> PaymentSyncV2
     for Worldpayvantiv<T>
 {
@@ -369,9 +379,15 @@ macros::create_all_prerequisites!(
     api: [
         (
             flow: Authorize,
-            request_body: WorldpayvantivPaymentsRequest<T>,
+            request_body: WorldpayvantivAuthorizeRequest<T>,
             response_body: CnpOnlineResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: WorldpayvantivRepeatPaymentRequest<T>,
+            response_body: WorldpayvantivRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
@@ -459,7 +475,37 @@ macros::create_all_prerequisites!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Worldpayvantiv,
-    curl_request: Xml(WorldpayvantivPaymentsRequest<T>),
+    curl_request: SoapXml(WorldpayvantivRepeatPaymentRequest<T>),
+    curl_response: WorldpayvantivRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![(headers::CONTENT_TYPE.into(), self.common_get_content_type().into())])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(self.connector_base_url_payments(req))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayvantiv,
+    curl_request: SoapXml(WorldpayvantivAuthorizeRequest<T>),
     curl_response: CnpOnlineResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
@@ -472,9 +518,9 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            _req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            Ok(vec![(headers::CONTENT_TYPE.into(), self.common_get_content_type().into())])
         }
 
         fn get_url(
@@ -510,7 +556,14 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let txn_id = req.request.get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Payment sync requires the cnpTxnId returned by Worldpay Vantiv.".to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
             let secondary_base_url = req.resource_common_data.connectors.worldpayvantiv.secondary_base_url
                 .as_ref()
                 .unwrap_or(&req.resource_common_data.connectors.worldpayvantiv.base_url);
@@ -913,7 +966,6 @@ macros::macro_connector_flow_status_impls!(
         Authenticate,
         PostAuthenticate,
         SetupMandate,
-        RepeatPayment,
         Accept,
         SubmitEvidence,
         DefendDispute,

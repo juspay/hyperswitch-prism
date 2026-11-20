@@ -166,6 +166,9 @@ message CompositeAuthorizeRequest {
 
   // Authorize-only Account Name Verification opt-in, forwarded to PaymentServiceAuthorizeRequest.
   optional bool enable_account_name_verification = 68;
+
+  // Details about the sender of funds for account-funded transactions.
+  optional SenderDetails sender_details = 69;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -913,6 +916,9 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Preserve the Account Name Verification opt-in for authorization after redirect verification.
   optional bool enable_account_name_verification = 64;
+
+  // Details about the sender of funds for account-funded transactions.
+  optional SenderDetails sender_details = 65;
 }
 
 // Response message for composite verify redirect response flow.
