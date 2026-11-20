@@ -2584,24 +2584,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                     })
                     .transpose()?,
                 base_url: rapyd.base_url,
-                statement_descriptor: rapyd
-                    .statement_descriptor
-                    .map(|descriptor| {
-                        if !(5..=22).contains(&descriptor.peek().chars().count()) {
-                            return Err(errors::IntegrationError::InvalidConnectorConfig {
-                                config: "statement_descriptor",
-                                context: errors::IntegrationErrorContext {
-                                    suggested_action: Some(
-                                        "Set the Rapyd statement descriptor to 5–22 characters."
-                                            .to_string(),
-                                    ),
-                                    ..Default::default()
-                                },
-                            });
-                        }
-                        Ok(descriptor)
-                    })
-                    .transpose()?,
+                statement_descriptor: rapyd.statement_descriptor,
             }),
             AuthType::AbsaSanlam(absa_sanlam) => Ok(Self::AbsaSanlam {
                 api_key: absa_sanlam.api_key.ok_or_else(err)?,
