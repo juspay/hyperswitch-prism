@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, request::Method};
+use common_utils::{ext_traits::ValueExt, request::Method, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, CreateConnectorCustomer, PaymentMethodToken,
@@ -996,9 +996,11 @@ pub fn get_paysafe_payment_status(
             | Some(enums::CaptureMethod::Scheduled) => enums::AttemptStatus::Unresolved,
         },
         PaysafePaymentStatus::Failed => enums::AttemptStatus::Failure,
-        PaysafePaymentStatus::Pending | PaysafePaymentStatus::Processing => {
-            enums::AttemptStatus::Pending
-        }
+        PaysafePaymentStatus::Pending
+        | PaysafePaymentStatus::Processing
+        | PaysafePaymentStatus::Received
+        | PaysafePaymentStatus::Held
+        | PaysafePaymentStatus::Unknown => enums::AttemptStatus::Pending,
         PaysafePaymentStatus::Cancelled => enums::AttemptStatus::Voided,
     }
 }
@@ -2613,6 +2615,53 @@ impl<
     }
 }
 
+// Settlement records carry the outcome of a manual capture; payment COMPLETED alone
+// describes the authorization, even after a settlement is created.
+fn get_paysafe_sync_status(
+    payment: &PaysafePaymentsResponse,
+    capture_method: Option<enums::CaptureMethod>,
+) -> enums::AttemptStatus {
+    if payment.status == PaysafePaymentStatus::Completed
+        && matches!(
+            capture_method,
+            Some(enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple)
+        )
+    {
+        let settled: i128 = payment
+            .settlements
+            .iter()
+            .filter(|settlement| settlement.status == PaysafeSyncSettlementStatus::Completed)
+            .map(|settlement| i128::from(settlement.amount.get_amount_as_i64()))
+            .sum();
+        if settled > 0 {
+            return if settled >= i128::from(payment.amount.get_amount_as_i64()) {
+                enums::AttemptStatus::Charged
+            } else {
+                enums::AttemptStatus::PartialCharged
+            };
+        }
+        if payment.settlements.iter().any(|settlement| {
+            matches!(
+                settlement.status,
+                PaysafeSyncSettlementStatus::Received
+                    | PaysafeSyncSettlementStatus::Initiated
+                    | PaysafeSyncSettlementStatus::Pending
+                    | PaysafeSyncSettlementStatus::Processing
+                    | PaysafeSyncSettlementStatus::Unknown
+            )
+        }) {
+            return enums::AttemptStatus::CaptureInitiated;
+        }
+        if payment
+            .available_to_settle
+            .is_some_and(|amount| amount == ConnectorMinorUnit::zero())
+        {
+            return enums::AttemptStatus::Pending;
+        }
+    }
+    get_paysafe_payment_status(payment.status, capture_method)
+}
+
 // PSync Flow - Response
 
 impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
@@ -2626,64 +2675,63 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<PaysafeSyncResponse, Self>) -> Result<Self, Self::Error> {
+        let request_id = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .ok()
+            .filter(|id| !id.is_empty());
+        let capture_method = item.router_data.request.capture_method;
         // Payment handle syncs return the handle id, which is not the payment id.
         let (status, id, error, resource_id) = match &item.response {
-            PaysafeSyncResponse::SinglePayment(payment_response) => {
-                let status = get_paysafe_payment_status(
-                    payment_response.status,
-                    item.router_data.request.capture_method,
-                );
-                (
-                    status,
-                    &payment_response.id,
-                    &payment_response.error,
-                    ResponseId::ConnectorTransactionId(payment_response.id.clone()),
-                )
-            }
-            PaysafeSyncResponse::Payments(sync_response) => {
-                let payment_response = sync_response.payments.first().ok_or_else(|| {
-                    error_stack::Report::from(
-                        crate::utils::response_deserialization_fail(
-                            item.http_code,
-                        "paysafe: response body did not match the expected format; confirm API version and connector documentation."),
-                    )
-                })?;
-                let status = get_paysafe_payment_status(
-                    payment_response.status,
-                    item.router_data.request.capture_method,
-                );
-                (
-                    status,
-                    &payment_response.id,
-                    &payment_response.error,
-                    ResponseId::ConnectorTransactionId(payment_response.id.clone()),
-                )
-            }
-            PaysafeSyncResponse::SinglePaymentHandle(payment_handle_response) => {
-                let status = enums::AttemptStatus::try_from(payment_handle_response.status)?;
-                (
-                    status,
-                    &payment_handle_response.id,
-                    &payment_handle_response.error,
-                    ResponseId::NoResponseId,
-                )
-            }
+            PaysafeSyncResponse::SinglePayment(payment_response) => (
+                get_paysafe_sync_status(payment_response, capture_method),
+                Some(payment_response.id.clone()),
+                payment_response.error.as_ref(),
+                ResponseId::ConnectorTransactionId(payment_response.id.clone()),
+            ),
+            PaysafeSyncResponse::Payments(sync_response) => match sync_response.payments.first() {
+                Some(payment) => (
+                    get_paysafe_sync_status(payment, capture_method),
+                    Some(payment.id.clone()),
+                    payment.error.as_ref(),
+                    ResponseId::ConnectorTransactionId(payment.id.clone()),
+                ),
+                None => (
+                    enums::AttemptStatus::Pending,
+                    request_id.clone(),
+                    None,
+                    request_id
+                        .clone()
+                        .map(ResponseId::ConnectorTransactionId)
+                        .unwrap_or(ResponseId::NoResponseId),
+                ),
+            },
+            PaysafeSyncResponse::SinglePaymentHandle(payment_handle_response) => (
+                enums::AttemptStatus::try_from(payment_handle_response.status)?,
+                Some(payment_handle_response.id.clone()),
+                payment_handle_response.error.as_ref(),
+                ResponseId::NoResponseId,
+            ),
             PaysafeSyncResponse::PaymentHandle(sync_response) => {
-                let payment_handle_response =
-                    sync_response.payment_handles.first().ok_or_else(|| {
-                        error_stack::Report::from(
-                            crate::utils::response_deserialization_fail(
-                                item.http_code,
-                            "paysafe: response body did not match the expected format; confirm API version and connector documentation."),
-                        )
-                    })?;
-                let status = enums::AttemptStatus::try_from(payment_handle_response.status)?;
-                (
-                    status,
-                    &payment_handle_response.id,
-                    &payment_handle_response.error,
-                    ResponseId::NoResponseId,
-                )
+                match sync_response.payment_handles.first() {
+                    Some(handle) => (
+                        enums::AttemptStatus::try_from(handle.status)?,
+                        Some(handle.id.clone()),
+                        handle.error.as_ref(),
+                        ResponseId::NoResponseId,
+                    ),
+                    None => (
+                        enums::AttemptStatus::Pending,
+                        request_id.clone(),
+                        None,
+                        request_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId)
+                            .unwrap_or(ResponseId::NoResponseId),
+                    ),
+                }
             }
         };
 
@@ -2709,7 +2757,7 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
                 reason,
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: Some(id.clone()),
+                connector_transaction_id: id,
                 ..Default::default()
             })
         } else {
