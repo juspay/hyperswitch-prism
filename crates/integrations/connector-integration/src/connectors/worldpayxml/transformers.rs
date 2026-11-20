@@ -2499,8 +2499,9 @@ impl responses::WorldpayxmlWebhookBody {
                 EventType::PayoutSuccess
             }
             WorldpayxmlLastEvent::PushRefused => EventType::PayoutFailure,
-            WorldpayxmlLastEvent::Expired
-            | WorldpayxmlLastEvent::Error
+            // An expired authorisation is terminal (sync maps it to Failure).
+            WorldpayxmlLastEvent::Expired => EventType::PaymentIntentExpired,
+            WorldpayxmlLastEvent::Error
             | WorldpayxmlLastEvent::QueryRequired
             | WorldpayxmlLastEvent::CancelReceived
             | WorldpayxmlLastEvent::RefundReceived
@@ -2517,7 +2518,8 @@ impl responses::WorldpayxmlWebhookBody {
             | WorldpayxmlLastEvent::Captured
             | WorldpayxmlLastEvent::SentForAuthorisation
             | WorldpayxmlLastEvent::Cancelled
-            | WorldpayxmlLastEvent::Refused => {
+            | WorldpayxmlLastEvent::Refused
+            | WorldpayxmlLastEvent::Expired => {
                 WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: order_code,
                     merchant_transaction_id: None,
@@ -2553,8 +2555,7 @@ impl responses::WorldpayxmlWebhookBody {
                     merchant_payout_id: None,
                 })
             }
-            WorldpayxmlLastEvent::Expired
-            | WorldpayxmlLastEvent::Error
+            WorldpayxmlLastEvent::Error
             | WorldpayxmlLastEvent::QueryRequired
             | WorldpayxmlLastEvent::CancelReceived
             | WorldpayxmlLastEvent::RefundReceived
