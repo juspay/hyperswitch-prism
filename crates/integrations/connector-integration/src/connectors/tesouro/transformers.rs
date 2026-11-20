@@ -1596,7 +1596,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroAuthorizeRespo
         item: ResponseRouterData<TesouroAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let auto_capture = is_auto_capture(item.router_data.request.capture_method);
-        let (status, response) = match item.response {
+        let (status, mut response) = match item.response {
             TesouroApiResponse::Success(success) => map_authorization_response(
                 success.data.authorize_customer_initiated_transaction,
                 auto_capture,
@@ -1616,6 +1616,13 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroAuthorizeRespo
                 )
             }
         };
+        // An MIT does not replace the original CIT mandate references.
+        if let Ok(PaymentsResponseData::TransactionResponse {
+            mandate_reference, ..
+        }) = &mut response
+        {
+            *mandate_reference = None;
+        }
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
