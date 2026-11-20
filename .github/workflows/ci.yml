@@ -671,6 +671,11 @@ jobs:
       - name: Run Superposition Config Validation
         run: cargo test -p grpc-server --all-features --test test_superposition_config
 
+      # Keep this outside the connector-name filter in the test job. Connector
+      # changes can alter logged response shapes without touching logging code.
+      - name: Run Log Transformation Regression Tests
+        run: cargo test -p grpc-server --all-features --test log_transformation_regression --locked
+
   # ── Tests ─────────────────────────────────────────────────────────────────
 
   test:
