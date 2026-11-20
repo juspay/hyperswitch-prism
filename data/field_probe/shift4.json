@@ -114,7 +114,7 @@
       },
       "Blik": {
         "status": "not_supported",
-        "error": "BankRedirect type Blik { blik_code: Some(\"777124\") } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Blik { blik_code: Some(*** alloc::string::String ***) } is not supported by Shift4 is not supported by Shift4"
       },
       "Bluecode": {
         "status": "not_implemented",
