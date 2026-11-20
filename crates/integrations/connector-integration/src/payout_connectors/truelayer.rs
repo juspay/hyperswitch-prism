@@ -94,7 +94,17 @@ impl TruelayerPayouts {
             }
         })?;
         let metadata = truelayer::TruelayerPayoutMetadata::try_from(&req.connector_config)?;
-        let idempotency_key = common_utils::fp_utils::generate_uuid_v4();
+        // Derived from the payout reference so a retried transfer reuses the same key.
+        let idempotency_key = uuid::Uuid::new_v5(
+            &uuid::Uuid::NAMESPACE_OID,
+            format!(
+                "truelayer-payout:{}:{}",
+                req.resource_common_data.merchant_id.get_string_repr(),
+                req.resource_common_data.connector_request_reference_id
+            )
+            .as_bytes(),
+        )
+        .to_string();
         let request_body = self
             .get_request_body(req)?
             .map(|body| body.content.get_inner_value().expose().clone());
