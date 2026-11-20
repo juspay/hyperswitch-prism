@@ -164,13 +164,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let outcome_code = match payload.event_type {
-            paypal::PaypalWebhookEventType::CustomerDisputeResolved => Some(
-                request
+            paypal::PaypalWebhookEventType::CustomerDisputeResolved => {
+                let details: paypal::PaypalWebhooksBody = request
                     .body
-                    .parse_struct::<paypal::DisputeOutcome>("PaypalDisputeOutcome")
-                    .change_context(WebhookError::WebhookEventTypeNotFound)?
-                    .outcome_code,
-            ),
+                    .parse_struct("PaypalWebhooksBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                get_paypal_dispute_outcome(details.resource)?
+            }
             _ => None,
         };
 
@@ -421,6 +422,19 @@ fn get_paypal_dispute_status_from_outcome(
         paypal::OutcomeCode::ResolvedWithPayout => common_enums::DisputeStatus::DisputeCancelled,
     }
 }
+
+fn get_paypal_dispute_outcome(
+    resource: paypal::PaypalResource,
+) -> Result<Option<paypal::OutcomeCode>, error_stack::Report<WebhookError>> {
+    match resource {
+        paypal::PaypalResource::PaypalDisputeWebhooks(dispute) => {
+            Ok(dispute.dispute_outcome.map(|outcome| outcome.outcome_code))
+        }
+        _ => Err(report!(WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Expected PayPal dispute webhook resource")),
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Paypal<T>
 {
