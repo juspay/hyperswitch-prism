@@ -3,7 +3,7 @@ use crate::{
     types::Connectors,
 };
 use common_enums::Currency;
-use common_utils::types::MinorUnit;
+use common_utils::types::{MinorUnit, Money};
 use hyperswitch_masking::Secret;
 use serde::Serialize;
 use std::sync::Arc;
@@ -86,13 +86,51 @@ impl From<grpc_api_types::surcharge::SurchargeStrategy> for SurchargeStrategy {
 /// Request data for surcharge calculation
 #[derive(Debug, Clone)]
 pub struct SurchargeCalculateRequest {
-    pub amount: MinorUnit,
-    pub currency: Currency,
+    pub money: Money,
     pub previous_connector_surcharge_id: Option<String>,
     pub surcharge_strategy: Option<SurchargeStrategy>,
     pub card_bin: String,
     pub postal_code: Secret<String>,
     pub country: Option<common_enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundInitRequest {
+    pub merchant_surcharge_refund_id: Option<String>,
+    pub connector_surcharge_id: String,
+    pub money: Money,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundInitResponse {
+    pub connector_surcharge_refund_id: String,
+    pub refund_amount: MinorUnit,
+    pub original_transaction_fee: Option<MinorUnit>,
+    pub previously_refunded_transaction_fees: Option<MinorUnit>,
+    pub currency: Option<Currency>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundCompleteRequest {
+    pub merchant_surcharge_refund_id: Option<String>,
+    pub connector_surcharge_refund_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundCompleteResponse {
+    pub connector_surcharge_refund_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SurchargeRefundInitIntegrityObject {
+    pub connector_surcharge_id: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SurchargeRefundCompleteIntegrityObject {
+    pub connector_surcharge_refund_id: String,
 }
 
 /// Request data for surcharge payment succeeded notification

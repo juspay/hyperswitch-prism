@@ -6,6 +6,7 @@ export * from "./session-supervisor.js";
 export * from "./logger.js";
 export * from "./config.js";
 export * from "./utils.js";
+export * from "./control-auth.js";
 export * from "./llm.js";
 export * from "./checkpoints/index.js";
 export * from "./scrub.js";

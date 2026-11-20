@@ -64,7 +64,7 @@ impl<T: PaymentMethodDataTypes>
         item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.minor_amount.get_amount_as_i64(),
+            amount: item.request.amount.amount.get_amount_as_i64(),
             currency: item.request.currency.to_string(),
             reference: item.resource_common_data.connector_request_reference_id.clone(),
         })

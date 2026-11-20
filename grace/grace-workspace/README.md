@@ -100,6 +100,9 @@ Open a sidecar terminal and run `opencode serve` — it listens on `http://127.0
 
 ### After bootstrap, daily flow
 
+The supervisor prints a `http://localhost:3141/#token=...` link at boot. Open it once per browser so the dashboard can authenticate to the control socket; if the dashboard shows as disconnected, this is the first thing to check. The token lives in `~/.tenxgrace/ws-token`, and the socket binds to loopback by default (see `.env.example` for overrides).
+
+
 ```bash
 pnpm dev           # supervisor + dashboard + watch-mode rebuilds
 ```

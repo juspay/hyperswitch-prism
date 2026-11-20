@@ -251,6 +251,8 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                network_transaction_id: None,
+                transaction_link_id: None,
             },
         )),
     };
@@ -498,8 +500,7 @@ async fn test_authorize_capture_refund_rsync() {
         let mut capture_grpc_request = Request::new(capture_request);
         add_payload_metadata(&mut capture_grpc_request);
 
-        let capture_response = client
-            .capture(capture_grpc_request)
+        let capture_response = Box::pin(client.capture(capture_grpc_request))
             .await
             .expect("gRPC capture call failed")
             .into_inner();

@@ -394,7 +394,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -729,7 +729,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = MerchanteAuthType::try_from(&router_data.connector_config)?;
         let amount = connector
             .amount_converter
-            .convert(&router_data.request.amount_to_capture)
+            .convert(&router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -947,7 +947,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Full refund when refund_amount == payment_amount; partial otherwise.
         let is_full_refund =
-            router_data.request.refund_amount.amount == router_data.request.payment_amount.amount;
+            router_data.request.refund_money.amount() == router_data.request.payment_money.amount();
 
         let amount = if is_full_refund {
             None
@@ -955,7 +955,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Some(
                 connector
                     .amount_converter
-                    .convert(&router_data.request.refund_amount)
+                    .convert(&router_data.request.refund_money)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
                             suggested_action: Some(
@@ -1076,7 +1076,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = MerchanteAuthType::try_from(&router_data.connector_config)?;
         let amount = connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(

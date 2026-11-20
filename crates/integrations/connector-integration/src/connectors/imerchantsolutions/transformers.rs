@@ -397,7 +397,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     holder: card_data.get_optional_cardholder_name(),
                 });
                 Ok(Self {
-                    amount: item.router_data.request.amount.amount,
+                    amount: item.router_data.request.money.amount(),
                     currency: item.router_data.request.currency,
                     reference: item
                         .router_data
@@ -481,7 +481,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }?;
                     Ok(Self {
-                        amount: item.router_data.request.amount.amount,
+                        amount: item.router_data.request.money.amount(),
                         currency: item.router_data.request.currency,
                         reference: item
                             .router_data
@@ -535,7 +535,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }?;
                     Ok(Self {
-                        amount: item.router_data.request.amount.amount,
+                        amount: item.router_data.request.money.amount(),
                         currency: item.router_data.request.currency,
                         reference: item
                             .router_data
@@ -607,6 +607,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::Skrill(_)
                 | WalletData::Neteller(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::AliPayPlusRedirect {}
+                | WalletData::BoostRedirect {}
                 | WalletData::PayhereRedirect {} => {
                     Err(errors::IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
@@ -802,7 +804,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    amount_capturable: Some(utils::response_amount_to_money(
+                    capturable_money: Some(utils::response_amount_to_money(
                         &connector,
                         item.response.amount.value,
                         item.router_data.request.currency,
@@ -857,7 +859,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.amount.amount;
+        let amount = item.router_data.request.money.amount();
         let currency = item.router_data.request.currency;
         let reference = item
             .router_data
@@ -1034,7 +1036,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    amount_capturable: Some(utils::response_amount_to_money(
+                    capturable_money: Some(utils::response_amount_to_money(
                         &connector,
                         item.response.amount.value,
                         item.router_data.request.currency,
@@ -1269,25 +1271,25 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status: response.status.clone().into(),
-                            amount_captured: response
+                            captured_money: response
                                 .total_captured
                                 .map(|amount| {
                                     utils::response_amount_to_money(
                                         &connector,
                                         amount,
-                                        router_data.request.currency,
+                                        router_data.request.money.currency(),
                                         http_code,
                                         domain_types::connector_types::ConnectorEnum::Imerchantsolutions,
                                     )
                                 })
                                 .transpose()?,
-                            amount_capturable: response
+                            capturable_money: response
                                 .remaining_amount
                                 .map(|amount| {
                                     utils::response_amount_to_money(
                                         &connector,
                                         amount,
-                                        router_data.request.currency,
+                                        router_data.request.money.currency(),
                                         http_code,
                                         domain_types::connector_types::ConnectorEnum::Imerchantsolutions,
                                     )
@@ -1305,25 +1307,25 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
-                            amount_captured: response
+                            captured_money: response
                                 .total_captured
                                 .map(|amount| {
                                     utils::response_amount_to_money(
                                         &connector,
                                         amount,
-                                        router_data.request.currency,
+                                        router_data.request.money.currency(),
                                         http_code,
                                         domain_types::connector_types::ConnectorEnum::Imerchantsolutions,
                                     )
                                 })
                                 .transpose()?,
-                            amount_capturable: response
+                            capturable_money: response
                                 .remaining_amount
                                 .map(|amount| {
                                     utils::response_amount_to_money(
                                         &connector,
                                         amount,
-                                        router_data.request.currency,
+                                        router_data.request.money.currency(),
                                         http_code,
                                         domain_types::connector_types::ConnectorEnum::Imerchantsolutions,
                                     )
@@ -1401,7 +1403,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             utils::response_amount_to_money(
                                 &connector,
                                 amount,
-                                router_data.request.currency,
+                                router_data.request.money.currency(),
                                 http_code,
                                 domain_types::connector_types::ConnectorEnum::Imerchantsolutions,
                             )
@@ -1412,7 +1414,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             utils::response_amount_to_money(
                                 &connector,
                                 amount,
-                                router_data.request.currency,
+                                router_data.request.money.currency(),
                                 http_code,
                                 domain_types::connector_types::ConnectorEnum::Imerchantsolutions,
                             )
@@ -1422,8 +1424,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
-                            amount_captured,
-                            amount_capturable,
+                            captured_money: amount_captured,
+                            capturable_money: amount_capturable,
                             ..router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1585,7 +1587,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             psp_reference,
-            amount: item.router_data.request.amount_to_capture.amount,
+            amount: item.router_data.request.capture_money.amount(),
             currency: item.router_data.request.currency,
             final_capture,
         })
@@ -1687,7 +1689,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             psp_reference: item.router_data.request.connector_transaction_id.clone(),
-            amount: item.router_data.request.refund_amount.amount,
+            amount: item.router_data.request.refund_money.amount(),
             currency: item.router_data.request.currency,
             reference: Some(item.router_data.request.refund_id.clone()),
             reason: item.router_data.request.reason,

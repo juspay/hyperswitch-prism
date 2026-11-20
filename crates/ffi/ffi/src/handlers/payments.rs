@@ -1,5 +1,6 @@
 pub const EMBEDDED_DEVELOPMENT_CONFIG: &str =
     include_str!("../../../../../config/development.toml");
+pub const EMBEDDED_SANDBOX_CONFIG: &str = include_str!("../../../../../config/sandbox.toml");
 pub const EMBEDDED_PROD_CONFIG: &str = include_str!("../../../../../config/production.toml");
 
 use crate::types::FfiRequestData;
@@ -10,10 +11,10 @@ use grpc_api_types::payments::{ConnectorError, Environment, IntegrationError};
 fn get_config(
     environment: Option<Environment>,
 ) -> Result<std::sync::Arc<ucs_env::configs::Config>, IntegrationError> {
-    let config_str = if environment == Some(Environment::Production) {
-        EMBEDDED_PROD_CONFIG
-    } else {
-        EMBEDDED_DEVELOPMENT_CONFIG
+    let config_str = match environment {
+        Some(Environment::Production) => EMBEDDED_PROD_CONFIG,
+        Some(Environment::Sandbox) => EMBEDDED_SANDBOX_CONFIG,
+        Some(Environment::Unspecified) | None => EMBEDDED_DEVELOPMENT_CONFIG,
     };
     crate::utils::load_config(config_str).map_err(|e| common_utils::errors::ErrorSwitch::switch(&e))
 }

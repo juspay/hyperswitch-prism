@@ -344,7 +344,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // The Orbital Gateway JSON API has no webhooks, callbacks or server-to-server
 // notifications of any kind, so this is the default not-supported stub.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for JpmorganOrbital<T>
+    interfaces::webhooks::IncomingWebhook for JpmorganOrbital<T>
 {
 }
 

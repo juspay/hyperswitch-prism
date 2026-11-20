@@ -269,7 +269,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = JuspayAmountConvertor::convert(&router_data.request.amount)?;
+        let amount = JuspayAmountConvertor::convert(&router_data.request.money)?;
 
         let customer_id = router_data
             .resource_common_data
@@ -689,6 +689,8 @@ fn wallet_to_juspay(
         | WalletData::Skrill(_)
         | WalletData::Neteller(_)
         | WalletData::PaymayaRedirect(_)
+        | WalletData::AliPayPlusRedirect {}
+        | WalletData::BoostRedirect {}
         | WalletData::PayhereRedirect {} => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),
@@ -1046,20 +1048,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount_to_capture = router_data.request.amount_to_capture.amount;
+        let amount_to_capture = router_data.request.capture_money.amount();
         let original_amount = router_data
             .resource_common_data
-            .amount
+            .money
             .as_ref()
-            .map(|money| money.amount);
+            .map(|money| money.amount());
 
         let amount = match original_amount {
             Some(total) if total == amount_to_capture => None,
             _ => Some(JuspayAmountConvertor::convert(
-                &common_utils::types::Money {
-                    amount: amount_to_capture,
-                    currency: router_data.request.currency,
-                },
+                &router_data.request.capture_money,
             )?),
         };
 
@@ -1166,7 +1165,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = wrapper.router_data;
 
-        let amount = JuspayAmountConvertor::convert(&router_data.request.refund_amount)?;
+        let amount = JuspayAmountConvertor::convert(&router_data.request.refund_money)?;
 
         Ok(Self {
             unique_request_id: router_data.request.refund_id.clone(),

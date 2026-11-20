@@ -128,6 +128,8 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)
@@ -216,6 +218,7 @@ fn card_network_to_gateway(network: &common_enums::CardNetwork) -> Option<Gatewa
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
         | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::MyDebit
         | common_enums::CardNetwork::AirPlus
         | common_enums::CardNetwork::Aurore
         | common_enums::CardNetwork::EftposAustralia
@@ -350,6 +353,8 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)
@@ -782,7 +787,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             gateway,
             currency: item.request.currency,
-            amount: item.request.amount.amount,
+            amount: item.request.money.amount(),
             description: item.resource_common_data.get_description()?,
             payment_options,
             customer,
@@ -884,7 +889,7 @@ impl<T: PaymentMethodDataTypes>
                 .clone(),
             gateway,
             currency: item.request.currency,
-            amount: item.request.amount.amount,
+            amount: item.request.money.amount(),
             description: item.resource_common_data.get_description()?,
             payment_options,
             customer,
@@ -1066,7 +1071,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let item = &wrapper.router_data;
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.refund_amount.amount,
+            amount: item.request.refund_money.amount(),
         })
     }
 }
@@ -1082,7 +1087,7 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             currency: item.request.currency,
-            amount: item.request.refund_amount.amount,
+            amount: item.request.refund_money.amount(),
         })
     }
 }

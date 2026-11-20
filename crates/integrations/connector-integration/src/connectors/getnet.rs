@@ -129,7 +129,7 @@ macros::macro_connector_payout_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Getnet<T>
+    interfaces::webhooks::IncomingWebhook for Getnet<T>
 {
 }
 
@@ -180,6 +180,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         completed_step: Option<connector_types::AuthenticationStep>,
+        _payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
 

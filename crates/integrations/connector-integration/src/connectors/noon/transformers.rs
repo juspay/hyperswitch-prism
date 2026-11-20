@@ -481,6 +481,8 @@ pub(crate) fn build_noon_payment_data<
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)
@@ -585,7 +587,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // order_category / description.
         let payment_action = get_noon_payment_action(
             item.request.capture_method,
-            item.request.amount.amount == MinorUnit::zero(),
+            item.request.money.amount() == MinorUnit::zero(),
         )?;
 
         // 3DS: Noon runs its own 3DS and decides enrolment itself, so there is no
@@ -626,7 +628,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(&item.request.amount)
+            .convert(&item.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -689,7 +691,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let max_amount = data
                     .connector
                     .amount_converter
-                    .convert(&mandate_amount.amount)
+                    .convert(&mandate_amount.money)
                     .change_context(IntegrationError::RequestEncodingFailed {
                         context: IntegrationErrorContext {
                             suggested_action: Some(
@@ -715,7 +717,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let order = NoonOrder {
             amount,
-            currency: Some(item.request.amount.currency),
+            currency: Some(item.request.money.currency()),
             channel: NoonChannels::Web,
             category: Some(category),
             reference: item
@@ -1086,7 +1088,7 @@ fn noon_amount_captured(
     let total = order.total_captured_amount.filter(|total| *total > 0.0)?;
     let currency = order
         .currency
-        .or_else(|| flow_data.amount.as_ref().map(|money| money.currency))?;
+        .or_else(|| flow_data.money.as_ref().map(Money::currency))?;
     utils::response_amount_to_money(
         &FloatMajorUnitForConnector,
         FloatMajorUnit(total),
@@ -1118,7 +1120,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                 status,
                 connector_response: connector_response
                     .or(resource_common_data.connector_response.clone()),
-                amount_captured: amount_captured.or(resource_common_data.amount_captured.clone()),
+                captured_money: amount_captured.or(resource_common_data.captured_money.clone()),
                 ..resource_common_data
             },
             response,
@@ -1192,7 +1194,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = data
             .connector
             .amount_converter
-            .convert(&item.request.amount_to_capture)
+            .convert(&item.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -1207,7 +1209,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
         let transaction = NoonActionTransaction {
             amount,
-            currency: item.request.amount_to_capture.currency,
+            currency: item.request.capture_money.currency(),
             transaction_reference: None,
         };
         Ok(Self {
@@ -1350,7 +1352,7 @@ impl TryFrom<ResponseRouterData<NoonVoidResponse, Self>>
                 status,
                 connector_response: connector_response
                     .or(resource_common_data.connector_response.clone()),
-                amount_captured: amount_captured.or(resource_common_data.amount_captured.clone()),
+                captured_money: amount_captured.or(resource_common_data.captured_money.clone()),
                 ..resource_common_data
             },
             response,
@@ -1416,7 +1418,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let refund_amount = data
             .connector
             .amount_converter
-            .convert(&data.router_data.request.refund_amount);
+            .convert(&data.router_data.request.refund_money);
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
         };
@@ -1424,7 +1426,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: refund_amount.change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?,
-            currency: item.request.refund_amount.currency,
+            currency: item.request.refund_money.currency(),
             transaction_reference: Some(item.request.refund_id.clone()),
         };
         Ok(Self {
@@ -1874,9 +1876,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payment_action = get_noon_payment_action(
             item.request.capture_method,
             item.request
-                .amount
+                .money
                 .as_ref()
-                .is_some_and(|money| money.amount == MinorUnit::zero()),
+                .is_some_and(|money| money.amount() == MinorUnit::zero()),
         )?;
         let payment_data = match &item.request.payment_method_data {
             PaymentMethodData::Wallet(WalletData::PaypalRedirect(_)) => Err(
@@ -1947,7 +1949,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })
                 })
         })?;
-        let order_money = item.request.amount.as_ref().ok_or_else(|| {
+        let order_money = item.request.money.as_ref().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: IntegrationErrorContext {
@@ -2029,7 +2031,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let max_amount = data
             .connector
             .amount_converter
-            .convert(&mandate_amount.amount)
+            .convert(&mandate_amount.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -2050,7 +2052,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let order = NoonOrder {
             amount,
-            currency: Some(order_money.currency),
+            currency: Some(order_money.currency()),
             channel: NoonChannels::Web,
             category: Some(category),
             reference: item
@@ -2117,7 +2119,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 status,
                 connector_response: connector_response
                     .or(resource_common_data.connector_response.clone()),
-                amount_captured: amount_captured.or(resource_common_data.amount_captured.clone()),
+                captured_money: amount_captured.or(resource_common_data.captured_money.clone()),
                 ..resource_common_data
             },
             response,
@@ -2168,7 +2170,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Refusals come first so that no request is built for an input Noon cannot take.
         let payment_action = get_noon_payment_action(
             router_data.request.capture_method,
-            router_data.request.amount.amount == MinorUnit::zero(),
+            router_data.request.money.amount() == MinorUnit::zero(),
         )?;
 
         // A Noon MIT charges the subscription created by the mandate setup; Noon has no
@@ -2225,7 +2227,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -2318,7 +2320,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 status,
                 connector_response: connector_response
                     .or(resource_common_data.connector_response.clone()),
-                amount_captured: amount_captured.or(resource_common_data.amount_captured.clone()),
+                captured_money: amount_captured.or(resource_common_data.captured_money.clone()),
                 ..resource_common_data
             },
             response,

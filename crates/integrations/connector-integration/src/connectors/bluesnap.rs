@@ -123,7 +123,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 // ===== DISPUTE FLOW TRAIT IMPLEMENTATIONS =====
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Bluesnap<T>
+    interfaces::webhooks::IncomingWebhook for Bluesnap<T>
 {
     fn verify_webhook_source(
         &self,
@@ -140,12 +140,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let message =
             self.get_webhook_source_verification_message(&request, &connector_webhook_secret)?;
 
-        use common_utils::crypto::{HmacSha256, SignMessage};
+        use common_utils::crypto::{HmacSha256, VerifySignature};
         HmacSha256
-            .sign_message(&connector_webhook_secret.secret, &message)
+            .verify_signature(&connector_webhook_secret.secret, &signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to sign webhook message with HMAC-SHA256")
-            .map(|expected_signature| expected_signature.eq(&signature))
+            .attach_printable("Failed to verify webhook message with HMAC-SHA256")
     }
 
     fn get_webhook_source_verification_signature(
@@ -243,6 +242,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id,
             status,
@@ -255,7 +256,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: None,
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -279,6 +280,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
+                raw_connector_status: None,
                 connector_refund_id: Some(connector_refund_id),
                 merchant_transaction_id: None,
                 status: common_enums::RefundStatus::Success,

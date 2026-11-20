@@ -691,7 +691,6 @@
             "minor_amount": 100,
             "currency": "USD"
           },
-          "network_transaction_id": "263010131742906",
           "payment_method": {
             "card_with_no_cvc": {
               "card_number": "4111111111111111",
@@ -984,6 +983,32 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT SetupMandate. Provide PaymentMethodData::Card with a PAN and expiry so Worldpay RAFT can create a TokenizedPAN for subsequent payments"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for worldpayraft"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for worldpayraft"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for worldpayraft"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for worldpayraft"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for worldpayraft"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for worldpayraft"
       }
     },
     "verify_redirect": {

@@ -5,7 +5,7 @@ use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    crypto::{self, SignMessage},
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -249,7 +249,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Braintree<T>
+    interfaces::webhooks::IncomingWebhook for Braintree<T>
 {
     fn verify_webhook_source(
         &self,
@@ -312,20 +312,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &connector_webhook_secrets.secret,
         );
 
-        let signed_message = crypto::HmacSha1
-            .sign_message(sha1_hash_key.as_ref(), message)
+        let signature = hex::decode(extracted_signature)
+            .change_context(WebhookError::WebhookSignatureNotFound)?;
+
+        crypto::HmacSha1
+            .verify_signature(sha1_hash_key.as_ref(), &signature, message)
             .inspect_err(|error| {
                 tracing::warn!(
                     target: "braintree_webhook",
                     ?error,
-                    "failed to compute the HMAC-SHA1 signature over the Braintree bt_payload"
+                    "failed to verify the HMAC-SHA1 signature over the Braintree bt_payload"
                 );
             })
-            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
-
-        let payload_sign = hex::encode(signed_message);
-
-        Ok(payload_sign.as_bytes().eq(extracted_signature.as_bytes()))
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
@@ -362,7 +361,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_api_response(
         &self,
         _request: RequestDetails,
-        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _error_kind: Option<interfaces::webhooks::IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<interfaces::api::EventAckResponse, Report<WebhookError>> {
         Ok(interfaces::api::EventAckResponse {

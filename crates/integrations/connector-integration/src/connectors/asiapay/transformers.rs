@@ -520,7 +520,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // required here.
         let return_url = request.get_router_return_url()?;
 
-        let amount = AsiapayAmountConvertor::convert(&request.amount)?;
+        let amount = AsiapayAmountConvertor::convert(&request.money)?;
         let curr_code = request.currency.iso_4217();
         let pay_type = AsiapayPayType::from_capture_method(request.capture_method);
         let order_ref = common.connector_request_reference_id.clone();
@@ -788,7 +788,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         validate_line_pay_capture_method(request.capture_method)?;
 
-        let amount = AsiapayAmountConvertor::convert(&request.amount)?;
+        let amount = AsiapayAmountConvertor::convert(&request.money)?;
         let curr_code = request.currency.iso_4217();
         let pay_type = AsiapayPayType::N;
         let order_ref = common.connector_request_reference_id.clone();
@@ -1039,7 +1039,7 @@ pub(crate) fn handle_authorize_response<
     let native = build_native_authorize_response(
         order_ref,
         html_data,
-        data.request.amount.amount,
+        data.request.money.amount(),
         data.request.currency,
     );
 
@@ -1086,14 +1086,14 @@ impl AsiapaySuccessCode {
 }
 
 /// Parse AsiaPay's echoed `Amt` (major-unit string, e.g. `"80.00"`) back into
-/// a `MinorUnit` via the connector's own StringMajorUnit converter (inverse
+/// `Money` via the connector's own StringMajorUnit converter (inverse
 /// direction). `StringMajorUnit` has no public constructor, so the echoed
 /// string is round-tripped through its serde representation.
-fn parse_echoed_amount(
+fn parse_echoed_money(
     amt: &str,
     currency: Currency,
     http_code: u16,
-) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+) -> Result<Money, error_stack::Report<ConnectorError>> {
     let echoed: StringMajorUnit =
         serde_json::from_value(serde_json::Value::String(amt.to_string())).map_err(|_| {
             error_stack::report!(ConnectorError::response_handling_failed_with_context(
@@ -1103,16 +1103,22 @@ fn parse_echoed_amount(
                 )),
             ))
         })?;
-    AsiapayAmountConvertor::convert_back(echoed, currency)
-        .map(|money| money.amount)
-        .map_err(|conversion_error| {
-            error_stack::report!(ConnectorError::response_handling_failed_with_context(
-                http_code,
-                Some(format!(
-                    "asiapay: could not convert echoed Amt `{amt}` ({conversion_error:?})"
-                )),
-            ))
-        })
+    AsiapayAmountConvertor::convert_back(echoed, currency).map_err(|conversion_error| {
+        error_stack::report!(ConnectorError::response_handling_failed_with_context(
+            http_code,
+            Some(format!(
+                "asiapay: could not convert echoed Amt `{amt}` ({conversion_error:?})"
+            )),
+        ))
+    })
+}
+
+fn parse_echoed_amount(
+    amt: &str,
+    currency: Currency,
+    http_code: u16,
+) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+    parse_echoed_money(amt, currency, http_code).map(|money| money.amount())
 }
 
 // ============================================================================
@@ -1420,10 +1426,10 @@ impl TryFrom<ResponseRouterData<AsiapayPSyncResponse, Self>>
             .cur
             .as_deref()
             .and_then(crate::utils::currency_from_iso_4217_numeric)
-            .unwrap_or(router_data.request.currency);
+            .unwrap_or(router_data.request.money.currency());
         let amount = match response.amt.as_deref() {
             Some(amt) => parse_echoed_amount(amt, currency, http_code)?,
-            None => router_data.request.amount.amount,
+            None => router_data.request.money.amount(),
         };
 
         // Identifier carrier chain: re-publish the connector feature data the
@@ -1547,10 +1553,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        // The amount being captured NOW (`amount_to_capture`), which may be
+        // The amount being captured NOW (`capture_money`), which may be
         // below the originally authorized amount — partial capture is a
         // first-class AsiaPay feature.
-        let amount = AsiapayAmountConvertor::convert(&router_data.request.amount_to_capture)?;
+        let amount = AsiapayAmountConvertor::convert(&router_data.request.capture_money)?;
 
         Ok(Self {
             merchant_id: auth.merchant_id,
@@ -1713,7 +1719,7 @@ impl TryFrom<ResponseRouterData<AsiapayCaptureResponse, Self>>
             .unwrap_or(router_data.request.currency);
         let amount_to_capture = match response.amt.as_deref() {
             Some(amt) => parse_echoed_amount(amt, currency, http_code)?,
-            None => router_data.request.amount_to_capture.amount,
+            None => router_data.request.capture_money.amount(),
         };
 
         Ok(Self {
@@ -1998,19 +2004,11 @@ impl TryFrom<ResponseRouterData<AsiapayVoidResponse, Self>>
             .as_deref()
             .and_then(crate::utils::currency_from_iso_4217_numeric)
             .or(router_data.request.currency);
-        let amount = match (response.amt.as_deref(), currency) {
-            (Some(amt), Some(currency)) => Some(parse_echoed_amount(amt, currency, http_code)?),
+        let voided_money = match (response.amt.as_deref(), currency) {
+            (Some(amt), Some(currency)) => Some(parse_echoed_money(amt, currency, http_code)?),
             // amt absent (or no usable currency to convert it against):
-            // mirror whatever the void request carried (may itself be None).
-            _ => router_data
-                .request
-                .amount
-                .as_ref()
-                .map(|money| money.amount),
-        };
-        let voided_amount = match (amount, currency) {
-            (Some(amount), Some(currency)) => Some(Money { amount, currency }),
-            _ => None,
+            // mirror the void request's Money (may itself be None).
+            _ => router_data.request.money.clone(),
         };
 
         Ok(Self {
@@ -2040,7 +2038,7 @@ impl TryFrom<ResponseRouterData<AsiapayVoidResponse, Self>>
                 payment_account_reference: None,
             }),
             request: PaymentVoidData {
-                amount: voided_amount,
+                money: voided_money,
                 currency,
                 integrity_object: Some(PaymentVoidIntegrityObject {
                     connector_transaction_id: response.pay_ref.clone().unwrap_or(sent_pay_ref),
@@ -2125,9 +2123,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ));
         }
 
-        // The amount being refunded NOW (`refund_amount`), which may be below
+        // The amount being refunded NOW (`refund_money`), which may be below
         // the captured amount — partial refunds are allowed by the gateway.
-        let amount = AsiapayAmountConvertor::convert(&router_data.request.refund_amount)?;
+        let amount = AsiapayAmountConvertor::convert(&router_data.request.refund_money)?;
 
         Ok(Self {
             merchant_id: auth.merchant_id,
@@ -2312,7 +2310,7 @@ impl TryFrom<ResponseRouterData<AsiapayRefundResponse, Self>>
             .unwrap_or(router_data.request.currency);
         let refund_amount = match response.amt.as_deref() {
             Some(amt) => parse_echoed_amount(amt, currency, http_code)?,
-            None => router_data.request.refund_amount.amount,
+            None => router_data.request.refund_money.amount(),
         };
 
         Ok(Self {
@@ -3029,10 +3027,12 @@ mod tests {
         AsiapayLinePayAuthorizeRequest {
             merchant_id: Secret::new("test-merchant".to_string()),
             order_ref: "test-line-order".to_string(),
-            amount: AsiapayAmountConvertor::convert(&Money {
-                amount: MinorUnit::new(100000),
-                currency: Currency::TWD,
-            })
+            amount: AsiapayAmountConvertor::convert(
+                &serde_json::from_value::<Money>(
+                    serde_json::json!({ "amount": 100000, "currency": Currency::TWD }),
+                )
+                .expect("money"),
+            )
             .expect("amount conversion"),
             curr_code: "901".to_string(),
             lang: AsiapayLanguage::English,
@@ -3053,10 +3053,12 @@ mod tests {
         AsiapayCardAuthorizeRequest {
             merchant_id: Secret::new("test-merchant".to_string()),
             order_ref: "test-card-order".to_string(),
-            amount: AsiapayAmountConvertor::convert(&Money {
-                amount: MinorUnit::new(12345),
-                currency: Currency::USD,
-            })
+            amount: AsiapayAmountConvertor::convert(
+                &serde_json::from_value::<Money>(
+                    serde_json::json!({ "amount": 12345, "currency": Currency::USD }),
+                )
+                .expect("money"),
+            )
             .expect("amount conversion"),
             curr_code: "840".to_string(),
             lang: AsiapayLanguage::English,

@@ -193,6 +193,7 @@ fn create_payment_authorize_request(
     });
 
     let browser_info = BrowserInformation {
+        challenge_window_size: None,
         color_depth: None,
         java_enabled: Some(false),
         screen_height: Some(1080),

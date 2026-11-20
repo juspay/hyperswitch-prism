@@ -1233,7 +1233,7 @@ impl Currency {
     pub fn is_three_decimal_currency(self) -> bool {
         matches!(
             self,
-            Self::BHD | Self::JOD | Self::KWD | Self::OMR | Self::TND
+            Self::BHD | Self::IQD | Self::JOD | Self::KWD | Self::LYD | Self::OMR | Self::TND
         )
     }
 
@@ -1324,7 +1324,6 @@ impl Currency {
                 | Self::IDR
                 | Self::ILS
                 | Self::INR
-                | Self::IQD
                 | Self::IRR
                 | Self::ISK
                 | Self::JMD
@@ -1339,7 +1338,6 @@ impl Currency {
                 | Self::LKR
                 | Self::LRD
                 | Self::LSL
-                | Self::LYD
                 | Self::MAD
                 | Self::MDL
                 | Self::MKD
@@ -1521,6 +1519,7 @@ pub enum PaymentMethodType {
     Alfamart,
     AliPay,
     AliPayHk,
+    AliPayPlus,
     Alma,
     Tamara,
     AmazonPay,
@@ -1643,6 +1642,7 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     Skrill,
     Neteller,
+    Boost,
     Paysera,
     Paymaya,
     Payhere,
@@ -2144,6 +2144,8 @@ pub enum CardNetwork {
     PrivateLabel,
     #[serde(alias = "DINACARD")]
     Dinacard,
+    #[serde(alias = "MYDEBIT")]
+    MyDebit,
     #[serde(alias = "AIRPLUS")]
     AirPlus,
     #[serde(alias = "AURORE")]
@@ -2340,6 +2342,7 @@ pub enum EventClass {
     Payments,
     Refunds,
     Disputes,
+    Payouts,
 }
 
 #[derive(
@@ -3608,29 +3611,6 @@ pub enum TravelMode {
     Train,
     Bus,
     Ferry,
-}
-
-/// Travel cabin / service class.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    Deserialize,
-    Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum TravelClass {
-    Economy,
-    PremiumEconomy,
-    Business,
-    First,
 }
 
 /// Passenger / customer gender.

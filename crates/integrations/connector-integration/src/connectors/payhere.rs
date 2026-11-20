@@ -3,7 +3,7 @@ pub mod transformers;
 use common_enums::CurrencyUnit;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    crypto::GenerateDigest,
+    crypto::{GenerateDigest, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -158,7 +158,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::connector_types::IncomingWebhook for Payhere<T>
+    interfaces::webhooks::IncomingWebhook for Payhere<T>
 {
     fn verify_webhook_source(
         &self,
@@ -197,13 +197,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             hash_secret_upper
         );
 
-        let final_hash = common_utils::crypto::Md5
-            .generate_digest(message.as_bytes())
-            .map_err(|_| {
-                error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
-            })?;
+        let signature = hex::decode(&payload.md5sig)
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)?;
 
-        Ok(hex::encode(final_hash).to_uppercase() == payload.md5sig)
+        common_utils::crypto::Md5
+            .verify_signature(&[], &signature, message.as_bytes())
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
     }
 
     fn get_event_type(
@@ -236,6 +235,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: payload
                 .payment_id
                 .map(|id| ResponseId::ConnectorTransactionId(id.to_string())),
@@ -249,7 +250,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: None,
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -618,7 +619,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(RedirectDetailsResponse {
             resource_id: order_id.clone().map(ResponseId::ConnectorTransactionId),
             status: None,
-            response_amount: None,
+            response_money: None,
             connector_response_reference_id: order_id,
             error_code: None,
             error_message: None,

@@ -28,8 +28,12 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    decode::BodyDecoding, verification::ConnectorSourceVerificationSecrets,
+    api::ConnectorCommon,
+    connector_integration_v2::ConnectorIntegrationV2,
+    connector_types,
+    decode::BodyDecoding,
+    verification::ConnectorSourceVerificationSecrets,
+    webhooks::{IncomingWebhook, IncomingWebhookFlowError},
 };
 use serde::Serialize;
 use transformers::{
@@ -537,8 +541,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // specs.json — it may only be declared with a real captured sandbox
 // webhook_payload.json, which does not exist yet, so webhook certification is
 // deferred.
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Asiapay<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> IncomingWebhook
+    for Asiapay<T>
 {
     fn get_webhook_event_reference(
         &self,
@@ -691,12 +695,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Echoed amount/currency — present only when both keys are usable
         // (PSync stays the amount authority for this connector).
-        let amount_captured =
+        let amount =
             asiapay::parse_asiapay_webhook_amount(body.amt.as_deref(), body.cur.as_deref())?;
 
         let order_ref = body.order_ref.clone();
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: amount.clone(),
             // PayRef is AsiaPay's payment-gateway reference; by contract it is
             // present on the feed, but if a quirk drops it the outcome is
             // still surfaced (PSync can recover the reference via orderRef).
@@ -718,7 +724,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(raw_body),
             status_code: 200,
             response_headers: None,
-            amount_captured,
+            captured_money: if status == AttemptStatus::Charged {
+                amount
+            } else {
+                None
+            },
             // AuthId echoes the acquirer authorization id (mirrors the
             // Authorize/PSync handlers).
             network_txn_id: body.auth_id.clone(),
@@ -746,7 +756,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_api_response(
         &self,
         _request: RequestDetails,
-        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _error_kind: Option<IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<errors::WebhookError>> {
         // AsiaPay's Data Feed requires the receiver to print `OK` as the ACK
@@ -780,7 +790,7 @@ fn redirect_details_from_query_params(
     domain_types::connector_types::RedirectDetailsResponse {
         resource_id: ref_id.clone().map(ResponseId::ConnectorTransactionId),
         status: None,
-        response_amount: None,
+        response_money: None,
         connector_response_reference_id: ref_id,
         error_code: None,
         error_message: None,
@@ -951,7 +961,7 @@ mod tests {
                 Some(expected)
             );
             assert!(response.status.is_none());
-            assert!(response.response_amount.is_none());
+            assert!(response.response_money.is_none());
         }
     }
 }

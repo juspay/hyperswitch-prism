@@ -33,7 +33,7 @@ ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-300}"
 # One scenario plus its dependency chain is at most 7 calls, each bounded by the
 # server's 10s per-call timeout. 300s was the whole-connector budget reused here.
 SCENARIO_TIMEOUT="${SCENARIO_TIMEOUT:-90}"
-SPECS_ROOT="${SPECS_ROOT:-crates/internal/integration-tests/src/connector_specs}"
+SPECS_ROOT="${SPECS_ROOT:-tests/regression/src/connector_specs}"
 ALPHA_FILE="${SPECS_ROOT}/alpha_connectors.json"
 LIVE_FILE="${SPECS_ROOT}/live_connectors.json"
 BASE_SHA="${BASE_SHA:-}"
@@ -46,8 +46,8 @@ GRPC_HOST="${GRPC_HOST:-0.0.0.0}"
 GRPC_PORT="${GRPC_PORT:-8000}"
 SERVER_BINARY="target/debug/grpc-server"
 
-# shellcheck source=../../scripts/grpc-server.sh
-source "scripts/grpc-server.sh"
+# shellcheck source=../../tests/regression/scripts/grpc-server.sh
+source "tests/regression/scripts/grpc-server.sh"
 
 # Listed in alpha_connectors.json: no credentials in CI, so nothing to certify.
 is_alpha() {
@@ -82,7 +82,7 @@ print_reproduction_command() {
 }
 
 # Only the sources are swapped for arbitration, never the tooling: this script
-# and scripts/run-tests must stay at their HEAD versions. A full checkout would
+# and tests/regression/scripts/run-tests must stay at their HEAD versions. A full checkout would
 # rewrite this file while bash is still reading it, and would revert run-tests
 # to a version that does not understand the flags used below.
 CHECKOUT_PATHS=(crates config Cargo.toml Cargo.lock)
@@ -134,7 +134,7 @@ run_connector() {
   # stderr. Left on stdout it is captured too, and every line of it becomes a
   # bogus failure target — while the real scenario detail vanishes from the log.
   UCS_RUN_TEST_REPORT_PATH="${report}" \
-    timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./scripts/run-tests "${args[@]}" >&2
+    timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./tests/regression/scripts/run-tests "${args[@]}" >&2
   local rc=$?
 
   local rows=""
@@ -176,7 +176,7 @@ run_scenario() {
               --interface grpc --report)
 
   UCS_RUN_TEST_REPORT_PATH="${report}" \
-    timeout --kill-after=30s "${SCENARIO_TIMEOUT}" ./scripts/run-tests "${args[@]}"
+    timeout --kill-after=30s "${SCENARIO_TIMEOUT}" ./tests/regression/scripts/run-tests "${args[@]}"
   LAST_RC=$?
 
   LAST_ERROR=""

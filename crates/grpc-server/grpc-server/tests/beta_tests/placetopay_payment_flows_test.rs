@@ -172,6 +172,7 @@ fn create_payment_authorize_request(
 
     // Set up browser information with required fields for Placetopay
     let browser_info = BrowserInformation {
+        challenge_window_size: None,
         color_depth: None,
         java_enabled: Some(false),
         screen_height: Some(1080),
@@ -234,6 +235,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
 // Helper function to create a payment capture request
 fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        domain_data: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),

@@ -126,13 +126,13 @@ impl PayoutService for Payouts {
         request: tonic::Request<PayoutServiceTransferRequest>,
     ) -> Result<tonic::Response<PayoutServiceTransferResponse>, tonic::Status> {
         let (config, service_name) = self.extract_request_metadata(&request)?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config,
             FlowName::PayoutTransfer,
             |request_data| self.internal_payout_transfer(request_data),
-        )
+        ))
         .await
     }
 
@@ -306,13 +306,13 @@ impl PayoutService for Payouts {
         request: tonic::Request<PayoutServiceCreateRecipientRequest>,
     ) -> Result<tonic::Response<PayoutServiceCreateRecipientResponse>, tonic::Status> {
         let (config, service_name) = self.extract_request_metadata(&request)?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config,
             FlowName::PayoutCreateRecipient,
             |request_data| self.internal_payout_create_recipient(request_data),
-        )
+        ))
         .await
     }
 
@@ -342,13 +342,13 @@ impl PayoutService for Payouts {
         request: tonic::Request<PayoutServiceEnrollDisburseAccountRequest>,
     ) -> Result<tonic::Response<PayoutServiceEnrollDisburseAccountResponse>, tonic::Status> {
         let (config, service_name) = self.extract_request_metadata(&request)?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config,
             FlowName::PayoutEnrollDisburseAccount,
             |request_data| self.internal_payout_enroll_disburse_account(request_data),
-        )
+        ))
         .await
     }
 

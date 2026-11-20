@@ -369,7 +369,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Kount<T>
+    interfaces::webhooks::IncomingWebhook for Kount<T>
 {
 }
 

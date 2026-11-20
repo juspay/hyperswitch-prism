@@ -461,8 +461,7 @@ async fn test_payment_authorization_manual_capture() {
             "Failed to add credentials"
         );
 
-        let capture_response = client
-            .capture(grpc_capture_request)
+        let capture_response = Box::pin(client.capture(grpc_capture_request))
             .await
             .expect("Payment capture failed");
 

@@ -8,6 +8,7 @@ import {
   SessionBusyError,
   StateManager,
   loadConfig,
+  loadControlToken,
   newRunId,
   setConfig,
   checkAIHealth,
@@ -335,7 +336,7 @@ export async function runCommand(opts: RunOpts): Promise<void> {
   // routes messages by sessionId. Standalone (`pnpm engine`) still works
   // because it implicitly assumes a supervisor on cfg.wsPort — if none is
   // running, the bus simply drops events (process still functions).
-  const controlWsUrl = `ws://localhost:${cfg.wsPort}`;
+  const controlWsUrl = `ws://127.0.0.1:${cfg.wsPort}?token=${encodeURIComponent(loadControlToken())}`;
   const bus =
     opts.dashboard === false
       ? undefined

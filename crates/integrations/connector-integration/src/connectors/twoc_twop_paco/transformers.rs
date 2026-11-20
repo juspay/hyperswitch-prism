@@ -7,7 +7,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::jose::JoseConfig,
     request::Method,
-    types::{FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    types::{FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
@@ -219,7 +219,8 @@ pub struct PacoTransactionAmount {
 }
 
 impl PacoTransactionAmount {
-    fn new(minor_amount: MinorUnit, currency: Currency) -> Result<Self, errors::IntegrationError> {
+    fn new(money: &common_utils::types::Money) -> Result<Self, errors::IntegrationError> {
+        let currency = money.currency();
         let decimals = currency
             .number_of_digits_after_decimal_point()
             .map_err(|_| errors::IntegrationError::InvalidDataFormat {
@@ -234,14 +235,11 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let raw = minor_amount.get_amount_as_i64();
+        let raw = money.amount().get_amount_as_i64();
         let amount_text = format!("{raw:0>12}");
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
-            &common_utils::types::Money {
-                amount: minor_amount,
-                currency,
-            },
+            money,
         )
         .map_err(|err| errors::IntegrationError::InvalidDataFormat {
             field_name: "amount",
@@ -677,7 +675,7 @@ pub struct PacoPassenger {
 impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
     type Error = errors::IntegrationError;
     fn try_from(money: &common_utils::types::Money) -> Result<Self, Self::Error> {
-        Self::new(money.amount, money.currency)
+        Self::new(money)
     }
 }
 
@@ -865,17 +863,17 @@ impl TryFrom<&connector_types::AirlineData> for PacoAirlineData {
         // the per-purchase amounts land at the right path (tickets[]) instead
         // of being silently dropped at the airlineData top level.
         let ticket_fare = airline
-            .total_fare
+            .total_fare_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
         let tax_amount = airline
-            .total_taxes
+            .total_taxes_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
         let agent_fee = airline
-            .total_fee
+            .total_fee_money
             .as_ref()
             .map(PacoTransactionAmount::try_from)
             .transpose()?;
@@ -929,7 +927,7 @@ where
         .unwrap_or_else(|| order_no.clone());
     let request_message_id =
         paco_require_merchant_request_id(item.resource_common_data.get_merchant_request_id())?;
-    let amount = PacoTransactionAmount::new(item.request.amount.amount, item.request.currency)?;
+    let amount = PacoTransactionAmount::new(&item.request.money)?;
     let notification_urls = PacoNotificationUrls {
         confirmation_url: item.request.router_return_url.clone(),
         failed_url: item.request.router_return_url.clone(),
@@ -1142,8 +1140,7 @@ pub fn build_capture_request(
 ) -> Result<TwocTwopPacoCaptureRequest, error_stack::Report<errors::IntegrationError>> {
     let office_id = auth.office_id.clone();
     let invoice_no = item.request.get_connector_transaction_id()?;
-    let amount =
-        PacoTransactionAmount::new(item.request.amount_to_capture.amount, item.request.currency)?;
+    let amount = PacoTransactionAmount::new(&item.request.capture_money)?;
     let request_message_id =
         paco_require_merchant_request_id(item.resource_common_data.get_merchant_request_id())?;
     Ok(TwocTwopPacoCaptureRequest {
@@ -1245,8 +1242,7 @@ pub fn build_refund_request(
     auth: &TwocTwopPacoAuthType,
 ) -> Result<TwocTwopPacoRefundRequest, error_stack::Report<errors::IntegrationError>> {
     let office_id = auth.office_id.clone();
-    let amount =
-        PacoTransactionAmount::new(item.request.refund_amount.amount, item.request.currency)?;
+    let amount = PacoTransactionAmount::new(&item.request.refund_money)?;
     let original_order_no = item.request.get_connector_order_id().change_context(
         errors::IntegrationError::MissingRequiredField {
             field_name: "connector_order_id",
@@ -2150,7 +2146,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: None,
+                attempt_status: Some(FlowStatus::Refund(refund_status)),
                 connector_transaction_id: Some(connector_refund_id),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -2209,12 +2205,12 @@ where
     #[serde(untagged)]
     enum Repr {
         List(Vec<PacoInquiryData>),
-        Single(PacoInquiryData),
+        Single(Box<PacoInquiryData>),
         Null,
     }
     match Option::<Repr>::deserialize(deserializer)? {
         Some(Repr::List(mut v)) => Ok(v.drain(..).next()),
-        Some(Repr::Single(d)) => Ok(Some(d)),
+        Some(Repr::Single(d)) => Ok(Some(*d)),
         Some(Repr::Null) | None => Ok(None),
     }
 }
@@ -2232,6 +2228,8 @@ pub struct PacoInquiryData {
     pub approval_code: Option<String>,
     #[serde(default)]
     pub credit_card_authenticated_details: Option<PacoCreditCardAuthenticatedDetails>,
+    #[serde(default)]
+    pub prior_payment_response_details: Option<PacoPriorPaymentResponseDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2319,9 +2317,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             .and_then(|d| d.invoice_no2c2p.clone());
         let order = response.data.as_ref().and_then(|d| d.order_no.clone());
         let approval_code = response.data.as_ref().and_then(|d| d.approval_code.clone());
+        let prior = response
+            .data
+            .as_ref()
+            .and_then(|d| d.prior_payment_response_details.clone());
 
         if matches!(status, AttemptStatus::Failure) {
-            let (code, message) = error_code_message(&response.api_response, &None);
+            let (code, message) = error_code_message(&response.api_response, &prior);
             let error = ErrorResponse {
                 code,
                 message: message.clone(),
@@ -2352,7 +2354,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             .clone()
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
-        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &None);
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2433,15 +2435,19 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             None => RefundStatus::Pending,
         };
         let connector_refund_id = router_data.request.connector_refund_id.clone();
+        let prior = response
+            .data
+            .as_ref()
+            .and_then(|d| d.prior_payment_response_details.clone());
 
         if refund_status == RefundStatus::Failure {
-            let (code, message) = error_code_message(&response.api_response, &None);
+            let (code, message) = error_code_message(&response.api_response, &prior);
             let error = ErrorResponse {
                 code,
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: None,
+                attempt_status: Some(FlowStatus::Refund(refund_status)),
                 connector_transaction_id: Some(connector_refund_id),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -2462,7 +2468,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             });
         }
 
-        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &None);
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &prior);
 
         Ok(Self {
             resource_common_data: RefundFlowData {

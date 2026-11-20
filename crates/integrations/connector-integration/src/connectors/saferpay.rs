@@ -553,7 +553,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Saferpay's Transaction interface exposes no signed webhook — only unauthenticated,
 // bodyless `NotifyUrl` GET pings — so there is nothing to consume or verify here.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Saferpay<T>
+    interfaces::webhooks::IncomingWebhook for Saferpay<T>
 {
 }
 
