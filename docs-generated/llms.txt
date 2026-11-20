@@ -534,6 +534,14 @@ payment_methods: AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted,
 flows: authorize, capture, create_order, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/juspay/juspay.py
 
+## Kgp
+connector_id: kgp
+doc: docs/connectors/kgp.md
+scenarios: none
+payment_methods: none
+flows: capture, customer_create, get, parse_event, refund, refund_get, token_authorize, void
+examples_python: none
+
 ## Kount
 connector_id: kount
 doc: docs/connectors/kount.md

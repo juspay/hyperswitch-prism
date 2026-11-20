@@ -183,6 +183,7 @@ pub enum ConnectorEnum {
     Ecommpay,
     Payhound,
     Revpay,
+    Kgp,
 }
 
 // snake case for enum variants
@@ -592,6 +593,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
             grpc_api_types::payments::Connector::Payhound => Ok(Self::Payhound),
             grpc_api_types::payments::Connector::Revpay => Ok(Self::Revpay),
+            grpc_api_types::payments::Connector::Kgp => Ok(Self::Kgp),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -6792,6 +6794,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Payhound(_) => Ok(Self::Payment(ConnectorEnum::Payhound)),
             AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
+            AuthType::Kgp(_) => Ok(Self::Payment(ConnectorEnum::Kgp)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {

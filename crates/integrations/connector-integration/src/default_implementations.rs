@@ -311,6 +311,7 @@ default_impl_verify_webhook_source_v2!(
         Betterpayment,
         Reddot,
         Ecommpay,
+        Kgp,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -390,6 +391,7 @@ default_impl_recharge_v2!(
     Revpay,
     Betterpayment,
     Ecommpay,
+    Kgp,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -635,6 +637,7 @@ default_impl_create_payment_method_v2!(
     Revpay,
     Betterpayment,
     Ecommpay,
+    Kgp,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -758,6 +761,7 @@ default_impl_get_payment_method_v2!(
     Revpay,
     Betterpayment,
     Ecommpay,
+    Kgp,
     Citigate,
     JpmorganOrbital,
     Paynearme,
@@ -996,6 +1000,7 @@ default_impl_payment_method_eligibility_v2!(
         Betterpayment,
         Reddot,
         Ecommpay,
+        Kgp,
     ],
 );
 
@@ -1066,6 +1071,7 @@ default_impl_refresh_payment_method_v2!(
     Betterpayment,
     Ecommpay,
     Revpay,
+    Kgp,
     Citigate,
     JpmorganOrbital,
     Paynearme,
