@@ -1022,13 +1022,13 @@ impl TryFrom<PaysafePaymentHandleStatus> for enums::AttemptStatus {
 impl From<PaysafeSettlementStatus> for enums::AttemptStatus {
     fn from(item: PaysafeSettlementStatus) -> Self {
         match item {
-            PaysafeSettlementStatus::Completed
-            | PaysafeSettlementStatus::Pending
-            | PaysafeSettlementStatus::Processing
-            | PaysafeSettlementStatus::Received => Self::Charged,
+            PaysafeSettlementStatus::Completed => Self::Charged,
             PaysafeSettlementStatus::Failed | PaysafeSettlementStatus::Expired => Self::Failure,
             PaysafeSettlementStatus::Cancelled => Self::Voided,
-            PaysafeSettlementStatus::Initiated => Self::Pending,
+            PaysafeSettlementStatus::Initiated
+            | PaysafeSettlementStatus::Received
+            | PaysafeSettlementStatus::Processing
+            | PaysafeSettlementStatus::Pending => Self::Pending,
         }
     }
 }
@@ -1036,12 +1036,12 @@ impl From<PaysafeSettlementStatus> for enums::AttemptStatus {
 impl From<PaysafeVoidStatus> for enums::AttemptStatus {
     fn from(item: PaysafeVoidStatus) -> Self {
         match item {
-            PaysafeVoidStatus::Completed
-            | PaysafeVoidStatus::Pending
+            PaysafeVoidStatus::Pending
             | PaysafeVoidStatus::Processing
-            | PaysafeVoidStatus::Received => Self::Voided,
+            | PaysafeVoidStatus::Received => Self::VoidInitiated,
             PaysafeVoidStatus::Failed | PaysafeVoidStatus::Held => Self::Failure,
-            PaysafeVoidStatus::Cancelled => Self::Voided,
+            PaysafeVoidStatus::Completed
+            | PaysafeVoidStatus::Cancelled => Self::Voided,
         }
     }
 }
