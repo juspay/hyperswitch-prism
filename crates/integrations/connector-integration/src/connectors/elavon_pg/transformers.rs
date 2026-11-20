@@ -3105,8 +3105,7 @@ impl ElavonPgNotification {
 
     /// `saleAuthorized` is `Charged` on a `doCapture: true` sale and `Authorized` otherwise,
     /// exactly as the Authorize response reads `state: authorized`, so it needs the payment's
-    /// capture method. Notifications can arrive late or out of order, so a payment that has
-    /// already moved past authorization keeps its status.
+    /// capture method.
     pub fn payment_status(
         &self,
         event_context: Option<&EventContext>,
@@ -3134,24 +3133,12 @@ impl ElavonPgNotification {
                 )
             ),
         };
-        let status = AttemptStatus::from(ElavonPgSaleStatus {
+        Ok(AttemptStatus::from(ElavonPgSaleStatus {
             state: &state,
             is_authorized: None,
             is_held_for_review: false,
             is_auto_capture,
-        });
-        let previous_status = event_context.and_then(|context| context.previous_status);
-        Ok(match (status, previous_status) {
-            (
-                AttemptStatus::Authorized,
-                Some(
-                    previous @ (AttemptStatus::Charged
-                    | AttemptStatus::PartialCharged
-                    | AttemptStatus::Voided),
-                ),
-            ) => previous,
-            _ => status,
-        })
+        }))
     }
 
     pub fn refund_status(&self) -> Result<RefundStatus, error_stack::Report<WebhookError>> {
