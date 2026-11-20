@@ -1240,6 +1240,32 @@
         "error": "This feature is not implemented: Selected payment method through ecommpay. Only card account verification is implemented for Ecommpay SetupMandate"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for ecommpay"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for ecommpay"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for ecommpay"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for ecommpay"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for ecommpay"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for ecommpay"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

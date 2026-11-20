@@ -1003,6 +1003,66 @@
         }
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card, Google Pay and Apple Pay payments are supported for Datatrans. Datatrans alias tokenization (/v1/aliases/tokenize) supports Google Pay wallets only"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card, Google Pay and Apple Pay payments are supported for Datatrans. Datatrans alias tokenization (/v1/aliases/tokenize) supports Google Pay wallets only"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card, Google Pay and Apple Pay payments are supported for Datatrans. Datatrans alias tokenization (/v1/aliases/tokenize) supports Google Pay wallets only"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card, Google Pay and Apple Pay payments are supported for Datatrans. Datatrans alias tokenization (/v1/aliases/tokenize) supports Google Pay wallets only"
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/aliases/tokenize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"requests\":[{\"type\":\"GOOGLE_PAY\",\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}]}"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: google_pay.tokenization_data.token. Datatrans Google Pay tokenization requires the encrypted Google Pay tokenization_data.token — Missing required field: google_pay.tokenization_data.token. Datatrans Google Pay tokenization requires the encrypted Google Pay tokenization_data.token"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

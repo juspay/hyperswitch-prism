@@ -26,9 +26,8 @@ Review a PR classified as `connector-new-integration`.
   `connector` dimension `enum` AND has `connector_base_url` override blocks for sandbox (default)
   and production
 - **dynamic URL patching wired**: `crates/types-traits/domain_types/src/types.rs` `Connectors::apply()`
-  has a `ConnectorEnum::<Variant>` match arm (not left to the `_ =>` fallback) and the connector is
-  added to the fallback "Supported connectors:" list. Flag a new connector that skips either edit —
-  it silently ships without dynamic URL patching. Reference: PR #2118.
+  has a `ConnectorEnum::<Variant>` match arm (the match is exhaustive, so a missing arm fails to
+  compile). Reference: PR #2118.
 
 ## Output
 

@@ -1048,6 +1048,32 @@
         "error": "This feature is not implemented: setup_mandate flow for bluesnap"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

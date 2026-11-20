@@ -645,11 +645,6 @@ impl WorldpayraftPosEnvironment {
             {
                 Some(Self::Recurring)
             }
-            Some(MitCategory::Recurring | MitCategory::Subscription)
-                if network == Some(&CardNetwork::AmericanExpress) =>
-            {
-                Some(Self::CredentialOnFile)
-            }
             Some(MitCategory::Recurring) => Some(Self::Recurring),
             Some(MitCategory::Subscription) => Some(Self::Subscription),
             Some(MitCategory::Installment) if network == Some(&CardNetwork::Visa) => {
@@ -1878,11 +1873,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .and_then(|id| id.mandate_reference_id.as_ref());
         let network_reference = WorldpayraftNetworkReference::try_from(mandate)?;
         let network_transaction_id = network_reference.network_transaction_id;
-        let transaction_link_id = network_reference.transaction_link_id;
         let kind = WorldpayraftPaymentKind::for_authorize(
             request,
             request.is_stored_credential.unwrap_or(false),
         );
+        // A subsequent Mastercard CIT receives its original TLID in the
+        // authorization's connector metadata. MITs use the network mandate
+        // reference so an intervening MIT cannot replace the original TLID.
+        let metadata_transaction_link_id = if kind == WorldpayraftPaymentKind::StoredCredentialCit {
+            WorldpayraftConnectorMetadata::try_from(request.connector_feature_data.as_ref())?
+                .transaction_link_id
+        } else {
+            None
+        };
+        let transaction_link_id = network_reference
+            .transaction_link_id
+            .or(metadata_transaction_link_id.as_deref());
         let network_token_cryptogram = match (network_token, kind) {
             (Some(_), WorldpayraftPaymentKind::Mit) => {
                 if !matches!(mandate, Some(MandateReferenceId::NetworkTokenWithNTI(_))) {
@@ -1987,16 +1993,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         let reference_trace_numbers = mastercard_cof_trace_numbers(
             network.as_ref(),
-            kind == WorldpayraftPaymentKind::Mit,
+            matches!(
+                kind,
+                WorldpayraftPaymentKind::Mit | WorldpayraftPaymentKind::StoredCredentialCit
+            ),
             transaction_link_id,
         )?;
 
         let requires_avs = request.enable_avs_check == Some(true)
             || (wallet.is_some() && network == Some(CardNetwork::Visa));
-        let address_verification_data = if !is_debit
-            && kind != WorldpayraftPaymentKind::Mit
-            && (requires_avs || wallet.is_some())
-        {
+        // Subsequent COF authorizations omit CVV, but still carry AVS when requested.
+        let address_verification_data = if !is_debit && (requires_avs || wallet.is_some()) {
             let billing = router_data
                 .resource_common_data
                 .get_optional_billing()
@@ -2401,13 +2408,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .or_else(|| has_original_amount.then(WorldpayraftProcFlags::default))
                 .map(|flags| flags.into_completion(has_original_amount))
         };
-        let brand_specific_data = if proc_flags_indicators
-            .as_ref()
-            .is_some_and(|flags| matches!(flags.incremental_auth, Some(WorldpayraftFlag::Yes)))
-        {
-            metadata.brand_specific_data.unwrap_or_default()
-        } else {
+        // Credit completion reuses brand identifiers returned for its authorization.
+        let brand_specific_data = if is_debit {
             WorldpayraftBrandSpecificData::default()
+        } else {
+            metadata.brand_specific_data.unwrap_or_default()
         };
         let inner = WorldpayraftCompletionInner {
             misc_amounts_balances: WorldpayraftCompletionAmounts {
@@ -3352,7 +3357,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let reference = WorldpayraftNetworkReference::try_from(Some(&request.mandate_reference))?;
         let network_transaction_id = reference.network_transaction_id;
         let transaction_link_id = reference.transaction_link_id;
-        // MITs use the credential and its expiry, without a CIT CVV, AVS, or cryptogram.
+        // MITs use the credential and its expiry, without a CIT CVV or cryptogram.
         let is_network_token = matches!(
             &request.payment_method_data,
             PaymentMethodData::NetworkToken(_)
@@ -3475,6 +3480,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         );
         let reference_trace_numbers =
             mastercard_cof_trace_numbers(network.as_ref(), true, transaction_link_id)?;
+        let billing = router_data
+            .resource_common_data
+            .get_optional_billing()
+            .and_then(|billing| billing.address.as_ref());
+        let address_verification_data = billing.and_then(|billing| {
+            let avs_zip_code = billing
+                .zip
+                .clone()
+                .filter(|zip| !zip.peek().trim().is_empty());
+            let avs_address = billing
+                .line1
+                .clone()
+                .filter(|line| !line.peek().trim().is_empty());
+            (avs_zip_code.is_some() || avs_address.is_some()).then_some(
+                WorldpayraftAddressVerificationData {
+                    avs_zip_code,
+                    avs_address,
+                },
+            )
+        });
         let inner = WorldpayraftCardAuthInner {
             misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
             account_codes_and_data: Some(WorldpayraftCreditAccountData {
@@ -3483,7 +3508,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card_info,
             encryption_token_data,
             card_verification_data: None,
-            address_verification_data: None,
+            address_verification_data,
             terminal_data: pos.terminal_data,
             ecommerce_data: pos.ecommerce_data.map(|ecommerce_data| {
                 WorldpayraftAuthorizeEcommerceData {

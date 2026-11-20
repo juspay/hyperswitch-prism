@@ -359,8 +359,7 @@ connector_base_url = "{production_base_url}"
 ```
 
 **B. `crates/types-traits/domain_types/src/types.rs` → `Connectors::patch_connector_urls()`** — the
-script inserts a match arm BEFORE the `_ =>` fallback and adds the name to the fallback's
-"Supported connectors:" hint:
+match is exhaustive, so the script inserts a match arm before its closing brace:
 
 ```rust
 ConnectorEnum::{ConnectorName} => {
