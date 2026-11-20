@@ -1351,6 +1351,34 @@ impl From<&FiservcommercehubTransactionState> for AttemptStatus {
     }
 }
 
+fn get_capture_attempt_status(state: &FiservcommercehubTransactionState) -> AttemptStatus {
+    match state {
+        FiservcommercehubTransactionState::Pending | FiservcommercehubTransactionState::Timeout => {
+            AttemptStatus::CaptureInitiated
+        }
+        FiservcommercehubTransactionState::Declined
+        | FiservcommercehubTransactionState::Rejected
+        | FiservcommercehubTransactionState::Failed => AttemptStatus::CaptureFailed,
+        _ => AttemptStatus::from(state),
+    }
+}
+
+fn get_void_attempt_status(state: &FiservcommercehubTransactionState) -> AttemptStatus {
+    match state {
+        FiservcommercehubTransactionState::Cancelled
+        | FiservcommercehubTransactionState::Voided => AttemptStatus::Voided,
+        FiservcommercehubTransactionState::Pending | FiservcommercehubTransactionState::Timeout => {
+            AttemptStatus::VoidInitiated
+        }
+        FiservcommercehubTransactionState::Approved
+        | FiservcommercehubTransactionState::Captured
+        | FiservcommercehubTransactionState::Authorized
+        | FiservcommercehubTransactionState::Declined
+        | FiservcommercehubTransactionState::Rejected
+        | FiservcommercehubTransactionState::Failed => AttemptStatus::VoidFailed,
+    }
+}
+
 impl From<&FiservcommercehubTransactionState> for common_enums::AuthorizationStatus {
     fn from(state: &FiservcommercehubTransactionState) -> Self {
         match state {
@@ -1521,7 +1549,7 @@ fn build_payment_response(
     payment_receipt: Option<&FiservcommercehubPaymentReceipt>,
 ) -> Result<PaymentsResponseData, ErrorResponse> {
     match status {
-        AttemptStatus::Failure => {
+        AttemptStatus::Failure | AttemptStatus::CaptureFailed | AttemptStatus::VoidFailed => {
             let processor_response_details =
                 payment_receipt.and_then(|receipt| receipt.processor_response_details.as_ref());
 
@@ -2102,25 +2130,20 @@ impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
     fn try_from(
         item: ResponseRouterData<FiservcommercehubVoidResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let status = AttemptStatus::from(&item.response.gateway_response.transaction_state);
+        let status = get_void_attempt_status(&item.response.gateway_response.transaction_state);
         let txn = &item
             .response
             .gateway_response
             .transaction_processing_details;
+        let response = build_transaction_payment_response(
+            status,
+            item.http_code,
+            txn,
+            None,
+            item.response.payment_receipt.as_ref(),
+        );
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: txn.order_id.clone(),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                splits: None,
-                payment_account_reference: None,
-            }),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -2636,7 +2659,8 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
             .0
             .gateway_response
             .transaction_processing_details;
-        let status = AttemptStatus::from(&item.response.0.gateway_response.transaction_state);
+        let status =
+            get_capture_attempt_status(&item.response.0.gateway_response.transaction_state);
 
         let connector_response = build_connector_response(
             item.response.0.additional_data_3ds.as_ref(),
