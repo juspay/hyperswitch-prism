@@ -685,7 +685,8 @@
     },
     "verify_redirect": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Missing required field: request_details.query_params"
       }
     },
     "void": {
