@@ -1124,49 +1124,31 @@ async fn verify_webhook_source_external(
     )
     .await
     {
-        Ok(verify_result) => Ok(match verify_result.response {
-            Ok(response_data) => {
-                matches!(
-                    response_data.verify_webhook_status,
-                    VerifyWebhookStatus::SourceVerified
-                )
-            }
-            Err(_) => {
-                tracing::warn!(
+        Ok(verify_result) => match verify_result.response {
+            Ok(response_data) => Ok(matches!(
+                response_data.verify_webhook_status,
+                VerifyWebhookStatus::SourceVerified
+            )),
+            Err(error) => {
+                tracing::error!(
                     target: "webhook",
-                    "Webhook verification returned error response for connector {}",
-                    connector_data.connector.id()
+                    connector = connector_data.connector.id(),
+                    failure_kind = "connector_response",
+                    "External webhook verification failed"
                 );
-                false
+                Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                    domain_types::errors::ConnectorError::ConnectorErrorResponse(Box::new(error)),
+                )))
             }
-        }),
-        // Missing or malformed connector-required verification configuration is a
-        // request error, not an unsuccessful signature check. Preserve this error
-        // instead of hiding it behind source_verified=false.
-        Err(e)
-            if matches!(
-                e.current_context(),
-                domain_types::errors::ConnectorFlowError::Request(
-                    domain_types::errors::IntegrationError::MissingRequiredField {
-                        field_name: "webhook_secrets.secret",
-                        ..
-                    } | domain_types::errors::IntegrationError::InvalidDataFormat {
-                        field_name: "webhook_secrets.secret",
-                        ..
-                    }
-                )
-            ) =>
-        {
-            Err(e.to_grpc_error())
-        }
-        Err(e) => {
-            tracing::warn!(
+        },
+        Err(error) => {
+            tracing::error!(
                 target: "webhook",
-                "Webhook verification failed for connector {}: {:?}. Setting source_verified=false",
-                connector_data.connector.id(),
-                e
+                connector = connector_data.connector.id(),
+                failure_kind = "execution",
+                "External webhook verification failed"
             );
-            Ok(false)
+            Err(error.to_grpc_error())
         }
     }
 }
