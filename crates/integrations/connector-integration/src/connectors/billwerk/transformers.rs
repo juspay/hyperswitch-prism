@@ -787,7 +787,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .return_url
             .clone()
-            .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+            .filter(|url| !url.trim().is_empty())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: Default::default(),
+            })?;
 
         let customer_info = router_data.request.customer.as_ref().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
