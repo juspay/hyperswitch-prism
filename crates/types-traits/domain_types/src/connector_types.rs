@@ -6934,6 +6934,8 @@ pub struct AdditionalConnectorDetails {
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
     /// Stripe-specific additional information.
     pub stripe: Option<StripeAdditionalInformation>,
+    /// Request an SCA exemption when the initial CIT completed 3D Secure.
+    pub request_sca_exemption: Option<bool>,
 }
 
 /// Stripe-specific additional information.

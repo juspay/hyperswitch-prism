@@ -7020,12 +7020,14 @@ message SplitSettlementResponseVendor {
 }
 
 // Additional connector-specific details to be passed through to the
-// connector for the transaction. Currently only the Checkout variant is defined.
+// connector for the transaction.
 message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
   optional WorldpayxmlAdditionalInformation worldpayxml = 2;
   optional StripeAdditionalInformation stripe = 3;
+  // Request an SCA exemption in MIT when the initial CIT completed 3D Secure.(eg. JPMorgan uses this to decide ScaExmeptionReason Field)
+  optional bool request_sca_exemption = 4;
 }
 
 message WorldpayxmlAdditionalInformation {
