@@ -112,6 +112,16 @@ pub enum GigadatPayoutStatus {
     Unknown,
 }
 
+/// Status for a payout already submitted (Transfer, Get). `STATUS_PENDING` there is an
+/// in-flight payout, so it is `Pending`; `RequiresFulfillment` would tell the caller to
+/// fulfil again and risk a duplicate payout. Create keeps `RequiresFulfillment`.
+pub(super) fn in_flight_payout_status(status: GigadatPayoutStatus) -> PayoutStatus {
+    match status {
+        GigadatPayoutStatus::StatusPending => PayoutStatus::Pending,
+        other => PayoutStatus::from(other),
+    }
+}
+
 impl From<GigadatPayoutStatus> for PayoutStatus {
     fn from(item: GigadatPayoutStatus) -> Self {
         match item {
@@ -165,7 +175,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
 
         router_data.response = Ok(PayoutTransferResponse {
             merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-            payout_status: PayoutStatus::from(response.status),
+            payout_status: in_flight_payout_status(response.status),
             connector_payout_id: Some(response.data.transaction_id),
             status_code: http_code,
         });
@@ -196,7 +206,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutGetResponse, Self>>
 
         router_data.response = Ok(PayoutGetResponse {
             merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-            payout_status: PayoutStatus::from(response.status),
+            payout_status: in_flight_payout_status(response.status),
             connector_payout_id: Some(response.id),
             status_code: http_code,
         });

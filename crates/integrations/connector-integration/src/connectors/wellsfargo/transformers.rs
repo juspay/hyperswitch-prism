@@ -1709,6 +1709,7 @@ fn is_payment_successful(
             | Some(WellsfargoPaymentStatus::Pending) // Capture operations return PENDING status
             | Some(WellsfargoPaymentStatus::Voided) // Void operations may return VOIDED status
             | Some(WellsfargoPaymentStatus::Reversed) // Void operations return REVERSED status
+            | Some(WellsfargoPaymentStatus::Transmitted) // Settled transactions return TRANSMITTED status
     );
 
     // For refund sync operations, check status_information.reason for "Success"
@@ -1779,7 +1780,6 @@ fn get_refund_status(
 ) -> RefundStatus {
     match status {
         Some(WellsfargoPaymentStatus::Pending) => RefundStatus::Pending,
-        Some(WellsfargoPaymentStatus::Transmitted) => RefundStatus::Pending,
         Some(WellsfargoPaymentStatus::Declined) => RefundStatus::Failure,
         Some(WellsfargoPaymentStatus::InvalidRequest) => RefundStatus::Failure,
         None => {

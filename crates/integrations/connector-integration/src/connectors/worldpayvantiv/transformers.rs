@@ -154,7 +154,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 } else {
                     year_str
                 };
-                let exp_date = format!("{}{}", card_data.card_exp_month.peek(), formatted_year);
+                let exp_date = format!("{:0>2}{}", card_data.card_exp_month.peek(), formatted_year);
 
                 let worldpay_card = WorldpayvantivCardData {
                     card_type,
@@ -2719,7 +2719,7 @@ where
             } else {
                 year_str
             };
-            let exp_date = format!("{}{}", card_data.card_exp_month.peek(), formatted_year);
+            let exp_date = format!("{:0>2}{}", card_data.card_exp_month.peek(), formatted_year);
 
             let worldpay_card = WorldpayvantivCardData {
                 card_type,
@@ -2991,12 +2991,11 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
         };
 
         let payments_response = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(
-                item.response
-                    .payment_id
-                    .map(|id| id.to_string())
-                    .unwrap_or_else(|| "unknown".to_string()),
-            ),
+            resource_id: item
+                .response
+                .payment_id
+                .map(|id| ResponseId::ConnectorTransactionId(id.to_string()))
+                .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone()),
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
@@ -3331,7 +3330,8 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                // A failed refund request, not a failed payment.
+                attempt_status: Some(FlowStatus::Refund(common_enums::RefundStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -3373,7 +3373,7 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
                 .response
                 .payment_id
                 .map(|id| id.to_string())
-                .unwrap_or_else(|| "unknown".to_string()),
+                .unwrap_or_else(|| item.router_data.request.connector_refund_id.clone()),
             refund_status: status,
             status_code: item.http_code,
             acquirer_reference_number: None,

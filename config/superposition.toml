@@ -573,7 +573,11 @@ connector_base_url = "https://api.revolv3.com/"
 # AbsaSanlam
 [[overrides]]
 _context_ = { connector = "absa_sanlam" }
-connector_base_url = "https://api.absa_sanlampay.com/"
+connector_base_url = "sbx"
+
+[[overrides]]
+_context_ = { connector = "absa_sanlam", environment = "development" }
+connector_base_url = "dev"
 
 # TrueLayer
 [[overrides]]
@@ -971,7 +975,7 @@ connector_base_url = "https://api.revolv3.com/"
 # AbsaSanlam Production
 [[overrides]]
 _context_ = { connector = "absa_sanlam", environment = "production" }
-connector_base_url = "https://api.absa_sanlampay.com/"
+connector_base_url = "live"
 
 # TrueLayer Production
 [[overrides]]

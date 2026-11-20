@@ -634,7 +634,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | responses::PeachpaymentsPaymentStatus::Successful => {
                 common_enums::RefundStatus::Success
             }
-            _ => common_enums::RefundStatus::Failure,
+            responses::PeachpaymentsPaymentStatus::Failed
+            | responses::PeachpaymentsPaymentStatus::Declined => {
+                common_enums::RefundStatus::Failure
+            }
+            _ => common_enums::RefundStatus::Pending,
         };
 
         let (error_code, error_message) = if refund_status == common_enums::RefundStatus::Failure {

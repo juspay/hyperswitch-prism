@@ -432,11 +432,18 @@ impl TryFrom<ResponseRouterData<HyperpgSyncResponse, Self>>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
-                connector_response_reference_id: None,
+                resource_id: response
+                    .txn_id
+                    .clone()
+                    .filter(|id| !id.is_empty())
+                    .map(ResponseId::ConnectorTransactionId)
+                    .unwrap_or_else(|| router_data.request.connector_transaction_id.clone()),
+                connector_response_reference_id: Some(response.order_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(serde_json::json!(HyperpgMeta {
+                    order_id: Some(response.order_id.clone())
+                })),
                 network_txn_id: None,
                 network_txn_link_id: None,
                 incremental_authorization_allowed: None,

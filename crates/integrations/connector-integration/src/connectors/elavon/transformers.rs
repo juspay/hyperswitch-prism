@@ -213,7 +213,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     &router_data.resource_common_data.address,
                 ));
 
-                let _cvv_indicator = if card.card_cvc.peek().is_empty() {
+                let cvv_indicator = if card.card_cvc.peek().is_empty() {
                     Some(0)
                 } else {
                     Some(1)
@@ -261,7 +261,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ssl_card_number: card.card_number.clone(),
                     ssl_exp_date: Secret::new(exp_date),
                     ssl_cvv2cvc2: Some(card.card_cvc.clone()),
-                    ssl_cvv2cvc2_indicator: Some(1),
+                    ssl_cvv2cvc2_indicator: cvv_indicator,
                     ssl_email: request_data.email.clone(),
                     ssl_add_token: add_token,
                     ssl_token_source: token_source,
@@ -356,10 +356,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
-        // Log generated XML for debugging
-        let raw_xml = xml_content.clone();
-        tracing::info!(xml=?raw_xml, "Generated raw XML");
-
         let mut result = HashMap::new();
         result.insert(
             "xmldata".to_string(),
@@ -418,10 +414,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })
         })?;
-
-        // Log generated XML for debugging
-        let raw_xml = xml_content.clone();
-        tracing::info!(xml=?raw_xml, "Generated raw XML");
 
         let mut result = HashMap::new();
         result.insert(

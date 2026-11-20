@@ -191,6 +191,9 @@ pub enum GetnetPaymentStatus {
     Error,
     Canceled,
     Cancelled,
+    /// Returned by `/payments/cancel` and payment-info when the cancel is processed as a
+    /// refund of an already-settled payment (D+1 or later).
+    Refunded,
     /// Pix QR has elapsed its expiration window without payment — terminal failure.
     Expired,
     #[serde(rename = "REQUIRES_ACTION")]
@@ -221,7 +224,7 @@ impl From<&GetnetPaymentStatus> for AttemptStatus {
             GetnetPaymentStatus::RequiresAction | GetnetPaymentStatus::Redirect => {
                 Self::AuthenticationPending
             }
-            GetnetPaymentStatus::Unknown => Self::Pending,
+            GetnetPaymentStatus::Refunded | GetnetPaymentStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -229,7 +232,9 @@ impl From<&GetnetPaymentStatus> for AttemptStatus {
 impl From<&GetnetPaymentStatus> for RefundStatus {
     fn from(status: &GetnetPaymentStatus) -> Self {
         match status {
-            GetnetPaymentStatus::Canceled | GetnetPaymentStatus::Cancelled => Self::Success,
+            GetnetPaymentStatus::Canceled
+            | GetnetPaymentStatus::Cancelled
+            | GetnetPaymentStatus::Refunded => Self::Success,
             GetnetPaymentStatus::Pending
             | GetnetPaymentStatus::Waiting
             | GetnetPaymentStatus::Open => Self::Pending,

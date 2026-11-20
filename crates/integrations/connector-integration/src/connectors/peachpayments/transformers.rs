@@ -706,8 +706,8 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundSyncResponse, Self
 impl From<responses::PeachpaymentsPaymentStatus> for AttemptStatus {
     fn from(item: responses::PeachpaymentsPaymentStatus) -> Self {
         match item {
-            responses::PeachpaymentsPaymentStatus::Pending
-            | responses::PeachpaymentsPaymentStatus::Authorized
+            responses::PeachpaymentsPaymentStatus::Pending => Self::Pending,
+            responses::PeachpaymentsPaymentStatus::Authorized
             | responses::PeachpaymentsPaymentStatus::Approved => Self::Authorized,
             responses::PeachpaymentsPaymentStatus::Declined
             | responses::PeachpaymentsPaymentStatus::Failed => Self::Failure,
