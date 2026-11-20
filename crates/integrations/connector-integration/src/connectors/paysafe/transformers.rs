@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, request::Method};
+use common_utils::{ext_traits::ValueExt, request::Method, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, CreateConnectorCustomer, PaymentMethodToken,
@@ -2628,7 +2628,7 @@ fn get_paysafe_sync_status(
         let settled: i128 = payment
             .settlements
             .iter()
-            .filter(|settlement| settlement.status == PaysafeSettlementStatus::Completed)
+            .filter(|settlement| settlement.status == PaysafeSyncSettlementStatus::Completed)
             .map(|settlement| i128::from(settlement.amount.get_amount_as_i64()))
             .sum();
         if settled > 0 {
@@ -2641,14 +2641,18 @@ fn get_paysafe_sync_status(
         if payment.settlements.iter().any(|settlement| {
             matches!(
                 settlement.status,
-                PaysafeSettlementStatus::Pending | PaysafeSettlementStatus::Processing
+                PaysafeSyncSettlementStatus::Received
+                    | PaysafeSyncSettlementStatus::Initiated
+                    | PaysafeSyncSettlementStatus::Pending
+                    | PaysafeSyncSettlementStatus::Processing
+                    | PaysafeSyncSettlementStatus::Unknown
             )
         }) {
             return enums::AttemptStatus::CaptureInitiated;
         }
         if payment
             .available_to_settle
-            .is_some_and(|amount| amount.get_amount_as_i64() == 0)
+            .is_some_and(|amount| amount == ConnectorMinorUnit::zero())
         {
             return enums::AttemptStatus::Pending;
         }
