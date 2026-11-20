@@ -6934,13 +6934,6 @@ pub struct AdditionalConnectorDetails {
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
     /// Stripe-specific additional information.
     pub stripe: Option<StripeAdditionalInformation>,
-    /// JPMorgan-specific additional information.
-    pub jpmorgan: Option<JpmorganAdditionalInformation>,
-}
-
-/// JPMorgan-specific additional information for subsequent MIT payments.
-#[derive(Debug, Clone)]
-pub struct JpmorganAdditionalInformation {
     /// Request an SCA exemption when the initial CIT completed 3D Secure.
     pub request_sca_exemption: Option<bool>,
 }

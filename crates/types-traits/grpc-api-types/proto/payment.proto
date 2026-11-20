@@ -7026,12 +7026,8 @@ message AdditionalConnectorDetails {
   optional CheckoutAdditionalInformation checkout = 1;
   optional WorldpayxmlAdditionalInformation worldpayxml = 2;
   optional StripeAdditionalInformation stripe = 3;
-  optional JpmorganAdditionalInformation jpmorgan = 4;
-}
-
-message JpmorganAdditionalInformation {
-  // Request an SCA exemption in MIT when the initial CIT completed 3D Secure.
-  optional bool request_sca_exemption = 1;
+  // Request an SCA exemption in MIT when the initial CIT completed 3D Secure.(eg. JPMorgan uses this to decide ScaExmeptionReason Field)
+  optional bool request_sca_exemption = 4;
 }
 
 message WorldpayxmlAdditionalInformation {

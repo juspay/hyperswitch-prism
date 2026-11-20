@@ -3102,7 +3102,6 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 request
                     .additional_connector_details
                     .as_ref()
-                    .and_then(|details| details.jpmorgan.as_ref())
                     .and_then(|details| details.request_sca_exemption),
             ),
             account_number: number,

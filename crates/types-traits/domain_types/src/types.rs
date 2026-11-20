@@ -16045,11 +16045,7 @@ impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
                 .map(|s| connector_types::StripeAdditionalInformation {
                     error_on_requires_action: s.error_on_requires_action,
                 }),
-            jpmorgan: value
-                .jpmorgan
-                .map(|j| connector_types::JpmorganAdditionalInformation {
-                    request_sca_exemption: j.request_sca_exemption,
-                }),
+            request_sca_exemption: value.request_sca_exemption,
         }
     }
 }
