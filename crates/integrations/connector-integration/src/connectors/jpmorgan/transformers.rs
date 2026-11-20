@@ -3127,14 +3127,15 @@ fn build_mit_authentication(
         return None;
     }
     let sca_exemption_reason = match mit_category {
-        Some(common_enums::MitCategory::Unscheduled) => {
+        Some(common_enums::MitCategory::Unscheduled) | None => {
             requests::JpmorganScaExemptionReason::MerchantInitiatedTransaction
         }
         Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
             requests::JpmorganScaExemptionReason::RecurringPayment
         }
-        Some(common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission)
-        | None => return None,
+        Some(common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission) => {
+            return None
+        }
     };
     Some(requests::JpmorganAuthentication {
         sca_exemption_reason: Some(sca_exemption_reason),
