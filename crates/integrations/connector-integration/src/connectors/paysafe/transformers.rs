@@ -1022,11 +1022,13 @@ impl TryFrom<PaysafePaymentHandleStatus> for enums::AttemptStatus {
 impl From<PaysafeSettlementStatus> for enums::AttemptStatus {
     fn from(item: PaysafeSettlementStatus) -> Self {
         match item {
-            PaysafeSettlementStatus::Completed
-            | PaysafeSettlementStatus::Pending
-            | PaysafeSettlementStatus::Processing => Self::Charged,
-            PaysafeSettlementStatus::Failed => Self::Failure,
+            PaysafeSettlementStatus::Completed => Self::Charged,
+            PaysafeSettlementStatus::Failed | PaysafeSettlementStatus::Expired => Self::Failure,
             PaysafeSettlementStatus::Cancelled => Self::Voided,
+            PaysafeSettlementStatus::Initiated
+            | PaysafeSettlementStatus::Received
+            | PaysafeSettlementStatus::Processing
+            | PaysafeSettlementStatus::Pending => Self::Pending,
         }
     }
 }
@@ -1034,11 +1036,11 @@ impl From<PaysafeSettlementStatus> for enums::AttemptStatus {
 impl From<PaysafeVoidStatus> for enums::AttemptStatus {
     fn from(item: PaysafeVoidStatus) -> Self {
         match item {
-            PaysafeVoidStatus::Completed
-            | PaysafeVoidStatus::Pending
-            | PaysafeVoidStatus::Processing => Self::Voided,
-            PaysafeVoidStatus::Failed => Self::Failure,
-            PaysafeVoidStatus::Cancelled => Self::Voided,
+            PaysafeVoidStatus::Pending
+            | PaysafeVoidStatus::Processing
+            | PaysafeVoidStatus::Received => Self::VoidInitiated,
+            PaysafeVoidStatus::Failed | PaysafeVoidStatus::Held => Self::Failure,
+            PaysafeVoidStatus::Completed | PaysafeVoidStatus::Cancelled => Self::Voided,
         }
     }
 }
@@ -2624,13 +2626,19 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<PaysafeSyncResponse, Self>) -> Result<Self, Self::Error> {
-        let (status, connector_transaction_id) = match &item.response {
+        // Payment handle syncs return the handle id, which is not the payment id.
+        let (status, id, error, resource_id) = match &item.response {
             PaysafeSyncResponse::SinglePayment(payment_response) => {
                 let status = get_paysafe_payment_status(
                     payment_response.status,
                     item.router_data.request.capture_method,
                 );
-                (status, Some(payment_response.id.clone()))
+                (
+                    status,
+                    &payment_response.id,
+                    &payment_response.error,
+                    ResponseId::ConnectorTransactionId(payment_response.id.clone()),
+                )
             }
             PaysafeSyncResponse::Payments(sync_response) => {
                 let payment_response = sync_response.payments.first().ok_or_else(|| {
@@ -2644,11 +2652,21 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
                     payment_response.status,
                     item.router_data.request.capture_method,
                 );
-                (status, Some(payment_response.id.clone()))
+                (
+                    status,
+                    &payment_response.id,
+                    &payment_response.error,
+                    ResponseId::ConnectorTransactionId(payment_response.id.clone()),
+                )
             }
             PaysafeSyncResponse::SinglePaymentHandle(payment_handle_response) => {
                 let status = enums::AttemptStatus::try_from(payment_handle_response.status)?;
-                (status, Some(payment_handle_response.id.clone()))
+                (
+                    status,
+                    &payment_handle_response.id,
+                    &payment_handle_response.error,
+                    ResponseId::NoResponseId,
+                )
             }
             PaysafeSyncResponse::PaymentHandle(sync_response) => {
                 let payment_handle_response =
@@ -2660,18 +2678,43 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
                         )
                     })?;
                 let status = enums::AttemptStatus::try_from(payment_handle_response.status)?;
-                (status, Some(payment_handle_response.id.clone()))
+                (
+                    status,
+                    &payment_handle_response.id,
+                    &payment_handle_response.error,
+                    ResponseId::NoResponseId,
+                )
             }
         };
 
-        let mut router_data = item.router_data;
-        router_data.resource_common_data.status = status;
-
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: connector_transaction_id
-                    .map(ResponseId::ConnectorTransactionId)
-                    .unwrap_or(ResponseId::NoResponseId),
+        let response = if domain_types::utils::is_payment_failure(status) {
+            let (code, message, reason) = match error {
+                Some(err) => (
+                    err.code.clone(),
+                    err.message.clone(),
+                    err.details
+                        .as_ref()
+                        .and_then(|details| details.first().cloned())
+                        .or_else(|| Some(err.message.clone())),
+                ),
+                None => (
+                    common_utils::consts::NO_ERROR_CODE.to_string(),
+                    common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                    None,
+                ),
+            };
+            Err(domain_types::router_data::ErrorResponse {
+                code,
+                message,
+                reason,
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(id.clone()),
+                ..Default::default()
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -2682,7 +2725,14 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
                 status_code: item.http_code,
                 splits: None,
                 payment_account_reference: None,
-            }),
+            })
+        };
+
+        let mut router_data = item.router_data;
+        router_data.resource_common_data.status = status;
+
+        Ok(Self {
+            response,
             ..router_data
         })
     }
