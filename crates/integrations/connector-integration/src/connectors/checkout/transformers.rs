@@ -1773,6 +1773,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (source_var, previous_payment_id, merchant_initiated, store_for_future_use) =
             match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(ccard) => {
+                    let expiry_year = ccard.get_expiry_year_4_digit();
                     let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
                     let first_name = first_name.or_else(|| {
                         item.router_data
@@ -1789,7 +1790,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         source_type: CheckoutSourceTypes::Card,
                         number: ccard.card_number.clone(),
                         expiry_month: ccard.card_exp_month.clone(),
-                        expiry_year: ccard.card_exp_year.clone(),
+                        expiry_year,
                         cvv: Some(ccard.card_cvc),
                         billing_address: billing_details,
                         phone: build_source_phone(&item.router_data.resource_common_data),
@@ -2213,7 +2214,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             source_type: CheckoutSourceTypes::Card,
                             number: card_details.card_number.clone(),
                             expiry_month: card_details.card_exp_month.clone(),
-                            expiry_year: card_details.card_exp_year.clone(),
+                            expiry_year: card_details.get_expiry_year_4_digit(),
                             cvv: None,
                             billing_address: billing_details,
                             phone: build_source_phone(&item.router_data.resource_common_data),
@@ -2621,6 +2622,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             store_for_future_use,
         ) = match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => {
+                let expiry_year = ccard.get_expiry_year_4_digit();
                 let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
                 let first_name = first_name.or_else(|| {
                     item.router_data
@@ -2637,7 +2639,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     source_type: CheckoutSourceTypes::Card,
                     number: ccard.card_number.clone(),
                     expiry_month: ccard.card_exp_month.clone(),
-                    expiry_year: ccard.card_exp_year.clone(),
+                    expiry_year,
                     cvv: Some(ccard.card_cvc),
                     billing_address: billing_details,
                     phone: build_source_phone(&item.router_data.resource_common_data),
