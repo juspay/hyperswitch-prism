@@ -164,7 +164,7 @@
       },
       "Blik": {
         "status": "not_supported",
-        "error": "bank redirect Blik { blik_code: Some(\"777124\") } is not supported by Nuvei is not supported by nuvei. Nuvei has no /payment.do payment option for bank redirect Blik { blik_code: Some(\"777124\") }"
+        "error": "bank redirect Blik { blik_code: Some(*** alloc::string::String ***) } is not supported by Nuvei is not supported by nuvei. Nuvei has no /payment.do payment option for bank redirect Blik { blik_code: Some(*** alloc::string::String ***) }"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -1202,6 +1202,32 @@
       "default": {
         "status": "not_supported",
         "error": "This payment method is not supported for Nuvei SetupRecurring is not supported by nuvei. Nuvei SetupRecurring (/payment.do CIT) does not offer This payment method"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nuvei"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nuvei"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nuvei"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nuvei"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nuvei"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nuvei"
       }
     },
     "verify_redirect": {

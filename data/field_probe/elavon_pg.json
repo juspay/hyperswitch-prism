@@ -125,7 +125,7 @@
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments (payment_method_data.card), its own stored cards and pre-decrypted Apple Pay / Google Pay. Other wallets, bank transfers and BNPL are not implemented for this connector."
+        "error": "Payment method BankRedirect(Blik { blik_code: Some(*** alloc::string::String ***) }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments (payment_method_data.card), its own stored cards and pre-decrypted Apple Pay / Google Pay. Other wallets, bank transfers and BNPL are not implemented for this connector."
       },
       "Bluecode": {
         "status": "not_supported",
@@ -453,7 +453,7 @@
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Wallet PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }) is not supported by elavon_pg. Elavon Payment Gateway supports Apple Pay and Google Pay (pre-decrypted) only"
+        "error": "Wallet PaypalSdk(PayPalWalletData { token: *** alloc::string::String *** }) is not supported by elavon_pg. Elavon Payment Gateway supports Apple Pay and Google Pay (pre-decrypted) only"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -1030,6 +1030,32 @@
     },
     "token_setup_recurring": {
       "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "GooglePayDecrypted": {
         "status": "error",
         "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
       }

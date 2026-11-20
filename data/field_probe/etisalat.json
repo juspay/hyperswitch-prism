@@ -78,7 +78,7 @@
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Etisalat authorize supports only raw card payments. Received payment_method_data variant: BankRedirect(Blik { blik_code: Some(\"777124\") })"
+        "error": "This feature is not implemented: Etisalat authorize supports only raw card payments. Received payment_method_data variant: BankRedirect(Blik { blik_code: Some(*** alloc::string::String ***) })"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -361,7 +361,7 @@
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Etisalat authorize supports only raw card payments. Received payment_method_data variant: Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }))"
+        "error": "This feature is not implemented: Etisalat authorize supports only raw card payments. Received payment_method_data variant: Wallet(PaypalSdk(PayPalWalletData { token: *** alloc::string::String *** }))"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -754,6 +754,32 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for etisalat"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by etisalat connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by etisalat connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by etisalat connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by etisalat connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by etisalat connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by etisalat connector"
       }
     },
     "verify_redirect": {

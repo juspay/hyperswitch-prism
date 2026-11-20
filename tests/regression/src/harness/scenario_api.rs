@@ -166,6 +166,7 @@ impl GrpcurlRequest {
         cmd.push_str(" \\\n");
 
         for header in &self.headers {
+            let header = mask_connector_config_header(header);
             cmd.push_str(&format!("  -H \"{header}\" \\\n"));
         }
 
@@ -1900,8 +1901,13 @@ fn execute_grpcurl_from_request(
             message: format!("failed to spawn grpcurl: {error}"),
         })?;
 
-    let stdout_output = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr_output = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    // `-v` echoes the request metadata, including the x-connector-config JSON;
+    // replace that value so it is neither reported nor picked up below as the
+    // response body.
+    let stdout_output =
+        mask_connector_config_header(String::from_utf8_lossy(&output.stdout).trim());
+    let stderr_output =
+        mask_connector_config_header(String::from_utf8_lossy(&output.stderr).trim());
     let response_output = build_grpc_response_output(&stdout_output, &stderr_output);
 
     // error_body_from_grpc_output runs first: a failed call's grpcurl output
@@ -1983,6 +1989,19 @@ fn error_json_from_details_bin(text: &str) -> Option<String> {
         return Some(serde_json::json!({ "error": err }).to_string());
     }
     None
+}
+
+const CONNECTOR_CONFIG_HEADER: &str = "x-connector-config:";
+
+/// Replaces the value of every `x-connector-config:` line with `***`.
+fn mask_connector_config_header(text: &str) -> String {
+    text.lines()
+        .map(|line| match line.split_once(CONNECTOR_CONFIG_HEADER) {
+            Some((prefix, _)) => format!("{prefix}{CONNECTOR_CONFIG_HEADER} ***"),
+            None => line.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn build_grpc_response_output(stdout_output: &str, stderr_output: &str) -> String {
