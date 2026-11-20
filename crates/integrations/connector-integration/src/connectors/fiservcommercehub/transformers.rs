@@ -1379,6 +1379,10 @@ pub enum FiservcommercehubRefundState {
     Rejected,
     Failed,
     Cancelled,
+    Timeout,
+    Voided,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<&FiservcommercehubRefundState> for RefundStatus {
@@ -1387,13 +1391,15 @@ impl From<&FiservcommercehubRefundState> for RefundStatus {
             FiservcommercehubRefundState::Approved | FiservcommercehubRefundState::Captured => {
                 Self::Success
             }
-            FiservcommercehubRefundState::Authorized | FiservcommercehubRefundState::Pending => {
-                Self::Pending
-            }
+            FiservcommercehubRefundState::Authorized
+            | FiservcommercehubRefundState::Pending
+            | FiservcommercehubRefundState::Timeout
+            | FiservcommercehubRefundState::Unknown => Self::Pending,
             FiservcommercehubRefundState::Declined
             | FiservcommercehubRefundState::Rejected
             | FiservcommercehubRefundState::Failed
-            | FiservcommercehubRefundState::Cancelled => Self::Failure,
+            | FiservcommercehubRefundState::Cancelled
+            | FiservcommercehubRefundState::Voided => Self::Failure,
         }
     }
 }
@@ -1750,6 +1756,18 @@ impl FiservcommercehubPSyncItem {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FiservcommercehubPSyncResponse(pub Vec<FiservcommercehubPSyncItem>);
 
+/// Sync inquiries answer with an empty list when the transaction is unknown. The
+/// 404 status keeps the previously stored payment or refund status unchanged.
+fn transaction_not_found_error() -> ErrorResponse {
+    ErrorResponse {
+        code: "TRANSACTION_NOT_FOUND".to_string(),
+        message: "No matching transaction found".to_string(),
+        reason: Some("Transaction not found in transaction inquiry results".to_string()),
+        status_code: 404,
+        ..Default::default()
+    }
+}
+
 impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
@@ -1758,17 +1776,28 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<FiservcommercehubPSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let Some(psync_item) = item.response.0.into_iter().next() else {
+        let requested_id = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .ok();
+        let items = item.response.0;
+        // The inquiry can return several transactions; prefer the one being synced.
+        let index = requested_id
+            .and_then(|requested_id| {
+                items.iter().position(|psync_item| {
+                    psync_item
+                        .gateway_response
+                        .transaction_processing_details
+                        .as_ref()
+                        .is_some_and(|txn| txn.transaction_id == requested_id)
+                })
+            })
+            .unwrap_or_default();
+        let Some(psync_item) = items.into_iter().nth(index) else {
             return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: "TRANSACTION_NOT_FOUND".to_string(),
-                    message: "No matching transaction found".to_string(),
-                    reason: Some(
-                        "Transaction not found in transaction inquiry results".to_string(),
-                    ),
-                    status_code: item.http_code,
-                    ..Default::default()
-                }),
+                response: Err(transaction_not_found_error()),
                 ..item.router_data
             });
         };
@@ -1992,13 +2021,12 @@ impl TryFrom<ResponseRouterData<FiservcommercehubRSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<FiservcommercehubRSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let rsync_item = item.response.0.into_iter().next().ok_or_else(|| {
-            error_stack::report!(
-                crate::utils::response_deserialization_fail(
-                    item.http_code
-                , "fiservcommercehub: response body did not match the expected format; confirm API version and connector documentation.")
-            )
-        })?;
+        let Some(rsync_item) = item.response.0.into_iter().next() else {
+            return Ok(Self {
+                response: Err(transaction_not_found_error()),
+                ..item.router_data
+            });
+        };
         let refund_status = RefundStatus::from(&rsync_item.gateway_response.transaction_state);
         let connector_refund_id = rsync_item
             .gateway_response
