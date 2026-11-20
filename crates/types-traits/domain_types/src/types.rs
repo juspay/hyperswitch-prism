@@ -10671,7 +10671,7 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
             } => Ok(Self {
                 form_type: Some(grpc_api_types::payments::redirect_form::FormType::Mifinity(
                     grpc_api_types::payments::MifinityData {
-                        initialization_token,
+                        initialization_token: initialization_token.expose(),
                     },
                 )),
             }),
@@ -10684,8 +10684,8 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
                 form_type: Some(
                     grpc_api_types::payments::redirect_form::FormType::Braintree(
                         grpc_api_types::payments::BraintreeData {
-                            client_token,
-                            card_token,
+                            client_token: client_token.expose(),
+                            card_token: card_token.expose(),
                             bin,
                             acs_url,
                         },
@@ -21647,7 +21647,7 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                             form_type: Some(
                                 grpc_api_types::payments::redirect_form::FormType::Uri(
                                     grpc_api_types::payments::UriData {
-                                        uri: initialization_token,
+                                        uri: initialization_token.expose(),
                                     },
                                 ),
                             ),
@@ -21698,7 +21698,7 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                             reference_id,
                         } => {
                             let mut form_fields = HashMap::new();
-                            form_fields.insert("access_token".to_string(), access_token);
+                            form_fields.insert("access_token".to_string(), access_token.expose());
                             form_fields.insert("ddc_url".to_string(), ddc_url.clone());
                             form_fields.insert("reference_id".to_string(), reference_id);
 
@@ -21920,7 +21920,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                             form_type: Some(
                                 grpc_api_types::payments::redirect_form::FormType::Uri(
                                     grpc_api_types::payments::UriData {
-                                        uri: initialization_token,
+                                        uri: initialization_token.expose(),
                                     },
                                 ),
                             ),
@@ -21947,7 +21947,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                             step_up_url,
                         } => {
                             let mut form_fields = HashMap::new();
-                            form_fields.insert("access_token".to_string(), access_token);
+                            form_fields.insert("access_token".to_string(), access_token.expose());
                             form_fields.insert("step_up_url".to_string(), step_up_url.clone());
 
                             Ok(grpc_api_types::payments::RedirectForm {
