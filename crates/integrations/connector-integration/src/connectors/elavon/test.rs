@@ -1,7 +1,7 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
 use common_enums::MitCategory;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use super::transformers::*;
 
@@ -83,6 +83,8 @@ fn approved(token_response: Option<&str>, token: Option<&str>) -> PaymentRespons
         ssl_cvv2_response: None,
         ssl_avs_response: None,
         ssl_token_response: token_response.map(str::to_string),
+        ssl_ps2000_data: Some("A7540760482850875100A".to_string()),
+        ssl_oar_data: Some("010012345600000000001".to_string()),
     }
 }
 
@@ -99,4 +101,22 @@ fn saved_card_token_requires_a_stored_token() {
     );
     assert_eq!(get_saved_card_token(&approved(Some("SUCCESS"), None)), None);
     assert_eq!(get_saved_card_token(&approved(None, None)), None);
+}
+
+#[test]
+fn saved_card_mandate_keeps_cit_data_for_mit() {
+    let mandate = get_saved_card_mandate(&approved(Some("SUCCESS"), Some("4421912014039990")))
+        .expect("mandate");
+    let metadata: ElavonMandateMetadata =
+        serde_json::from_value(mandate.mandate_metadata.expect("metadata").expose())
+            .expect("metadata shape");
+    assert_eq!(
+        metadata.ssl_ps2000_data.as_deref(),
+        Some("A7540760482850875100A")
+    );
+    assert_eq!(
+        metadata.ssl_oar_data.as_deref(),
+        Some("010012345600000000001")
+    );
+    assert_eq!(metadata.ssl_approval_code.as_deref(), Some("CVI877"));
 }

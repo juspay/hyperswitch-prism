@@ -139,6 +139,31 @@ pub(super) fn get_saved_card_token(response: &PaymentResponse) -> Option<String>
         .flatten()
 }
 
+/// Converge's "retain and return" values from the card-saving payment. Its docs require
+/// them on every later card-on-file payment; without them Converge links the MIT to some
+/// other approval on the same token (one token per card, shared by every customer).
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub(super) struct ElavonMandateMetadata {
+    pub ssl_ps2000_data: Option<String>,
+    pub ssl_oar_data: Option<String>,
+    pub ssl_approval_code: Option<String>,
+}
+
+pub(super) fn get_saved_card_mandate(response: &PaymentResponse) -> Option<MandateReference> {
+    let metadata = ElavonMandateMetadata {
+        ssl_ps2000_data: response.ssl_ps2000_data.clone(),
+        ssl_oar_data: response.ssl_oar_data.clone(),
+        ssl_approval_code: response.ssl_approval_code.clone(),
+    };
+    get_saved_card_token(response).map(|token| MandateReference {
+        connector_mandate_id: Some(token),
+        payment_method_id: None,
+        connector_mandate_request_reference_id: None,
+        mandate_metadata: (metadata.ssl_ps2000_data.is_some() || metadata.ssl_oar_data.is_some())
+            .then(|| common_utils::pii::SecretSerdeValue::new(serde_json::json!(metadata))),
+    })
+}
+
 /// Converge rejects the whole request (`5005 Field Character Limit Exceeded`) when a field is
 /// over its documented length. Keep the tail, which holds the unique part of our IDs.
 pub(super) fn fit_to_length(value: &str, max_chars: usize) -> String {
@@ -598,6 +623,8 @@ pub struct PaymentResponse {
     pub ssl_cvv2_response: Option<Secret<String>>,
     pub ssl_avs_response: Option<String>,
     pub ssl_token_response: Option<String>,
+    pub ssl_ps2000_data: Option<String>,
+    pub ssl_oar_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -644,6 +671,8 @@ pub struct ElavonXmlResponse {
     pub ssl_transaction_type: Option<String>,
     pub ssl_cvv2_response: Option<Secret<String>>,
     pub ssl_avs_response: Option<String>,
+    pub ssl_ps2000_data: Option<String>,
+    pub ssl_oar_data: Option<String>,
 }
 
 /// Convert a flat XML response into a typed `ElavonResult`.
@@ -668,6 +697,8 @@ pub fn xml_response_into_elavon_result<E: serde::de::Error>(
         ssl_transaction_type,
         ssl_cvv2_response,
         ssl_avs_response,
+        ssl_ps2000_data,
+        ssl_oar_data,
     } = flat;
 
     match (ssl_result.as_deref(), error_message) {
@@ -682,6 +713,8 @@ pub fn xml_response_into_elavon_result<E: serde::de::Error>(
             ssl_cvv2_response,
             ssl_avs_response,
             ssl_token_response: ssl_token_response.map(|s| s.expose()),
+            ssl_ps2000_data,
+            ssl_oar_data,
         })),
         (_, Some(error_message)) => Ok(ElavonResult::Error(ElavonErrorResponse {
             error_code: error_code.or(ssl_result),
@@ -826,8 +859,8 @@ impl<
 
         let payments_response_data = match (&response.result, error_response) {
             (ElavonResult::Success(payment_resp_struct), None) => {
-                let ssl_token = get_saved_card_token(payment_resp_struct);
-                if ssl_token.is_none()
+                let mandate_reference = get_saved_card_mandate(payment_resp_struct).map(Box::new);
+                if mandate_reference.is_none()
                     && matches!(
                         router_data.request.setup_future_usage,
                         Some(FutureUsage::OnSession | FutureUsage::OffSession)
@@ -838,14 +871,6 @@ impl<
                         "Elavon approved the payment but did not save the card; it cannot be used for MIT"
                     );
                 }
-                let mandate_reference = ssl_token.map(|token| {
-                    Box::new(MandateReference {
-                        connector_mandate_id: Some(token),
-                        payment_method_id: None,
-                        connector_mandate_request_reference_id: None,
-                        mandate_metadata: None,
-                    })
-                });
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: DomainResponseId::ConnectorTransactionId(
                         payment_resp_struct.ssl_txn_id.clone(),
@@ -1864,6 +1889,10 @@ pub struct MandatePaymentRequest {
     /// `ssl_payment_number` and `ssl_payment_count`, which no MIT carries, so it is never sent.
     pub ssl_recurring_flag: Option<u8>,
     pub ssl_invoice_number: Option<String>,
+    pub ssl_ps2000_data: Option<String>,
+    pub ssl_oar_data: Option<String>,
+    /// The card-saving payment's approval code, not this payment's.
+    pub ssl_approval_code: Option<String>,
 }
 
 /// Form-encoded XML wrapper for the repeat payment request.
@@ -1913,8 +1942,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
         let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
 
-        let ssl_token = match &request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(mandate_data) => {
+        let (ssl_token, cit_data) = match &request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_data) => (
                 mandate_data.get_connector_mandate_id().ok_or_else(|| {
                     report!(IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id",
@@ -1928,8 +1957,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ..Default::default()
                         },
                     })
-                })?
-            }
+                })?,
+                // Mandates saved before this data was stored have none; Converge still
+                // approves those MITs, so they go without it.
+                mandate_data
+                    .get_mandate_metadata()
+                    .and_then(|metadata| {
+                        serde_json::from_value::<ElavonMandateMetadata>(metadata.expose()).ok()
+                    })
+                    .unwrap_or_default(),
+            ),
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(report!(IntegrationError::MissingRequiredField {
@@ -2003,6 +2040,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id,
                 INVOICE_NUMBER_MAX_LENGTH,
             )),
+            ssl_ps2000_data: cit_data.ssl_ps2000_data,
+            ssl_oar_data: cit_data.ssl_oar_data,
+            ssl_approval_code: cit_data.ssl_approval_code,
         })
     }
 }
@@ -2323,9 +2363,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (status, response_data) = match response.result {
             ElavonResult::Success(payment_response) => {
-                let token = get_saved_card_token(&payment_response);
-                match token {
-                    Some(token) => (
+                match get_saved_card_mandate(&payment_response) {
+                    Some(mandate_reference) => (
                         AttemptStatus::Charged,
                         Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: DomainResponseId::ConnectorTransactionId(
@@ -2337,12 +2376,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             network_txn_link_id: None,
                             connector_response_reference_id: payment_response.ssl_approval_code,
                             incremental_authorization_allowed: None,
-                            mandate_reference: Some(Box::new(MandateReference {
-                                connector_mandate_id: Some(token),
-                                payment_method_id: None,
-                                connector_mandate_request_reference_id: None,
-                                mandate_metadata: None,
-                            })),
+                            mandate_reference: Some(Box::new(mandate_reference)),
                             status_code: http_code,
                             splits: None,
                             payment_account_reference: None,
