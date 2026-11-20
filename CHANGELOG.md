@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.20.2
+
+### Features
+
+- **connector:** [Elavon PG] add incoming webhooks and Google Pay PAN_ONLY 3DS ([#2758](https://github.com/juspay/connector-service/pull/2758)) ([`51a911b`](https://github.com/juspay/connector-service/commit/51a911bc444f72389974482a0ad139305a0aca83))
+
+### Bug Fixes
+
+- **connector:** [ClearSale] accept product id as string and map Authe… ([#2895](https://github.com/juspay/connector-service/pull/2895)) ([`1d5f603`](https://github.com/juspay/connector-service/commit/1d5f6039aad649ce9c70e30b14196e7e64efc48b))
+- **ffi:** Select sandbox connector configuration ([#2828](https://github.com/juspay/connector-service/pull/2828)) ([`d5bcf29`](https://github.com/juspay/connector-service/commit/d5bcf29ce3225ca80574393601b865fe34c7b369))
+
+**Full Changelog:** [`2026.11.20.1...2026.11.20.2`](https://github.com/juspay/connector-service/compare/2026.11.20.1...2026.11.20.2)
+
+- - -
+
 ## 2026.11.20.1
 
 ### Features
