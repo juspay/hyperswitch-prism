@@ -1040,8 +1040,7 @@ impl From<PaysafeVoidStatus> for enums::AttemptStatus {
             | PaysafeVoidStatus::Processing
             | PaysafeVoidStatus::Received => Self::VoidInitiated,
             PaysafeVoidStatus::Failed | PaysafeVoidStatus::Held => Self::Failure,
-            PaysafeVoidStatus::Completed
-            | PaysafeVoidStatus::Cancelled => Self::Voided,
+            PaysafeVoidStatus::Completed | PaysafeVoidStatus::Cancelled => Self::Voided,
         }
     }
 }
