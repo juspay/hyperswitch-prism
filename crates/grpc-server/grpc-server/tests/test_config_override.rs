@@ -226,15 +226,17 @@ mod unit {
     }
 
     #[test]
-    fn test_log_console_override_rejected() {
-        let result = merge_config_with_override(
-            json!({"log": {"console": {"enabled": true, "level": "DEBUG"}}}).to_string(),
-            base_config(),
+    // Verifies console overrides are accepted without changing Kafka settings.
+    fn test_log_console_override() {
+        let base = base_config();
+        let kafka = base.log.kafka.clone();
+        let config = apply_override_with_base(
+            json!({"log": {"console": {"enabled": true, "level": "DEBUG"}}}),
+            base,
         );
-        assert!(
-            result.is_err(),
-            "operator-controlled settings must be rejected"
-        );
+        assert!(config.log.console.enabled);
+        assert_eq!(config.log.console.level.into_level(), tracing::Level::DEBUG);
+        assert_eq!(config.log.kafka, kafka);
     }
 
     #[test]
@@ -253,15 +255,19 @@ mod unit {
     }
 
     #[test]
-    fn test_log_kafka_partial_override_rejected() {
-        let result = merge_config_with_override(
-            json!({"log": {"kafka": {"level": "ERROR"}}}).to_string(),
-            base_config(),
-        );
-        assert!(
-            result.is_err(),
-            "operator-controlled settings must be rejected"
-        );
+    // Verifies a partial Kafka logging override retains the configured brokers and topic.
+    fn test_log_kafka_partial_override() {
+        let mut base = base_config();
+        base.log.kafka = Some(ucs_env::logger::config::LogKafka {
+            brokers: vec!["localhost:9092".to_string()],
+            topic: "test-logs".to_string(),
+            ..Default::default()
+        });
+        let config = apply_override_with_base(json!({"log": {"kafka": {"level": "ERROR"}}}), base);
+        let kafka = config.log.kafka.as_ref().expect("Kafka config is retained");
+        assert_eq!(kafka.level.into_level(), tracing::Level::ERROR);
+        assert_eq!(kafka.brokers, vec!["localhost:9092"]);
+        assert_eq!(kafka.topic, "test-logs");
     }
 
     #[test]
@@ -498,13 +504,12 @@ mod unit {
     }
 
     #[test]
-    fn test_log_kafka_null_override_rejected() {
-        let result =
-            merge_config_with_override(json!({"log": {"kafka": null}}).to_string(), base_config());
-        assert!(
-            result.is_err(),
-            "operator-controlled settings must be rejected"
-        );
+    // Verifies an explicit null clears an existing optional Kafka logging config.
+    fn test_log_kafka_null_override_clears() {
+        let mut base = base_config();
+        base.log.kafka = Some(ucs_env::logger::config::LogKafka::default());
+        let config = apply_override_with_base(json!({"log": {"kafka": null}}), base);
+        assert!(config.log.kafka.is_none());
     }
 
     #[test]
