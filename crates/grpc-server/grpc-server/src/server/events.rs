@@ -1130,7 +1130,7 @@ async fn verify_webhook_source_external(
                 VerifyWebhookStatus::SourceVerified
             )),
             Err(error) => {
-                tracing::trace!(
+                tracing::error!(
                     target: "webhook",
                     connector = connector_data.connector.id(),
                     failure_kind = "connector_response",
@@ -1142,7 +1142,7 @@ async fn verify_webhook_source_external(
             }
         },
         Err(error) => {
-            tracing::trace!(
+            tracing::error!(
                 target: "webhook",
                 connector = connector_data.connector.id(),
                 failure_kind = "execution",
