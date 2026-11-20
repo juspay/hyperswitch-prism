@@ -5262,6 +5262,7 @@ message RapydConfig {
   // HS forwards it from the selected MCA's metadata.country_of_incorporation.
   // Required for fresh card and wallet payment-method objects, not saved IDs.
   optional CountryAlpha2 country_of_incorporation = 3;
+  optional SecretString statement_descriptor = 4;
   optional string base_url = 50;
 }
 

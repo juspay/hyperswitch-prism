@@ -710,6 +710,8 @@ pub struct RapydPaymentsRequest<
     pub address: Option<Address>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_email: Option<Email>,
+    #[serde(flatten)]
+    payment_settings: RapydPaymentSettings,
     /// Inline customer used when saving a payment method.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<RapydInlineCustomer>,
@@ -724,6 +726,69 @@ pub struct RapydPaymentsRequest<
     /// emitted on the current MIT path.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initiation_type: Option<RapydInitiationType>,
+}
+
+#[derive(Debug, Serialize)]
+struct RapydPaymentSettings {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    statement_descriptor: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ewallet: Option<Secret<String>>,
+}
+
+impl
+    TryFrom<(
+        &ConnectorSpecificConfig,
+        Option<&common_utils::pii::SecretSerdeValue>,
+    )> for RapydPaymentSettings
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        (config, metadata): (
+            &ConnectorSpecificConfig,
+            Option<&common_utils::pii::SecretSerdeValue>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match config {
+            ConnectorSpecificConfig::Rapyd {
+                statement_descriptor,
+                ..
+            } => Ok(Self {
+                statement_descriptor: statement_descriptor.clone(),
+                ewallet: metadata
+                    .and_then(|metadata| metadata.peek().get("ewallet"))
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .filter(|wallet| {
+                                wallet
+                                    .strip_prefix("ewallet_")
+                                    .is_some_and(|id| !id.is_empty())
+                            })
+                            .map(|wallet| Secret::new(wallet.to_owned()))
+                            .ok_or_else(|| {
+                                error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                                    field_name: "metadata.ewallet",
+                                    context: utils::integration_ctx(
+                                        "The payment wallet identifier is invalid",
+                                        "Set metadata.ewallet to a nonempty Rapyd ewallet_ identifier, or omit it.",
+                                    ),
+                                })
+                            })
+                    })
+                    .transpose()?,
+            }),
+            _ => Err(IntegrationError::InvalidConnectorConfig {
+                config: "rapyd",
+                context: utils::integration_ctx(
+                    "The connector configuration is not for Rapyd",
+                    "Use Rapyd connector configuration.",
+                ),
+            }
+            .into()),
+        }
+    }
 }
 
 /// Inline customer object embedded in a `/v1/payments` call. Both fields
@@ -1696,6 +1761,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: item.router_data.request.email.clone(),
+            payment_settings: RapydPaymentSettings::try_from((
+                &item.router_data.connector_config,
+                item.router_data.request.metadata.as_ref(),
+            ))?,
             customer,
             save_payment_method,
             initiation_type,
@@ -2565,6 +2634,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: request.email.clone(),
+            payment_settings: RapydPaymentSettings::try_from((
+                &router_data.connector_config,
+                request.metadata.as_ref(),
+            ))?,
             save_payment_method: Some(true),
             initiation_type: Some(purpose.initiation_type),
         })
@@ -2759,6 +2832,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: request.email.clone(),
+            payment_settings: RapydPaymentSettings::try_from((
+                &router_data.connector_config,
+                request.metadata.as_ref(),
+            ))?,
         })
     }
 }
