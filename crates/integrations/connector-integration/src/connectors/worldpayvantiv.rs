@@ -1,3 +1,4 @@
+mod test;
 pub mod transformers;
 
 use base64::Engine;
@@ -44,9 +45,9 @@ use interfaces::{
 use serde::Serialize;
 
 use self::transformers::{
-    CnpOnlineResponse, VantivSyncResponse, WorldpayvantivAuthType, WorldpayvantivAuthorizeRequest,
-    WorldpayvantivPaymentsRequest, WorldpayvantivRepeatPaymentRequest,
-    WorldpayvantivRepeatPaymentResponse, BASE64_ENGINE,
+    CnpOnlineResponse, VantivSyncErrorResponse, VantivSyncResponse, WorldpayvantivAuthType,
+    WorldpayvantivAuthorizeRequest, WorldpayvantivPaymentsRequest,
+    WorldpayvantivRepeatPaymentRequest, WorldpayvantivRepeatPaymentResponse, BASE64_ENGINE,
 };
 
 use super::macros::{self, GetSoapXml};
@@ -371,6 +372,47 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// The JSON `/reports/dtrPaymentStatus/{id}` endpoint (PSync, RSync) answers errors as
+/// `{"errorMessages": [...]}`, not the XML `cnpOnlineResponse`. Parse that shape so the
+/// connector's message reaches the caller; any other body falls back to the XML parser.
+fn build_sync_error_response(
+    connector: &impl ConnectorCommon,
+    res: Response,
+    event_builder: Option<&mut events::Event>,
+    connector_config: &ConnectorSpecificConfig,
+) -> CustomResult<ErrorResponse, ConnectorError> {
+    let Ok(response) = res
+        .response
+        .parse_struct::<VantivSyncErrorResponse>("VantivSyncErrorResponse")
+    else {
+        return connector.build_error_response(res, event_builder, connector_config);
+    };
+
+    with_response_body!(event_builder, response);
+
+    let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+    let message = if response.error_messages.is_empty() {
+        common_utils::consts::NO_ERROR_MESSAGE.to_string()
+    } else {
+        response.error_messages.join("; ")
+    };
+    Ok(ErrorResponse {
+        status_code: res.status_code,
+        code: common_utils::consts::NO_ERROR_CODE.to_string(),
+        message: message.clone(),
+        reason: Some(message),
+        attempt_status: None,
+        connector_transaction_id: None,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+        typed_connector_response: typed,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    })
+}
+
 // Define connector prerequisites for payment flows (XML-based)
 // Group flows by unique request/response combinations to avoid duplicate templating structs
 macros::create_all_prerequisites!(
@@ -533,7 +575,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Worldpayvantiv,
     curl_response: VantivSyncResponse,
     flow_name: PSync,
@@ -570,6 +612,15 @@ macros::macro_connector_implementation!(
             Ok(format!(
                 "{secondary_base_url}/reports/dtrPaymentStatus/{txn_id}"
             ))
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            build_sync_error_response(self, res, event_builder, connector_config)
         }
     }
 );
@@ -938,9 +989,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-        _connector_config: &ConnectorSpecificConfig,
+        connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder, _connector_config)
+        build_sync_error_response(self, res, event_builder, connector_config)
     }
 
     fn get_http_method(&self) -> common_utils::request::Method {
