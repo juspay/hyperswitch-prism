@@ -728,7 +728,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}"
+        }
       }
     },
     "incremental_authorization": {
@@ -739,7 +754,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}"
+        }
       }
     },
     "payment_method_eligibility": {
