@@ -31,6 +31,9 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+# amex: not configured for this run (dummy/non-functional sandbox-only
+# connector; no reachable production target — technical_specification.md
+# "### Base URLs"). base_url defaults to "" via #[serde(default)].
 revpay.base_url = "https://mpg.revpay.com.my"
 betterpayment.base_url = "https://api.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"

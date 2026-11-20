@@ -760,6 +760,12 @@ enum Connector {
   REDDOT = 156;
   PAYHOUND = 157;
   REVPAY = 158;
+  // Do not add "AMEX = 159" here: it collides with CardNetwork.AMEX
+  // (payment_methods.proto) under proto3's C++ enum-value scoping, where every
+  // top-level enum value in package `types` shares one flat namespace. This
+  // connector's wire value is AMEX_DIRECT instead (generates Rust variant
+  // Connector::AmexDirect).
+  AMEX_DIRECT = 159;
 }
 
 // Payment method types
@@ -6096,6 +6102,15 @@ message RevpayConfig {
   optional string base_url = 50;
 }
 
+message AmexConfig {
+  // Gateway merchant id — used as `merchant.<merchant_id>` for the HTTP Basic
+  // auth userid, and as the `{merchantId}` URL path segment.
+  SecretString merchant_id = 1;
+  // API password — the HTTP Basic auth password.
+  SecretString shared_secret = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6460,6 +6475,8 @@ message ConnectorSpecificConfig {
     PayhoundConfig payhound = 168;
     // REVPAY = 158
     RevpayConfig revpay = 169;
+    // AMEX = 160
+    AmexConfig amex = 170;
   }
 }
 
