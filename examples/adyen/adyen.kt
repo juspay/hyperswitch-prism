@@ -239,6 +239,7 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
                 minorAmount = 1000L
                 currency = Currency.USD
             }
+            returnUrl = "https://example.com/payment/return"
         }
     }.build()
     val response = client.create_client_authentication_token(request)

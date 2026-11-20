@@ -88,6 +88,7 @@ def _build_create_client_authentication_token_request():
                 minor_amount=1000,
                 currency=common_types_pb2.Currency.Value("USD"),
             ),
+            return_url="https://example.com/payment/return",
         ),
     )
 
