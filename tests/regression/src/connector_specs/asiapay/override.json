@@ -1,0 +1,128 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "assert": {
+        "status": {
+          "equals": "AUTHENTICATION_PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "redirection_data.html.html_data": {
+          "must_exist": true
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "assert": {
+        "status": {
+          "equals": "AUTHENTICATION_PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "redirection_data.html.html_data": {
+          "must_exist": true
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "assert": {
+        "status": {
+          "equals": "AUTHENTICATION_PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "redirection_data.html.html_data": {
+          "must_exist": true
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "assert": {
+        "status": {
+          "equals": "AUTHENTICATION_PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "redirection_data.html.html_data": {
+          "must_exist": true
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "assert": {
+        "status": {
+          "equals": "AUTHENTICATION_PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        },
+        "redirection_data.html.html_data": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/VerifyRedirectResponse": {
+    "verify_redirect_basic": {
+      "depends_on": [],
+      "grpc_req": {
+        "request_details": {
+          "uri": "https://example.com/payment/redirect?Ref=order%2Fref",
+          "query_params": "Ref=order%2Fref"
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": false
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "merchant_order_id": {
+          "must_exist": true
+        },
+        "error": null
+      }
+    },
+    "verify_redirect_with_params": {
+      "depends_on": [],
+      "grpc_req": {
+        "request_details": {
+          "uri": "https://example.com/payment/redirect?Ref=order+with+space&result=ignored",
+          "query_params": "Ref=order+with+space&result=ignored"
+        }
+      },
+      "assert": {
+        "source_verified": {
+          "equals": false
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "merchant_order_id": {
+          "must_exist": true
+        },
+        "error": null
+      }
+    }
+  }
+}

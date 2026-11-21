@@ -1602,6 +1602,7 @@ dependencies = [
  "serde_qs",
  "serde_urlencoded",
  "serde_with",
+ "sha1 0.10.6",
  "sha2",
  "strum 0.26.3",
  "thiserror 1.0.69",

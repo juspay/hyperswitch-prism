@@ -352,5 +352,9 @@ pub use self::reddot::Reddot;
 
 pub mod ecommpay;
 pub use self::ecommpay::Ecommpay;
+
+pub mod asiapay;
+pub use self::asiapay::Asiapay;
+
 pub mod payhound;
 pub use self::payhound::Payhound;

@@ -183,6 +183,7 @@ pub enum ConnectorEnum {
     Ecommpay,
     Payhound,
     Revpay,
+    Asiapay,
 }
 
 // snake case for enum variants
@@ -4521,6 +4522,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::ApplePayThirdPartySdk
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
+                payment_method_data::WalletData::LinePayRedirect {} => Self::LinePayRedirect,
                 payment_method_data::WalletData::GrabpayRedirect {} => Self::GrabpayRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
@@ -6655,6 +6657,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Payhound(_) => Ok(Self::Payment(ConnectorEnum::Payhound)),
             AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
+            AuthType::Asiapay(_) => Ok(Self::Payment(ConnectorEnum::Asiapay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {

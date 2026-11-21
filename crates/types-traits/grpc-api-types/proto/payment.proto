@@ -760,6 +760,7 @@ enum Connector {
   REDDOT = 156;
   PAYHOUND = 157;
   REVPAY = 158;
+  ASIAPAY = 159;
 }
 
 // Payment method types
@@ -918,6 +919,7 @@ enum PaymentMethodType {
   TAMARA_BNPL = 143;
   BOOST_WALLET = 144; // BOOST is already the connector enum value.
   ALI_PAY_PLUS_WALLET = 145; // Alipay+ cross-border wallet payment method.
+  LINE_PAY = 146;
 }
 
 // Product type enumeration
@@ -6096,6 +6098,24 @@ message RevpayConfig {
   optional string base_url = 50;
 }
 
+message AsiapayConfig {
+  // AsiaPay merchant ID; sent as the `merchantId` request parameter on every
+  // payment and merchant-API call.
+  SecretString merchant_id = 1;
+  // Merchant API login ID (Capture / Void / Refund / Query calls).
+  SecretString login_id = 2;
+  // Merchant API password.
+  SecretString password = 3;
+  // Secure Hash secret: signs the payment request (`secureHash`) and verifies
+  // the data-feed (webhook) hash. Never sent on the wire.
+  SecretString secure_hash_secret = 4;
+  // Secure Hash algorithm of the merchant account (AsiaPay panel setting):
+  // "sha1" (gateway default) or "sha256". Drives both request signing and
+  // data-feed/redirect secureHash verification. Defaults to "sha1".
+  optional string secure_hash_algorithm = 5;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6460,6 +6480,8 @@ message ConnectorSpecificConfig {
     PayhoundConfig payhound = 168;
     // REVPAY = 158
     RevpayConfig revpay = 169;
+    // ASIAPAY = 159
+    AsiapayConfig asiapay = 170;
   }
 }
 

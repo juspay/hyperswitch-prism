@@ -1319,6 +1319,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Bizum
             | common_enums::PaymentMethodType::ClassicReward
             | common_enums::PaymentMethodType::Dana
+            | common_enums::PaymentMethodType::LinePay
             | common_enums::PaymentMethodType::DirectCarrierBilling
             | common_enums::PaymentMethodType::Efecty
             | common_enums::PaymentMethodType::Eft
@@ -1693,6 +1694,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}
+        | WalletData::LinePayRedirect {}
         | WalletData::GrabpayRedirect {}
         | WalletData::GooglePayRedirect(_)
         | WalletData::GooglePayThirdPartySdk(_)
@@ -2516,6 +2518,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
+            | WalletData::LinePayRedirect {}
             | WalletData::GrabpayRedirect {}
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)

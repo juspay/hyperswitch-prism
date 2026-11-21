@@ -488,6 +488,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<&WalletData> for PaymentDetails<T> {
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
+            | WalletData::LinePayRedirect {}
             | WalletData::GrabpayRedirect {}
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
@@ -604,6 +605,7 @@ fn get_decrypted_wallet_card(
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}
+        | WalletData::LinePayRedirect {}
         | WalletData::GrabpayRedirect {}
         | WalletData::GooglePayRedirect(_)
         | WalletData::GooglePayThirdPartySdk(_)

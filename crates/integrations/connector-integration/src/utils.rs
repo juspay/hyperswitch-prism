@@ -961,3 +961,11 @@ where
 {
     serializer.serialize_str(currency.iso_4217())
 }
+
+/// Reverse of [`common_enums::Currency::iso_4217`]: parses an ISO 4217 numeric
+/// code (e.g. `"840"`) back into the [`common_enums::Currency`] variant.
+/// Emitted by connectors that echo a numeric currency code in their responses.
+pub fn currency_from_iso_4217_numeric(code: &str) -> Option<common_enums::Currency> {
+    use strum::IntoEnumIterator;
+    common_enums::Currency::iter().find(|currency| currency.iso_4217() == code)
+}
