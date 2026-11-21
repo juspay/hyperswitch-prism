@@ -838,7 +838,7 @@ where
                     message,
                     reason: Some(format!("{}: {}", failure.failure_type, fallback_msg)),
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(item.response.id.clone()),
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -888,9 +888,11 @@ where
                     .map(|m| m.currency())
             });
 
+        // With no currency on the response or the stored request money, the amount is left
+        // unset rather than relabelled with a default currency.
         let response_amount = resolved_minor_amount
-            .map(|minor| {
-                let currency = resolved_currency.unwrap_or_default();
+            .zip(resolved_currency)
+            .map(|(minor, currency)| {
                 crate::utils::response_amount_to_money(
                     &connector,
                     minor,
@@ -945,25 +947,18 @@ where
             })
         };
 
-        let response_currency = item
-            .router_data
-            .resource_common_data
-            .money
-            .as_ref()
-            .map(|money| money.currency())
-            .unwrap_or_default();
-
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_status: Some(raw_connector_status),
                 money: response_amount.or(item.router_data.resource_common_data.money),
                 captured_money: captured_amount
-                    .map(|amount| {
+                    .zip(resolved_currency)
+                    .map(|(amount, currency)| {
                         crate::utils::response_amount_to_money(
                             &connector,
                             amount,
-                            response_currency,
+                            currency,
                             item.http_code,
                             domain_types::connector_types::ConnectorEnum::Ppro,
                         )
@@ -1270,6 +1265,20 @@ pub struct PproInitialPaymentCharge {
     pub payment_descriptor: Option<String>,
 }
 
+/// RFC 3339 UTC date-time for PPRO (`2025-03-01T09:05:00Z`). `PrimitiveDateTime`'s `Display`
+/// prints an unpadded hour and a fractional part (`2025-03-01 9:05:00.0`), which PPRO rejects.
+pub(super) fn format_ppro_date_time(
+    date_time: time::PrimitiveDateTime,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    use error_stack::ResultExt;
+    date_time
+        .assume_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
+}
+
 impl<T>
     TryFrom<
         PproRouterData<
@@ -1389,7 +1398,8 @@ where
                 MandateDataType::MultiUse(Some(a)) => a.start_date,
                 MandateDataType::MultiUse(None) => None,
             })
-            .map(|dt| format!("{}Z", dt.to_string().replace(" ", "T")));
+            .map(format_ppro_date_time)
+            .transpose()?;
 
         let end_date = router_data
             .request
@@ -1401,7 +1411,8 @@ where
                 MandateDataType::MultiUse(Some(a)) => a.end_date,
                 MandateDataType::MultiUse(None) => None,
             })
-            .map(|dt| format!("{}Z", dt.to_string().replace(" ", "T")));
+            .map(format_ppro_date_time)
+            .transpose()?;
 
         // Read amount_type and frequency from setup_mandate_details
         let (amount_type, frequency) = router_data
@@ -1585,7 +1596,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
                         failure.failure_type, failure.failure_message
                     )),
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: Some(item.response.id.clone()),
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1750,9 +1761,10 @@ where
                 )
                 | None => PproScheduleType::Unscheduled,
             }),
+            // PPRO supports only automatic capture; an unset capture_method means automatic.
             auto_capture: matches!(
                 router_data.request.capture_method,
-                Some(common_enums::CaptureMethod::Automatic)
+                Some(common_enums::CaptureMethod::Automatic) | None
             ),
             initiator,
             payment_descriptor: router_data.resource_common_data.description.clone(),
