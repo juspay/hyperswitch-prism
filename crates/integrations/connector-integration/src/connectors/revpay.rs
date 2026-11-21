@@ -646,12 +646,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let reference_number = body.reference_number;
 
         Ok(RedirectDetailsResponse {
+            // The compatibility response maps `resource_id` to
+            // `connector_transaction_id`. Keep the merchant Reference_Number
+            // here because it is the stable identifier used by PSync and can
+            // exist before revPAY assigns a Transaction_ID.
             resource_id: Some(ResponseId::ConnectorTransactionId(reference_number.clone())),
             status: Some(status),
             response_money: Some(money),
-            // VerifyRedirectResponse maps this field to `merchant_order_id`.
-            // It must remain revPAY's merchant-owned Reference_Number rather
-            // than the gateway-owned Transaction_ID.
+            // The same compatibility response maps this field to
+            // `merchant_order_id`, whose value is also Reference_Number.
             connector_response_reference_id: Some(reference_number),
             error_code: failure.as_ref().map(|(code, _)| code.clone()),
             error_message: failure.as_ref().map(|(_, message)| message.clone()),
@@ -701,7 +704,10 @@ fn parse_revpay_redirect_response(
                         serde_json::Value::String(value) => value,
                         serde_json::Value::Number(value) => value.to_string(),
                         serde_json::Value::Bool(value) => value.to_string(),
-                        serde_json::Value::Null => String::new(),
+                        // Optional callback fields are represented as JSON
+                        // null by Euler. Omitting them preserves their absence;
+                        // encoding them as empty strings changes the payload.
+                        serde_json::Value::Null => continue,
                         serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
                             return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                                 field_name: "request_details.query_params",
