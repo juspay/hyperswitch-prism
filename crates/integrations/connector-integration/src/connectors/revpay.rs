@@ -582,13 +582,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         secrets: Option<ConnectorSourceVerificationSecrets>,
     ) -> CustomResult<bool, IntegrationError> {
         let body = parse_revpay_redirect_response(request)?;
+        let secrets = secrets.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "redirect_response_secrets",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "revPAY redirect signature verification requires the merchant key"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
         let merchant_key = match secrets {
-            Some(ConnectorSourceVerificationSecrets::RedirectResponseSecret(secret)) => {
-                secret.secret
+            ConnectorSourceVerificationSecrets::RedirectResponseSecret(secret) => secret.secret,
+            _ => {
+                return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "redirect_response_secrets",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "revPAY expected redirect-response secrets containing the merchant key"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
             }
-            _ => return Ok(false),
         };
-        Ok(body.verifies_with_merchant_key(&merchant_key))
+        let merchant_key = std::str::from_utf8(&merchant_key).map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "redirect_response_secrets.secret",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "revPAY merchant keys must be valid UTF-8 strings".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+        Ok(body.verifies_with_merchant_key(merchant_key))
     }
 
     fn process_redirect_response(
@@ -598,6 +630,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
         let body = parse_revpay_redirect_response(request)?;
         let failure = body.failure_details();
+        let status = body.attempt_status();
         let money = body
             .money()
             .change_context(IntegrationError::InvalidDataFormat {
@@ -610,16 +643,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..Default::default()
                 },
             })?;
+        let reference_number = body.reference_number;
 
         Ok(RedirectDetailsResponse {
-            resource_id: Some(ResponseId::ConnectorTransactionId(
-                body.reference_number.clone(),
-            )),
-            status: Some(body.attempt_status()),
+            resource_id: Some(ResponseId::ConnectorTransactionId(reference_number.clone())),
+            status: Some(status),
             response_money: Some(money),
-            // The compatibility layer exposes this as merchant_order_id, so
-            // keep the merchant Reference_Number rather than Transaction_ID.
-            connector_response_reference_id: Some(body.reference_number.clone()),
+            // VerifyRedirectResponse maps this field to `merchant_order_id`.
+            // It must remain revPAY's merchant-owned Reference_Number rather
+            // than the gateway-owned Transaction_ID.
+            connector_response_reference_id: Some(reference_number),
             error_code: failure.as_ref().map(|(code, _)| code.clone()),
             error_message: failure.as_ref().map(|(_, message)| message.clone()),
             error_reason: failure.map(|(_, message)| message),
@@ -645,39 +678,60 @@ fn parse_revpay_redirect_response(
     })?;
 
     // Euler serializes callback query parameters as a JSON object, while the
-    // HTTP flow can also provide the original form-encoded query string.
-    let form = match serde_json::from_str::<serde_json::Value>(query) {
-        Ok(serde_json::Value::Object(values)) => {
-            let mut serializer = url::form_urlencoded::Serializer::new(String::new());
-            for (key, value) in values {
-                let value = value.as_str().ok_or_else(|| {
-                    error_stack::report!(IntegrationError::InvalidDataFormat {
-                        field_name: "request_details.query_params",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(format!(
-                                "revPAY redirect field `{key}` must be a string"
-                            )),
-                            ..Default::default()
-                        },
-                    })
-                })?;
-                serializer.append_pair(&key, value);
-            }
-            serializer.finish()
-        }
-        Ok(_) => {
-            return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+    // HTTP flow can also provide the original form-encoded query string. A
+    // payload beginning with JSON syntax must parse as JSON; malformed JSON
+    // is rejected rather than silently reinterpreted as a form query.
+    let trimmed_query = query.trim_start();
+    let form = if trimmed_query.starts_with('{') || trimmed_query.starts_with('[') {
+        match serde_json::from_str::<serde_json::Value>(query).change_context(
+            IntegrationError::InvalidDataFormat {
                 field_name: "request_details.query_params",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "revPAY redirect parameters must be a JSON object or form query"
-                            .to_string(),
+                        "revPAY redirect parameters contain malformed JSON".to_string(),
                     ),
                     ..Default::default()
                 },
-            }))
+            },
+        )? {
+            serde_json::Value::Object(values) => {
+                let mut serializer = url::form_urlencoded::Serializer::new(String::new());
+                for (key, value) in values {
+                    let value = match value {
+                        serde_json::Value::String(value) => value,
+                        serde_json::Value::Number(value) => value.to_string(),
+                        serde_json::Value::Bool(value) => value.to_string(),
+                        serde_json::Value::Null => String::new(),
+                        serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+                            return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                                field_name: "request_details.query_params",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(format!(
+                                        "revPAY redirect field `{key}` must be a primitive value"
+                                    )),
+                                    ..Default::default()
+                                },
+                            }))
+                        }
+                    };
+                    serializer.append_pair(&key, &value);
+                }
+                serializer.finish()
+            }
+            _ => {
+                return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "request_details.query_params",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "revPAY redirect JSON parameters must be an object".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
+            }
         }
-        Err(_) => query.to_string(),
+    } else {
+        query.to_string()
     };
 
     serde_urlencoded::from_str(&form).change_context(IntegrationError::InvalidDataFormat {

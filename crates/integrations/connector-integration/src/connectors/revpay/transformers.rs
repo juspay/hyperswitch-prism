@@ -2045,16 +2045,13 @@ impl RevpayWebhookBody {
         if self.key_index.trim().parse::<u32>().ok() != Some(auth.key_index) {
             return false;
         }
-        self.verifies_with_merchant_key(auth.merchant_key.peek().as_bytes())
+        self.verifies_with_merchant_key(auth.merchant_key.peek())
     }
 
     /// Verify a redirect callback when the redirect flow supplies only the
     /// merchant key. The signed callback itself contains the key index; the
     /// account-level index check remains in `verifies_against` for webhooks.
-    pub fn verifies_with_merchant_key(&self, merchant_key: &[u8]) -> bool {
-        let Ok(merchant_key) = std::str::from_utf8(merchant_key) else {
-            return false;
-        };
+    pub fn verifies_with_merchant_key(&self, merchant_key: &str) -> bool {
         let currency = self.currency.to_string();
         let expected = generate_revpay_signature(
             merchant_key,
