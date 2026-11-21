@@ -667,8 +667,25 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_sync flow for worldpayraft"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/purchase",
+          "method": "Post",
+          "headers": {
+            "authorization": "VANTIV license=\"probe_key\"",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"creditpurchase\":{\"MiscAmountsBalances\":{\"TransactionAmount\":\"10.00\"},\"WorldPayMerchantID\":\"probe_key\",\"APITransactionID\":\"probe_merchant_t\",\"LocalDateTime\":\"2020-01-01T00:00:00+00:00\"}}"
+        }
       }
     },
     "handle_event": {
