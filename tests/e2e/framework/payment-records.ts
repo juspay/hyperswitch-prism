@@ -8,6 +8,14 @@ export type RecordedPayment = {
   customerRecordExists: boolean;
 };
 
+export type RecordedMandate = {
+  status: string;
+  type: string;
+  connector: string;
+  connectorMandateIdPresent: boolean;
+  paymentMethodIdPresent: boolean;
+};
+
 export async function readRecordedPayment(
   merchantId: string,
   paymentId: string,
@@ -39,6 +47,39 @@ export async function readRecordedPayment(
     );
     if (result.rows.length !== 1) {
       throw new Error("Expected exactly one payment with an active attempt");
+    }
+    return result.rows[0];
+  } finally {
+    await client.end();
+  }
+}
+
+export async function readRecordedMandate(
+  merchantId: string,
+  mandateId: string,
+): Promise<RecordedMandate> {
+  const client = new pg.Client({
+    connectionString: configuration.databaseUrl,
+    connectionTimeoutMillis: 10_000,
+    options: "-c default_transaction_read_only=on",
+  });
+  await client.connect();
+  try {
+    const result = await client.query<RecordedMandate>(
+      `SELECT
+         mandate_status::text AS status,
+         mandate_type::text AS type,
+         connector,
+         (connector_mandate_id IS NOT NULL
+           AND connector_mandate_id <> '') AS "connectorMandateIdPresent",
+         (payment_method_id IS NOT NULL
+           AND payment_method_id <> '') AS "paymentMethodIdPresent"
+       FROM mandate
+       WHERE merchant_id = $1 AND mandate_id = $2`,
+      [merchantId, mandateId],
+    );
+    if (result.rows.length !== 1) {
+      throw new Error("Expected exactly one recorded mandate");
     }
     return result.rows[0];
   } finally {

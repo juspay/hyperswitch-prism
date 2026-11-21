@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createReference } from "../test-data.js";
 import { expect, test } from "@playwright/test";
 import type { ConnectorDefinition, JsonObject } from "./types.js";
 import { loadConnectorCredentials } from "./connector-credentials.js";
@@ -23,7 +23,7 @@ export async function setupMerchant(
       connector.credentialEntry,
     );
     await enableUcs(hs);
-    const merchantId = `e2e_${randomUUID().replaceAll("-", "")}`;
+    const merchantId = createReference("e2e");
     const account = await hs.call(
       "POST",
       "/accounts",
