@@ -11,7 +11,7 @@ from payments import PaymentClient
 from payments import RecurringPaymentClient
 from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "reverse", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -60,6 +60,16 @@ def _build_capture_request(connector_transaction_id: str):
             currency=common_types_pb2.Currency.Value("USD"),
         ),
         connector_feature_data=payment_methods_pb2.SecretString(value="{\"api_transaction_id\":\"0000000000000001\"}"),  # Connector-specific metadata for the transaction.
+    )
+
+def _build_get_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceGetRequest(
+        merchant_transaction_id="probe_merchant_txn_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
     )
 
 def _build_incremental_authorization_request():
@@ -328,6 +338,28 @@ async def process_void_payment(merchant_transaction_id: str, config: sdk_config_
     return {"status": getattr(void_response, "status", ""), "transaction_id": getattr(authorize_response, "connector_transaction_id", ""), "error": getattr(void_response, "error", None)}
 
 
+async def process_get_payment(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Get Payment Status
+
+    Retrieve current payment status from the connector.
+    """
+    payment_client = PaymentClient(config)
+
+    # Step 1: Authorize — reserve funds on the payment method
+    authorize_response = await payment_client.authorize(_build_authorize_request("MANUAL"))
+
+    if authorize_response.status == "FAILED":
+        raise RuntimeError(f"Payment failed: {authorize_response.error}")
+    if authorize_response.status == "PENDING":
+        # Awaiting async confirmation — handle via webhook
+        return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
+
+    # Step 2: Get — retrieve current payment status from the connector
+    get_response = await payment_client.get(_build_get_request(authorize_response.connector_transaction_id))
+
+    return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
+
+
 async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Authorize (Card)"""
     payment_client = PaymentClient(config)
@@ -344,6 +376,15 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     capture_response = await payment_client.capture(_build_capture_request("C|123456|123456789012|000001"))
 
     return {"status": capture_response.status}
+
+
+async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Get"""
+    payment_client = PaymentClient(config)
+
+    get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
+
+    return {"status": get_response.status}
 
 
 async def process_incremental_authorization(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

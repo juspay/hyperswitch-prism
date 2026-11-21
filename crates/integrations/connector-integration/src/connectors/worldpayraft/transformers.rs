@@ -10,15 +10,15 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate, Void,
-        VoidPC, VoidPostRefund,
+        Authorize, Capture, IncrementalAuthorization, PSync, Refund, RepeatPayment, SetupMandate,
+        Void, VoidPC, VoidPostRefund,
     },
     connector_types::{
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, RefundFlowData,
-        RefundVoidPostRefundData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        SetupMandateRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors,
     payment_method_data::{
@@ -1021,14 +1021,21 @@ impl WorldpayraftBrandSpecificData {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct WorldpayraftConnectorMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub original_authorized_amount: Option<Money>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub terminal_data: Option<WorldpayraftTerminalData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ecommerce_data: Option<WorldpayraftEcommerceData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub proc_flags_indicators: Option<WorldpayraftProcFlags>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub api_transaction_id: Option<String>,
     /// TLID of this authorization, used by its capture or reversal.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_link_id: Option<String>,
     /// Original brand identifiers are needed again for HDC incremental auth and completion.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub brand_specific_data: Option<WorldpayraftBrandSpecificData>,
 }
 
@@ -1356,6 +1363,15 @@ pub struct WorldpayraftResponseTraceNumbers {
     pub network_ref_number: Option<String>,
     #[serde(rename = "TransactionLinkID")]
     pub transaction_link_id: Option<String>,
+}
+
+impl WorldpayraftResponseTraceNumbers {
+    fn connector_transaction_id(&self, prefix: &str) -> String {
+        let auth_num = self.authorization_number.as_deref().unwrap_or_default();
+        let retrieval_ref = self.retrieval_ref_number.as_deref().unwrap_or_default();
+        let sys_trace = self.system_trace_number.as_deref().unwrap_or_default();
+        format!("{prefix}|{auth_num}|{retrieval_ref}|{sys_trace}")
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2131,12 +2147,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_transaction_id = inner
             .reference_trace_numbers
             .as_ref()
-            .map(|trace| {
-                let auth_num = trace.authorization_number.as_deref().unwrap_or("");
-                let retrieval_ref = trace.retrieval_ref_number.as_deref().unwrap_or("");
-                let sys_trace = trace.system_trace_number.as_deref().unwrap_or("");
-                format!("{prefix}|{auth_num}|{retrieval_ref}|{sys_trace}")
-            })
+            .map(|trace| trace.connector_transaction_id(prefix))
             .unwrap_or_default();
 
         let metadata = WorldpayraftConnectorMetadata::from_authorize_response(
@@ -2193,6 +2204,206 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             ..item.router_data
         })
+    }
+}
+
+// =============================================================================
+// PAYMENT SYNC: REPLAY THE ORIGINAL CREDIT AUTHORIZATION OR PURCHASE
+// =============================================================================
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayraftSyncInner {
+    misc_amounts_balances: WorldpayraftAmounts,
+    #[serde(rename = "WorldPayMerchantID")]
+    world_pay_merchant_id: Secret<String>,
+    #[serde(rename = "APITransactionID")]
+    api_transaction_id: String,
+    local_date_time: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum WorldpayraftSyncRequest {
+    Credit {
+        creditauth: WorldpayraftSyncInner,
+    },
+    CreditPurchase {
+        creditpurchase: WorldpayraftSyncInner,
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WorldpayraftSyncResponse {
+    Credit {
+        creditauthresponse: WorldpayraftCardAuthResponseInner,
+    },
+    CreditPurchase {
+        creditpurchaseresponse: WorldpayraftCardAuthResponseInner,
+    },
+}
+
+pub(super) fn get_sync_api_transaction_id(
+    payment_flow_data: &PaymentFlowData,
+) -> Result<String, error_stack::Report<errors::IntegrationError>> {
+    let original_reference = &payment_flow_data.connector_request_reference_id;
+    if original_reference.trim().is_empty() {
+        return Err(errors::IntegrationError::MissingRequiredField {
+            field_name: "merchant_transaction_id",
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "Worldpay RAFT payment sync requires the original merchant_transaction_id to reconstruct APITransactionID".to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into());
+    }
+    // Use the same original merchant reference and truncation as Authorize and RepeatPayment.
+    Ok(truncate_api_transaction_id(original_reference))
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayraftRouterData<
+            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+            T,
+        >,
+    > for WorldpayraftSyncRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: WorldpayraftRouterData<
+            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        let api_transaction_id =
+            get_sync_api_transaction_id(&item.router_data.resource_common_data)?;
+        let auth = WorldpayraftAuthType::try_from(&item.router_data.connector_config)?;
+        let transaction_amount = item
+            .connector
+            .amount_converter
+            .convert(&request.money)
+            .change_context(errors::IntegrationError::AmountConversionFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT payment sync requires the original transaction amount in major currency units".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        let inner = WorldpayraftSyncInner {
+            misc_amounts_balances: WorldpayraftAmounts { transaction_amount },
+            world_pay_merchant_id: auth.merchant_id,
+            api_transaction_id,
+            local_date_time: get_local_datetime(),
+        };
+        if request.is_auto_capture() {
+            Ok(Self::CreditPurchase {
+                creditpurchase: inner,
+            })
+        } else {
+            Ok(Self::Credit { creditauth: inner })
+        }
+    }
+}
+
+impl TryFrom<ResponseRouterData<WorldpayraftSyncResponse, Self>>
+    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<WorldpayraftSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let (auto_capture, inner) = match item.response {
+            WorldpayraftSyncResponse::Credit { creditauthresponse } => (false, creditauthresponse),
+            WorldpayraftSyncResponse::CreditPurchase {
+                creditpurchaseresponse,
+            } => (true, creditpurchaseresponse),
+        };
+        let mut router_data = item.router_data;
+        let status = if inner.return_code == RETURN_CODE_SUCCESS {
+            payment_status(&inner.return_code, &inner.response_code, auto_capture)
+        } else {
+            router_data.resource_common_data.status
+        };
+        router_data.resource_common_data.status = status;
+        let connector_transaction_id = inner
+            .reference_trace_numbers
+            .as_ref()
+            .map(|trace| trace.connector_transaction_id(TXN_TYPE_CREDIT))
+            .or_else(|| match &router_data.request.connector_transaction_id {
+                ResponseId::ConnectorTransactionId(id) => Some(id.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+
+        if let Some(error) = WorldpayraftErrorResponse::from(&inner).error_response_if_failed(
+            item.http_code,
+            Some(FlowStatus::Payment(status)),
+            Some(connector_transaction_id.clone()),
+        ) {
+            router_data.response = Err(error);
+            return Ok(router_data);
+        }
+
+        let request = &router_data.request;
+        let mut metadata =
+            WorldpayraftConnectorMetadata::try_from(request.connector_feature_data.as_ref())
+                .change_context(errors::ConnectorError::response_handling_failed(
+                    item.http_code,
+                ))?;
+        let network_txn_id = inner
+            .brand_specific_data
+            .network_transaction_id()
+            .filter(|id| !id.trim().is_empty());
+        let network_txn_link_id = inner
+            .reference_trace_numbers
+            .as_ref()
+            .and_then(|trace| trace.transaction_link_id.clone())
+            .or_else(|| metadata.transaction_link_id.clone());
+
+        // Keep only typed follow-up context; raw payloads, credentials and card
+        // or token data never enter connector metadata.
+        metadata.api_transaction_id = Some(truncate_api_transaction_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        ));
+        metadata
+            .original_authorized_amount
+            .get_or_insert_with(|| request.money.clone());
+        metadata.transaction_link_id = metadata
+            .transaction_link_id
+            .or_else(|| network_txn_link_id.clone());
+        if metadata.brand_specific_data.is_none() && network_txn_id.is_some() {
+            metadata.brand_specific_data = Some(inner.brand_specific_data);
+        }
+        let connector_metadata = metadata.encode_to_value().change_context(
+            errors::ConnectorError::response_handling_failed(item.http_code),
+        )?;
+        router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
+            redirection_data: None,
+            mandate_reference: inner
+                .encryption_token_data
+                .and_then(|data| data.tokenized_pan)
+                .map(connector_mandate_reference),
+            connector_metadata: Some(connector_metadata),
+            network_txn_id,
+            network_txn_link_id,
+            connector_response_reference_id: inner.api_transaction_id,
+            incremental_authorization_allowed: None,
+            splits: None,
+            status_code: item.http_code,
+            payment_account_reference: None,
+        });
+        Ok(router_data)
     }
 }
 
@@ -3571,12 +3782,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_transaction_id = response
             .reference_trace_numbers
             .as_ref()
-            .map(|trace| {
-                let auth_num = trace.authorization_number.as_deref().unwrap_or("");
-                let retrieval_ref = trace.retrieval_ref_number.as_deref().unwrap_or("");
-                let sys_trace = trace.system_trace_number.as_deref().unwrap_or("");
-                format!("{TXN_TYPE_CREDIT}|{auth_num}|{retrieval_ref}|{sys_trace}")
-            })
+            .map(|trace| trace.connector_transaction_id(TXN_TYPE_CREDIT))
             .unwrap_or_default();
 
         let metadata = WorldpayraftConnectorMetadata::from_repeat_payment_response(

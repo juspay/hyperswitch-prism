@@ -8,14 +8,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, IncrementalAuthorization, Refund, RepeatPayment, SetupMandate, Void,
-        VoidPC, VoidPostRefund,
+        Authorize, Capture, IncrementalAuthorization, PSync, Refund, RepeatPayment, SetupMandate,
+        Void, VoidPC, VoidPostRefund,
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
-        RefundFlowData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, SetupMandateRequestData,
+        PaymentsSyncData, RefundFlowData, RefundVoidPostRefundData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -39,8 +39,9 @@ use transformers::{
     WorldpayraftRefundRequest as WorldpayraftRefundReversalRequest, WorldpayraftRefundResponse,
     WorldpayraftRefundResponse as WorldpayraftRefundReversalResponse,
     WorldpayraftRepeatPaymentRequest, WorldpayraftRepeatPaymentResponse,
-    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse, WorldpayraftVoidPCRequest,
-    WorldpayraftVoidPCResponse, WorldpayraftVoidRequest, WorldpayraftVoidResponse,
+    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse, WorldpayraftSyncRequest,
+    WorldpayraftSyncResponse, WorldpayraftVoidPCRequest, WorldpayraftVoidPCResponse,
+    WorldpayraftVoidRequest, WorldpayraftVoidResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, utils, with_error_response_body};
@@ -68,6 +69,12 @@ macros::create_all_prerequisites!(
             request_body: WorldpayraftAuthorizeRequest<T>,
             response_body: WorldpayraftAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PSync,
+            request_body: WorldpayraftSyncRequest,
+            response_body: WorldpayraftSyncResponse,
+            router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
             flow: Capture,
@@ -294,6 +301,54 @@ macros::macro_connector_implementation!(
                 (true, false) => "debit/preauth",
                 (false, true) => "credit/purchase",
                 (false, false) => "credit/authorization",
+            };
+            Ok(format!("{base_url}/{path}"))
+        }
+    }
+);
+
+// RAFT recovers the original auth/purchase response by replaying APITransactionID.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentSyncV2 for Worldpayraft<T>
+{
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        payment_flow_data: &PaymentFlowData,
+    ) -> CustomResult<(), errors::IntegrationError> {
+        worldpayraft::get_sync_api_transaction_id(payment_flow_data).map(|_| ())
+    }
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayraft,
+    curl_request: Json(WorldpayraftSyncRequest),
+    curl_response: WorldpayraftSyncResponse,
+    flow_name: PSync,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsSyncData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            let path = if req.request.is_auto_capture() {
+                "credit/purchase"
+            } else {
+                "credit/authorization"
             };
             Ok(format!("{base_url}/{path}"))
         }
@@ -641,7 +696,6 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         PreAuthenticate,
         PaymentMethodToken,
-        PSync,
         RSync,
         CreateOrder,
         ClientAuthenticationToken,
