@@ -17,7 +17,7 @@ and, in S1m, `data/integration-source-links.json`. Linux only; all commands run 
 | Parameter | Description | Example |
 |---|---|---|
 | `{CONNECTOR}` | Connector name, exact casing | `Braintree` |
-| `{FLOWS}` | Comma list or JSON array of units: flow marker (`crates/types-traits/domain_types/src/connector_flow.rs`), flow group, `IncomingWebhook`, or `Marker/PaymentMethod`. A single `{FLOW}` is a one-element list | `Refund,RSync,3DS,Authorize/Wallet` |
+| `{FLOWS}` | Comma list or JSON array of units: flow marker (`crates/types-traits/domain_types/src/connector_flow.rs`), flow group (its name, an alias or a 3DS-only leg; `Authorize` and `Authorize/PaymentMethod` stay `Authorize` units), `IncomingWebhook`, or `Marker/PaymentMethod`. A single `{FLOW}` is a one-element list | `Refund,RSync,3DS,Authorize/Wallet` |
 | `{HS_REPO_PATH}` | Hyperswitch checkout; empty → HS surfaces `E2E_SKIPPED` | `/home/dev/hyperswitch` |
 | `{RUN_ID}` | Optional: resume `grace/runs/{RUN_ID}/` (see Resume) | `braintree-a1b2c3` |
 | `{MAX_RUN_HOURS}` | R9 time budget; default 24 | `24` |
@@ -107,9 +107,12 @@ order:
 
 - a flow marker → its exact casing, from the `pub struct <Marker>;` lines of
   `crates/types-traits/domain_types/src/connector_flow.rs`;
-- a flow group **or any member of one** → the group name, from the `## FLOW-GROUP MAP (Authoritative)` table of
-  `grace/rulesbook/codegen/.gracerules_add_flow`. The group map wins over the marker list, so a member resolves to
-  its group (`PreAuthenticate` → `ThreeDS`), never to itself;
+- a flow group's name or alias, **or one of its 3DS-only legs** → the group name, from the
+  `## FLOW-GROUP MAP (Authoritative)` section of `grace/rulesbook/codegen/.gracerules_add_flow`. The group map wins
+  over the marker list, so a leg resolves to its group (`PreAuthenticate` → `ThreeDS`), never to itself.
+  `Authorize` is not a leg: an entry naming it, with or without `/PaymentMethod`, stays an `Authorize` unit
+  (`Authorize/Card` → `Authorize/Card`), though the `ThreeDS` unit still implements the 3DS wiring it needs on
+  `Authorize`;
 - `incomingwebhook`, `webhook`, `webhooks` → `IncomingWebhook`;
 - anything else passes through unchanged.
 

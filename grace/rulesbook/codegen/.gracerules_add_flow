@@ -199,7 +199,15 @@ independently. Those are named as a **flow group**, and the group name is a vali
 
 | Flow group | Also accepted as             | Markers implemented together                                     |
 |------------|------------------------------|------------------------------------------------------------------|
-| `ThreeDS`  | `3DS`, `ThreeDs`, `three_ds` | `Authorize`, plus whichever of `PreAuthenticate`, `Authenticate`, `PostAuthenticate` the LEG-COUNT PROCEDURE selects — which may be none of them |
+| `ThreeDS`  | `3DS`, `ThreeDs`, `three_ds` | the 3DS wiring it needs on `Authorize`, plus whichever of `PreAuthenticate`, `Authenticate`, `PostAuthenticate` the LEG-COUNT PROCEDURE selects — which may be none of them |
+
+**What selects the group.** An input selects `ThreeDS` only by the group name, an alias above, or one
+of its 3DS-only legs (`PreAuthenticate`, `Authenticate`, `PostAuthenticate`), and keeps any
+`/PaymentMethod` suffix: `PostAuthenticate/Card` → `ThreeDS/Card`. `Authorize` never selects it: an
+input naming `Authorize`, with or without `/PaymentMethod`, stays an `Authorize` unit, so
+`Authorize/Card,Authorize/Wallet,3DS` is three units. The group still implements the 3DS wiring it
+needs on `Authorize`, because the charging call is always `Authorize` (LEG-COUNT Step 2); that
+wiring is part of the `ThreeDS` unit and does not fold an `Authorize` unit into it.
 
 **A flow group is ONE agent invocation, ONE commit. Do NOT
 decompose it into one invocation per marker.** The markers in a group share
