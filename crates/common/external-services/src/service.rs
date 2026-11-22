@@ -1568,6 +1568,9 @@ pub async fn call_connector_api(
 
     let headers = request.headers.construct_header_map()?;
 
+    // Only a GET is safe to send again after the connection closed mid-request
+    let resend_on_connection_closed = request.method == Method::Get;
+
     // Process and log the request body based on content type
     let request = {
         match request.method {
@@ -1700,17 +1703,21 @@ pub async fn call_connector_api(
     // On "connection closed before message completed", the retry is sent over
     // a NEW TCP connection: a fresh client owns a fresh pool, so nothing stale
     // can be checked out. The fresh client is built lazily, only on the error.
-    let (response, retried) = crate::http_client::send_request_with_retry(request, move || {
-        create_fresh_client(
-            proxy,
-            should_bypass_proxy,
-            proxy_name,
-            client_certificate,
-            client_certificate_key,
-            ca_certificate,
-            test_mode,
-        )
-    })
+    let (response, retried) = crate::http_client::send_request_with_retry(
+        request,
+        resend_on_connection_closed,
+        move || {
+            create_fresh_client(
+                proxy,
+                should_bypass_proxy,
+                proxy_name,
+                client_certificate,
+                client_certificate_key,
+                ca_certificate,
+                test_mode,
+            )
+        },
+    )
     .await;
 
     if retried {
