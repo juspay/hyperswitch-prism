@@ -15,14 +15,14 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventContext, EventType,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        DisputeWebhookDetailsResponse, EventContext, EventType, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
+        WebhookDetailsResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -52,12 +52,13 @@ use transformers::{
     NuveiPaymentResponse, NuveiRefundRequest, NuveiRefundResponse, NuveiRefundSyncRequest,
     NuveiRefundSyncResponse, NuveiRepeatPaymentRequest, NuveiRepeatPaymentResponse,
     NuveiSessionTokenRequest, NuveiSessionTokenResponse, NuveiSetupMandateRequest,
-    NuveiSetupMandateResponse, NuveiSyncRequest, NuveiSyncResponse, NuveiTransactionType,
-    NuveiVoidRequest, NuveiVoidResponse,
+    NuveiSetupMandateResponse, NuveiSyncRequest, NuveiSyncResponse, NuveiVoidRequest,
+    NuveiVoidResponse,
 };
 
 use super::macros;
 use crate::types::ResponseRouterData;
+use crate::webhooks::nuvei::Nuvei as NuveiWebhook;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::errors::WebhookError;
@@ -277,81 +278,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     // an authenticated event, and refunds do not carry the parent payment ID.
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        match transformers::parse_nuvei_webhook(&request.body)? {
-            transformers::NuveiWebhook::PaymentDmn(notification) => {
-                if transformers::is_payout_dmn(&notification)
-                    || notification.has_conflicting_status()
-                {
-                    return Err(WebhookError::WebhookEventTypeNotFound.into());
-                }
-                match (
-                    notification.status.as_ref(),
-                    notification.transaction_type.as_ref(),
-                ) {
-                    (Some(status), Some(transaction_type)) => {
-                        transformers::map_notification_to_event(status, transaction_type)
-                    }
-                    (None, _) | (_, None) => Err(WebhookError::WebhookEventTypeNotFound.into()),
-                }
-            }
-            transformers::NuveiWebhook::Chargeback(notification) => {
-                transformers::get_dispute_status(&notification.chargeback)
-                    .map(transformers::dispute_event_from_status)
-            }
-        }
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        match transformers::parse_nuvei_webhook(&request.body)? {
-            transformers::NuveiWebhook::PaymentDmn(notification) => {
-                if transformers::is_payout_dmn(&notification) {
-                    return Err(WebhookError::WebhookEventTypeNotFound.into());
-                }
-                let payment_reference = notification.transaction_id.clone();
-                match notification.transaction_type {
-                    Some(NuveiTransactionType::Auth)
-                    | Some(NuveiTransactionType::Sale)
-                    | Some(NuveiTransactionType::Settle)
-                    | Some(NuveiTransactionType::Void) => Ok(Some(
-                        WebhookResourceReference::Payment(PaymentWebhookReference {
-                            connector_transaction_id: Some(
-                                payment_reference
-                                    .ok_or(WebhookError::WebhookReferenceIdNotFound)?,
-                            ),
-                            merchant_transaction_id: notification.merchant_reference(),
-                            connector_preprocessing_id: None,
-                        }),
-                    )),
-                    Some(NuveiTransactionType::Credit) => Ok(Some(
-                        WebhookResourceReference::Refund(RefundWebhookReference {
-                            connector_refund_id: Some(
-                                notification
-                                    .transaction_id
-                                    .ok_or(WebhookError::WebhookReferenceIdNotFound)?,
-                            ),
-                            merchant_refund_id: None,
-                            connector_transaction_id: notification.related_transaction_id,
-                            merchant_transaction_id: None,
-                        }),
-                    )),
-                    Some(NuveiTransactionType::Auth3D)
-                    | Some(NuveiTransactionType::InitAuth3D)
-                    | Some(NuveiTransactionType::Unknown)
-                    | None => Err(WebhookError::WebhookEventTypeNotFound.into()),
-                }
-            }
-            transformers::NuveiWebhook::Chargeback(notification) => Ok(Some(
-                WebhookResourceReference::Dispute(DisputeWebhookReference {
-                    connector_dispute_id: notification.chargeback.dispute_id,
-                    connector_transaction_id: Some(
-                        notification.transaction_details.transaction_id.to_string(),
-                    ),
-                }),
-            )),
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            NuveiWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
