@@ -189,9 +189,9 @@ macros::create_all_prerequisites!(
 
         /// vault.omise.co — tokenization host. Falls back to the production
         /// vault host when `secondary_base_url` is not configured.
-        pub fn connector_base_url_vault<'a, F, Req, Res>(
+        pub fn connector_base_url_vault<F, Req, Res>(
             &self,
-            req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
+            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> String {
             req.resource_common_data
                 .connectors
@@ -307,7 +307,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Kgp<T>
+    interfaces::webhooks::IncomingWebhook for Kgp<T>
 {
     fn verify_webhook_source(
         &self,
@@ -365,7 +365,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some("successful") => Ok(EventType::PaymentIntentSuccess),
                 Some("failed") | Some("expired") => Ok(EventType::PaymentIntentFailure),
                 Some("reversed") => Ok(EventType::PaymentIntentCancelled),
-                Some("pending") | _ => Ok(EventType::PaymentIntentProcessing),
+                _ => Ok(EventType::PaymentIntentProcessing),
             }
         } else if key.starts_with("charge.capture") {
             Ok(EventType::PaymentIntentCaptureSuccess)

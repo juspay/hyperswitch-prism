@@ -526,17 +526,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            KgpToken,
-            RouterDataV2<
-                PaymentMethodToken,
-                PaymentFlowData,
-                PaymentMethodTokenizationData<T>,
-                PaymentMethodTokenResponse,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<KgpToken, Self>>
     for RouterDataV2<
         PaymentMethodToken,
         PaymentFlowData,
@@ -545,17 +535,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     >
 {
     type Error = Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            KgpToken,
-            RouterDataV2<
-                PaymentMethodToken,
-                PaymentFlowData,
-                PaymentMethodTokenizationData<T>,
-                PaymentMethodTokenResponse,
-            >,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KgpToken, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
@@ -563,7 +543,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         } = item;
 
         let response_integrity_object = Some(PaymentMethodTokenIntegrityObject {
-            amount: router_data.request.amount.amount,
+            amount: router_data.request.money.amount(),
             currency: router_data.request.currency,
         });
 
@@ -702,7 +682,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone();
 
         Ok(Self {
-            amount: request.amount.amount.get_amount_as_i64(),
+            amount: request.money.amount().get_amount_as_i64(),
             currency: request.currency,
             card: card_token,
             customer,
@@ -717,30 +697,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            KgpAuthorizeResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+    TryFrom<ResponseRouterData<KgpAuthorizeResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            KgpAuthorizeResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KgpAuthorizeResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
@@ -782,7 +743,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             amount: MinorUnit::new(
                 response
                     .amount
-                    .unwrap_or_else(|| router_data.request.amount.amount.get_amount_as_i64()),
+                    .unwrap_or_else(|| router_data.request.money.amount().get_amount_as_i64()),
             ),
             currency: router_data.request.currency,
         });
@@ -806,21 +767,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // PSYNC  (GET {api}/charges/{id})
 // ============================================================================
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            KgpSyncResponse,
-            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        >,
-    > for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<KgpSyncResponse, Self>>
+    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            KgpSyncResponse,
-            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KgpSyncResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
@@ -860,9 +811,9 @@ impl
             amount: MinorUnit::new(
                 response
                     .amount
-                    .unwrap_or_else(|| router_data.request.amount.amount.get_amount_as_i64()),
+                    .unwrap_or_else(|| router_data.request.money.amount().get_amount_as_i64()),
             ),
-            currency: router_data.request.currency,
+            currency: router_data.request.money.currency(),
         });
 
         Ok(Self {
@@ -903,26 +854,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Partial capture: send capture_amount when it is less than the full auth.
         // Omise treats a missing capture_amount as "capture everything remaining".
         Ok(Self {
-            capture_amount: Some(request.amount_to_capture.amount.get_amount_as_i64()),
+            capture_amount: Some(request.capture_money.amount().get_amount_as_i64()),
         })
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            KgpCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        >,
-    > for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<KgpCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            KgpCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KgpCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
@@ -963,8 +904,8 @@ impl
                     .unwrap_or_else(|| {
                         router_data
                             .request
-                            .amount_to_capture
-                            .amount
+                            .capture_money
+                            .amount()
                             .get_amount_as_i64()
                     }),
             ),
@@ -1010,21 +951,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            KgpVoidResponse,
-            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        >,
-    > for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<KgpVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            KgpVoidResponse,
-            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KgpVoidResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
@@ -1098,28 +1029,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         Ok(Self {
-            amount: Some(request.refund_amount.amount.get_amount_as_i64()),
+            amount: Some(request.refund_money.amount().get_amount_as_i64()),
             metadata_refund_id: Some(request.refund_id.clone()),
             void: None,
         })
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            KgpRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
-    > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<KgpRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            KgpRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KgpRefundResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
             router_data,
@@ -1139,13 +1060,16 @@ impl
             })
         };
 
-        let response_integrity_object =
-            Some(RefundIntegrityObject {
-                refund_amount: MinorUnit::new(response.amount.unwrap_or_else(|| {
-                    router_data.request.refund_amount.amount.get_amount_as_i64()
-                })),
-                currency: router_data.request.currency,
-            });
+        let response_integrity_object = Some(RefundIntegrityObject {
+            refund_amount: MinorUnit::new(response.amount.unwrap_or_else(|| {
+                router_data
+                    .request
+                    .refund_money
+                    .amount()
+                    .get_amount_as_i64()
+            })),
+            currency: router_data.request.currency,
+        });
 
         Ok(Self {
             response: refund_response,
@@ -1162,20 +1086,12 @@ impl
 // RSYNC  (GET {api}/charges/{charge_id}/refunds/{refund_id})
 // ============================================================================
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            KgpRefundSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        >,
-    > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<KgpRefundSyncResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            KgpRefundSyncResponse,
-            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        >,
+        item: ResponseRouterData<KgpRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -1329,9 +1245,7 @@ pub fn parse_kgp_signature(header_value: &str) -> Option<KgpWebhookSignature> {
     let mut timestamp = None;
     let mut signature = None;
     for part in header_value.split(',') {
-        let mut kv = part.trim().splitn(2, '=');
-        let key = kv.next()?;
-        let value = kv.next()?;
+        let (key, value) = part.trim().split_once('=')?;
         match key {
             "t" => timestamp = Some(value.to_string()),
             "s" => signature = Some(value.to_string()),
