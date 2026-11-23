@@ -34,7 +34,19 @@ const BOOST_PAYMENT_METHOD_CARD: &str = "card";
 
 const FIELD_PROBE_FROZEN_TIMESTAMP_ENV_VAR: &str = "UCS_FIELD_PROBE_FROZEN_TIMESTAMP";
 
+// Keep the clock override local to a test thread so boundary tests need no sleeps.
+#[cfg(test)]
+thread_local! {
+    pub(super) static TEST_CREATED_TIMESTAMP: std::cell::Cell<Option<fn() -> String>> =
+        const { std::cell::Cell::new(None) };
+}
+
 fn stable_created_timestamp() -> Result<String, error_stack::Report<errors::IntegrationError>> {
+    #[cfg(test)]
+    if let Some(timestamp) = TEST_CREATED_TIMESTAMP.with(|clock| clock.get()) {
+        return Ok(timestamp());
+    }
+
     if let Ok(frozen) = std::env::var(FIELD_PROBE_FROZEN_TIMESTAMP_ENV_VAR) {
         return Ok(frozen);
     }
