@@ -52,11 +52,17 @@ to guess at contracts a later leg will change, and pushes all the cross-leg wiri
 happens to run last — where it arrives too late for the legs that needed it.
 
 **Which markers a group expands to is not fixed, and is not your decision.** `ThreeDS` covers
-`Authorize` plus whichever of `PreAuthenticate`, `Authenticate` and `PostAuthenticate` the connector's
-own documentation calls for — commonly one or two, sometimes none. The Connector Agent's plan stage
+whichever of `PreAuthenticate`, `Authenticate` and `PostAuthenticate` the connector's own
+documentation calls for — commonly one or two, sometimes none — plus the 3DS wiring it needs on
+`Authorize`, which stays the charging call. The Connector Agent's plan stage
 derives that set per connector with the **LEG-COUNT PROCEDURE** in
 `grace/rulesbook/codegen/.gracerules_add_flow` `## FLOW-GROUP MAP (Authoritative)`, which is canonical
 for both Claude and non-Claude agents. You only need the alias row above, to parse `{FLOWS}`.
+
+**`Authorize` never selects a group.** An entry selects `ThreeDS` only by the group name, an alias
+above, or one of those 3DS-only legs; an entry naming `Authorize`, with or without `/PaymentMethod`,
+stays an `Authorize` unit, so `Authorize/Card,Authorize/Wallet,3DS` is three units (`2_connector.md`
+"## Units and run directory").
 
 If `{PAYMENT_METHOD}` is provided:
 - each `{FLOW}` must be an existing flow (typically `Authorize`), passed on as `<flow>/<PAYMENT_METHOD>`
