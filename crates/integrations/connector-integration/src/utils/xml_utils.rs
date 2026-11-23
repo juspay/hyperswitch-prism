@@ -31,8 +31,7 @@ pub fn preprocess_xml_response_bytes(
         match response_str.find("?>") {
             Some(pos) => {
                 let substring = &response_str[pos + 2..];
-                let cleaned = substring.trim();
-                cleaned
+                substring.trim()
             }
             None => {
                 tracing::warn!("XML declaration start found but no closing '?>' tag");
