@@ -292,6 +292,7 @@ pub(crate) fn base_create_client_authentication_token_request(
         merchant_client_session_id: "probe_sdk_session_001".to_string(),
         domain_context: Some(DomainContext::Payment(PaymentClientAuthenticationContext {
             amount: Some(usd_money(1000)),
+            return_url: Some("https://example.com/return".to_string()),
             ..Default::default()
         })),
         ..Default::default()

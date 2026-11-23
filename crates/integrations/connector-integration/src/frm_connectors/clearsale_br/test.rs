@@ -282,10 +282,18 @@ mod tests {
             clearsale_payment_outcome_status(Some(AttemptStatus::Charged), None),
             Some("PGA")
         );
-        assert_eq!(
-            clearsale_payment_outcome_status(Some(AttemptStatus::AuthorizationFailed), None),
-            Some("PGR")
-        );
+        for status in [
+            AttemptStatus::AuthenticationFailed,
+            AttemptStatus::AuthorizationFailed,
+            AttemptStatus::CaptureFailed,
+            AttemptStatus::Failure,
+        ] {
+            assert_eq!(
+                clearsale_payment_outcome_status(Some(status), None),
+                Some("PGR"),
+                "{status:?} must be reported as payment rejected"
+            );
+        }
         assert_eq!(
             clearsale_payment_outcome_status(None, Some(FrmDecision::Reject)),
             Some("PGR")

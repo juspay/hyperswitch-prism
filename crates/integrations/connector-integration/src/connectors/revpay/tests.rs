@@ -793,3 +793,98 @@ fn webhook_response_exposes_amount_and_only_successful_capture() {
         assert_eq!(response.captured_money.is_some(), captured);
     }
 }
+
+#[test]
+fn redirect_response_processes_json_query_and_preserves_merchant_reference() {
+    use std::collections::HashMap;
+
+    use domain_types::connector_types::{HttpMethod, RequestDetails};
+    use interfaces::connector_types::VerifyRedirectResponse;
+
+    let fields: HashMap<String, String> =
+        serde_urlencoded::from_str(&webhook_form_body("52.40", "1", WEBHOOK_DOC_SIGNATURE))
+            .expect("callback fields");
+    let mut query = serde_json::to_value(fields).expect("JSON query params");
+    let query_object = query.as_object_mut().expect("query object");
+    // Euler may retain numeric JSON types for numeric callback fields even
+    // though every value originated in an HTTP query string.
+    query_object.insert("Payment_ID".to_string(), serde_json::json!(2));
+    query_object.insert("Key_Index".to_string(), serde_json::json!(1));
+    let request = RequestDetails {
+        method: HttpMethod::Get,
+        uri: None,
+        headers: Default::default(),
+        body: vec![],
+        query_params: Some(query.to_string()),
+    };
+    let connector = crate::connectors::revpay::Revpay::<DefaultPCIHolder>::new();
+    let response = connector
+        .process_redirect_response(&request, None)
+        .expect("redirect response");
+
+    assert!(matches!(response.resource_id,
+        Some(ResponseId::ConnectorTransactionId(id)) if id == "RF201774111"));
+    assert_eq!(
+        response.connector_response_reference_id.as_deref(),
+        Some("RF201774111")
+    );
+    assert_eq!(response.status, Some(AttemptStatus::Charged));
+    let money = response.response_money.expect("redirect integrity money");
+    assert_eq!(money.amount(), MinorUnit::new(5240));
+    assert_eq!(money.currency(), Currency::MYR);
+    assert_eq!(response.error_code, None);
+}
+
+#[test]
+fn redirect_response_signature_verification_rejects_tampering() {
+    use domain_types::connector_types::{
+        ConnectorRedirectResponseSecrets, HttpMethod, RequestDetails,
+    };
+    use interfaces::{
+        connector_types::VerifyRedirectResponse, verification::ConnectorSourceVerificationSecrets,
+    };
+
+    let connector = crate::connectors::revpay::Revpay::<DefaultPCIHolder>::new();
+    let secrets = || {
+        Some(ConnectorSourceVerificationSecrets::RedirectResponseSecret(
+            ConnectorRedirectResponseSecrets {
+                secret: b"1OoL87PmJQ".to_vec(),
+                additional_secret: None,
+            },
+        ))
+    };
+    let request = |amount: &str| RequestDetails {
+        method: HttpMethod::Get,
+        uri: None,
+        headers: Default::default(),
+        body: vec![],
+        query_params: Some(webhook_form_body(amount, "1", WEBHOOK_DOC_SIGNATURE)),
+    };
+
+    assert!(connector
+        .verify_redirect_response_source(&request("52.40"), secrets())
+        .expect("valid redirect verification"));
+    assert!(!connector
+        .verify_redirect_response_source(&request("52.41"), secrets())
+        .expect("tampered redirect verification"));
+    assert!(connector
+        .verify_redirect_response_source(&request("52.40"), None)
+        .is_err());
+}
+
+#[test]
+fn redirect_response_rejects_malformed_json_instead_of_treating_it_as_form_data() {
+    use domain_types::connector_types::{HttpMethod, RequestDetails};
+    use interfaces::connector_types::VerifyRedirectResponse;
+
+    let connector = crate::connectors::revpay::Revpay::<DefaultPCIHolder>::new();
+    let request = RequestDetails {
+        method: HttpMethod::Get,
+        uri: None,
+        headers: Default::default(),
+        body: vec![],
+        query_params: Some(r#"{"Reference_Number":"RF201774111""#.to_string()),
+    };
+
+    assert!(connector.process_redirect_response(&request, None).is_err());
+}

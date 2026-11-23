@@ -2580,12 +2580,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBlik(Box::new(StripeBlik {
                     payment_method_data_type,
-                    code: Secret::new(blik_code.clone().ok_or(
-                        IntegrationError::MissingRequiredField {
+                    code: blik_code
+                        .clone()
+                        .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "blik_code",
                             context: Default::default(),
-                        },
-                    )?),
+                        })?,
                 })),
             )),
             BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(

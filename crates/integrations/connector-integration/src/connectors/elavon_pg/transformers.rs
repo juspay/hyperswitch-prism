@@ -23,16 +23,16 @@ use domain_types::{
         PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, MandateReferenceId,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        ConnectorCustomerData, ConnectorCustomerResponse, EventContext, EventType,
+        MandateReference, MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
-        ResponseTransformationErrorContext,
+        ResponseTransformationErrorContext, WebhookError,
     },
     payment_method_data::{
         ApplePayPaymentData, Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
@@ -1219,17 +1219,19 @@ fn wallet_eci(eci: Option<&str>) -> Result<String, error_stack::Report<Integrati
 /// The wallet half of an Authorize: the DPAN card, `cryptogramSecurity` and the
 /// `paymentMethodOrigin` EPG requires beside it. Only already-decrypted tokens are
 /// accepted; EPG's encrypted-token route is a separate two-call flow.
+///
+/// A Google Pay `PAN_ONLY` token decrypts to the card's own number with no cryptogram.
+/// EPG requires `cryptogramSecurity` whenever `paymentMethodOrigin` is set and refuses
+/// `threeDSecure` beside the two, so such a token gets neither and is sold as a card,
+/// authenticated by the caller's 3DS results instead.
+/// The cryptogram and the origin EPG requires beside it; absent for a `PAN_ONLY` token.
+type ElavonPgWalletCryptogram = Option<(ElavonPgCryptogramSecurity, ElavonPgPaymentMethodOrigin)>;
+
 fn build_wallet_payment<T: PaymentMethodDataTypes>(
     wallet: &WalletData,
     bill_to: Option<ElavonPgContact>,
-) -> Result<
-    (
-        ElavonPgSaleCard<T>,
-        ElavonPgCryptogramSecurity,
-        ElavonPgPaymentMethodOrigin,
-    ),
-    error_stack::Report<IntegrationError>,
-> {
+) -> Result<(ElavonPgSaleCard<T>, ElavonPgWalletCryptogram), error_stack::Report<IntegrationError>>
+{
     let encrypted = |wallet: &'static str| {
         error_stack::report!(IntegrationError::NotSupported {
             message: format!("Encrypted {wallet} token"),
@@ -1243,20 +1245,6 @@ fn build_wallet_payment<T: PaymentMethodDataTypes>(
             },
         })
     };
-    let missing_cryptogram = || {
-        error_stack::report!(IntegrationError::MissingRequiredField {
-            field_name: "wallet.cryptogram",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "Elavon Payment Gateway needs the wallet cryptogram; a PAN-only token cannot \
-                     be sent"
-                        .to_string(),
-                ),
-                ..Default::default()
-            },
-        })
-    };
-
     match wallet {
         WalletData::ApplePay(apple_pay) => {
             let ApplePayPaymentData::Decrypted(decrypted) = &apple_pay.payment_data else {
@@ -1273,13 +1261,15 @@ fn build_wallet_payment<T: PaymentMethodDataTypes>(
                     expiration_year: Secret::new(expiration_year),
                     bill_to,
                 }),
-                ElavonPgCryptogramSecurity {
-                    cryptogram: decrypted.payment_data.online_payment_cryptogram.clone(),
-                    electronic_commerce_indicator: wallet_eci(
-                        decrypted.payment_data.eci_indicator.as_deref(),
-                    )?,
-                },
-                ElavonPgPaymentMethodOrigin::ApplePay,
+                Some((
+                    ElavonPgCryptogramSecurity {
+                        cryptogram: decrypted.payment_data.online_payment_cryptogram.clone(),
+                        electronic_commerce_indicator: wallet_eci(
+                            decrypted.payment_data.eci_indicator.as_deref(),
+                        )?,
+                    },
+                    ElavonPgPaymentMethodOrigin::ApplePay,
+                )),
             ))
         }
         WalletData::GooglePay(google_pay) => {
@@ -1295,14 +1285,21 @@ fn build_wallet_payment<T: PaymentMethodDataTypes>(
                     expiration_year: Secret::new(expiration_year),
                     bill_to,
                 }),
-                ElavonPgCryptogramSecurity {
-                    cryptogram: decrypted
-                        .cryptogram
-                        .clone()
-                        .ok_or_else(missing_cryptogram)?,
-                    electronic_commerce_indicator: wallet_eci(decrypted.eci_indicator.as_deref())?,
-                },
-                ElavonPgPaymentMethodOrigin::GooglePay,
+                decrypted
+                    .cryptogram
+                    .clone()
+                    .map(|cryptogram| {
+                        Ok::<_, error_stack::Report<IntegrationError>>((
+                            ElavonPgCryptogramSecurity {
+                                cryptogram,
+                                electronic_commerce_indicator: wallet_eci(
+                                    decrypted.eci_indicator.as_deref(),
+                                )?,
+                            },
+                            ElavonPgPaymentMethodOrigin::GooglePay,
+                        ))
+                    })
+                    .transpose()?,
             ))
         }
         other => Err(error_stack::report!(IntegrationError::NotSupported {
@@ -2114,12 +2111,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (sale_card, cryptogram_security, payment_method_origin, three_d_secure) =
             match &request.payment_method_data {
-                PaymentMethodData::Wallet(wallet) => {
-                    let (card, cryptogram, origin) = build_wallet_payment(wallet, bill_to)?;
+                PaymentMethodData::Wallet(wallet) => match build_wallet_payment(wallet, bill_to)? {
                     // The wallet cryptogram is the authentication; EPG's 3DS object
                     // does not apply.
-                    (Some(card), Some(cryptogram), Some(origin), None)
-                }
+                    (card, Some((cryptogram, origin))) => {
+                        (Some(card), Some(cryptogram), Some(origin), None)
+                    }
+                    // Google Pay PAN_ONLY: a card sale that carries the 3DS results.
+                    (card, None) => (
+                        Some(card),
+                        None,
+                        None,
+                        build_three_d_secure(
+                            request.authentication_data.as_ref(),
+                            router_data.resource_common_data.is_three_ds(),
+                        )?,
+                    ),
+                },
                 // EPG holds the card; a stored card still takes the 3DS results.
                 _ if stored_card.is_some() => (
                     None,
@@ -2972,5 +2980,170 @@ fn build_refund_router_data<F, Req>(
             ..router_data.resource_common_data
         },
         ..router_data
+    }
+}
+
+// =============================================================================
+// WEBHOOKS
+// =============================================================================
+
+/// `Notification` — the body EPG pushes to a registered webhook. It names the affected
+/// resource but carries none of its state, so the status is read from `eventType` alone.
+/// https://developer.elavon.com/products/elavon-payment-gateway/v1/webhook-notifications
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgNotification {
+    pub event_type: ElavonPgEventType,
+    pub resource_type: ElavonPgResourceType,
+    /// Resource URL of the affected resource (`https://api…/transactions/{id}`).
+    pub resource: Option<String>,
+}
+
+/// The transaction events this connector maps. Void, partial-capture and total-adjustment
+/// events are separate EPG resources whose ids this connector never stores (Capture and Void
+/// report the parent sale's id), so they could not be matched to a payment and fall into
+/// `Other` with every event EPG adds later.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ElavonPgEventType {
+    SaleAuthorized,
+    SaleDeclined,
+    SaleHeldForReview,
+    SaleCaptured,
+    SaleSettled,
+    RefundAuthorized,
+    RefundDeclined,
+    RefundCaptured,
+    RefundSettled,
+    #[serde(other)]
+    Other,
+}
+
+/// Payment sessions and payment links notify too, but only about the transaction they
+/// created, which also sends its own notification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ElavonPgResourceType {
+    Transaction,
+    #[serde(other)]
+    Other,
+}
+
+impl ElavonPgNotification {
+    /// The mapped event, or `Other` when the notification is not about a transaction.
+    fn transaction_event(&self) -> ElavonPgEventType {
+        match self.resource_type {
+            ElavonPgResourceType::Transaction => self.event_type,
+            ElavonPgResourceType::Other => ElavonPgEventType::Other,
+        }
+    }
+
+    /// The state the event reports the transaction moved to.
+    fn transaction_state(&self) -> Option<ElavonPgTransactionState> {
+        match self.transaction_event() {
+            ElavonPgEventType::SaleAuthorized | ElavonPgEventType::RefundAuthorized => {
+                Some(ElavonPgTransactionState::Authorized)
+            }
+            ElavonPgEventType::SaleDeclined | ElavonPgEventType::RefundDeclined => {
+                Some(ElavonPgTransactionState::Declined)
+            }
+            ElavonPgEventType::SaleHeldForReview => Some(ElavonPgTransactionState::HeldForReview),
+            ElavonPgEventType::SaleCaptured | ElavonPgEventType::RefundCaptured => {
+                Some(ElavonPgTransactionState::Captured)
+            }
+            ElavonPgEventType::SaleSettled | ElavonPgEventType::RefundSettled => {
+                Some(ElavonPgTransactionState::Settled)
+            }
+            ElavonPgEventType::Other => None,
+        }
+    }
+
+    pub fn is_refund_event(&self) -> bool {
+        matches!(
+            self.transaction_event(),
+            ElavonPgEventType::RefundAuthorized
+                | ElavonPgEventType::RefundDeclined
+                | ElavonPgEventType::RefundCaptured
+                | ElavonPgEventType::RefundSettled
+        )
+    }
+
+    pub fn event_type(&self) -> EventType {
+        match self.transaction_event() {
+            ElavonPgEventType::SaleAuthorized => EventType::PaymentIntentAuthorizationSuccess,
+            ElavonPgEventType::SaleCaptured | ElavonPgEventType::SaleSettled => {
+                EventType::PaymentIntentSuccess
+            }
+            ElavonPgEventType::SaleDeclined => EventType::PaymentIntentFailure,
+            ElavonPgEventType::SaleHeldForReview => EventType::PaymentIntentProcessing,
+            ElavonPgEventType::RefundAuthorized
+            | ElavonPgEventType::RefundCaptured
+            | ElavonPgEventType::RefundSettled => EventType::RefundSuccess,
+            ElavonPgEventType::RefundDeclined => EventType::RefundFailure,
+            ElavonPgEventType::Other => EventType::IncomingWebhookEventUnspecified,
+        }
+    }
+
+    /// The transaction id: the last path segment of `resource`. Sales and refunds are
+    /// `Transaction` resources, and this connector stores the sale's id as the connector
+    /// transaction id and the refund's id as the connector refund id.
+    pub fn transaction_id(&self) -> Result<String, error_stack::Report<WebhookError>> {
+        self.resource
+            .as_deref()
+            .and_then(|resource| resource.trim_end_matches('/').rsplit('/').next())
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookReferenceIdNotFound))
+            .attach_printable("elavon_pg webhook: `resource` is absent or has no id")
+    }
+
+    /// `saleAuthorized` is `Charged` on a `doCapture: true` sale and `Authorized` otherwise,
+    /// exactly as the Authorize response reads `state: authorized`, so it needs the payment's
+    /// capture method.
+    pub fn payment_status(
+        &self,
+        event_context: Option<&EventContext>,
+    ) -> Result<AttemptStatus, error_stack::Report<WebhookError>> {
+        let state = self
+            .transaction_state()
+            .filter(|_| !self.is_refund_event())
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookEventTypeNotFound))
+            .attach_printable("elavon_pg webhook: eventType is not a sale event")?;
+        let is_auto_capture = match (state, event_context) {
+            (ElavonPgTransactionState::Authorized, None) => {
+                return Err(error_stack::report!(
+                    WebhookError::WebhookMissingRequiredContext {
+                        field: "capture_method",
+                        origin: "payment authorize",
+                    }
+                ))
+            }
+            (_, context) => !matches!(
+                context.and_then(|context| context.capture_method),
+                Some(
+                    common_enums::CaptureMethod::Manual
+                        | common_enums::CaptureMethod::ManualMultiple
+                        | common_enums::CaptureMethod::Scheduled
+                )
+            ),
+        };
+        Ok(AttemptStatus::from(ElavonPgSaleStatus {
+            state: &state,
+            is_authorized: None,
+            is_held_for_review: false,
+            is_auto_capture,
+        }))
+    }
+
+    pub fn refund_status(&self) -> Result<RefundStatus, error_stack::Report<WebhookError>> {
+        let state = self
+            .transaction_state()
+            .filter(|_| self.is_refund_event())
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookEventTypeNotFound))
+            .attach_printable("elavon_pg webhook: eventType is not a refund event")?;
+        Ok(RefundStatus::from(ElavonPgChildStatus {
+            state: &state,
+            is_authorized: None,
+        }))
     }
 }

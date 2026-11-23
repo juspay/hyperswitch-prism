@@ -2186,8 +2186,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         redirection_data: Some(Box::new(RedirectForm::CybersourceAuthSetup {
                             access_token: info_response
                                 .consumer_authentication_information
-                                .access_token
-                                .expose(),
+                                .access_token,
                             ddc_url: info_response
                                 .consumer_authentication_information
                                 .device_data_collection_url,
@@ -2398,7 +2397,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         ) {
                             (Some(token), Some(step_up_url)) => {
                                 Some(RedirectForm::CybersourceConsumerAuth {
-                                    access_token: token.expose(),
+                                    access_token: token,
                                     step_up_url,
                                 })
                             }

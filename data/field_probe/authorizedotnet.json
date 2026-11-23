@@ -313,7 +313,7 @@
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by authorizedotnet"
+        "error": "Payment method BankRedirect(Blik { blik_code: Some(*** alloc::string::String ***) }) is not supported by authorizedotnet"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -1382,6 +1382,32 @@
       "default": {
         "status": "error",
         "error": "Stuck on field: connector_customer_id is missing — Missing required field: connector_customer_id is missing"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for authorizedotnet"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for authorizedotnet"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for authorizedotnet"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for authorizedotnet"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for authorizedotnet"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for authorizedotnet"
       }
     },
     "verify_redirect": {

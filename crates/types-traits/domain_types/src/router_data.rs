@@ -1028,8 +1028,8 @@ pub enum ConnectorSpecificConfig {
         /// Customer type for the order `b2bB2c` field ("b2b"/"b2c");
         /// merchant-specific, stored on the RiskManagementAccount.
         b2b_b2c: Option<String>,
-        /// ClearSale product id for the order `product` field, when the
-        product: Option<i32>,
+        /// ClearSale product id for the order `product` field. Stored as text
+        product: Option<String>,
         base_url: Option<String>,
     },
     Grabpay {

@@ -115,6 +115,22 @@ pub(crate) fn customer_type_from_config(raw: Option<&str>) -> Result<Option<Cust
     }
 }
 
+/// Parse the account-level `product` id, stored as text in the
+/// `product` is optional, so blank or unparsable values log and resolve to
+/// `None` (the downstream default applies) rather than failing the request.
+fn parse_product(raw: Option<&str>) -> Option<i32> {
+    match raw.map(str::trim) {
+        None | Some("") => None,
+        Some(value) => value.parse::<i32>().ok().or_else(|| {
+            tracing::warn!(
+                "ClearSale connector_config.clearsale_br.product {value:?} is not a valid product \
+                 id integer; dropping to the connector default"
+            );
+            None
+        }),
+    }
+}
+
 /// ClearSale order `b2bB2c` wire codes (spec §5.1): size-3 `b2b` / `b2c`.
 fn customer_type_wire_code(customer_type: CustomerType) -> &'static str {
     match customer_type {
@@ -159,7 +175,7 @@ impl TryFrom<&ConnectorSpecificConfig> for ClearSaleAuthType {
                 username: username.clone(),
                 password: password.clone(),
                 b2b_b2c: customer_type_from_config(b2b_b2c.as_deref())?,
-                product: *product,
+                product: parse_product(product.as_deref()),
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
@@ -2512,7 +2528,8 @@ pub(crate) fn clearsale_payment_outcome_status(
             | AttemptStatus::PartialChargedAndChargeable,
         ) => Some("PGA"),
         Some(
-            AttemptStatus::AuthorizationFailed
+            AttemptStatus::AuthenticationFailed
+            | AttemptStatus::AuthorizationFailed
             | AttemptStatus::CaptureFailed
             | AttemptStatus::Failure,
         ) => Some("PGR"),
