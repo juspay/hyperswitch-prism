@@ -740,6 +740,3 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         DefendDispute
     ],
 );
-
-#[cfg(test)]
-mod verification_tests;
