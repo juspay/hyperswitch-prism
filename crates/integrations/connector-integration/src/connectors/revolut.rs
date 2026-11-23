@@ -387,35 +387,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
-        let (code, message, attempt_status) = match response {
-            revolut::RevolutErrorResponse::StandardError { code, message, .. } => {
-                let attempt_status = match code.as_str() {
-                    "unauthenticated" => AttemptStatus::AuthenticationFailed,
-                    "unauthorized" => AttemptStatus::AuthorizationFailed,
-                    "not_found" => AttemptStatus::Failure,
-                    "invalid_request" => AttemptStatus::Failure,
-                    "payment_declined" => AttemptStatus::Failure,
-                    _ => AttemptStatus::Pending,
-                };
-                (code, message, attempt_status)
-            }
-            revolut::RevolutErrorResponse::ErrorIdResponse { error_id, code, .. } => {
-                let (error_code, attempt_status) = match code {
-                    Some(numeric_code) => {
-                        let status = match numeric_code {
-                            1024 => AttemptStatus::Failure,
-                            _ => AttemptStatus::Pending,
-                        };
-                        (numeric_code.to_string(), status)
-                    }
-                    None => ("UNKNOWN_ERROR".to_string(), AttemptStatus::Failure),
-                };
-                (
-                    error_code,
-                    format!("Error ID: {}", error_id),
-                    attempt_status,
-                )
-            }
+        // Shared across every flow — including Refund/RSync — so this handler must not
+        // stamp a payment status onto refund failures. Flow-specific `get_error_response_v2`
+        // overrides attach the status that belongs to the flow being executed.
+        let (code, message) = match response {
+            revolut::RevolutErrorResponse::StandardError { code, message, .. } => (code, message),
+            revolut::RevolutErrorResponse::ErrorIdResponse { error_id, code, .. } => (
+                code.map(|c| c.to_string())
+                    .unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
+                format!("Error ID: {}", error_id),
+            ),
         };
 
         Ok(ErrorResponse {
@@ -423,7 +404,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code,
             message: message.clone(),
             reason: Some(message),
-            attempt_status: Some(FlowStatus::Payment(attempt_status)),
+            attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
@@ -433,6 +414,61 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             raw_connector_request: None,
             typed_connector_request: None,
         })
+    }
+}
+
+/// How far a Revolut error code moves the resource being operated on.
+///
+/// `Transient` covers codes that say nothing definitive about the payment or refund
+/// (network blips, rate limits, unclassified platform errors). Those must leave the
+/// stored status untouched so a retry or sync can still land the real outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RevolutErrorKind {
+    Authentication,
+    Authorization,
+    DefinitiveFailure,
+    Transient,
+}
+
+fn classify_revolut_error_code(code: &str) -> RevolutErrorKind {
+    // Error-id responses encode the same vocabulary in numeric form; 1024 is the
+    // documented "payment declined / request rejected" outcome.
+    let code = match code.parse::<i64>() {
+        Ok(1024) => "payment_declined",
+        Ok(_) => "transient",
+        Err(_) => code,
+    };
+    match code {
+        "unauthenticated" => RevolutErrorKind::Authentication,
+        "unauthorized" => RevolutErrorKind::Authorization,
+        "not_found" | "invalid_request" | "payment_declined" => RevolutErrorKind::DefinitiveFailure,
+        _ => RevolutErrorKind::Transient,
+    }
+}
+
+/// Payment-flow status for a Revolut error. Transient errors leave the status alone.
+fn revolut_payment_error_status(error: &ErrorResponse) -> Option<FlowStatus> {
+    match classify_revolut_error_code(&error.code) {
+        RevolutErrorKind::Authentication => {
+            Some(FlowStatus::Payment(AttemptStatus::AuthenticationFailed))
+        }
+        RevolutErrorKind::Authorization => {
+            Some(FlowStatus::Payment(AttemptStatus::AuthorizationFailed))
+        }
+        RevolutErrorKind::DefinitiveFailure => Some(FlowStatus::Payment(AttemptStatus::Failure)),
+        RevolutErrorKind::Transient => None,
+    }
+}
+
+/// Refund-flow status for a Revolut error. Transient errors leave the refund alone.
+fn revolut_refund_error_status(error: &ErrorResponse) -> Option<FlowStatus> {
+    match classify_revolut_error_code(&error.code) {
+        RevolutErrorKind::Authentication
+        | RevolutErrorKind::Authorization
+        | RevolutErrorKind::DefinitiveFailure => {
+            Some(FlowStatus::Refund(common_enums::RefundStatus::Failure))
+        }
+        RevolutErrorKind::Transient => None,
     }
 }
 
@@ -516,7 +552,7 @@ macros::create_all_prerequisites!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Revolut,
     curl_request: Json(RevolutOrderCreateRequest),
     curl_response: RevolutOrderCreateResponse,
@@ -541,11 +577,21 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url(req);
             Ok(format!("{base_url}/api/orders"))
         }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            error.attempt_status = revolut_payment_error_status(&error);
+            Ok(error)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Revolut,
     curl_response: RevolutOrderCreateResponse,
     flow_name: PSync,
@@ -573,11 +619,21 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url(req);
             Ok(format!("{base_url}/api/orders/{order_id}"))
         }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            error.attempt_status = revolut_payment_error_status(&error);
+            Ok(error)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Revolut,
     curl_request: Json(RevolutCaptureRequest),
     curl_response: RevolutCaptureResponse,
@@ -612,11 +668,21 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url(req);
             Ok(format!("{base_url}/api/orders/{order_id}/capture"))
         }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            error.attempt_status = revolut_payment_error_status(&error);
+            Ok(error)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Revolut,
     curl_request: Json(RevolutRefundRequest),
     curl_response: RevolutRefundResponse,
@@ -655,11 +721,21 @@ macros::macro_connector_implementation!(
             let base_url = req.resource_common_data.connectors.revolut.base_url.to_string();
             Ok(format!("{base_url}/api/orders/{order_id}/refund"))
         }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            error.attempt_status = revolut_refund_error_status(&error);
+            Ok(error)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Revolut,
     curl_response: RevolutRSyncResponse,
     flow_name: RSync,
@@ -696,6 +772,16 @@ macros::macro_connector_implementation!(
             let order_id = req.request.connector_refund_id.clone();
             let base_url = req.resource_common_data.connectors.revolut.base_url.to_string();
             Ok(format!("{base_url}/api/orders/{order_id}"))
+        }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            error.attempt_status = revolut_refund_error_status(&error);
+            Ok(error)
         }
     }
 );
