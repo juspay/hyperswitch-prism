@@ -560,10 +560,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
-            let order_no = req
-                .resource_common_data
-                .connector_request_reference_id
-                .clone();
+            let order_no = transformers::paco_original_order_no(&req.resource_common_data);
             Ok(format!(
                 "{base_url}/api/2.0/Inquiry/transactionStatus?orderNo={}",
                 urlencoding::encode(&order_no),
