@@ -2071,12 +2071,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             BankRedirectData::Bizum { .. } => Ok(Self::Bizum),
             BankRedirectData::Blik { blik_code } => Ok(Self::Blik(Box::new(BlikRedirectionData {
-                blik_code: Secret::new(blik_code.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
+                blik_code: blik_code
+                    .clone()
+                    .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "blik_code",
                         context: Default::default(),
-                    },
-                )?),
+                    })?,
             }))),
             BankRedirectData::Eps { bank_name, .. } => {
                 Ok(Self::Eps(Box::new(BankRedirectionWithIssuer {
@@ -2364,7 +2364,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Self::Klarna)
             }
             PayLaterData::KlarnaSdk { token } => {
-                if token.is_empty() {
+                if token.peek().is_empty() {
                     return Err(IntegrationError::MissingRequiredField {
                         field_name: "token",
                         context: Default::default(),
@@ -3683,7 +3683,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             authentication_response: common_enums::TransactionStatus::Success,
             cavv: None,
             token_authentication_verification_value: Some(cryptogram),
-            eci: Some("02".to_string()),
+            // The token's own ECI (network-specific, e.g. Visa 05); "02" only as a fallback.
+            eci: Some(token_data.eci.clone().unwrap_or_else(|| "02".to_string())),
             ds_trans_id: None,
             three_ds_version: None,
             challenge_cancel: None,
@@ -5354,7 +5355,10 @@ pub fn get_redirection_error_response(
         response.refusal_reason_code.as_deref(),
         response.refusal_reason.as_deref(),
     );
-    let error = {
+    let error = if status == AttemptStatus::Failure
+        || response.refusal_reason.is_some()
+        || response.refusal_reason_code.is_some()
+    {
         let (network_decline_code, network_error_message) = response
             .additional_data
             .as_ref()
@@ -5397,10 +5401,15 @@ pub fn get_redirection_error_response(
             raw_connector_request: None,
             typed_connector_request: None,
         })
+    } else {
+        None
     };
-    // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
-        resource_id: ResponseId::NoResponseId,
+        resource_id: response
+            .psp_reference
+            .clone()
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId),
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
@@ -5983,7 +5992,7 @@ pub enum DisputeStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAdditionalDataWH {
     #[serde(rename = "hmacSignature")]
@@ -6020,6 +6029,9 @@ pub struct AdyenNotificationRequestItemWH {
     pub merchant_reference: String,
     pub success: String,
     pub reason: Option<String>,
+    // Adyen omits `additionalData` on some notifications (e.g. CANCEL_OR_REFUND,
+    // REFUND_FAILED, OFFER_CLOSED, or when no HMAC / extra data is configured).
+    #[serde(default)]
     pub additional_data: AdyenAdditionalDataWH,
 }
 
@@ -6115,26 +6127,54 @@ pub(crate) fn get_adyen_payment_webhook_event(
             if is_success_scenario(&is_success) {
                 Ok(AttemptStatus::Authorized)
             } else {
-                Ok(AttemptStatus::Failure)
+                // The adjustment failed, but the original authorization is still valid.
+                Ok(AttemptStatus::Authorized)
             }
         }
         WebhookEventCode::Cancellation => {
             if is_success_scenario(&is_success) {
                 Ok(AttemptStatus::Voided)
             } else {
-                Ok(AttemptStatus::Authorized)
+                Ok(AttemptStatus::VoidFailed)
             }
         }
         WebhookEventCode::Capture => {
             if is_success_scenario(&is_success) {
                 Ok(AttemptStatus::Charged)
             } else {
-                Ok(AttemptStatus::Failure)
+                Ok(AttemptStatus::CaptureFailed)
             }
         }
-        WebhookEventCode::CaptureFailed => Ok(AttemptStatus::Failure),
+        WebhookEventCode::CaptureFailed => Ok(AttemptStatus::CaptureFailed),
         WebhookEventCode::OfferClosed => Ok(AttemptStatus::Expired),
         _ => Err(WebhookError::WebhookProcessingFailed),
+    }
+}
+
+pub(crate) struct AdyenPaymentWebhookReferences {
+    pub resource_id: String,
+    pub connector_response_reference_id: String,
+    pub connector_request_reference_id: String,
+}
+
+pub(crate) fn get_adyen_payment_webhook_references(
+    notif: &AdyenNotificationRequestItemWH,
+) -> AdyenPaymentWebhookReferences {
+    let resource_id = match notif.event_code {
+        WebhookEventCode::Capture
+        | WebhookEventCode::CaptureFailed
+        | WebhookEventCode::Cancellation
+        | WebhookEventCode::AuthorisationAdjustment => notif
+            .original_reference
+            .clone()
+            .unwrap_or_else(|| notif.psp_reference.clone()),
+        _ => notif.psp_reference.clone(),
+    };
+
+    AdyenPaymentWebhookReferences {
+        resource_id,
+        connector_response_reference_id: notif.psp_reference.clone(),
+        connector_request_reference_id: notif.merchant_reference.clone(),
     }
 }
 
@@ -7348,7 +7388,14 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let connector = router_data.connector;
         let router_data = router_data.router_data;
         let pmt = router_data.request.payment_method_type;
-        let is_manual_capture = false;
+        // Zero-amount setups stay non-manual (HS parity); a non-zero setup sent as a
+        // PreAuth is only authorized and must not be reported as charged.
+        let is_manual_capture = router_data
+            .request
+            .money
+            .as_ref()
+            .is_some_and(|money| money.amount() > MinorUnit::zero())
+            && is_manual_capture(router_data.request.capture_method);
         // Unwrap the response wrapper to get AdyenPaymentResponse
         let SetupMandateResponse(adyen_response) = response;
 
@@ -7607,7 +7654,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             value: item.router_data.request.money.amount(),
         };
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
-        let shopper_interaction = AdyenShopperInteraction::ContinuedAuthentication;
+        // Like the recurring model, an unset off_session is treated as merchant-initiated.
+        let shopper_interaction = shopper_interaction(
+            item.router_data.request.off_session.or(Some(true)),
+            &item.router_data.request.payment_channel,
+        );
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model_for_repeat_payment(&item.router_data)?;
         let browser_info = None;
@@ -8204,6 +8255,19 @@ pub struct DisputeServiceResult {
     success: bool,
 }
 
+fn get_defend_dispute_status(
+    result: &DisputeServiceResult,
+) -> Result<common_enums::DisputeStatus, String> {
+    if result.success {
+        Ok(common_enums::DisputeStatus::DisputeChallenged)
+    } else {
+        Err(result
+            .error_message
+            .clone()
+            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()))
+    }
+}
+
 impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
     for RouterDataV2<F, DisputeFlowData, Req, DisputeResponseData>
 {
@@ -8219,24 +8283,38 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
         } = value;
         match response {
             AdyenDefendDisputeResponse::DefendDisputeSuccessResponse(result) => {
-                let dispute_status = if result.dispute_service_result.success {
-                    common_enums::DisputeStatus::DisputeWon
-                } else {
-                    common_enums::DisputeStatus::DisputeLost
-                };
-
-                Ok(Self {
-                    response: Ok(DisputeResponseData {
-                        dispute_status,
-                        connector_dispute_status: None,
-                        connector_dispute_id: router_data
-                            .resource_common_data
-                            .connector_dispute_id
-                            .clone(),
-                        status_code: http_code,
+                match get_defend_dispute_status(&result.dispute_service_result) {
+                    Ok(dispute_status) => Ok(Self {
+                        response: Ok(DisputeResponseData {
+                            dispute_status,
+                            connector_dispute_status: None,
+                            connector_dispute_id: router_data
+                                .resource_common_data
+                                .connector_dispute_id
+                                .clone(),
+                            status_code: http_code,
+                        }),
+                        ..router_data
                     }),
-                    ..router_data
-                })
+                    Err(error_message) => Ok(Self {
+                        response: Err(ErrorResponse {
+                            code: NO_ERROR_CODE.to_string(),
+                            message: error_message.clone(),
+                            reason: Some(error_message),
+                            status_code: http_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                            network_decline_code: None,
+                            network_advice_code: None,
+                            network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
+                        }),
+                        ..router_data
+                    }),
+                }
             }
 
             AdyenDefendDisputeResponse::DefendDisputeFailedResponse(result) => Ok(Self {
@@ -8796,7 +8874,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .return_url
             .clone()
-            .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+            .filter(|url| !url.is_empty())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: Default::default(),
+            })?;
         validate_checkout_v72_return_url(&return_url)?;
 
         Ok(Self {

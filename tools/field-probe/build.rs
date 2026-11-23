@@ -714,6 +714,24 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     writeln!(f, "            has_payment_methods: true,").unwrap();
     writeln!(f, "        }},").unwrap();
 
+    // Tokenize is probed per payment method like authorize
+    writeln!(f, "        FlowDefinition {{").unwrap();
+    writeln!(f, "            key: \"tokenize\",").unwrap();
+    writeln!(f, "            service: \"PaymentMethodService\",").unwrap();
+    writeln!(f, "            rpc: \"Tokenize\",").unwrap();
+    writeln!(
+        f,
+        "            request_type: \"PaymentMethodServiceTokenizeRequest\","
+    )
+    .unwrap();
+    writeln!(
+        f,
+        "            transformer_fn: \"tokenize_req_transformer\","
+    )
+    .unwrap();
+    writeln!(f, "            has_payment_methods: true,").unwrap();
+    writeln!(f, "        }},").unwrap();
+
     // parse_event is special — standalone function, not a req_transformer! macro
     writeln!(f, "        FlowDefinition {{").unwrap();
     writeln!(f, "            key: \"parse_event\",").unwrap();
