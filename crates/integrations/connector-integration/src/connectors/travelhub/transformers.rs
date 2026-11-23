@@ -997,7 +997,13 @@ impl TryFrom<ResponseRouterData<TravelhubCaptureResponse, Self>>
                 response: Err(travelhub_error_response(
                     result,
                     item.http_code,
-                    item.response.transaction_id.clone(),
+                    item.response.transaction_id.clone().or_else(|| {
+                        item.router_data
+                            .request
+                            .connector_transaction_id
+                            .get_connector_transaction_id()
+                            .ok()
+                    }),
                     Some(FlowStatus::Payment(AttemptStatus::CaptureFailed)),
                 )),
                 resource_common_data: PaymentFlowData {
@@ -1024,7 +1030,7 @@ impl TryFrom<ResponseRouterData<TravelhubCaptureResponse, Self>>
                     .transaction_id
                     .clone()
                     .map(ResponseId::ConnectorTransactionId)
-                    .unwrap_or(ResponseId::NoResponseId),
+                    .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -1098,7 +1104,9 @@ impl TryFrom<ResponseRouterData<TravelhubVoidResponse, Self>>
                 response: Err(travelhub_error_response(
                     result,
                     item.http_code,
-                    item.response.transaction_id.clone(),
+                    item.response.transaction_id.clone().or_else(|| {
+                        Some(item.router_data.request.connector_transaction_id.clone())
+                    }),
                     Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                 )),
                 resource_common_data: PaymentFlowData {
@@ -1124,7 +1132,11 @@ impl TryFrom<ResponseRouterData<TravelhubVoidResponse, Self>>
                     .transaction_id
                     .clone()
                     .map(ResponseId::ConnectorTransactionId)
-                    .unwrap_or(ResponseId::NoResponseId),
+                    .unwrap_or_else(|| {
+                        ResponseId::ConnectorTransactionId(
+                            item.router_data.request.connector_transaction_id.clone(),
+                        )
+                    }),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -1195,7 +1207,13 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
                 response: Err(travelhub_error_response(
                     result,
                     item.http_code,
-                    item.response.transaction_id.clone(),
+                    item.response.transaction_id.clone().or_else(|| {
+                        item.router_data
+                            .request
+                            .connector_transaction_id
+                            .get_connector_transaction_id()
+                            .ok()
+                    }),
                     Some(FlowStatus::Payment(map_travelhub_status(result))),
                 )),
                 resource_common_data: PaymentFlowData {
@@ -1208,12 +1226,14 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
         }
 
         let status = if result == &TravelhubResult::Approved {
-            let is_auto_capture =
-                !crate::utils::is_manual_capture(item.router_data.request.capture_method);
-            if is_auto_capture {
-                AttemptStatus::Charged
-            } else {
-                AttemptStatus::Authorized
+            match item.router_data.resource_common_data.status {
+                AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => {
+                    item.router_data.resource_common_data.status
+                }
+                AttemptStatus::Charged | AttemptStatus::PartialCharged => {
+                    item.router_data.resource_common_data.status
+                }
+                _ => AttemptStatus::Pending,
             }
         } else {
             map_travelhub_status(result)
@@ -1226,7 +1246,7 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
                     .transaction_id
                     .clone()
                     .map(ResponseId::ConnectorTransactionId)
-                    .unwrap_or(ResponseId::NoResponseId),
+                    .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
