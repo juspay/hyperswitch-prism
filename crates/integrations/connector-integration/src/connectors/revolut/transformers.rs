@@ -691,26 +691,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         let response = item.response;
 
-        let status = match &response.payments {
-            Some(payments) => match payments.first() {
-                Some(first_payment) => match first_payment.state {
-                    RevolutPaymentState::Authorised => AttemptStatus::Authorized,
-                    RevolutPaymentState::Captured | RevolutPaymentState::Completed => {
-                        AttemptStatus::Charged
-                    }
-                    RevolutPaymentState::Failed | RevolutPaymentState::Declined => {
-                        AttemptStatus::Failure
-                    }
-                    RevolutPaymentState::Cancelled => AttemptStatus::Voided,
-                    RevolutPaymentState::Pending => AttemptStatus::Pending,
-                    RevolutPaymentState::AuthenticationChallenge => {
-                        AttemptStatus::AuthenticationPending
-                    }
-                    _ => AttemptStatus::Pending,
-                },
-                None => map_order_state(response.state),
-            },
-            None => map_order_state(response.state),
+        // The order is the authoritative resource. `payments[]` holds individual
+        // attempts, so the first entry can be an earlier declined attempt sitting
+        // beside a later successful one. A completed order therefore always wins;
+        // an identified attempt only refines an intermediate order state, and only
+        // with a forward outcome — a failed attempt must not fail an order that is
+        // still open for retry.
+        let order_status = map_order_state(response.state);
+        let status = if is_terminal_attempt_status(order_status) {
+            order_status
+        } else {
+            response
+                .payments
+                .as_ref()
+                .and_then(|payments| identify_active_payment(payments))
+                .map(|payment| map_payment_state(payment.state.clone()))
+                .filter(|refined| is_forward_attempt_status(*refined))
+                .unwrap_or(order_status)
         };
 
         let amount = Some(crate::utils::response_amount_to_money(
@@ -759,6 +756,63 @@ fn map_order_state(state: RevolutOrderState) -> AttemptStatus {
         RevolutOrderState::Pending => AttemptStatus::AuthenticationPending,
         RevolutOrderState::Processing => AttemptStatus::Pending,
     }
+}
+
+fn is_terminal_attempt_status(status: AttemptStatus) -> bool {
+    matches!(
+        status,
+        AttemptStatus::Charged
+            | AttemptStatus::Failure
+            | AttemptStatus::Voided
+            | AttemptStatus::Authorized
+    )
+}
+
+/// Outcomes a payment attempt may contribute while the order is still open.
+fn is_forward_attempt_status(status: AttemptStatus) -> bool {
+    matches!(
+        status,
+        AttemptStatus::Charged
+            | AttemptStatus::Authorized
+            | AttemptStatus::AuthenticationPending
+    )
+}
+
+fn map_payment_state(state: RevolutPaymentState) -> AttemptStatus {
+    match state {
+        RevolutPaymentState::Authorised => AttemptStatus::Authorized,
+        RevolutPaymentState::Captured | RevolutPaymentState::Completed => AttemptStatus::Charged,
+        RevolutPaymentState::Failed | RevolutPaymentState::Declined => AttemptStatus::Failure,
+        RevolutPaymentState::Cancelled => AttemptStatus::Voided,
+        RevolutPaymentState::AuthenticationChallenge => AttemptStatus::AuthenticationPending,
+        RevolutPaymentState::Pending
+        | RevolutPaymentState::AuthenticationVerified
+        | RevolutPaymentState::AuthorisationStarted
+        | RevolutPaymentState::AuthorisationPassed
+        | RevolutPaymentState::CaptureStarted
+        | RevolutPaymentState::RefundValidated
+        | RevolutPaymentState::RefundStarted
+        | RevolutPaymentState::CancellationStarted
+        | RevolutPaymentState::Declining
+        | RevolutPaymentState::Completing
+        | RevolutPaymentState::Cancelling
+        | RevolutPaymentState::Failing
+        | RevolutPaymentState::SoftDeclined => AttemptStatus::Pending,
+    }
+}
+
+/// Picks the attempt that reflects the order: the most recently updated non-failed
+/// attempt if one exists, otherwise the most recently updated attempt overall.
+fn identify_active_payment(payments: &[RevolutPayment]) -> Option<&RevolutPayment> {
+    payments
+        .iter()
+        .max_by_key(|payment| {
+            let failed = matches!(
+                payment.state,
+                RevolutPaymentState::Failed | RevolutPaymentState::Declined
+            );
+            (!failed, payment.updated_at)
+        })
 }
 
 #[derive(Debug, Serialize)]
