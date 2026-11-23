@@ -121,11 +121,8 @@ impl From<NmiStatus> for AttemptStatus {
 impl From<NmiStatus> for RefundStatus {
     fn from(item: NmiStatus) -> Self {
         match item {
-            NmiStatus::Abandoned
-            | NmiStatus::Cancelled
-            | NmiStatus::Failed
-            | NmiStatus::Unknown => Self::Failure,
-            NmiStatus::Pending | NmiStatus::InProgress => Self::Pending,
+            NmiStatus::Abandoned | NmiStatus::Cancelled | NmiStatus::Failed => Self::Failure,
+            NmiStatus::Pending | NmiStatus::InProgress | NmiStatus::Unknown => Self::Pending,
             NmiStatus::Pendingsettlement | NmiStatus::Complete => Self::Success,
         }
     }
