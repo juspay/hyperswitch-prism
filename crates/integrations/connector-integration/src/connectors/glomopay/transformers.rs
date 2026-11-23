@@ -243,7 +243,10 @@ impl GlomopayWebhookPayload {
             resource_id: Some(ResponseId::ConnectorTransactionId(self.data.id.clone())),
             status,
             connector_response_reference_id: Some(self.data.id.clone()),
-            connector_request_reference_id: Some(self.data.id),
+            // Glomopay's webhook payload carries no merchant request reference.
+            // `data.id` is the connector transaction id (already set on `resource_id`),
+            // so there is nothing to report as the merchant's own request id.
+            connector_request_reference_id: None,
             mandate_reference: None,
             error_code,
             error_message,
