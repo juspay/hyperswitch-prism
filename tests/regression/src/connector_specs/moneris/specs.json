@@ -4,6 +4,7 @@
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentMethodAuthenticationService/PostAuthenticate",
+    "PaymentService/SetupRecurring",
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "PaymentService/IncrementalAuthorization",
