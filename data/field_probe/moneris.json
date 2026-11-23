@@ -1051,8 +1051,34 @@
     },
     "reverse": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "cancellation_reason": "customer_request",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/cancel",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
+            "via": "HyperSwitch",
+            "x-correlation-id": "probe_reverse_001",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"void_pc_probe_reverse_001\",\"reason\":\"customer_request\"}"
+        }
       }
     },
     "setup_recurring": {
