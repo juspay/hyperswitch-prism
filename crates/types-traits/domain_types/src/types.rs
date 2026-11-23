@@ -4066,6 +4066,7 @@ pub struct AuthorizationRequest {
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
     /// Merchant business country (ISO 3166-1 alpha-2) for country-specific connector rules.
     pub business_country: Option<String>,
+    pub merchant_details: Option<crate::frm::frm_types::MerchantDetails>,
     /// Authorize-only opt-in for address verification using supplied billing details.
     pub enable_avs_check: Option<bool>,
     /// Opt-in for account name verification.
@@ -4201,6 +4202,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             sender_details: req.sender_details,
             additional_connector_details: req.additional_connector_details,
             business_country: req.business_country,
+            merchant_details: req.merchant_details.map(ForeignFrom::foreign_from),
             enable_avs_check: req.enable_avs_check,
             enable_account_name_verification: req.enable_account_name_verification,
         }
@@ -4282,6 +4284,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             sender_details: None,
             additional_connector_details: None,
             business_country: None,
+            merchant_details: None,
             enable_avs_check: req.enable_avs_check,
             enable_account_name_verification: None,
         }
@@ -5973,6 +5976,7 @@ impl<
                 .business_country
                 .as_ref()
                 .and_then(|c| common_enums::CountryAlpha2::from_str(c).ok()),
+            merchant_details: value.merchant_details,
             enable_avs_check: value.enable_avs_check,
             enable_account_name_verification: value.enable_account_name_verification,
             tokenization,
@@ -20966,6 +20970,7 @@ impl<
             enable_partial_authorization: value.enable_partial_authorization,
             payment_channel,
             billing_descriptor,
+            merchant_details: value.merchant_details.map(ForeignFrom::foreign_from),
         })
     }
 }
@@ -22299,6 +22304,7 @@ pub fn tokenized_authorize_to_base(
         sender_details: None,
         additional_connector_details: None,
         business_country: None,
+        merchant_details: None,
         enable_avs_check: v.enable_avs_check,
         enable_account_name_verification: None,
         risk_assessment_data: None,
@@ -22502,6 +22508,7 @@ pub fn proxied_authorize_to_base(
         sender_details: None,
         additional_connector_details: None,
         business_country: None,
+        merchant_details: None,
         enable_avs_check: v.enable_avs_check,
         enable_account_name_verification: None,
         risk_assessment_data: None,

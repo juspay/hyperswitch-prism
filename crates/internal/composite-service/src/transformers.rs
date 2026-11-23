@@ -374,6 +374,7 @@ impl
             sender_details: item.sender_details.clone(),
             additional_connector_details: item.additional_connector_details.clone(),
             business_country: item.business_country.clone(),
+            merchant_details: item.merchant_details.clone(),
             enable_avs_check: item.enable_avs_check,
             enable_account_name_verification: item.enable_account_name_verification,
         }
@@ -762,6 +763,7 @@ impl
             payment_channel: item.payment_channel,
             billing_descriptor: item.billing_descriptor.clone(),
             l2_l3_data: item.l2_l3_data.clone(),
+            merchant_details: item.merchant_details.clone(),
         }
     }
 }
@@ -1326,6 +1328,7 @@ impl
             sender_details: request.sender_details.clone(),
             additional_connector_details: request.additional_connector_details.clone(),
             business_country: request.business_country.clone(),
+            merchant_details: None,
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
         }

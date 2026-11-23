@@ -27,6 +27,10 @@ impl ForeignFrom<grpc_api_types::payments::MerchantDetails> for MerchantDetails 
         Self {
             merchant_id: value.merchant_id,
             merchant_category_code: value.merchant_category_code,
+            merchant_country_code: value
+                .merchant_country_code
+                .as_deref()
+                .and_then(|country| country.parse().ok()),
         }
     }
 }
