@@ -211,9 +211,9 @@ impl RevpayResponseCode {
     /// Inquiry-side status mapping (§2.2). The redirect already happened on
     /// the Payment call, so on inquiry "09" is a shopper still in flight at
     /// the bank — Pending, not a fresh `AuthenticationPending`. "99" is
-    /// pending authorization. Everything else is a failed attempt —
-    /// "76" Transaction not found included: a payment revPAY cannot find is
-    /// provably not chargeable (§2.2).
+    /// pending authorization. Inquiry request errors ("76" Transaction not
+    /// found, "30", "3A") stay Pending: a failed inquiry says nothing about
+    /// the payment. Every other code is a failed attempt.
     fn psync_status(&self) -> AttemptStatus {
         match self {
             Self::Success => AttemptStatus::Charged,
@@ -1325,9 +1325,10 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
         // INQUIRY SEMANTICS: PSync is a status query and revPAY answers every
         // inquiry with HTTP 200, so the outcome is REPORTED through the
         // attempt status — never returned as `Err(ErrorResponse)`. "00" →
-        // Charged, "09"/"99" → Pending. Request-level validation failures and
-        // unknown codes also remain Pending so a failed inquiry cannot replace
-        // an already-charged payment with a terminal failure. The raw code rides
+        // Charged, "09"/"99" → Pending. Inquiry request errors ("76"/"30"/"3A")
+        // also remain Pending so a failed inquiry cannot replace an
+        // already-charged payment with a terminal failure; any other code is
+        // a Failure (see `psync_status`). The raw code rides
         // along on `raw_connector_status`, and non-2xx transport faults are
         // still handled by the shared `build_error_response`.
         let status = response.response_code.psync_status();
