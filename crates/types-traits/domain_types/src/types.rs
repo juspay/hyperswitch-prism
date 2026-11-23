@@ -1559,6 +1559,27 @@ impl From<crate::connector_types::SettlementStatus> for grpc_api_types::payments
     }
 }
 
+impl ForeignFrom<grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod>
+    for Option<payment_method_data::TokenPaymentMethod>
+{
+    fn foreign_from(
+        value: grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod,
+    ) -> Self {
+        match value {
+            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::ApplePay => {
+                Some(payment_method_data::TokenPaymentMethod::ApplePay)
+            }
+            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::GooglePay => {
+                Some(payment_method_data::TokenPaymentMethod::GooglePay)
+            }
+            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::Klarna => {
+                Some(payment_method_data::TokenPaymentMethod::Klarna)
+            }
+            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::Unspecified => None,
+        }
+    }
+}
+
 impl ForeignFrom<payment_method_data::UpiSource> for grpc_api_types::payments::UpiSource {
     fn foreign_from(value: payment_method_data::UpiSource) -> Self {
         match value {
@@ -1871,15 +1892,9 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
                     Ok(Self::PaymentMethodToken(payment_method_data::PaymentMethodToken {
-                        token_payment_method_type: match token.token_payment_method_type() {
-                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::ApplePay => {
-                                Some(payment_method_data::TokenPaymentMethod::ApplePay)
-                            }
-                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::GooglePay => {
-                                Some(payment_method_data::TokenPaymentMethod::GooglePay)
-                            }
-                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::Unspecified => None,
-                        },
+                        token_payment_method_type: <Option<payment_method_data::TokenPaymentMethod>>::foreign_from(
+                            token.token_payment_method_type(),
+                        ),
                         token: token
                             .token
                             .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
@@ -3556,8 +3571,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                         }
                     }
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::Token(_) => {
-                    Ok(None)
+                // See `TokenPaymentMethod::payment_method_type`: only a Klarna token reports one.
+                grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
+                    Ok(<Option<payment_method_data::TokenPaymentMethod>>::foreign_from(
+                        token.token_payment_method_type(),
+                    )
+                    .and_then(payment_method_data::TokenPaymentMethod::payment_method_type))
                 },
                 grpc_api_types::payments::payment_method::PaymentMethod::UpiCollect(_) => Ok(Some(PaymentMethodType::UpiCollect)),
                 grpc_api_types::payments::payment_method::PaymentMethod::UpiIntent(_) => Ok(Some(PaymentMethodType::UpiIntent)),
@@ -8549,10 +8568,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::NetworkToken(_)),
             } => Ok(Self::NetworkToken),
+            // See `TokenPaymentMethod::payment_method`; an untyped token stays `Wallet`.
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Token(_)),
-            } => Ok(Self::Wallet),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Token(token)),
+            } => Ok(<Option<payment_method_data::TokenPaymentMethod>>::foreign_from(
+                token.token_payment_method_type(),
+            )
+            .map_or(Self::Wallet, payment_method_data::TokenPaymentMethod::payment_method)),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::UpiCollect(_)),

@@ -104,6 +104,7 @@ impl<T: PaymentMethodDataTypes> GetRequestIncrementalAuthorization for RepeatPay
 
 fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
     payment_channel: &Option<common_enums::PaymentChannel>,
 ) -> Option<bool> {
     // hyperswitch tests `payment_method_data.is_card_payment()` while still holding the raw card.
@@ -111,11 +112,12 @@ fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
     // connector token, so matching only `Card` dropped `moto` on every tokenised MOTO payment.
     // `token_payment_method_type: None` is the card arm of that token -- Apple Pay / Google Pay
     // are wallets, which `is_card_payment()` excludes too. Same reading as the Authorize
-    // transformer below.
+    // transformer below. An untyped token is a card only when it is not a tokenized pay later
+    // PaymentMethod (Klarna), see `is_untyped_card_token`.
     let is_card_payment = match payment_method_data {
         PaymentMethodData::Card(_) | PaymentMethodData::CardWithNoCvc(_) => true,
         PaymentMethodData::PaymentMethodToken(token_data) => {
-            token_data.token_payment_method_type.is_none()
+            is_untyped_card_token(token_data, payment_method_type)
         }
         _ => false,
     };
@@ -1008,7 +1010,9 @@ pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
     pub billing: StripeBillingAddressCardToken,
 }
 
-/// Creates a Klarna PaymentMethod (`POST /v1/payment_methods`) for Stripe Connect split payments
+/// Request body that creates a Klarna PaymentMethod (`POST /v1/payment_methods`, returns a
+/// `pm_...`): `type=klarna` plus the billing details. `POST /v1/tokens` does not support Klarna,
+/// so every Klarna tokenization goes through this body, with or without a split payment.
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeKlarnaToken {
     #[serde(rename = "type")]
@@ -2880,8 +2884,9 @@ fn get_payment_intent_shipping_address(
 
 /// Stripe `payment_method_types` for a tokenized (`pm_...`) pay later payment method. Stripe
 /// defaults `payment_method_types` to `card`, so a Klarna PaymentMethod is rejected unless its
-/// type is sent alongside it. The token itself carries no type, so it is read from the requested
-/// payment method type. `None` for every other payment method, where Stripe's default applies.
+/// type is sent alongside it. A Klarna token is typed `TokenPaymentMethod::Klarna`, which the gRPC
+/// conversion also turns into `payment_method_type = Klarna`, so the requested payment method type
+/// is read here. `None` for every other payment method, where Stripe's default applies.
 fn get_tokenized_pay_later_payment_method_type(
     payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<StripePaymentMethodType> {
@@ -2889,6 +2894,24 @@ fn get_tokenized_pay_later_payment_method_type(
         Some(common_enums::PaymentMethodType::Klarna) => Some(StripePaymentMethodType::Klarna),
         _ => None,
     }
+}
+
+/// Whether a connector token is a pay later PaymentMethod (Klarna `pm_...`) rather than a card,
+/// read from the requested payment method type (see `get_tokenized_pay_later_payment_method_type`).
+fn is_pay_later_token(payment_method_type: Option<common_enums::PaymentMethodType>) -> bool {
+    get_tokenized_pay_later_payment_method_type(payment_method_type).is_some()
+}
+
+/// Whether a connector token is a card: it has no token type (Apple Pay, Google Pay and Klarna
+/// tokens are typed) and is not a pay later PaymentMethod by its requested payment method type.
+/// Card-only options (`payment_method_options[card][...]`: 3DS request,
+/// MOTO) and the 3DS return URL rule apply to a card token only; hyperswitch, which still holds
+/// the raw payment method data, never applies them to Klarna either.
+fn is_untyped_card_token(
+    token_data: &payment_method_data::PaymentMethodToken,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+) -> bool {
+    token_data.token_payment_method_type.is_none() && !is_pay_later_token(payment_method_type)
 }
 
 fn has_usable_return_url(router_return_url: Option<&str>) -> bool {
@@ -2906,22 +2929,20 @@ fn has_usable_return_url(router_return_url: Option<&str>) -> bool {
 /// challenged like a raw card. A token typed as a wallet (Apple Pay, Google Pay) is never
 /// refused here: such a payment is charged without a return URL today, and a wallet payment
 /// that works must keep working. A typed Google Pay token without a return URL is sent as
-/// before, with no 3DS request (see `get_token_request_three_d_secure`).
+/// before, with no 3DS request (see `get_token_request_three_d_secure`). A tokenized pay later
+/// PaymentMethod (Klarna `pm_...`) is not a card and is never 3DS challenged.
 fn validate_three_ds_return_url<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
     auth_type: common_enums::AuthenticationType,
     router_return_url: Option<&str>,
     has_external_three_ds_result: bool,
 ) -> Result<(), IntegrationError> {
     let may_be_challenged = match payment_method_data {
         PaymentMethodData::Card(_) | PaymentMethodData::CardWithNoCvc(_) => true,
-        PaymentMethodData::PaymentMethodToken(token) => !matches!(
-            token.token_payment_method_type,
-            Some(
-                payment_method_data::TokenPaymentMethod::ApplePay
-                    | payment_method_data::TokenPaymentMethod::GooglePay
-            )
-        ),
+        PaymentMethodData::PaymentMethodToken(token) => {
+            is_untyped_card_token(token, payment_method_type)
+        }
         _ => false,
     };
     if may_be_challenged
@@ -2958,8 +2979,12 @@ fn validate_three_ds_return_url<T: PaymentMethodDataTypes>(
 /// the shopper can only come back from that challenge to a caller-supplied return URL. With no
 /// return URL the request is therefore not sent for such a token, and the payment goes out
 /// exactly as it did before the token arms requested 3DS.
+///
+/// A tokenized pay later PaymentMethod (Klarna `pm_...`) is not a card, so no
+/// `payment_method_options[card][...]` is sent next to its `payment_method_types[0]=klarna`.
 fn get_token_request_three_d_secure<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
     auth_type: common_enums::AuthenticationType,
     router_return_url: Option<&str>,
 ) -> Option<Auth3ds> {
@@ -2969,7 +2994,9 @@ fn get_token_request_three_d_secure<T: PaymentMethodDataTypes>(
     let google_pay_without_return_url = token.token_payment_method_type
         == Some(payment_method_data::TokenPaymentMethod::GooglePay)
         && !has_usable_return_url(router_return_url);
-    (auth_type == common_enums::AuthenticationType::ThreeDs && !google_pay_without_return_url)
+    (auth_type == common_enums::AuthenticationType::ThreeDs
+        && !is_pay_later_token(payment_method_type)
+        && !google_pay_without_return_url)
         .then_some(Auth3ds::Any)
 }
 
@@ -3051,6 +3078,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let token_request_three_d_secure = get_token_request_three_d_secure(
             &item.request.payment_method_data,
+            item.request.get_optional_payment_method_type(),
             item.resource_common_data.auth_type,
             item.request.router_return_url.as_deref(),
         );
@@ -3079,7 +3107,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // PaymentMethod. Instead, use payment_method_data with type=card and
                 // card[token]". Send it the way Stripe asks.
                 None if is_stripe_card_token(&pmt.token) => (Some(pmt.token.clone()), None, None),
-                None => (None, Some(pmt.token.clone()), None),
+                // A Klarna PaymentMethod (`pm_...`) is sent as `payment_method`, like an untyped
+                // one; its `payment_method_types[0]=klarna` is set below.
+                Some(payment_method_data::TokenPaymentMethod::Klarna) | None => {
+                    (None, Some(pmt.token.clone()), None)
+                }
             },
             _ => (None, None, None),
         };
@@ -3321,6 +3353,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let is_moto = get_stripe_moto_flag(
             &item.request.payment_method_data,
+            item.request.get_optional_payment_method_type(),
             &item.request.payment_channel,
         );
 
@@ -3338,6 +3371,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         validate_three_ds_return_url(
             &item.request.payment_method_data,
+            item.request.get_optional_payment_method_type(),
             item.resource_common_data.auth_type,
             item.request.router_return_url.as_deref(),
             error_on_requires_action.is_some(),
@@ -6660,7 +6694,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             )),
                             Some(StripePaymentMethodType::Card),
                         ),
-                        None => (
+                        Some(payment_method_data::TokenPaymentMethod::Klarna) | None => (
                             Some(token_data.token.clone()),
                             None,
                             get_tokenized_pay_later_payment_method_type(
@@ -6707,6 +6741,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let is_moto = get_stripe_moto_flag(
             &item.router_data.request.payment_method_data,
+            item.router_data.request.get_optional_payment_method_type(),
             &item.router_data.request.payment_channel,
         );
 
@@ -7475,6 +7510,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let is_moto = get_stripe_moto_flag(
             &item.request.payment_method_data,
+            item.request.get_optional_payment_method_type(),
             &item.request.payment_channel,
         );
 
@@ -7551,7 +7587,13 @@ fn get_payment_method_type_for_saved_payment_method_payment<
 >(
     item: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
 ) -> Result<Option<StripePaymentMethodType>, error_stack::Report<IntegrationError>> {
-    if item.resource_common_data.payment_method == common_enums::PaymentMethod::Card {
+    // A Charge (MIT) always arrives as category `Card`, which sends a saved Klarna PaymentMethod
+    // as `payment_method_types=card` (Stripe rejects it), so the requested type is checked first.
+    if let Some(pay_later_type) =
+        get_tokenized_pay_later_payment_method_type(item.request.get_optional_payment_method_type())
+    {
+        Ok(Some(pay_later_type))
+    } else if item.resource_common_data.payment_method == common_enums::PaymentMethod::Card {
         Ok(Some(StripePaymentMethodType::Card)) //stripe takes ["Card"] as default
     } else {
         let stripe_payment_method_type = match item
@@ -8152,10 +8194,11 @@ mod klarna_mandate_tests {
     use hyperswitch_masking::Secret;
 
     use super::{
-        get_setup_intent_payment_method_type, get_tokenized_pay_later_payment_method_type,
+        get_setup_intent_payment_method_type, get_stripe_moto_flag,
+        get_token_request_three_d_secure, get_tokenized_pay_later_payment_method_type,
         tokenize_mints_payment_method, validate_setup_mandate_return_url,
-        StripeBillingAddressCardToken, StripeKlarnaToken, StripeMandateRequest, StripeMandateType,
-        StripePaymentMethodType,
+        validate_three_ds_return_url, StripeBillingAddressCardToken, StripeKlarnaToken,
+        StripeMandateRequest, StripeMandateType, StripePaymentMethodType,
     };
 
     fn tokenization_data(
@@ -8177,6 +8220,65 @@ mod klarna_mandate_tests {
             connector_feature_data: None,
             metadata: None,
         }
+    }
+
+    fn untyped_token() -> PaymentMethodData<DefaultPCIHolder> {
+        PaymentMethodData::PaymentMethodToken(
+            domain_types::payment_method_data::PaymentMethodToken {
+                token: Secret::new("pm_test".to_string()),
+                token_payment_method_type: None,
+            },
+        )
+    }
+
+    const KLARNA: Option<common_enums::PaymentMethodType> =
+        Some(common_enums::PaymentMethodType::Klarna);
+    const CARD: Option<common_enums::PaymentMethodType> =
+        Some(common_enums::PaymentMethodType::Card);
+    const MOTO: Option<common_enums::PaymentChannel> =
+        Some(common_enums::PaymentChannel::MailOrder);
+
+    #[test]
+    fn tokenized_klarna_gets_no_card_three_ds_request() {
+        let three_ds = common_enums::AuthenticationType::ThreeDs;
+        assert!(get_token_request_three_d_secure(
+            &untyped_token(),
+            KLARNA,
+            three_ds,
+            Some("https://example.com")
+        )
+        .is_none());
+        assert!(get_token_request_three_d_secure(
+            &untyped_token(),
+            CARD,
+            three_ds,
+            Some("https://example.com")
+        )
+        .is_some());
+    }
+
+    #[test]
+    fn tokenized_klarna_is_not_held_to_the_three_ds_return_url_rule() {
+        let three_ds = common_enums::AuthenticationType::ThreeDs;
+        assert!(
+            validate_three_ds_return_url(&untyped_token(), KLARNA, three_ds, None, false).is_ok()
+        );
+        assert!(
+            validate_three_ds_return_url(&untyped_token(), CARD, three_ds, None, false).is_err()
+        );
+    }
+
+    #[test]
+    fn tokenized_klarna_is_never_moto() {
+        assert_eq!(get_stripe_moto_flag(&untyped_token(), KLARNA, &MOTO), None);
+        assert_eq!(
+            get_stripe_moto_flag(&untyped_token(), CARD, &MOTO),
+            Some(true)
+        );
+        assert_eq!(
+            get_stripe_moto_flag(&untyped_token(), None, &MOTO),
+            Some(true)
+        );
     }
 
     #[test]
