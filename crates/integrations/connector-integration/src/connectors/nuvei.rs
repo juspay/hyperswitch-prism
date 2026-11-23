@@ -256,18 +256,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             };
 
         match message_and_signature {
-            Some((message, signature)) => match hex::decode(signature.trim()) {
-                // Nuvei payment DMNs support SHA-256 or legacy MD5 depending
-                // on site configuration. Event/chargeback DMNs use SHA-256.
-                Ok(signature) if signature.len() == 32 => crypto::Sha256
-                    .verify_signature(&secrets.secret, &signature, message.as_bytes())
-                    .change_context(WebhookError::WebhookSourceVerificationFailed),
-                Ok(signature) if payment_dmn && signature.len() == 16 => crypto::Md5
-                    .verify_signature(&secrets.secret, &signature, message.as_bytes())
-                    .change_context(WebhookError::WebhookSourceVerificationFailed),
-                Ok(_) => Ok(false),
-                Err(_) => Ok(false),
-            },
+            Some((message, signature)) => {
+                // Nuvei's vendor contract: payment DMNs are signed with SHA-256 or
+                // legacy MD5 depending on site configuration — both are supported,
+                // selected by the digest length the site actually sends. Event and
+                // chargeback DMNs are SHA-256 only. Any other digest length is an
+                // unsupported algorithm declaration and is rejected, not downgraded.
+                let verify = |algorithm: &dyn VerifySignature,
+                              signature: &[u8]|
+                 -> Result<bool, Report<WebhookError>> {
+                    algorithm
+                        .verify_signature(&secrets.secret, signature, message.as_bytes())
+                        .change_context(WebhookError::WebhookSourceVerificationFailed)
+                };
+                match hex::decode(signature.trim()) {
+                    Ok(signature) if signature.len() == 32 => verify(&crypto::Sha256, &signature),
+                    Ok(signature) if payment_dmn && signature.len() == 16 => {
+                        verify(&crypto::Md5, &signature)
+                    }
+                    Ok(_) => Ok(false),
+                    Err(_) => Ok(false),
+                }
+            }
             None => Ok(false),
         }
     }
