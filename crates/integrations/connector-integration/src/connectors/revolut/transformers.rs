@@ -772,9 +772,7 @@ fn is_terminal_attempt_status(status: AttemptStatus) -> bool {
 fn is_forward_attempt_status(status: AttemptStatus) -> bool {
     matches!(
         status,
-        AttemptStatus::Charged
-            | AttemptStatus::Authorized
-            | AttemptStatus::AuthenticationPending
+        AttemptStatus::Charged | AttemptStatus::Authorized | AttemptStatus::AuthenticationPending
     )
 }
 
@@ -804,15 +802,13 @@ fn map_payment_state(state: RevolutPaymentState) -> AttemptStatus {
 /// Picks the attempt that reflects the order: the most recently updated non-failed
 /// attempt if one exists, otherwise the most recently updated attempt overall.
 fn identify_active_payment(payments: &[RevolutPayment]) -> Option<&RevolutPayment> {
-    payments
-        .iter()
-        .max_by_key(|payment| {
-            let failed = matches!(
-                payment.state,
-                RevolutPaymentState::Failed | RevolutPaymentState::Declined
-            );
-            (!failed, payment.updated_at)
-        })
+    payments.iter().max_by_key(|payment| {
+        let failed = matches!(
+            payment.state,
+            RevolutPaymentState::Failed | RevolutPaymentState::Declined
+        );
+        (!failed, payment.updated_at)
+    })
 }
 
 #[derive(Debug, Serialize)]
