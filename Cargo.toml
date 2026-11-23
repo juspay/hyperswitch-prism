@@ -25,10 +25,10 @@ members = [
   "crates/common/ucs_env",
   "crates/types-traits/ucs_interface_common",
   "crates/ffi/ffi",
-  "crates/internal/uniffi-bindgen",
-  "crates/internal/field-probe",
+  "sdk/codegen/uniffi-bindgen",
+  "tools/field-probe",
   "tests/regression",
-  "crates/internal/connector-creds"
+  "tests/support/connector-creds"
 ]
 resolver = "2"
 

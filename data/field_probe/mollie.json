@@ -537,7 +537,8 @@
               "amount": {
                 "minor_amount": 1000,
                 "currency": "USD"
-              }
+              },
+              "return_url": "https://example.com/return"
             }
           }
         },
@@ -818,6 +819,32 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for mollie"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Only card payment method is supported for tokenization is not supported by Mollie"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Only card payment method is supported for tokenization is not supported by Mollie"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only card payment method is supported for tokenization is not supported by Mollie"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Invalid connector configuration: profile_token"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Only card payment method is supported for tokenization is not supported by Mollie"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Only card payment method is supported for tokenization is not supported by Mollie"
       }
     },
     "verify_redirect": {

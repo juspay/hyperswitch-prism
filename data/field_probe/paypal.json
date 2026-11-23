@@ -869,7 +869,8 @@
               "amount": {
                 "minor_amount": 1000,
                 "currency": "USD"
-              }
+              },
+              "return_url": "https://example.com/return"
             }
           }
         },
@@ -1385,6 +1386,32 @@
       "default": {
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
       }
     },
     "verify_redirect": {

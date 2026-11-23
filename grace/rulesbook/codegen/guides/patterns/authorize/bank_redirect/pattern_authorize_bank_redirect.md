@@ -175,7 +175,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
+            .convert(item.router_data.request.amount.amount, item.router_data.request.currency)
             .change_context(IntegrationError::AmountConversionFailed { context: Default::default() })?;
 
         let payment_method = match &item.router_data.request.payment_method_data {

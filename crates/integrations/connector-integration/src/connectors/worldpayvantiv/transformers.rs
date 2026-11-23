@@ -4,16 +4,20 @@ use common_enums::{self, CountryAlpha2, Currency};
 use common_utils::{id_type::CustomerId, types::MinorUnit, StringMajorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, Void,
+        VoidPC,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
+    payment_method_data::{
+        AdditionalPaymentData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     ResponseTransformationErrorContext,
@@ -22,7 +26,9 @@ use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{connectors::worldpayvantiv::WorldpayvantivRouterData, types::ResponseRouterData};
+use crate::{
+    connectors::worldpayvantiv::WorldpayvantivRouterData, types::ResponseRouterData, utils,
+};
 
 // Helper function to extract report group from connector config
 fn extract_report_group(connector_config: &ConnectorSpecificConfig) -> Option<String> {
@@ -50,6 +56,40 @@ pub struct WorldpayvantivPaymentsRequest<T: PaymentMethodDataTypes> {
     pub cnp_request: CnpOnlineRequest<T>,
 }
 
+// The macro's SoapXml path sends these pre-serialized bytes while logging the
+// structured request with secrets masked. Serializing here so failures propagate.
+#[derive(Debug, Serialize)]
+pub struct WorldpayvantivXmlRequest<T: PaymentMethodDataTypes> {
+    #[serde(flatten)]
+    cnp_request: CnpOnlineRequest<T>,
+    #[serde(skip)]
+    xml: Secret<String>,
+}
+
+impl<T: PaymentMethodDataTypes + Serialize> TryFrom<CnpOnlineRequest<T>>
+    for WorldpayvantivXmlRequest<T>
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(cnp_request: CnpOnlineRequest<T>) -> Result<Self, Self::Error> {
+        let xml = utils::serialize_to_xml_string_with_root("cnpOnlineRequest", &cnp_request)?;
+        Ok(Self {
+            cnp_request,
+            xml: Secret::new(xml),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> super::super::macros::GetSoapXml for WorldpayvantivXmlRequest<T> {
+    fn to_soap_xml(&self) -> String {
+        self.xml.peek().clone()
+    }
+}
+
+pub type WorldpayvantivAuthorizeRequest<T> = WorldpayvantivXmlRequest<T>;
+pub type WorldpayvantivRepeatPaymentRequest<T> = WorldpayvantivXmlRequest<T>;
+pub type WorldpayvantivRepeatPaymentResponse = CnpOnlineResponse;
+
 // Serialize implementation
 impl<T: PaymentMethodDataTypes + Serialize> Serialize for WorldpayvantivPaymentsRequest<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -57,7 +97,7 @@ impl<T: PaymentMethodDataTypes + Serialize> Serialize for WorldpayvantivPayments
         S: serde::Serializer,
     {
         let full_xml =
-            crate::utils::serialize_to_xml_string_with_root("cnpOnlineRequest", &self.cnp_request)
+            utils::serialize_to_xml_string_with_root("cnpOnlineRequest", &self.cnp_request)
                 .map_err(serde::ser::Error::custom)?;
 
         // Serialize the complete XML string
@@ -77,7 +117,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for WorldpayvantivPaymentsRequest<T>
+    > for WorldpayvantivAuthorizeRequest<T>
 {
     type Error = Report<IntegrationError>;
 
@@ -92,14 +132,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
-        let merchant_id = auth.merchant_id_for_currency(Some(item.router_data.request.currency))?;
-
-        let authentication = Authentication {
-            user: auth.user,
-            password: auth.password,
-        };
-
         let payment_method_data = &item.router_data.request.payment_method_data;
         let order_source = OrderSource::from(payment_method_data.clone());
 
@@ -141,86 +173,283 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(IntegrationError::NotSupported {
                     message: "Payment method".to_string(),
                     connector: "worldpayvantiv",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Worldpay Vantiv authorization supports card payment data only."
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
                 }
                 .into());
             }
         };
 
-        let merchant_txn_id = get_valid_transaction_id(
-            item.router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
-            "transaction_id",
+        let request = build_payment_request(
+            &item.router_data,
+            item.router_data.request.currency,
+            item.router_data.request.money.amount(),
+            item.router_data.request.is_auto_capture(),
+            order_source,
+            payment_info,
         )?;
-        let amount = item.router_data.request.money.amount();
-
-        // Extract report group from metadata or use default
-        let report_group = extract_report_group(&item.router_data.connector_config)
-            .unwrap_or_else(|| "rtpGrp".to_string());
-
-        let bill_to_address = get_billing_address(&item.router_data.resource_common_data);
-        let ship_to_address = get_shipping_address(&item.router_data.resource_common_data);
-
-        let (authorization, sale) =
-            if item.router_data.request.is_auto_capture() && amount != MinorUnit::zero() {
-                let sale = Sale {
-                    id: format!("{}_{}", OperationId::Sale, merchant_txn_id),
-                    report_group: report_group.clone(),
-                    customer_id: extract_customer_id(
-                        &item.router_data.resource_common_data.customer_id,
-                    )
-                    .map(Secret::new),
-                    order_id: merchant_txn_id.clone(),
-                    amount,
-                    order_source,
-                    bill_to_address,
-                    ship_to_address,
-                    payment_info,
-                    enhanced_data: None,
-                    processing_instructions: None,
-                    cardholder_authentication: None,
-                };
-                (None, Some(sale))
-            } else {
-                let authorization = Authorization {
-                    id: format!("{}_{}", OperationId::Auth, merchant_txn_id),
-                    report_group: report_group.clone(),
-                    customer_id: extract_customer_id(
-                        &item.router_data.resource_common_data.customer_id,
-                    )
-                    .map(Secret::new),
-                    cnp_txn_id: None,
-                    order_id: Some(merchant_txn_id.clone()),
-                    amount,
-                    order_source: Some(order_source),
-                    bill_to_address,
-                    ship_to_address,
-                    payment_info: Some(payment_info),
-                    enhanced_data: None,
-                    processing_instructions: None,
-                    cardholder_authentication: None,
-                    auth_indicator: None,
-                };
-                (Some(authorization), None)
-            };
-
-        let cnp_request = CnpOnlineRequest {
-            version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
-            xmlns: worldpayvantiv_constants::XMLNS.to_string(),
-            merchant_id,
-            authentication,
-            authorization,
-            sale,
-            capture: None,
-            auth_reversal: None,
-            void: None,
-            credit: None,
-        };
-
-        Ok(Self { cnp_request })
+        Self::try_from(request.cnp_request)
     }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayvantivRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for WorldpayvantivRepeatPaymentRequest<T>
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: WorldpayvantivRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        let payment_info = get_repeat_payment_info(request)?;
+        let order_source = match request.payment_channel.as_ref() {
+            Some(common_enums::PaymentChannel::MailOrder) => OrderSource::MailOrder,
+            Some(common_enums::PaymentChannel::TelephoneOrder) => OrderSource::Telephone,
+            _ => OrderSource::Ecommerce,
+        };
+        let request = build_payment_request(
+            &item.router_data,
+            request.currency,
+            request.money.amount(),
+            request.is_auto_capture(),
+            order_source,
+            payment_info,
+        )?;
+        Self::try_from(request.cnp_request)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorldpayvantivMandateMetadata {
+    network_transaction_id: Option<Secret<String>>,
+}
+
+fn get_repeat_payment_info<T: PaymentMethodDataTypes>(
+    request: &RepeatPaymentData<T>,
+) -> Result<PaymentInfo<T>, Report<IntegrationError>> {
+    match &request.mandate_reference {
+        MandateReferenceId::ConnectorMandateId(mandate) => {
+            let cnp_token = mandate.get_connector_mandate_id().ok_or(
+                IntegrationError::MissingConnectorMandateID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Connector mandate payments require the Worldpay Vantiv cnpToken as the connector mandate ID.".to_owned()),
+                        ..Default::default()
+                    },
+                },
+            )?;
+            let card = match request.additional_payment_data.as_ref() {
+                Some(AdditionalPaymentData::Card(card)) => card,
+                _ => return Err(utils::missing_field_err("additional_payment_data.card")()),
+            };
+            let month = card
+                .card_exp_month
+                .as_ref()
+                .ok_or_else(utils::missing_field_err(
+                    "additional_payment_data.card.card_exp_month",
+                ))?;
+            let year = card
+                .card_exp_year
+                .as_ref()
+                .ok_or_else(utils::missing_field_err(
+                    "additional_payment_data.card.card_exp_year",
+                ))?;
+            let exp_date = format_token_expiry(month, year)?;
+            let original_network_transaction_id = mandate
+                .get_network_transaction_id()
+                .map(Secret::new)
+                .or_else(|| {
+                    mandate.get_mandate_metadata().and_then(|metadata| {
+                        serde_json::from_value::<WorldpayvantivMandateMetadata>(metadata.expose())
+                            .ok()
+                            .and_then(|metadata| metadata.network_transaction_id)
+                    })
+                });
+            Ok(PaymentInfo::Token(TokenData {
+                token: TokenizationData {
+                    cnp_token: Secret::new(cnp_token),
+                    exp_date,
+                },
+                original_network_transaction_id,
+            }))
+        }
+        MandateReferenceId::NetworkMandateId(mandate) => {
+            let (number, month, year, network) = match &request.payment_method_data {
+                PaymentMethodData::Card(card) => (
+                    &card.card_number,
+                    &card.card_exp_month,
+                    &card.card_exp_year,
+                    &card.card_network,
+                ),
+                PaymentMethodData::CardDetailsForNetworkTransactionId(card) => (
+                    &card.card_number,
+                    &card.card_exp_month,
+                    &card.card_exp_year,
+                    &card.card_network,
+                ),
+                _ => {
+                    return Err(IntegrationError::NotSupported {
+                        message: "Network mandate payments require card details".into(),
+                        connector: "worldpayvantiv",
+                        context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the card number and expiry with the network transaction ID, or use a connector mandate ID with token expiry in additional_payment_data.card."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+                    }
+                    .into())
+                }
+            };
+            let card_type = match network.clone() {
+                Some(network) => WorldpayvativCardType::try_from(network)?,
+                None => WorldpayvativCardType::try_from(&domain_types::utils::get_card_issuer(
+                    number.peek(),
+                )?)?,
+            };
+            Ok(PaymentInfo::Card(CardData {
+                card: WorldpayvantivCardData {
+                    card_type,
+                    number: number.clone(),
+                    exp_date: format_token_expiry(month, year)?,
+                    card_validation_num: None,
+                },
+                processing_type: Some(VantivProcessingType::MerchantInitiatedCOF),
+                network_transaction_id: Some(Secret::new(mandate.network_transaction_id.clone())),
+            }))
+        }
+        MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotSupported {
+            message: "Network token mandate payments".into(),
+            connector: "worldpayvantiv",
+            context: IntegrationErrorContext {
+                additional_context: Some("Worldpay Vantiv repeat payments do not support network tokens with a network transaction ID.".to_owned()),
+                ..Default::default()
+            },
+        }
+        .into()),
+    }
+}
+
+fn format_token_expiry(
+    month: &Secret<String>,
+    year: &Secret<String>,
+) -> Result<Secret<String>, Report<IntegrationError>> {
+    let year = utils::get_expiry_year_2_digit(year.peek(), "card_exp_year")?;
+    Ok(Secret::new(format!("{:0>2}{year}", month.peek())))
+}
+
+fn build_payment_request<T: PaymentMethodDataTypes, F, Req>(
+    router_data: &RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>,
+    currency: Currency,
+    amount: MinorUnit,
+    is_auto_capture: bool,
+    order_source: OrderSource,
+    payment_info: PaymentInfo<T>,
+) -> Result<WorldpayvantivPaymentsRequest<T>, Report<IntegrationError>> {
+    let auth = WorldpayvantivAuthType::try_from(&router_data.connector_config)?;
+    let merchant_id = auth.merchant_id_for_currency(Some(currency))?;
+
+    let authentication = Authentication {
+        user: auth.user,
+        password: auth.password,
+    };
+
+    let merchant_txn_id = get_valid_transaction_id(
+        router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone(),
+        "transaction_id",
+    )?;
+
+    // Extract report group from metadata or use default
+    let report_group =
+        extract_report_group(&router_data.connector_config).unwrap_or_else(|| "rtpGrp".to_string());
+
+    let bill_to_address = get_billing_address(&router_data.resource_common_data);
+    let ship_to_address = get_shipping_address(&router_data.resource_common_data);
+
+    let (authorization, sale) = if is_auto_capture && amount != MinorUnit::zero() {
+        let sale = Sale {
+            id: format!("{}_{}", OperationId::Sale, merchant_txn_id),
+            report_group: report_group.clone(),
+            customer_id: extract_customer_id(&router_data.resource_common_data.customer_id)
+                .map(Secret::new),
+            order_id: merchant_txn_id.clone(),
+            amount,
+            order_source,
+            bill_to_address,
+            ship_to_address,
+            payment_info,
+            enhanced_data: None,
+            processing_instructions: None,
+            cardholder_authentication: None,
+        };
+        (None, Some(sale))
+    } else {
+        let operation_id = if is_auto_capture {
+            OperationId::Sale
+        } else {
+            OperationId::Auth
+        };
+        let authorization = Authorization {
+            id: format!("{operation_id}_{merchant_txn_id}"),
+            report_group: report_group.clone(),
+            customer_id: extract_customer_id(&router_data.resource_common_data.customer_id)
+                .map(Secret::new),
+            cnp_txn_id: None,
+            order_id: Some(merchant_txn_id.clone()),
+            amount,
+            order_source: Some(order_source),
+            bill_to_address,
+            ship_to_address,
+            payment_info: Some(payment_info),
+            enhanced_data: None,
+            processing_instructions: None,
+            cardholder_authentication: None,
+            auth_indicator: None,
+        };
+        (Some(authorization), None)
+    };
+
+    let cnp_request = CnpOnlineRequest {
+        version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
+        xmlns: worldpayvantiv_constants::XMLNS.to_string(),
+        merchant_id,
+        authentication,
+        authorization,
+        sale,
+        capture: None,
+        auth_reversal: None,
+        void: None,
+        credit: None,
+    };
+
+    Ok(WorldpayvantivPaymentsRequest { cnp_request })
 }
 
 pub(super) mod worldpayvantiv_constants {
@@ -306,7 +535,10 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayvantivAuthType {
                 })
             }
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Expected Worldpay Vantiv connector configuration containing user, password, and merchant ID settings.".to_owned()),
+                    ..Default::default()
+                },
             }
             .into()),
         }
@@ -512,7 +744,10 @@ pub struct CardData<T: PaymentMethodDataTypes> {
     pub card: WorldpayvantivCardData<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "originalNetworkTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub network_transaction_id: Option<Secret<String>>,
 }
 
@@ -520,6 +755,8 @@ pub struct CardData<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "camelCase")]
 pub struct TokenData {
     pub token: TokenizationData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_network_transaction_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -541,7 +778,7 @@ pub struct TokenizationData {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "camelCase")]
 pub enum VantivProcessingType {
     InitialCOF,
     MerchantInitiatedCOF,
@@ -579,7 +816,10 @@ impl TryFrom<common_enums::CardNetwork> for WorldpayvativCardType {
             _ => Err(IntegrationError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "worldpayvantiv",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Supported card networks are Visa, Mastercard, American Express, Discover, Diners Club, JCB, and UnionPay.".to_owned()),
+                    ..Default::default()
+                },
             }
             .into()),
         }
@@ -599,7 +839,10 @@ impl TryFrom<&domain_types::utils::CardIssuer> for WorldpayvativCardType {
             _ => Err(IntegrationError::NotSupported {
                 message: "Card network".to_string(),
                 connector: "worldpayvantiv",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Supported card issuers for automatic detection are Visa, Mastercard, American Express, Discover, Diners Club, and JCB.".to_owned()),
+                    ..Default::default()
+                },
             }
             .into()),
         }
@@ -788,6 +1031,31 @@ pub struct PaymentResponse {
     pub card_suffix: Option<String>,
 }
 
+impl PaymentResponse {
+    fn mandate_reference(&self) -> Result<Option<Box<MandateReference>>, serde_json::Error> {
+        let Some(token) = self.token_response.as_ref() else {
+            return Ok(None);
+        };
+        let mandate_metadata = self
+            .network_transaction_id
+            .as_ref()
+            .map(|ntid| {
+                serde_json::to_value(WorldpayvantivMandateMetadata {
+                    network_transaction_id: Some(ntid.clone()),
+                })
+                .map(Secret::new)
+            })
+            .transpose()?;
+
+        Ok(Some(Box::new(MandateReference {
+            connector_mandate_id: Some(token.cnp_token.peek().clone()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+            mandate_metadata,
+        })))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureResponse {
@@ -932,229 +1200,1103 @@ pub struct FundingSource {
     pub available_balance: Option<String>,
 }
 
-// Response codes (comprehensive list)
 #[derive(Debug, strum::Display, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum WorldpayvantivResponseCode {
-    #[serde(rename = "000")]
-    Approved,
     #[serde(rename = "001")]
+    #[strum(serialize = "001")]
     TransactionReceived,
+    #[serde(rename = "000")]
+    #[strum(serialize = "000")]
+    Approved,
     #[serde(rename = "010")]
+    #[strum(serialize = "010")]
     PartiallyApproved,
+    #[serde(rename = "011")]
+    #[strum(serialize = "011")]
+    OfflineApproval,
+    #[serde(rename = "013")]
+    #[strum(serialize = "013")]
+    OfflineApprovalUnableToGoOnline,
+    #[serde(rename = "015")]
+    #[strum(serialize = "015")]
+    PendingShopperCheckoutCompletion,
+    #[serde(rename = "016")]
+    #[strum(serialize = "016")]
+    ShopperCheckoutExpired,
+    #[serde(rename = "100")]
+    #[strum(serialize = "100")]
+    ProcessingNetworkUnavailable,
+    #[serde(rename = "101")]
+    #[strum(serialize = "101")]
+    IssuerUnavailable,
+    #[serde(rename = "102")]
+    #[strum(serialize = "102")]
+    ReSubmitTransaction,
+    #[serde(rename = "103")]
+    #[strum(serialize = "103")]
+    MerchantNotConfiguredForProcessingAtThisSite,
+    #[serde(rename = "108")]
+    #[strum(serialize = "108")]
+    TryAgainLater,
     #[serde(rename = "110")]
+    #[strum(serialize = "110")]
     InsufficientFunds,
+    #[serde(rename = "111")]
+    #[strum(serialize = "111")]
+    AuthorizationAmountHasAlreadyBeenDepleted,
+    #[serde(rename = "112")]
+    #[strum(serialize = "112")]
+    InsufficientFundsRetryAfter1Hour,
+    #[serde(rename = "113")]
+    #[strum(serialize = "113")]
+    InsufficientFundsRetryAfter24Hour,
+    #[serde(rename = "114")]
+    #[strum(serialize = "114")]
+    InsufficientFundsRetryAfter2Days,
+    #[serde(rename = "115")]
+    #[strum(serialize = "115")]
+    InsufficientFundsRetryAfter4Days,
+    #[serde(rename = "116")]
+    #[strum(serialize = "116")]
+    InsufficientFundsRetryAfter6Days,
+    #[serde(rename = "117")]
+    #[strum(serialize = "117")]
+    InsufficientFundsRetryAfter8Days,
+    #[serde(rename = "118")]
+    #[strum(serialize = "118")]
+    InsufficientFundsRetryAfter10Days,
     #[serde(rename = "120")]
+    #[strum(serialize = "120")]
     CallIssuer,
     #[serde(rename = "121")]
-    ExceedsApprovalAmountLimit,
+    #[strum(serialize = "121")]
+    CallAmex,
+    #[serde(rename = "122")]
+    #[strum(serialize = "122")]
+    CallDinersClub,
     #[serde(rename = "123")]
-    ExceedsActivityAmountLimit,
+    #[strum(serialize = "123")]
+    CallDiscover,
+    #[serde(rename = "124")]
+    #[strum(serialize = "124")]
+    CallJbs,
     #[serde(rename = "125")]
-    InvalidEffectiveDate,
+    #[strum(serialize = "125")]
+    CallVisaMastercard,
+    #[serde(rename = "126")]
+    #[strum(serialize = "126")]
+    CallIssuerUpdateCardholderData,
+    #[serde(rename = "127")]
+    #[strum(serialize = "127")]
+    ExceedsApprovalAmountLimit,
+    #[serde(rename = "130")]
+    #[strum(serialize = "130")]
+    CallIndicatedNumber,
+    #[serde(rename = "131")]
+    #[strum(serialize = "131")]
+    UnacceptablePinTransactionDeclinedRetry,
+    #[serde(rename = "132")]
+    #[strum(serialize = "132")]
+    PinNotChanged,
+    #[serde(rename = "137")]
+    #[strum(serialize = "137")]
+    ConsumerMultiUseVirtualCardNumberSoftDecline,
+    #[serde(rename = "138")]
+    #[strum(serialize = "138")]
+    ConsumerNonReloadablePrepaidCardSoftDecline,
+    #[serde(rename = "139")]
+    #[strum(serialize = "139")]
+    ConsumerSingleUseVirtualCardNumberSoftDecline,
+    #[serde(rename = "140")]
+    #[strum(serialize = "140")]
+    UpdateCardholderData,
+    #[serde(rename = "141")]
+    #[strum(serialize = "141")]
+    ConsumerNonReloadablePrepaidCardApproved,
+    #[serde(rename = "142")]
+    #[strum(serialize = "142")]
+    ConsumerSingleUseVirtualCardNumberApproved,
+    #[serde(rename = "143")]
+    #[strum(serialize = "143")]
+    MerchantDoesntQualifyForProductCode,
+    #[serde(rename = "145")]
+    #[strum(serialize = "145")]
+    Lifecycle,
+    #[serde(rename = "146")]
+    #[strum(serialize = "146")]
+    Policy,
+    #[serde(rename = "147")]
+    #[strum(serialize = "147")]
+    FraudSecurity,
+    #[serde(rename = "148")]
+    #[strum(serialize = "148")]
+    InvalidOrExpiredCardContactCardholderToUpdate,
+    #[serde(rename = "149")]
+    #[strum(serialize = "149")]
+    InvalidTransactionOrCardRestrictionVerifyInformationAndResubmit,
+    #[serde(rename = "154")]
+    #[strum(serialize = "154")]
+    AtLeastOneOfOrigIdOrOrigCnpTxnIdIsRequired,
+    #[serde(rename = "155")]
+    #[strum(serialize = "155")]
+    OrigCnpTxnIdIsRequiredWhenShowStatusOnlyIsUsed,
+    #[serde(rename = "156")]
+    #[strum(serialize = "156")]
+    IncrementalAuthNotSupported,
+    #[serde(rename = "157")]
+    #[strum(serialize = "157")]
+    SetAuthIndicatorToIncremental,
+    #[serde(rename = "158")]
+    #[strum(serialize = "158")]
+    IncrementalValueForAuthIndicatorNotAllowedInThisAuthStructure,
+    #[serde(rename = "159")]
+    #[strum(serialize = "159")]
+    CannotRequestAnIncrementalAuthIfOriginalAuthNotSetToEstimated,
+    #[serde(rename = "161")]
+    #[strum(serialize = "161")]
+    TransactionMustReferenceTheEstimatedAuth,
+    #[serde(rename = "162")]
+    #[strum(serialize = "162")]
+    IncrementedAuthExceedsMaxTransactionAmount,
+    #[serde(rename = "170")]
+    #[strum(serialize = "170")]
+    SubmittedMccNotAllowed,
+    #[serde(rename = "192")]
+    #[strum(serialize = "192")]
+    MerchantNotCertifiedEnabledForIias,
+    #[serde(rename = "206")]
+    #[strum(serialize = "206")]
+    IssuerGeneratedError,
+    #[serde(rename = "207")]
+    #[strum(serialize = "207")]
+    PickupCardOtherThanLostStolen,
+    #[serde(rename = "209")]
+    #[strum(serialize = "209")]
+    InvalidAmountHardDecline,
+    #[serde(rename = "211")]
+    #[strum(serialize = "211")]
+    ReversalUnsuccessful,
+    #[serde(rename = "212")]
+    #[strum(serialize = "212")]
+    MissingData,
+    #[serde(rename = "213")]
+    #[strum(serialize = "213")]
+    PickupCardLostCard,
+    #[serde(rename = "214")]
+    #[strum(serialize = "214")]
+    PickupCardStolenCard,
+    #[serde(rename = "215")]
+    #[strum(serialize = "215")]
+    RestrictedCard,
+    #[serde(rename = "216")]
+    #[strum(serialize = "216")]
+    InvalidDeactivate,
+    #[serde(rename = "217")]
+    #[strum(serialize = "217")]
+    CardAlreadyActive,
+    #[serde(rename = "218")]
+    #[strum(serialize = "218")]
+    CardNotActive,
+    #[serde(rename = "219")]
+    #[strum(serialize = "219")]
+    CardAlreadyDeactivate,
+    #[serde(rename = "221")]
+    #[strum(serialize = "221")]
+    OverMaxBalance,
+    #[serde(rename = "222")]
+    #[strum(serialize = "222")]
+    InvalidActivate,
+    #[serde(rename = "223")]
+    #[strum(serialize = "223")]
+    NoTransactionFoundForReversal,
+    #[serde(rename = "226")]
+    #[strum(serialize = "226")]
+    IncorrectCvv,
+    #[serde(rename = "229")]
+    #[strum(serialize = "229")]
+    IllegalTransaction,
+    #[serde(rename = "251")]
+    #[strum(serialize = "251")]
+    DuplicateTransaction,
+    #[serde(rename = "252")]
+    #[strum(serialize = "252")]
+    SystemError,
+    #[serde(rename = "253")]
+    #[strum(serialize = "253")]
+    DeconvertedBin,
+    #[serde(rename = "254")]
+    #[strum(serialize = "254")]
+    MerchantDepleted,
+    #[serde(rename = "255")]
+    #[strum(serialize = "255")]
+    GiftCardEscheated,
+    #[serde(rename = "256")]
+    #[strum(serialize = "256")]
+    InvalidReversalTypeForCreditCardTransaction,
+    #[serde(rename = "257")]
+    #[strum(serialize = "257")]
+    SystemErrorMessageFormatError,
+    #[serde(rename = "258")]
+    #[strum(serialize = "258")]
+    SystemErrorCannotProcess,
+    #[serde(rename = "271")]
+    #[strum(serialize = "271")]
+    RefundRejectedDueToPendingDepositStatus,
+    #[serde(rename = "272")]
+    #[strum(serialize = "272")]
+    RefundRejectedDueToDeclinedDepositStatus,
+    #[serde(rename = "273")]
+    #[strum(serialize = "273")]
+    RefundRejectedByTheProcessingNetwork,
+    #[serde(rename = "284")]
+    #[strum(serialize = "284")]
+    CaptureCreditAndAuthReversalTagsCannotBeUsedForGiftCardTransactions,
     #[serde(rename = "301")]
+    #[strum(serialize = "301")]
     InvalidAccountNumber,
     #[serde(rename = "302")]
+    #[strum(serialize = "302")]
     AccountNumberDoesNotMatchPaymentType,
     #[serde(rename = "303")]
-    InvalidExpirationDate,
-    #[serde(rename = "304")]
-    InvalidCVV,
-    #[serde(rename = "305")]
-    InvalidCardValidationNum,
-    #[serde(rename = "306")]
-    ExpiredCard,
-    #[serde(rename = "307")]
-    InvalidPin,
-    #[serde(rename = "308")]
-    InvalidTransactionType,
-    #[serde(rename = "310")]
-    AccountNumberNotOnFile,
-    #[serde(rename = "311")]
-    AccountNumberLocked,
-    #[serde(rename = "320")]
-    InvalidLocation,
-    #[serde(rename = "321")]
-    InvalidMerchantId,
-    #[serde(rename = "322")]
-    InvalidLocation2,
-    #[serde(rename = "323")]
-    InvalidMerchantClassCode,
-    #[serde(rename = "324")]
-    InvalidExpirationDate2,
-    #[serde(rename = "325")]
-    InvalidData,
-    #[serde(rename = "326")]
-    InvalidPin2,
-    #[serde(rename = "327")]
-    ExceedsNumberofPINEntryTries,
-    #[serde(rename = "328")]
-    InvalidCryptoBox,
-    #[serde(rename = "329")]
-    InvalidRequestFormat,
-    #[serde(rename = "330")]
-    InvalidApplicationData,
-    #[serde(rename = "340")]
-    InvalidMerchantCategoryCode,
-    #[serde(rename = "346")]
-    TransactionCannotBeCompleted,
-    #[serde(rename = "347")]
-    TransactionTypeNotSupportedForCard,
-    #[serde(rename = "349")]
-    TransactionTypeNotAllowedAtTerminal,
-    #[serde(rename = "350")]
-    GenericDecline,
-    #[serde(rename = "351")]
-    DeclineByCard,
-    #[serde(rename = "352")]
-    DoNotHonor,
-    #[serde(rename = "353")]
-    InvalidMerchant,
-    #[serde(rename = "354")]
+    #[strum(serialize = "303")]
     PickUpCard,
-    #[serde(rename = "355")]
-    CardOk,
-    #[serde(rename = "356")]
-    CallVoiceOperator,
-    #[serde(rename = "357")]
-    StopRecurring,
-    #[serde(rename = "358")]
-    NoChecking,
-    #[serde(rename = "359")]
-    NoCreditAccount,
-    #[serde(rename = "360")]
-    NoCreditAccountType,
-    #[serde(rename = "361")]
-    InvalidCreditPlan,
-    #[serde(rename = "362")]
-    InvalidTransactionCode,
-    #[serde(rename = "363")]
-    TransactionNotPermittedToCardholderAccount,
-    #[serde(rename = "364")]
-    TransactionNotPermittedToMerchant,
-    #[serde(rename = "365")]
-    PINTryExceeded,
-    #[serde(rename = "366")]
-    SecurityViolation,
-    #[serde(rename = "367")]
-    HardCapturePickUpCard,
-    #[serde(rename = "368")]
-    ResponseReceivedTooLate,
-    #[serde(rename = "370")]
-    SoftDecline,
-    #[serde(rename = "400")]
-    ContactCardIssuer,
-    #[serde(rename = "401")]
-    CallVoiceCenter,
-    #[serde(rename = "402")]
-    InvalidMerchantTerminal,
-    #[serde(rename = "410")]
-    InvalidAmount,
-    #[serde(rename = "411")]
-    ResubmitTransaction,
-    #[serde(rename = "412")]
+    #[serde(rename = "304")]
+    #[strum(serialize = "304")]
+    LostStolenCard,
+    #[serde(rename = "305")]
+    #[strum(serialize = "305")]
+    ExpiredCard,
+    #[serde(rename = "306")]
+    #[strum(serialize = "306")]
+    AuthorizationHasExpiredNoNeedToReverse,
+    #[serde(rename = "307")]
+    #[strum(serialize = "307")]
+    RestrictedCardSoftDecline,
+    #[serde(rename = "308")]
+    #[strum(serialize = "308")]
+    RestrictedCardChargeback,
+    #[serde(rename = "309")]
+    #[strum(serialize = "309")]
+    RestrictedCardPrepaidCardFilteringService,
+    #[serde(rename = "310")]
+    #[strum(serialize = "310")]
+    InvalidTrackData,
+    #[serde(rename = "311")]
+    #[strum(serialize = "311")]
+    DepositIsAlreadyReferencedByAChargeback,
+    #[serde(rename = "312")]
+    #[strum(serialize = "312")]
+    RestrictedCardInternationalCardFilteringService,
+    #[serde(rename = "313")]
+    #[strum(serialize = "313")]
+    InternationalFilteringForIssuingCardCountry,
+    #[serde(rename = "315")]
+    #[strum(serialize = "315")]
+    RestrictedCardAuthFraudVelocityFilteringService,
+    #[serde(rename = "316")]
+    #[strum(serialize = "316")]
+    AutomaticRefundAlreadyIssued,
+    #[serde(rename = "317")]
+    #[strum(serialize = "317")]
+    RestrictedCardCardUnderSanction,
+    #[serde(rename = "318")]
+    #[strum(serialize = "318")]
+    RestrictedCardAuthFraudAdviceFilteringService,
+    #[serde(rename = "319")]
+    #[strum(serialize = "319")]
+    RestrictedCardFraudAvsFilteringService,
+    #[serde(rename = "320")]
+    #[strum(serialize = "320")]
+    InvalidExpirationDate,
+    #[serde(rename = "321")]
+    #[strum(serialize = "321")]
+    InvalidMerchant,
+    #[serde(rename = "322")]
+    #[strum(serialize = "322")]
     InvalidTransaction,
-    #[serde(rename = "413")]
-    MerchantNotFound,
+    #[serde(rename = "323")]
+    #[strum(serialize = "323")]
+    NoSuchIssuer,
+    #[serde(rename = "324")]
+    #[strum(serialize = "324")]
+    InvalidPin,
+    #[serde(rename = "325")]
+    #[strum(serialize = "325")]
+    TransactionNotAllowedAtTerminal,
+    #[serde(rename = "326")]
+    #[strum(serialize = "326")]
+    ExceedsNumberOfPinEntries,
+    #[serde(rename = "327")]
+    #[strum(serialize = "327")]
+    CardholderTransactionNotPermitted,
+    #[serde(rename = "328")]
+    #[strum(serialize = "328")]
+    CardholderRequestedThatRecurringOrInstallmentPaymentBeStopped,
+    #[serde(rename = "330")]
+    #[strum(serialize = "330")]
+    InvalidPaymentType,
+    #[serde(rename = "331")]
+    #[strum(serialize = "331")]
+    InvalidPosCapabilityForCardholderAuthorizedTerminalTransaction,
+    #[serde(rename = "332")]
+    #[strum(serialize = "332")]
+    InvalidPosCardholderIdForCardholderAuthorizedTerminalTransaction,
+    #[serde(rename = "335")]
+    #[strum(serialize = "335")]
+    ThisMethodOfPaymentDoesNotSupportAuthorizationReversals,
+    #[serde(rename = "336")]
+    #[strum(serialize = "336")]
+    ReversalAmountDoesNotMatchAuthorizationAmount,
+    #[serde(rename = "337")]
+    #[strum(serialize = "337")]
+    TransactionDidNotConvertToPinless,
+    #[serde(rename = "340")]
+    #[strum(serialize = "340")]
+    InvalidAmountSoftDecline,
+    #[serde(rename = "341")]
+    #[strum(serialize = "341")]
+    InvalidHealthcareAmounts,
+    #[serde(rename = "346")]
+    #[strum(serialize = "346")]
+    InvalidBillingDescriptorPrefix,
+    #[serde(rename = "347")]
+    #[strum(serialize = "347")]
+    InvalidBillingDescriptor,
+    #[serde(rename = "348")]
+    #[strum(serialize = "348")]
+    InvalidReportGroup,
+    #[serde(rename = "349")]
+    #[strum(serialize = "349")]
+    DoNotHonor,
+    #[serde(rename = "350")]
+    #[strum(serialize = "350")]
+    GenericDecline, // Soft or Hard Decline
+    #[serde(rename = "351")]
+    #[strum(serialize = "351")]
+    DeclineRequestPositiveId,
+    #[serde(rename = "352")]
+    #[strum(serialize = "352")]
+    DeclineCvv2CidFail,
+    #[serde(rename = "354")]
+    #[strum(serialize = "354")]
+    ThreeDSecureTransactionNotSupportedByMerchant,
+    #[serde(rename = "356")]
+    #[strum(serialize = "356")]
+    InvalidPurchaseLevelIiiTheTransactionContainedBadOrMissingData,
+    #[serde(rename = "357")]
+    #[strum(serialize = "357")]
+    MissingHealthcareIiasTagForAnFsaTransaction,
+    #[serde(rename = "358")]
+    #[strum(serialize = "358")]
+    RestrictedByVantivDueToSecurityCodeMismatch,
+    #[serde(rename = "360")]
+    #[strum(serialize = "360")]
+    NoTransactionFoundWithSpecifiedTransactionId,
+    #[serde(rename = "361")]
+    #[strum(serialize = "361")]
+    AuthorizationNoLongerAvailable,
+    #[serde(rename = "362")]
+    #[strum(serialize = "362")]
+    TransactionNotVoidedAlreadySettled,
+    #[serde(rename = "363")]
+    #[strum(serialize = "363")]
+    AutoVoidOnRefund,
+    #[serde(rename = "364")]
+    #[strum(serialize = "364")]
+    InvalidAccountNumberOriginalOrNocUpdatedECheckAccountRequired,
+    #[serde(rename = "365")]
+    #[strum(serialize = "365")]
+    TotalCreditAmountExceedsCaptureAmount,
+    #[serde(rename = "366")]
+    #[strum(serialize = "366")]
+    ExceedTheThresholdForSendingRedeposits,
+    #[serde(rename = "367")]
+    #[strum(serialize = "367")]
+    DepositHasNotBeenReturnedForInsufficientNonSufficientFunds,
+    #[serde(rename = "368")]
+    #[strum(serialize = "368")]
+    InvalidCheckNumber,
+    #[serde(rename = "369")]
+    #[strum(serialize = "369")]
+    RedepositAgainstInvalidTransactionType,
+    #[serde(rename = "370")]
+    #[strum(serialize = "370")]
+    InternalSystemErrorCallVantiv,
+    #[serde(rename = "371")]
+    #[strum(serialize = "371")]
+    OriginalTransactionHasBeenProcessedFutureRedepositsCanceled,
+    #[serde(rename = "372")]
+    #[strum(serialize = "372")]
+    SoftDeclineAutoRecyclingInProgress,
+    #[serde(rename = "373")]
+    #[strum(serialize = "373")]
+    HardDeclineAutoRecyclingComplete,
+    #[serde(rename = "375")]
+    #[strum(serialize = "375")]
+    MerchantIsNotEnabledForSurcharging,
+    #[serde(rename = "376")]
+    #[strum(serialize = "376")]
+    ThisMethodOfPaymentDoesNotSupportSurcharging,
+    #[serde(rename = "377")]
+    #[strum(serialize = "377")]
+    SurchargeIsNotValidForDebitOrPrepaidCards,
+    #[serde(rename = "378")]
+    #[strum(serialize = "378")]
+    SurchargeCannotExceedsTheMaximumAllowedLimit,
+    #[serde(rename = "379")]
+    #[strum(serialize = "379")]
+    TransactionDeclinedByTheProcessingNetwork,
+    #[serde(rename = "380")]
+    #[strum(serialize = "380")]
+    SecondaryAmountCannotExceedTheSaleAmount,
+    #[serde(rename = "381")]
+    #[strum(serialize = "381")]
+    ThisMethodOfPaymentDoesNotSupportSecondaryAmount,
+    #[serde(rename = "382")]
+    #[strum(serialize = "382")]
+    SecondaryAmountCannotBeLessThanZero,
+    #[serde(rename = "383")]
+    #[strum(serialize = "383")]
+    PartialTransactionIsNotSupportedWhenIncludingASecondaryAmount,
+    #[serde(rename = "384")]
+    #[strum(serialize = "384")]
+    SecondaryAmountRequiredOnPartialRefundWhenUsedOnDeposit,
+    #[serde(rename = "385")]
+    #[strum(serialize = "385")]
+    SecondaryAmountNotAllowedOnRefundIfNotIncludedOnDeposit,
+    #[serde(rename = "386")]
+    #[strum(serialize = "386")]
+    ProcessingNetworkError,
+    #[serde(rename = "401")]
+    #[strum(serialize = "401")]
+    InvalidEMail,
+    #[serde(rename = "466")]
+    #[strum(serialize = "466")]
+    InvalidCombinationOfAccountFundingTransactionTypeAndMcc,
+    #[serde(rename = "467")]
+    #[strum(serialize = "467")]
+    InvalidAccountFundingTransactionTypeForThisMethodOfPayment,
+    #[serde(rename = "468")]
+    #[strum(serialize = "468")]
+    MissingOneOrMoreReceiverFieldsForAccountFundingTransaction,
+    #[serde(rename = "469")]
+    #[strum(serialize = "469")]
+    InvalidRecurringRequestSeeRecurringResponseForDetails,
+    #[serde(rename = "470")]
+    #[strum(serialize = "470")]
+    ApprovedRecurringSubscriptionCreated,
+    #[serde(rename = "471")]
+    #[strum(serialize = "471")]
+    ParentTransactionDeclinedRecurringSubscriptionNotCreated,
+    #[serde(rename = "472")]
+    #[strum(serialize = "472")]
+    InvalidPlanCode,
+    #[serde(rename = "473")]
+    #[strum(serialize = "473")]
+    ScheduledRecurringPaymentProcessed,
+    #[serde(rename = "475")]
+    #[strum(serialize = "475")]
+    InvalidSubscriptionId,
+    #[serde(rename = "476")]
+    #[strum(serialize = "476")]
+    AddOnCodeAlreadyExists,
+    #[serde(rename = "477")]
+    #[strum(serialize = "477")]
+    DuplicateAddOnCodesInRequests,
+    #[serde(rename = "478")]
+    #[strum(serialize = "478")]
+    NoMatchingAddOnCodeForTheSubscription,
+    #[serde(rename = "480")]
+    #[strum(serialize = "480")]
+    NoMatchingDiscountCodeForTheSubscription,
+    #[serde(rename = "481")]
+    #[strum(serialize = "481")]
+    DuplicateDiscountCodesInRequest,
+    #[serde(rename = "482")]
+    #[strum(serialize = "482")]
+    InvalidStartDate,
+    #[serde(rename = "483")]
+    #[strum(serialize = "483")]
+    MerchantNotRegisteredForRecurringEngine,
+    #[serde(rename = "484")]
+    #[strum(serialize = "484")]
+    InsufficientDataToUpdateSubscription,
+    #[serde(rename = "485")]
+    #[strum(serialize = "485")]
+    InvalidBillingDate,
+    #[serde(rename = "486")]
+    #[strum(serialize = "486")]
+    DiscountCodeAlreadyExists,
+    #[serde(rename = "487")]
+    #[strum(serialize = "487")]
+    PlanCodeAlreadyExists,
+    #[serde(rename = "500")]
+    #[strum(serialize = "500")]
+    TheAccountNumberWasChanged,
     #[serde(rename = "501")]
-    PickUpCard2,
+    #[strum(serialize = "501")]
+    TheAccountWasClosed,
     #[serde(rename = "502")]
-    ExpiredCard2,
+    #[strum(serialize = "502")]
+    TheExpirationDateWasChanged,
     #[serde(rename = "503")]
-    SuspectedFraud,
+    #[strum(serialize = "503")]
+    TheIssuingBankDoesNotParticipateInTheUpdateProgram,
     #[serde(rename = "504")]
-    ContactCardIssuer2,
-    #[serde(rename = "505")]
-    DoNotHonor2,
-    #[serde(rename = "506")]
-    InvalidMerchant2,
+    #[strum(serialize = "504")]
+    ContactTheCardholderForUpdatedInformation,
     #[serde(rename = "507")]
-    InsufficientFunds2,
-    #[serde(rename = "508")]
-    AccountNumberNotOnFile2,
-    #[serde(rename = "509")]
-    InvalidAmount2,
-    #[serde(rename = "510")]
-    InvalidCardNumber,
-    #[serde(rename = "511")]
-    InvalidExpirationDate3,
-    #[serde(rename = "512")]
-    InvalidCVV2,
-    #[serde(rename = "513")]
-    InvalidCardValidationNum2,
-    #[serde(rename = "514")]
-    InvalidPin3,
-    #[serde(rename = "515")]
-    CardRestricted,
-    #[serde(rename = "516")]
-    OverCreditLimit,
-    #[serde(rename = "517")]
-    AccountClosed,
-    #[serde(rename = "518")]
-    AccountFrozen,
-    #[serde(rename = "519")]
-    InvalidTransactionType2,
-    #[serde(rename = "520")]
-    InvalidMerchantId2,
+    #[strum(serialize = "507")]
+    TheCardholderHasOptedOutOfTheUpdateProgram,
     #[serde(rename = "521")]
-    ProcessorNotAvailable,
-    #[serde(rename = "522")]
-    NetworkTimeOut,
+    #[strum(serialize = "521")]
+    SoftDeclineCardReaderDecryptionServiceIsNotAvailable,
     #[serde(rename = "523")]
-    SystemError,
+    #[strum(serialize = "523")]
+    SoftDeclineDecryptionFailed,
     #[serde(rename = "524")]
-    DuplicateTransaction,
+    #[strum(serialize = "524")]
+    HardDeclineInputDataIsInvalid,
+    #[serde(rename = "530")]
+    #[strum(serialize = "530")]
+    ApplePayKeyMismatch,
+    #[serde(rename = "531")]
+    #[strum(serialize = "531")]
+    ApplePayDecryptionFailed,
+    #[serde(rename = "540")]
+    #[strum(serialize = "540")]
+    HardDeclineDecryptionFailed,
+    #[serde(rename = "550")]
+    #[strum(serialize = "550")]
+    AdvancedFraudFilterScoreBelowThreshold,
+    #[serde(rename = "555")]
+    #[strum(serialize = "555")]
+    SuspectedFraud,
+    #[serde(rename = "560")]
+    #[strum(serialize = "560")]
+    SystemErrorContactWorldpayRepresentative,
+    #[serde(rename = "561")]
+    #[strum(serialize = "561")]
+    AmazonPayAmazonUnavailable,
+    #[serde(rename = "562")]
+    #[strum(serialize = "562")]
+    AmazonPayAmazonDeclined,
+    #[serde(rename = "563")]
+    #[strum(serialize = "563")]
+    AmazonPayInvalidToken,
+    #[serde(rename = "564")]
+    #[strum(serialize = "564")]
+    MerchantNotEnabledForAmazonPay,
+    #[serde(rename = "565")]
+    #[strum(serialize = "565")]
+    TransactionNotSupportedBlockedByIssuer,
+    #[serde(rename = "566")]
+    #[strum(serialize = "566")]
+    BlockedByCardholderContactCardholder,
     #[serde(rename = "601")]
-    OfflineApproval,
+    #[strum(serialize = "601")]
+    SoftDeclinePrimaryFundingSourceFailed,
     #[serde(rename = "602")]
-    VoiceAuthRequired,
-    #[serde(rename = "603")]
-    AuthenticationRequired,
-    #[serde(rename = "604")]
-    SecurityCodeRequired,
-    #[serde(rename = "605")]
-    SecurityCodeNotMatch,
-    #[serde(rename = "606")]
-    ZipCodeNotMatch,
-    #[serde(rename = "607")]
-    AddressNotMatch,
-    #[serde(rename = "608")]
-    AVSFailure,
-    #[serde(rename = "609")]
-    CVVFailure,
+    #[strum(serialize = "602")]
+    SoftDeclineBuyerHasAlternateFundingSource,
     #[serde(rename = "610")]
-    ServiceNotAllowed,
+    #[strum(serialize = "610")]
+    HardDeclineInvalidBillingAgreementId,
+    #[serde(rename = "611")]
+    #[strum(serialize = "611")]
+    HardDeclinePrimaryFundingSourceFailed,
+    #[serde(rename = "612")]
+    #[strum(serialize = "612")]
+    HardDeclineIssueWithPaypalAccount,
+    #[serde(rename = "613")]
+    #[strum(serialize = "613")]
+    HardDeclinePayPalAuthorizationIdMissing,
+    #[serde(rename = "614")]
+    #[strum(serialize = "614")]
+    HardDeclineConfirmedEmailAddressIsNotAvailable,
+    #[serde(rename = "615")]
+    #[strum(serialize = "615")]
+    HardDeclinePayPalBuyerAccountDenied,
+    #[serde(rename = "616")]
+    #[strum(serialize = "616")]
+    HardDeclinePayPalBuyerAccountRestricted,
+    #[serde(rename = "617")]
+    #[strum(serialize = "617")]
+    HardDeclinePayPalOrderHasBeenVoidedExpiredOrCompleted,
+    #[serde(rename = "618")]
+    #[strum(serialize = "618")]
+    HardDeclineIssueWithPayPalRefund,
+    #[serde(rename = "619")]
+    #[strum(serialize = "619")]
+    HardDeclinePayPalCredentialsIssue,
+    #[serde(rename = "620")]
+    #[strum(serialize = "620")]
+    HardDeclinePayPalAuthorizationVoidedOrExpired,
+    #[serde(rename = "621")]
+    #[strum(serialize = "621")]
+    HardDeclineRequiredPayPalParameterMissing,
+    #[serde(rename = "622")]
+    #[strum(serialize = "622")]
+    HardDeclinePayPalTransactionIdOrAuthIdIsInvalid,
+    #[serde(rename = "623")]
+    #[strum(serialize = "623")]
+    HardDeclineExceededMaximumNumberOfPayPalAuthorizationAttempts,
+    #[serde(rename = "624")]
+    #[strum(serialize = "624")]
+    HardDeclineTransactionAmountExceedsMerchantsPayPalAccountLimit,
+    #[serde(rename = "625")]
+    #[strum(serialize = "625")]
+    HardDeclinePayPalFundingSourcesUnavailable,
+    #[serde(rename = "626")]
+    #[strum(serialize = "626")]
+    HardDeclineIssueWithPayPalPrimaryFundingSource,
+    #[serde(rename = "627")]
+    #[strum(serialize = "627")]
+    HardDeclinePayPalProfileDoesNotAllowThisTransactionType,
+    #[serde(rename = "628")]
+    #[strum(serialize = "628")]
+    InternalSystemErrorWithPayPalContactVantiv,
+    #[serde(rename = "629")]
+    #[strum(serialize = "629")]
+    HardDeclineContactPayPalConsumerForAnotherPaymentMethod,
+    #[serde(rename = "637")]
+    #[strum(serialize = "637")]
+    InvalidTerminalId,
+    #[serde(rename = "640")]
+    #[strum(serialize = "640")]
+    PinlessDebitProcessingNotSupportedForNonRecurringTransactions,
+    #[serde(rename = "641")]
+    #[strum(serialize = "641")]
+    PinlessDebitProcessingNotSupportedForPartialAuths,
+    #[serde(rename = "642")]
+    #[strum(serialize = "642")]
+    MerchantNotConfiguredForPinlessDebitProcessing,
+    #[serde(rename = "651")]
+    #[strum(serialize = "651")]
+    DeclineCustomerCancellation,
+    #[serde(rename = "652")]
+    #[strum(serialize = "652")]
+    DeclineReTryTransaction,
+    #[serde(rename = "653")]
+    #[strum(serialize = "653")]
+    DeclineUnableToLocateRecordOnFile,
+    #[serde(rename = "654")]
+    #[strum(serialize = "654")]
+    DeclineFileUpdateFieldEditError,
+    #[serde(rename = "655")]
+    #[strum(serialize = "655")]
+    RemoteFunctionUnknown,
+    #[serde(rename = "656")]
+    #[strum(serialize = "656")]
+    DeclinedExceedsWithdrawalFrequencyLimit,
+    #[serde(rename = "657")]
+    #[strum(serialize = "657")]
+    DeclineCardRecordNotAvailable,
+    #[serde(rename = "658")]
+    #[strum(serialize = "658")]
+    InvalidAuthorizationCode,
+    #[serde(rename = "659")]
+    #[strum(serialize = "659")]
+    ReconciliationError,
+    #[serde(rename = "660")]
+    #[strum(serialize = "660")]
+    PreferredDebitRoutingDenialCreditTransactionCanBeDebit,
+    #[serde(rename = "661")]
+    #[strum(serialize = "661")]
+    DeclinedCurrencyConversionCompleteNoAuthPerformed,
+    #[serde(rename = "662")]
+    #[strum(serialize = "662")]
+    DeclinedMultiCurrencyDccFail,
+    #[serde(rename = "663")]
+    #[strum(serialize = "663")]
+    DeclinedMultiCurrencyInvertFail,
+    #[serde(rename = "664")]
+    #[strum(serialize = "664")]
+    Invalid3DSecurePassword,
+    #[serde(rename = "665")]
+    #[strum(serialize = "665")]
+    InvalidSocialSecurityNumber,
+    #[serde(rename = "666")]
+    #[strum(serialize = "666")]
+    InvalidMothersMaidenName,
+    #[serde(rename = "667")]
+    #[strum(serialize = "667")]
+    EnrollmentInquiryDeclined,
+    #[serde(rename = "668")]
+    #[strum(serialize = "668")]
+    SocialSecurityNumberNotAvailable,
+    #[serde(rename = "669")]
+    #[strum(serialize = "669")]
+    MothersMaidenNameNotAvailable,
+    #[serde(rename = "670")]
+    #[strum(serialize = "670")]
+    PinAlreadyExistsOnDatabase,
+    #[serde(rename = "701")]
+    #[strum(serialize = "701")]
+    Under18YearsOld,
+    #[serde(rename = "702")]
+    #[strum(serialize = "702")]
+    BillToOutsideUsa,
+    #[serde(rename = "703")]
+    #[strum(serialize = "703")]
+    BillToAddressIsNotEqualToShipToAddress,
+    #[serde(rename = "704")]
+    #[strum(serialize = "704")]
+    DeclinedForeignCurrencyMustBeUsd,
+    #[serde(rename = "705")]
+    #[strum(serialize = "705")]
+    OnNegativeFile,
+    #[serde(rename = "706")]
+    #[strum(serialize = "706")]
+    BlockedAgreement,
+    #[serde(rename = "707")]
+    #[strum(serialize = "707")]
+    InsufficientBuyingPower,
+    #[serde(rename = "708")]
+    #[strum(serialize = "708")]
+    InvalidData,
+    #[serde(rename = "709")]
+    #[strum(serialize = "709")]
+    InvalidDataDataElementsMissing,
+    #[serde(rename = "710")]
+    #[strum(serialize = "710")]
+    InvalidDataDataFormatError,
+    #[serde(rename = "711")]
+    #[strum(serialize = "711")]
+    InvalidDataInvalidTCVersion,
+    #[serde(rename = "712")]
+    #[strum(serialize = "712")]
+    DuplicateTransactionPaypalCredit,
+    #[serde(rename = "713")]
+    #[strum(serialize = "713")]
+    VerifyBillingAddress,
+    #[serde(rename = "714")]
+    #[strum(serialize = "714")]
+    InactiveAccount,
+    #[serde(rename = "716")]
+    #[strum(serialize = "716")]
+    InvalidAuth,
+    #[serde(rename = "717")]
+    #[strum(serialize = "717")]
+    AuthorizationAlreadyExistsForTheOrder,
+    #[serde(rename = "730")]
+    #[strum(serialize = "730")]
+    LodgingTransactionsAreNotAllowedForThisMcc,
+    #[serde(rename = "731")]
+    #[strum(serialize = "731")]
+    DurationCannotBeNegative,
+    #[serde(rename = "732")]
+    #[strum(serialize = "732")]
+    HotelFolioNumberCannotBeBlank,
+    #[serde(rename = "733")]
+    #[strum(serialize = "733")]
+    InvalidCheckInDate,
+    #[serde(rename = "734")]
+    #[strum(serialize = "734")]
+    InvalidCheckOutDate,
+    #[serde(rename = "735")]
+    #[strum(serialize = "735")]
+    InvalidCheckInOrCheckOutDate,
+    #[serde(rename = "736")]
+    #[strum(serialize = "736")]
+    CheckOutDateCannotBeBeforeCheckInDate,
+    #[serde(rename = "737")]
+    #[strum(serialize = "737")]
+    NumberOfAdultsCannotBeNegative,
+    #[serde(rename = "738")]
+    #[strum(serialize = "738")]
+    RoomRateCannotBeNegative,
+    #[serde(rename = "739")]
+    #[strum(serialize = "739")]
+    RoomTaxCannotBeNegative,
+    #[serde(rename = "740")]
+    #[strum(serialize = "740")]
+    DurationCanOnlyBeFrom0To99ForVisa,
+    #[serde(rename = "801")]
+    #[strum(serialize = "801")]
+    AccountNumberWasSuccessfullyRegistered,
+    #[serde(rename = "802")]
+    #[strum(serialize = "802")]
+    AccountNumberWasPreviouslyRegistered,
+    #[serde(rename = "803")]
+    #[strum(serialize = "803")]
+    ValidToken,
     #[serde(rename = "820")]
-    CreditNotSupported,
+    #[strum(serialize = "820")]
+    CreditCardNumberWasInvalid,
     #[serde(rename = "821")]
-    InvalidCreditAmount,
+    #[strum(serialize = "821")]
+    MerchantIsNotAuthorizedForTokens,
     #[serde(rename = "822")]
-    CreditAmountExceedsDebitAmount,
+    #[strum(serialize = "822")]
+    TokenWasNotFound,
     #[serde(rename = "823")]
-    RefundNotSupported,
-    #[serde(rename = "824")]
-    InvalidRefundAmount,
+    #[strum(serialize = "823")]
+    TokenInvalid,
     #[serde(rename = "825")]
-    RefundAmountExceedsOriginalAmount,
+    #[strum(serialize = "825")]
+    MerchantNotAuthorizedForECheckTokens,
     #[serde(rename = "826")]
-    VoidNotSupported,
+    #[strum(serialize = "826")]
+    CheckoutIdWasInvalid,
     #[serde(rename = "827")]
-    VoidNotAllowed,
+    #[strum(serialize = "827")]
+    CheckoutIdWasNotFound,
     #[serde(rename = "828")]
-    CaptureNotSupported,
-    #[serde(rename = "829")]
-    CaptureNotAllowed,
-    #[serde(rename = "830")]
-    InvalidCaptureAmount,
-    #[serde(rename = "831")]
-    CaptureAmountExceedsAuthAmount,
-    #[serde(rename = "832")]
-    TransactionAlreadySettled,
-    #[serde(rename = "833")]
-    TransactionAlreadyVoided,
-    #[serde(rename = "834")]
-    TransactionAlreadyCaptured,
+    #[strum(serialize = "828")]
+    GenericCheckoutIdError,
     #[serde(rename = "835")]
-    TransactionNotFound,
+    #[strum(serialize = "835")]
+    CaptureAmountCanNotBeMoreThanAuthorizedAmount,
+    #[serde(rename = "850")]
+    #[strum(serialize = "850")]
+    TaxBillingOnlyAllowedForMcc9311,
+    #[serde(rename = "851")]
+    #[strum(serialize = "851")]
+    Mcc9311RequiresTaxTypeElement,
+    #[serde(rename = "852")]
+    #[strum(serialize = "852")]
+    DebtRepaymentOnlyAllowedForViTransactionsOnMccs6012And6051,
+    #[serde(rename = "861")]
+    #[strum(serialize = "861")]
+    RoutingNumberDidNotMatchOneOnFileForToken,
+    #[serde(rename = "877")]
+    #[strum(serialize = "877")]
+    InvalidPayPageRegistrationId,
+    #[serde(rename = "878")]
+    #[strum(serialize = "878")]
+    ExpiredPayPageRegistrationId,
+    #[serde(rename = "879")]
+    #[strum(serialize = "879")]
+    MerchantIsNotAuthorizedForPayPage,
+    #[serde(rename = "890")]
+    #[strum(serialize = "890")]
+    MaximumNumberOfUpdatesForThisTokenExceeded,
+    #[serde(rename = "891")]
+    #[strum(serialize = "891")]
+    TooManyTokensCreatedForExistingNamespace,
+    #[serde(rename = "895")]
+    #[strum(serialize = "895")]
+    PinValidationNotPossible,
+    #[serde(rename = "898")]
+    #[strum(serialize = "898")]
+    GenericTokenRegistrationError,
+    #[serde(rename = "899")]
+    #[strum(serialize = "899")]
+    GenericTokenUseError,
+    #[serde(rename = "900")]
+    #[strum(serialize = "900")]
+    InvalidBankRoutingNumber,
+    #[serde(rename = "901")]
+    #[strum(serialize = "901")]
+    MissingName,
+    #[serde(rename = "902")]
+    #[strum(serialize = "902")]
+    InvalidName,
+    #[serde(rename = "903")]
+    #[strum(serialize = "903")]
+    MissingBillingCountryCode,
+    #[serde(rename = "904")]
+    #[strum(serialize = "904")]
+    InvalidIban,
+    #[serde(rename = "905")]
+    #[strum(serialize = "905")]
+    MissingEmailAddress,
+    #[serde(rename = "906")]
+    #[strum(serialize = "906")]
+    MissingMandateReference,
+    #[serde(rename = "907")]
+    #[strum(serialize = "907")]
+    InvalidMandateReference,
+    #[serde(rename = "908")]
+    #[strum(serialize = "908")]
+    MissingMandateUrl,
+    #[serde(rename = "909")]
+    #[strum(serialize = "909")]
+    InvalidMandateUrl,
+    #[serde(rename = "911")]
+    #[strum(serialize = "911")]
+    MissingMandateSignatureDate,
+    #[serde(rename = "912")]
+    #[strum(serialize = "912")]
+    InvalidMandateSignatureDate,
+    #[serde(rename = "913")]
+    #[strum(serialize = "913")]
+    RecurringMandateAlreadyExists,
+    #[serde(rename = "914")]
+    #[strum(serialize = "914")]
+    RecurringMandateWasNotFound,
+    #[serde(rename = "915")]
+    #[strum(serialize = "915")]
+    FinalRecurringWasAlreadyReceivedUsingThisMandate,
+    #[serde(rename = "916")]
+    #[strum(serialize = "916")]
+    IbanDidNotMatchOneOnFileForMandate,
+    #[serde(rename = "917")]
+    #[strum(serialize = "917")]
+    InvalidBillingCountry,
+    #[serde(rename = "922")]
+    #[strum(serialize = "922")]
+    ExpirationDateRequiredForInteracTransaction,
+    #[serde(rename = "923")]
+    #[strum(serialize = "923")]
+    TransactionTypeIsNotSupportedWithThisMethodOfPayment,
+    #[serde(rename = "924")]
+    #[strum(serialize = "924")]
+    UnreferencedOrphanRefundsAreNotAllowed,
+    #[serde(rename = "939")]
+    #[strum(serialize = "939")]
+    UnableToVoidATransactionWithAHeldState,
+    #[serde(rename = "940")]
+    #[strum(serialize = "940")]
+    ThisFundingInstructionResultsInANegativeAccountBalance,
+    #[serde(rename = "941")]
+    #[strum(serialize = "941")]
+    AccountBalanceInformationUnavailableAtThisTime,
+    #[serde(rename = "942")]
+    #[strum(serialize = "942")]
+    TheSubmittedCardIsNotEligibleForFastAccessFunding,
+    #[serde(rename = "943")]
+    #[strum(serialize = "943")]
+    TransactionCannotUseBothCcdPaymentInformationAndCtxPaymentInformation,
+    #[serde(rename = "944")]
+    #[strum(serialize = "944")]
+    ProcessingError,
+    #[serde(rename = "945")]
+    #[strum(serialize = "945")]
+    ThisFundingInstructionTypeIsInvalidForCanadianMerchants,
+    #[serde(rename = "946")]
+    #[strum(serialize = "946")]
+    CtxAndCcdRecordsAreNotAllowedForCanadianMerchants,
+    #[serde(rename = "947")]
+    #[strum(serialize = "947")]
+    CanadianAccountNumberCannotExceed12Digits,
+    #[serde(rename = "948")]
+    #[strum(serialize = "948")]
+    ThisFundingInstructionTypeIsInvalid,
+    #[serde(rename = "950")]
+    #[strum(serialize = "950")]
+    DeclineNegativeInformationOnFile,
+    #[serde(rename = "951")]
+    #[strum(serialize = "951")]
+    AbsoluteDecline,
+    #[serde(rename = "952")]
+    #[strum(serialize = "952")]
+    TheMerchantProfileDoesNotAllowTheRequestedOperation,
+    #[serde(rename = "953")]
+    #[strum(serialize = "953")]
+    TheAccountCannotAcceptAchTransactions,
+    #[serde(rename = "954")]
+    #[strum(serialize = "954")]
+    TheAccountCannotAcceptAchTransactionsOrSiteDrafts,
+    #[serde(rename = "955")]
+    #[strum(serialize = "955")]
+    AmountGreaterThanLimitSpecifiedInTheMerchantProfile,
+    #[serde(rename = "956")]
+    #[strum(serialize = "956")]
+    MerchantIsNotAuthorizedToPerformECheckVerificationTransactions,
+    #[serde(rename = "957")]
+    #[strum(serialize = "957")]
+    FirstNameAndLastNameRequiredForECheckVerifications,
+    #[serde(rename = "958")]
+    #[strum(serialize = "958")]
+    CompanyNameRequiredForCorporateAccountForECheckVerifications,
+    #[serde(rename = "959")]
+    #[strum(serialize = "959")]
+    PhoneNumberRequiredForECheckVerifications,
+    #[serde(rename = "961")]
+    #[strum(serialize = "961")]
+    CardBrandTokenNotSupported,
+    #[serde(rename = "962")]
+    #[strum(serialize = "962")]
+    PrivateLabelCardNotSupported,
+    #[serde(rename = "965")]
+    #[strum(serialize = "965")]
+    AllowedDailyDirectDebitCaptureECheckSaleLimitExceeded,
+    #[serde(rename = "966")]
+    #[strum(serialize = "966")]
+    AllowedDailyDirectDebitCreditECheckCreditLimitExceeded,
+    #[serde(rename = "973")]
+    #[strum(serialize = "973")]
+    AccountNotEligibleForRtp,
+    #[serde(rename = "980")]
+    #[strum(serialize = "980")]
+    SoftDeclineCustomerAuthenticationRequired,
+    #[serde(rename = "981")]
+    #[strum(serialize = "981")]
+    TransactionNotReversedVoidWorkflowNeedToBeInvoked,
+    #[serde(rename = "982")]
+    #[strum(serialize = "982")]
+    TransactionReversalNotSupportedForTheCoreMerchants,
+    #[serde(rename = "983")]
+    #[strum(serialize = "983")]
+    NoValidParentDepositOrParentRefundFound,
+    #[serde(rename = "984")]
+    #[strum(serialize = "984")]
+    TransactionReversalNotEnabledForVisa,
+    #[serde(rename = "985")]
+    #[strum(serialize = "985")]
+    TransactionReversalNotEnabledForMastercard,
+    #[serde(rename = "986")]
+    #[strum(serialize = "986")]
+    TransactionReversalNotEnabledForAmEx,
+    #[serde(rename = "987")]
+    #[strum(serialize = "987")]
+    TransactionReversalNotEnabledForDiscover,
+    #[serde(rename = "988")]
+    #[strum(serialize = "988")]
+    TransactionReversalNotSupported,
+    #[serde(rename = "990")]
+    #[strum(serialize = "990")]
+    FundingInstructionHeldPleaseContactYourRelationshipManager,
+    #[serde(rename = "991")]
+    #[strum(serialize = "991")]
+    MissingAddressInformation,
+    #[serde(rename = "992")]
+    #[strum(serialize = "992")]
+    CryptographicFailure,
+    #[serde(rename = "993")]
+    #[strum(serialize = "993")]
+    InvalidRegionCode,
+    #[serde(rename = "994")]
+    #[strum(serialize = "994")]
+    InvalidCountryCode,
+    #[serde(rename = "995")]
+    #[strum(serialize = "995")]
+    InvalidCreditAccount,
+    #[serde(rename = "996")]
+    #[strum(serialize = "996")]
+    InvalidCheckingAccount,
+    #[serde(rename = "997")]
+    #[strum(serialize = "997")]
+    InvalidSavingsAccount,
+    #[serde(rename = "998")]
+    #[strum(serialize = "998")]
+    InvalidUseOfMccCorrectAndReattempt,
+    #[serde(rename = "999")]
+    #[strum(serialize = "999")]
+    ExceedsRtpTransactionLimit,
+}
+
+impl WorldpayvantivResponseCode {
+    fn is_approved(self) -> bool {
+        matches!(
+            self,
+            Self::Approved
+                | Self::PartiallyApproved
+                | Self::OfflineApproval
+                | Self::OfflineApprovalUnableToGoOnline
+                | Self::ConsumerNonReloadablePrepaidCardApproved
+                | Self::ConsumerSingleUseVirtualCardNumberApproved
+                | Self::ScheduledRecurringPaymentProcessed
+                | Self::ApprovedRecurringSubscriptionCreated
+                | Self::PendingShopperCheckoutCompletion
+                | Self::TransactionReceived
+                | Self::AccountNumberWasSuccessfullyRegistered
+                | Self::AccountNumberWasPreviouslyRegistered
+                | Self::ValidToken
+        )
+    }
 }
 
 // Sync structures
@@ -1414,169 +2556,131 @@ pub enum OperationId {
     Refund,
 }
 
-// Step 90-93: TryFrom for Authorize response
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
-        match (
-            item.response.sale_response.as_ref(),
-            item.response.authorization_response.as_ref(),
-        ) {
-            (Some(sale_response), None) => {
-                let status =
-                    get_attempt_status(WorldpayvantivPaymentFlow::Sale, sale_response.response)?;
-
-                if is_payment_failure(status) {
-                    let error_response = ErrorResponse {
-                        code: sale_response.response.to_string(),
-                        message: sale_response.message.clone(),
-                        reason: Some(sale_response.message.clone()),
-                        status_code: item.http_code,
-                        attempt_status: Some(FlowStatus::Payment(status)),
-                        connector_transaction_id: Some(sale_response.cnp_txn_id.clone()),
-                        network_decline_code: None,
-                        network_advice_code: None,
-                        network_error_message: None,
-                        typed_connector_response: None,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            typed_connector_request: None,
-                    };
-
-                    Ok(Self {
-                        resource_common_data: PaymentFlowData {
-                            status,
-                            ..item.router_data.resource_common_data
-                        },
-                        response: Err(error_response),
-                        ..item.router_data
-                    })
-                } else {
-                    let payments_response = PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(
-                            sale_response.cnp_txn_id.clone(),
-                        ),
-                        redirection_data: None,
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: sale_response
-                            .network_transaction_id
-                            .clone()
-                            .map(|id| id.expose()),
-                        network_txn_link_id: None,
-                        connector_response_reference_id: Some(sale_response.order_id.clone()),
-                        incremental_authorization_allowed: None,
-                        status_code: item.http_code,
-                        splits: None,
-                        payment_account_reference: None,
-                    };
-
-                    Ok(Self {
-                        resource_common_data: PaymentFlowData {
-                            status,
-                            ..item.router_data.resource_common_data
-                        },
-                        response: Ok(payments_response),
-                        ..item.router_data
-                    })
-                }
-            }
-            (None, Some(auth_response)) => {
-                let status =
-                    get_attempt_status(WorldpayvantivPaymentFlow::Auth, auth_response.response)?;
-
-                if is_payment_failure(status) {
-                    let error_response = ErrorResponse {
-                        code: auth_response.response.to_string(),
-                        message: auth_response.message.clone(),
-                        reason: Some(auth_response.message.clone()),
-                        status_code: item.http_code,
-                        attempt_status: Some(FlowStatus::Payment(status)),
-                        connector_transaction_id: Some(auth_response.cnp_txn_id.clone()),
-                        network_decline_code: None,
-                        network_advice_code: None,
-                        network_error_message: None,
-                        typed_connector_response: None,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            typed_connector_request: None,
-                    };
-
-                    Ok(Self {
-                        resource_common_data: PaymentFlowData {
-                            status,
-                            ..item.router_data.resource_common_data
-                        },
-                        response: Err(error_response),
-                        ..item.router_data
-                    })
-                } else {
-                    let payments_response = PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(
-                            auth_response.cnp_txn_id.clone(),
-                        ),
-                        redirection_data: None,
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: auth_response
-                            .network_transaction_id
-                            .clone()
-                            .map(|id| id.expose()),
-                        network_txn_link_id: None,
-                        connector_response_reference_id: Some(auth_response.order_id.clone()),
-                        incremental_authorization_allowed: None,
-                        status_code: item.http_code,
-                        splits: None,
-                        payment_account_reference: None,
-                    };
-
-                    Ok(Self {
-                        resource_common_data: PaymentFlowData {
-                            status,
-                            ..item.router_data.resource_common_data
-                        },
-                        response: Ok(payments_response),
-                        ..item.router_data
-                    })
-                }
-            }
-            (None, None) => {
-                let error_response = ErrorResponse {
-                    code: item.response.response_code,
-                    message: item.response.message.clone(),
-                    reason: Some(item.response.message.clone()),
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            typed_connector_request: None,
-                };
-
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
-                    response: Err(error_response),
-                    ..item.router_data
-                })
-            }
-            (_, _) => Err(Report::from(
-                crate::utils::unexpected_response_fail(item.http_code, "worldpayvantiv: unexpected response for this operation; retry with idempotency keys and check connector status."),
-            )
-            .attach_printable(
-                "Only one of 'sale_response' or 'authorization_response' is expected",
-            )),
-        }
+        let is_auto_capture = item.router_data.request.is_auto_capture();
+        handle_payment_response(item, is_auto_capture)
     }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
+        let is_auto_capture = item.router_data.request.is_auto_capture();
+        handle_payment_response(item, is_auto_capture)
+    }
+}
+
+fn handle_payment_response<F, Req>(
+    item: ResponseRouterData<
+        CnpOnlineResponse,
+        RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>,
+    >,
+    is_auto_capture: bool,
+) -> Result<RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>, Report<ConnectorError>> {
+    let (payment_response, flow) = match (
+        item.response.sale_response.as_ref(),
+        item.response.authorization_response.as_ref(),
+    ) {
+        (Some(response), None) => (response, WorldpayvantivPaymentFlow::Sale),
+        (None, Some(response)) => {
+            let flow = if is_auto_capture {
+                WorldpayvantivPaymentFlow::Sale
+            } else {
+                WorldpayvantivPaymentFlow::Auth
+            };
+            (response, flow)
+        }
+        (None, None) => {
+            let status = common_enums::AttemptStatus::Failure;
+            let error_response = ErrorResponse {
+                code: item.response.response_code,
+                message: item.response.message.clone(),
+                reason: Some(item.response.message),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            };
+
+            return Ok(RouterDataV2 {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(error_response),
+                ..item.router_data
+            });
+        }
+        (Some(_), Some(_)) => {
+            return Err(Report::from(utils::unexpected_response_fail(
+                item.http_code,
+                "worldpayvantiv: unexpected response for this operation; retry with idempotency keys and check connector status.",
+            ))
+            .attach_printable("Only one of 'sale_response' or 'authorization_response' is expected"));
+        }
+    };
+
+    let status = get_attempt_status(flow, payment_response.response)?;
+    let response = if is_payment_failure(status) {
+        Err(ErrorResponse {
+            code: payment_response.response.to_string(),
+            message: payment_response.message.clone(),
+            reason: Some(payment_response.message.clone()),
+            status_code: item.http_code,
+            attempt_status: Some(FlowStatus::Payment(status)),
+            connector_transaction_id: Some(payment_response.cnp_txn_id.clone()),
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        })
+    } else {
+        Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(payment_response.cnp_txn_id.clone()),
+            redirection_data: None,
+            mandate_reference: payment_response.mandate_reference().change_context(
+                utils::response_handling_fail_for_connector(item.http_code, "worldpayvantiv"),
+            )?,
+            connector_metadata: None,
+            network_txn_id: payment_response
+                .network_transaction_id
+                .clone()
+                .map(|id| id.expose()),
+            network_txn_link_id: None,
+            connector_response_reference_id: Some(payment_response.order_id.clone()),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+            splits: None,
+            payment_account_reference: None,
+        })
+    };
+
+    Ok(RouterDataV2 {
+        resource_common_data: PaymentFlowData {
+            status,
+            ..item.router_data.resource_common_data
+        },
+        response,
+        ..item.router_data
+    })
 }
 
 // Helper functions for creating RawCardNumber from different sources
@@ -1667,7 +2771,10 @@ where
                         }
                         None => Err(IntegrationError::MissingRequiredField {
                             field_name: "apple_pay_decrypted_data",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Apple Pay card conversion requires decrypted payment data containing the account number and expiry.".to_owned()),
+                                ..Default::default()
+                            },
                         }
                         .into()),
                     }
@@ -1683,13 +2790,19 @@ where
                                 .get_expiry_month()
                                 .change_context(IntegrationError::InvalidDataFormat {
                                     field_name: "google_pay_decrypted_data.card_exp_month",
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some("The expiry month in the decrypted Google Pay payment data could not be formatted.".to_owned()),
+                                        ..Default::default()
+                                    },
                                 })?;
                             let expiry_year = google_pay_decrypted_data
                                 .get_four_digit_expiry_year()
                                 .change_context(IntegrationError::InvalidDataFormat {
                                     field_name: "google_pay_decrypted_data.card_exp_year",
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some("The expiry year in the decrypted Google Pay payment data could not be formatted as a four-digit year.".to_owned()),
+                                        ..Default::default()
+                                    },
                                 })?;
                             let formatted_year = &expiry_year.expose()[2..];
                             let exp_date = format!("{}{}", expiry_month.expose(), formatted_year);
@@ -1716,7 +2829,10 @@ where
                         domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
                             Err(IntegrationError::MissingRequiredField {
                                 field_name: "google_pay_decrypted_data",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("Google Pay card conversion requires decrypted payment data; an encrypted token cannot be converted to card details.".to_owned()),
+                                    ..Default::default()
+                                },
                             }
                             .into())
                         }
@@ -1725,7 +2841,10 @@ where
                 _ => Err(IntegrationError::NotSupported {
                     message: "Wallet type".to_string(),
                     connector: "worldpayvantiv",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Wallet card conversion supports Apple Pay and Google Pay with decrypted payment data only.".to_owned()),
+                        ..Default::default()
+                    },
                 }
                 .into()),
             }
@@ -1733,7 +2852,10 @@ where
         _ => Err(IntegrationError::NotSupported {
             message: "Payment method".to_string(),
             connector: "worldpayvantiv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some("Payment data conversion supports cards and decrypted Apple Pay or Google Pay data only.".to_owned()),
+                ..Default::default()
+            },
         }
         .into()),
     }
@@ -1751,7 +2873,10 @@ fn determine_apple_pay_card_type(
         _ => Err(IntegrationError::NotSupported {
             message: format!("Apple Pay network: {network}"),
             connector: "worldpayvantiv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some("Supported Apple Pay networks are Visa, Mastercard, American Express, and Discover.".to_owned()),
+                ..Default::default()
+            },
         }
         .into()),
     }
@@ -1769,7 +2894,10 @@ fn determine_google_pay_card_type(
         _ => Err(IntegrationError::NotSupported {
             message: format!("Google Pay network: {network}"),
             connector: "worldpayvantiv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some("Supported Google Pay networks are Visa, Mastercard, American Express, and Discover.".to_owned()),
+                ..Default::default()
+            },
         }
         .into()),
     }
@@ -1828,7 +2956,13 @@ fn get_valid_transaction_id(
     } else {
         Err(IntegrationError::InvalidConnectorConfig {
             config: "Transaction ID length exceeds maximum limit",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Transaction IDs must not exceed {} bytes.",
+                    worldpayvantiv_constants::MAX_PAYMENT_REFERENCE_ID_LENGTH
+                )),
+                ..Default::default()
+            },
         }
         .into())
     }
@@ -1852,12 +2986,8 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
                 item.router_data.resource_common_data.status,
             )?
         } else {
-            // Fallback to simple status mapping if no merchant_txn_id available
-            match item.response.payment_status {
-                PaymentStatus::ProcessedSuccessfully => common_enums::AttemptStatus::Charged,
-                PaymentStatus::TransactionDeclined => common_enums::AttemptStatus::Failure,
-                _ => item.router_data.resource_common_data.status,
-            }
+            // Without a transaction reference, preserve the status instead of guessing the flow.
+            item.router_data.resource_common_data.status
         };
 
         let payments_response = PaymentsResponseData::TransactionResponse {
@@ -1924,7 +3054,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .get_connector_transaction_id()
             .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Capture requires the cnpTxnId returned by Worldpay Vantiv for the original authorization.".to_owned()),
+                    ..Default::default()
+                },
             })?;
         let merchant_txn_id = item
             .router_data
@@ -2175,13 +3308,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(credit_response) = item.response.credit_response {
-            let status = match credit_response.response {
-                WorldpayvantivResponseCode::Approved
-                | WorldpayvantivResponseCode::TransactionReceived => {
-                    common_enums::RefundStatus::Pending
-                }
-                _ => common_enums::RefundStatus::Failure,
-            };
+            let status = get_refund_status(credit_response.response)?;
 
             let refunds_response = RefundsResponseData {
                 connector_refund_id: credit_response.cnp_txn_id.clone(),
@@ -2236,7 +3363,9 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
         let status = match item.response.payment_status {
             PaymentStatus::ProcessedSuccessfully => common_enums::RefundStatus::Success,
             PaymentStatus::TransactionDeclined => common_enums::RefundStatus::Failure,
-            _ => item.router_data.resource_common_data.status,
+            PaymentStatus::NotYetProcessed
+            | PaymentStatus::StatusUnavailable
+            | PaymentStatus::PaymentStatusNotFound => common_enums::RefundStatus::Pending,
         };
 
         let refunds_response = RefundsResponseData {
@@ -2290,7 +3419,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .get_connector_transaction_id()
             .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Capture requires the cnpTxnId returned by Worldpay Vantiv for the original authorization.".to_owned()),
+                    ..Default::default()
+                },
             })?;
         let merchant_txn_id = item
             .router_data
@@ -2736,7 +3868,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("Incremental authorization requires the cnpTxnId returned by Worldpay Vantiv for the original authorization.".to_owned()),
+                    ..Default::default()
+                },
             })?;
 
         let merchant_txn_id = item
@@ -2888,134 +4023,26 @@ fn get_attempt_status(
     flow: WorldpayvantivPaymentFlow,
     response: WorldpayvantivResponseCode,
 ) -> Result<common_enums::AttemptStatus, Report<ConnectorError>> {
-    match response {
-        WorldpayvantivResponseCode::Approved
-        | WorldpayvantivResponseCode::PartiallyApproved
-        | WorldpayvantivResponseCode::OfflineApproval
-        | WorldpayvantivResponseCode::TransactionReceived => match flow {
-            WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Pending),
-            WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorizing),
-            WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::CaptureInitiated),
-            WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidInitiated),
-            WorldpayvantivPaymentFlow::VoidPC => {
-                Ok(common_enums::AttemptStatus::VoidPostCaptureInitiated)
+    use common_enums::AttemptStatus;
+    Ok(if response.is_approved() {
+        match flow {
+            WorldpayvantivPaymentFlow::Sale | WorldpayvantivPaymentFlow::Capture => {
+                AttemptStatus::Charged
             }
-        },
-        // Decline codes - all other response codes not listed above
-        WorldpayvantivResponseCode::InsufficientFunds
-        | WorldpayvantivResponseCode::CallIssuer
-        | WorldpayvantivResponseCode::ExceedsApprovalAmountLimit
-        | WorldpayvantivResponseCode::ExceedsActivityAmountLimit
-        | WorldpayvantivResponseCode::InvalidEffectiveDate
-        | WorldpayvantivResponseCode::InvalidAccountNumber
-        | WorldpayvantivResponseCode::AccountNumberDoesNotMatchPaymentType
-        | WorldpayvantivResponseCode::InvalidExpirationDate
-        | WorldpayvantivResponseCode::InvalidCVV
-        | WorldpayvantivResponseCode::InvalidCardValidationNum
-        | WorldpayvantivResponseCode::ExpiredCard
-        | WorldpayvantivResponseCode::InvalidPin
-        | WorldpayvantivResponseCode::InvalidTransactionType
-        | WorldpayvantivResponseCode::AccountNumberNotOnFile
-        | WorldpayvantivResponseCode::AccountNumberLocked
-        | WorldpayvantivResponseCode::InvalidLocation
-        | WorldpayvantivResponseCode::InvalidMerchantId
-        | WorldpayvantivResponseCode::InvalidLocation2
-        | WorldpayvantivResponseCode::InvalidMerchantClassCode
-        | WorldpayvantivResponseCode::InvalidExpirationDate2
-        | WorldpayvantivResponseCode::InvalidData
-        | WorldpayvantivResponseCode::InvalidPin2
-        | WorldpayvantivResponseCode::ExceedsNumberofPINEntryTries
-        | WorldpayvantivResponseCode::InvalidCryptoBox
-        | WorldpayvantivResponseCode::InvalidRequestFormat
-        | WorldpayvantivResponseCode::InvalidApplicationData
-        | WorldpayvantivResponseCode::InvalidMerchantCategoryCode
-        | WorldpayvantivResponseCode::TransactionCannotBeCompleted
-        | WorldpayvantivResponseCode::TransactionTypeNotSupportedForCard
-        | WorldpayvantivResponseCode::TransactionTypeNotAllowedAtTerminal
-        | WorldpayvantivResponseCode::GenericDecline
-        | WorldpayvantivResponseCode::DeclineByCard
-        | WorldpayvantivResponseCode::DoNotHonor
-        | WorldpayvantivResponseCode::InvalidMerchant
-        | WorldpayvantivResponseCode::PickUpCard
-        | WorldpayvantivResponseCode::CardOk
-        | WorldpayvantivResponseCode::CallVoiceOperator
-        | WorldpayvantivResponseCode::StopRecurring
-        | WorldpayvantivResponseCode::NoChecking
-        | WorldpayvantivResponseCode::NoCreditAccount
-        | WorldpayvantivResponseCode::NoCreditAccountType
-        | WorldpayvantivResponseCode::InvalidCreditPlan
-        | WorldpayvantivResponseCode::InvalidTransactionCode
-        | WorldpayvantivResponseCode::TransactionNotPermittedToCardholderAccount
-        | WorldpayvantivResponseCode::TransactionNotPermittedToMerchant
-        | WorldpayvantivResponseCode::PINTryExceeded
-        | WorldpayvantivResponseCode::SecurityViolation
-        | WorldpayvantivResponseCode::HardCapturePickUpCard
-        | WorldpayvantivResponseCode::ResponseReceivedTooLate
-        | WorldpayvantivResponseCode::SoftDecline
-        | WorldpayvantivResponseCode::ContactCardIssuer
-        | WorldpayvantivResponseCode::CallVoiceCenter
-        | WorldpayvantivResponseCode::InvalidMerchantTerminal
-        | WorldpayvantivResponseCode::InvalidAmount
-        | WorldpayvantivResponseCode::ResubmitTransaction
-        | WorldpayvantivResponseCode::InvalidTransaction
-        | WorldpayvantivResponseCode::MerchantNotFound
-        | WorldpayvantivResponseCode::PickUpCard2
-        | WorldpayvantivResponseCode::ExpiredCard2
-        | WorldpayvantivResponseCode::SuspectedFraud
-        | WorldpayvantivResponseCode::ContactCardIssuer2
-        | WorldpayvantivResponseCode::DoNotHonor2
-        | WorldpayvantivResponseCode::InvalidMerchant2
-        | WorldpayvantivResponseCode::InsufficientFunds2
-        | WorldpayvantivResponseCode::AccountNumberNotOnFile2
-        | WorldpayvantivResponseCode::InvalidAmount2
-        | WorldpayvantivResponseCode::InvalidCardNumber
-        | WorldpayvantivResponseCode::InvalidExpirationDate3
-        | WorldpayvantivResponseCode::InvalidCVV2
-        | WorldpayvantivResponseCode::InvalidCardValidationNum2
-        | WorldpayvantivResponseCode::InvalidPin3
-        | WorldpayvantivResponseCode::CardRestricted
-        | WorldpayvantivResponseCode::OverCreditLimit
-        | WorldpayvantivResponseCode::AccountClosed
-        | WorldpayvantivResponseCode::AccountFrozen
-        | WorldpayvantivResponseCode::InvalidTransactionType2
-        | WorldpayvantivResponseCode::InvalidMerchantId2
-        | WorldpayvantivResponseCode::ProcessorNotAvailable
-        | WorldpayvantivResponseCode::NetworkTimeOut
-        | WorldpayvantivResponseCode::SystemError
-        | WorldpayvantivResponseCode::DuplicateTransaction
-        | WorldpayvantivResponseCode::VoiceAuthRequired
-        | WorldpayvantivResponseCode::AuthenticationRequired
-        | WorldpayvantivResponseCode::SecurityCodeRequired
-        | WorldpayvantivResponseCode::SecurityCodeNotMatch
-        | WorldpayvantivResponseCode::ZipCodeNotMatch
-        | WorldpayvantivResponseCode::AddressNotMatch
-        | WorldpayvantivResponseCode::AVSFailure
-        | WorldpayvantivResponseCode::CVVFailure
-        | WorldpayvantivResponseCode::ServiceNotAllowed
-        | WorldpayvantivResponseCode::CreditNotSupported
-        | WorldpayvantivResponseCode::InvalidCreditAmount
-        | WorldpayvantivResponseCode::CreditAmountExceedsDebitAmount
-        | WorldpayvantivResponseCode::RefundNotSupported
-        | WorldpayvantivResponseCode::InvalidRefundAmount
-        | WorldpayvantivResponseCode::RefundAmountExceedsOriginalAmount
-        | WorldpayvantivResponseCode::VoidNotSupported
-        | WorldpayvantivResponseCode::VoidNotAllowed
-        | WorldpayvantivResponseCode::CaptureNotSupported
-        | WorldpayvantivResponseCode::CaptureNotAllowed
-        | WorldpayvantivResponseCode::InvalidCaptureAmount
-        | WorldpayvantivResponseCode::CaptureAmountExceedsAuthAmount
-        | WorldpayvantivResponseCode::TransactionAlreadySettled
-        | WorldpayvantivResponseCode::TransactionAlreadyVoided
-        | WorldpayvantivResponseCode::TransactionAlreadyCaptured
-        | WorldpayvantivResponseCode::TransactionNotFound => match flow {
-            WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Failure),
-            WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::AuthorizationFailed),
-            WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::CaptureFailed),
+            WorldpayvantivPaymentFlow::Auth => AttemptStatus::Authorized,
+            WorldpayvantivPaymentFlow::Void => AttemptStatus::Voided,
+            WorldpayvantivPaymentFlow::VoidPC => AttemptStatus::VoidedPostCapture,
+        }
+    } else {
+        match flow {
+            WorldpayvantivPaymentFlow::Sale => AttemptStatus::Failure,
+            WorldpayvantivPaymentFlow::Auth => AttemptStatus::AuthorizationFailed,
+            WorldpayvantivPaymentFlow::Capture => AttemptStatus::CaptureFailed,
             WorldpayvantivPaymentFlow::Void | WorldpayvantivPaymentFlow::VoidPC => {
-                Ok(common_enums::AttemptStatus::VoidFailed)
+                AttemptStatus::VoidFailed
             }
-        },
-    }
+        }
+    })
 }
 
 fn is_payment_failure(status: common_enums::AttemptStatus) -> bool {
@@ -3031,120 +4058,155 @@ fn is_payment_failure(status: common_enums::AttemptStatus) -> bool {
 fn get_post_capture_void_status(
     response: WorldpayvantivResponseCode,
 ) -> common_enums::PostCaptureVoidStatus {
+    if response.is_approved() {
+        common_enums::PostCaptureVoidStatus::Succeeded
+    } else {
+        common_enums::PostCaptureVoidStatus::Failed
+    }
+}
+
+fn get_refund_status(
+    response: WorldpayvantivResponseCode,
+) -> Result<common_enums::RefundStatus, Report<ConnectorError>> {
     match response {
         WorldpayvantivResponseCode::Approved
         | WorldpayvantivResponseCode::PartiallyApproved
         | WorldpayvantivResponseCode::OfflineApproval
-        | WorldpayvantivResponseCode::TransactionReceived => {
-            common_enums::PostCaptureVoidStatus::Succeeded
+        | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline => {
+            Ok(common_enums::RefundStatus::Success)
         }
-        WorldpayvantivResponseCode::InsufficientFunds
+        WorldpayvantivResponseCode::TransactionReceived => Ok(common_enums::RefundStatus::Pending),
+        WorldpayvantivResponseCode::ProcessingNetworkUnavailable
+        | WorldpayvantivResponseCode::IssuerUnavailable
+        | WorldpayvantivResponseCode::ReSubmitTransaction
+        | WorldpayvantivResponseCode::MerchantNotConfiguredForProcessingAtThisSite
+        | WorldpayvantivResponseCode::TryAgainLater
+        | WorldpayvantivResponseCode::InsufficientFunds
+        | WorldpayvantivResponseCode::AuthorizationAmountHasAlreadyBeenDepleted
+        | WorldpayvantivResponseCode::InsufficientFundsRetryAfter1Hour
+        | WorldpayvantivResponseCode::InsufficientFundsRetryAfter24Hour
+        | WorldpayvantivResponseCode::InsufficientFundsRetryAfter2Days
+        | WorldpayvantivResponseCode::InsufficientFundsRetryAfter4Days
+        | WorldpayvantivResponseCode::InsufficientFundsRetryAfter6Days
+        | WorldpayvantivResponseCode::InsufficientFundsRetryAfter8Days
+        | WorldpayvantivResponseCode::InsufficientFundsRetryAfter10Days
         | WorldpayvantivResponseCode::CallIssuer
+        | WorldpayvantivResponseCode::CallAmex
+        | WorldpayvantivResponseCode::CallDinersClub
+        | WorldpayvantivResponseCode::CallDiscover
+        | WorldpayvantivResponseCode::CallJbs
+        | WorldpayvantivResponseCode::CallVisaMastercard
         | WorldpayvantivResponseCode::ExceedsApprovalAmountLimit
-        | WorldpayvantivResponseCode::ExceedsActivityAmountLimit
-        | WorldpayvantivResponseCode::InvalidEffectiveDate
-        | WorldpayvantivResponseCode::InvalidAccountNumber
-        | WorldpayvantivResponseCode::AccountNumberDoesNotMatchPaymentType
-        | WorldpayvantivResponseCode::InvalidExpirationDate
-        | WorldpayvantivResponseCode::InvalidCVV
-        | WorldpayvantivResponseCode::InvalidCardValidationNum
-        | WorldpayvantivResponseCode::ExpiredCard
-        | WorldpayvantivResponseCode::InvalidPin
-        | WorldpayvantivResponseCode::InvalidTransactionType
-        | WorldpayvantivResponseCode::AccountNumberNotOnFile
-        | WorldpayvantivResponseCode::AccountNumberLocked
-        | WorldpayvantivResponseCode::InvalidLocation
-        | WorldpayvantivResponseCode::InvalidMerchantId
-        | WorldpayvantivResponseCode::InvalidLocation2
-        | WorldpayvantivResponseCode::InvalidMerchantClassCode
-        | WorldpayvantivResponseCode::InvalidExpirationDate2
-        | WorldpayvantivResponseCode::InvalidData
-        | WorldpayvantivResponseCode::InvalidPin2
-        | WorldpayvantivResponseCode::ExceedsNumberofPINEntryTries
-        | WorldpayvantivResponseCode::InvalidCryptoBox
-        | WorldpayvantivResponseCode::InvalidRequestFormat
-        | WorldpayvantivResponseCode::InvalidApplicationData
-        | WorldpayvantivResponseCode::InvalidMerchantCategoryCode
-        | WorldpayvantivResponseCode::TransactionCannotBeCompleted
-        | WorldpayvantivResponseCode::TransactionTypeNotSupportedForCard
-        | WorldpayvantivResponseCode::TransactionTypeNotAllowedAtTerminal
-        | WorldpayvantivResponseCode::GenericDecline
-        | WorldpayvantivResponseCode::DeclineByCard
-        | WorldpayvantivResponseCode::DoNotHonor
-        | WorldpayvantivResponseCode::InvalidMerchant
-        | WorldpayvantivResponseCode::PickUpCard
-        | WorldpayvantivResponseCode::CardOk
-        | WorldpayvantivResponseCode::CallVoiceOperator
-        | WorldpayvantivResponseCode::StopRecurring
-        | WorldpayvantivResponseCode::NoChecking
-        | WorldpayvantivResponseCode::NoCreditAccount
-        | WorldpayvantivResponseCode::NoCreditAccountType
-        | WorldpayvantivResponseCode::InvalidCreditPlan
-        | WorldpayvantivResponseCode::InvalidTransactionCode
-        | WorldpayvantivResponseCode::TransactionNotPermittedToCardholderAccount
-        | WorldpayvantivResponseCode::TransactionNotPermittedToMerchant
-        | WorldpayvantivResponseCode::PINTryExceeded
-        | WorldpayvantivResponseCode::SecurityViolation
-        | WorldpayvantivResponseCode::HardCapturePickUpCard
-        | WorldpayvantivResponseCode::ResponseReceivedTooLate
-        | WorldpayvantivResponseCode::SoftDecline
-        | WorldpayvantivResponseCode::ContactCardIssuer
-        | WorldpayvantivResponseCode::CallVoiceCenter
-        | WorldpayvantivResponseCode::InvalidMerchantTerminal
-        | WorldpayvantivResponseCode::InvalidAmount
-        | WorldpayvantivResponseCode::ResubmitTransaction
-        | WorldpayvantivResponseCode::InvalidTransaction
-        | WorldpayvantivResponseCode::MerchantNotFound
-        | WorldpayvantivResponseCode::PickUpCard2
-        | WorldpayvantivResponseCode::ExpiredCard2
-        | WorldpayvantivResponseCode::SuspectedFraud
-        | WorldpayvantivResponseCode::ContactCardIssuer2
-        | WorldpayvantivResponseCode::DoNotHonor2
-        | WorldpayvantivResponseCode::InvalidMerchant2
-        | WorldpayvantivResponseCode::InsufficientFunds2
-        | WorldpayvantivResponseCode::AccountNumberNotOnFile2
-        | WorldpayvantivResponseCode::InvalidAmount2
-        | WorldpayvantivResponseCode::InvalidCardNumber
-        | WorldpayvantivResponseCode::InvalidExpirationDate3
-        | WorldpayvantivResponseCode::InvalidCVV2
-        | WorldpayvantivResponseCode::InvalidCardValidationNum2
-        | WorldpayvantivResponseCode::InvalidPin3
-        | WorldpayvantivResponseCode::CardRestricted
-        | WorldpayvantivResponseCode::OverCreditLimit
-        | WorldpayvantivResponseCode::AccountClosed
-        | WorldpayvantivResponseCode::AccountFrozen
-        | WorldpayvantivResponseCode::InvalidTransactionType2
-        | WorldpayvantivResponseCode::InvalidMerchantId2
-        | WorldpayvantivResponseCode::ProcessorNotAvailable
-        | WorldpayvantivResponseCode::NetworkTimeOut
-        | WorldpayvantivResponseCode::SystemError
+        | WorldpayvantivResponseCode::CallIndicatedNumber
+        | WorldpayvantivResponseCode::ConsumerMultiUseVirtualCardNumberSoftDecline
+        | WorldpayvantivResponseCode::ConsumerNonReloadablePrepaidCardSoftDecline
+        | WorldpayvantivResponseCode::ConsumerSingleUseVirtualCardNumberSoftDecline
+        | WorldpayvantivResponseCode::MerchantDoesntQualifyForProductCode
+        | WorldpayvantivResponseCode::Lifecycle
+        | WorldpayvantivResponseCode::Policy
+        | WorldpayvantivResponseCode::InvalidOrExpiredCardContactCardholderToUpdate
+        | WorldpayvantivResponseCode::InvalidTransactionOrCardRestrictionVerifyInformationAndResubmit
+        | WorldpayvantivResponseCode::AtLeastOneOfOrigIdOrOrigCnpTxnIdIsRequired
+        | WorldpayvantivResponseCode::OrigCnpTxnIdIsRequiredWhenShowStatusOnlyIsUsed
+        | WorldpayvantivResponseCode::TransactionMustReferenceTheEstimatedAuth
+        | WorldpayvantivResponseCode::IncrementedAuthExceedsMaxTransactionAmount
+        | WorldpayvantivResponseCode::SubmittedMccNotAllowed
+        | WorldpayvantivResponseCode::MerchantNotCertifiedEnabledForIias
+        | WorldpayvantivResponseCode::IssuerGeneratedError
+        | WorldpayvantivResponseCode::InvalidAmountHardDecline
+        | WorldpayvantivResponseCode::ReversalUnsuccessful
+        | WorldpayvantivResponseCode::MissingData
+        | WorldpayvantivResponseCode::InvalidDeactivate
+        | WorldpayvantivResponseCode::OverMaxBalance
+        | WorldpayvantivResponseCode::InvalidActivate
+        | WorldpayvantivResponseCode::NoTransactionFoundForReversal
+        | WorldpayvantivResponseCode::IllegalTransaction
         | WorldpayvantivResponseCode::DuplicateTransaction
-        | WorldpayvantivResponseCode::VoiceAuthRequired
-        | WorldpayvantivResponseCode::AuthenticationRequired
-        | WorldpayvantivResponseCode::SecurityCodeRequired
-        | WorldpayvantivResponseCode::SecurityCodeNotMatch
-        | WorldpayvantivResponseCode::ZipCodeNotMatch
-        | WorldpayvantivResponseCode::AddressNotMatch
-        | WorldpayvantivResponseCode::AVSFailure
-        | WorldpayvantivResponseCode::CVVFailure
-        | WorldpayvantivResponseCode::ServiceNotAllowed
-        | WorldpayvantivResponseCode::CreditNotSupported
-        | WorldpayvantivResponseCode::InvalidCreditAmount
-        | WorldpayvantivResponseCode::CreditAmountExceedsDebitAmount
-        | WorldpayvantivResponseCode::RefundNotSupported
-        | WorldpayvantivResponseCode::InvalidRefundAmount
-        | WorldpayvantivResponseCode::RefundAmountExceedsOriginalAmount
-        | WorldpayvantivResponseCode::VoidNotSupported
-        | WorldpayvantivResponseCode::VoidNotAllowed
-        | WorldpayvantivResponseCode::CaptureNotSupported
-        | WorldpayvantivResponseCode::CaptureNotAllowed
-        | WorldpayvantivResponseCode::InvalidCaptureAmount
-        | WorldpayvantivResponseCode::CaptureAmountExceedsAuthAmount
-        | WorldpayvantivResponseCode::TransactionAlreadySettled
-        | WorldpayvantivResponseCode::TransactionAlreadyVoided
-        | WorldpayvantivResponseCode::TransactionAlreadyCaptured
-        | WorldpayvantivResponseCode::TransactionNotFound => {
-            common_enums::PostCaptureVoidStatus::Failed
-        }
+        | WorldpayvantivResponseCode::SystemError
+        | WorldpayvantivResponseCode::MerchantDepleted
+        | WorldpayvantivResponseCode::InvalidReversalTypeForCreditCardTransaction
+        | WorldpayvantivResponseCode::SystemErrorMessageFormatError
+        | WorldpayvantivResponseCode::SystemErrorCannotProcess
+        | WorldpayvantivResponseCode::RefundRejectedDueToPendingDepositStatus
+        | WorldpayvantivResponseCode::RefundRejectedDueToDeclinedDepositStatus
+        | WorldpayvantivResponseCode::RefundRejectedByTheProcessingNetwork
+        | WorldpayvantivResponseCode::CaptureCreditAndAuthReversalTagsCannotBeUsedForGiftCardTransactions
+        | WorldpayvantivResponseCode::InvalidAccountNumber
+        | WorldpayvantivResponseCode::AuthorizationHasExpiredNoNeedToReverse
+        | WorldpayvantivResponseCode::InvalidTrackData
+        | WorldpayvantivResponseCode::DepositIsAlreadyReferencedByAChargeback
+        | WorldpayvantivResponseCode::AutomaticRefundAlreadyIssued
+        | WorldpayvantivResponseCode::InvalidMerchant
+        | WorldpayvantivResponseCode::InvalidTransaction
+        | WorldpayvantivResponseCode::TransactionNotAllowedAtTerminal
+        | WorldpayvantivResponseCode::ThisMethodOfPaymentDoesNotSupportAuthorizationReversals
+        | WorldpayvantivResponseCode::ReversalAmountDoesNotMatchAuthorizationAmount
+        | WorldpayvantivResponseCode::InvalidAmountSoftDecline
+        | WorldpayvantivResponseCode::InvalidReportGroup
+        | WorldpayvantivResponseCode::DoNotHonor
+        | WorldpayvantivResponseCode::GenericDecline
+        | WorldpayvantivResponseCode::DeclineRequestPositiveId
+        | WorldpayvantivResponseCode::ThreeDSecureTransactionNotSupportedByMerchant
+        | WorldpayvantivResponseCode::RestrictedByVantivDueToSecurityCodeMismatch
+        | WorldpayvantivResponseCode::NoTransactionFoundWithSpecifiedTransactionId
+        | WorldpayvantivResponseCode::AuthorizationNoLongerAvailable
+        | WorldpayvantivResponseCode::TransactionNotVoidedAlreadySettled
+        | WorldpayvantivResponseCode::AutoVoidOnRefund
+        | WorldpayvantivResponseCode::InvalidAccountNumberOriginalOrNocUpdatedECheckAccountRequired
+        | WorldpayvantivResponseCode::TotalCreditAmountExceedsCaptureAmount
+        | WorldpayvantivResponseCode::ExceedTheThresholdForSendingRedeposits
+        | WorldpayvantivResponseCode::DepositHasNotBeenReturnedForInsufficientNonSufficientFunds
+        | WorldpayvantivResponseCode::RedepositAgainstInvalidTransactionType
+        | WorldpayvantivResponseCode::InternalSystemErrorCallVantiv
+        | WorldpayvantivResponseCode::OriginalTransactionHasBeenProcessedFutureRedepositsCanceled
+        | WorldpayvantivResponseCode::SoftDeclineAutoRecyclingInProgress
+        | WorldpayvantivResponseCode::HardDeclineAutoRecyclingComplete
+        | WorldpayvantivResponseCode::TransactionDeclinedByTheProcessingNetwork
+        | WorldpayvantivResponseCode::SecondaryAmountCannotExceedTheSaleAmount
+        | WorldpayvantivResponseCode::ThisMethodOfPaymentDoesNotSupportSecondaryAmount
+        | WorldpayvantivResponseCode::SecondaryAmountCannotBeLessThanZero
+        | WorldpayvantivResponseCode::PartialTransactionIsNotSupportedWhenIncludingASecondaryAmount
+        | WorldpayvantivResponseCode::SecondaryAmountRequiredOnPartialRefundWhenUsedOnDeposit
+        | WorldpayvantivResponseCode::SecondaryAmountNotAllowedOnRefundIfNotIncludedOnDeposit
+        | WorldpayvantivResponseCode::ProcessingNetworkError
+        | WorldpayvantivResponseCode::InvalidEMail
+        | WorldpayvantivResponseCode::InvalidCombinationOfAccountFundingTransactionTypeAndMcc
+        | WorldpayvantivResponseCode::InvalidAccountFundingTransactionTypeForThisMethodOfPayment
+        | WorldpayvantivResponseCode::MissingOneOrMoreReceiverFieldsForAccountFundingTransaction
+        | WorldpayvantivResponseCode::SoftDeclineDecryptionFailed
+        | WorldpayvantivResponseCode::HardDeclineInputDataIsInvalid
+        | WorldpayvantivResponseCode::HardDeclineDecryptionFailed
+        | WorldpayvantivResponseCode::SuspectedFraud
+        | WorldpayvantivResponseCode::SystemErrorContactWorldpayRepresentative
+        | WorldpayvantivResponseCode::InvalidTerminalId
+        | WorldpayvantivResponseCode::DeclineReTryTransaction
+        | WorldpayvantivResponseCode::RemoteFunctionUnknown
+        | WorldpayvantivResponseCode::InvalidData
+        | WorldpayvantivResponseCode::InvalidDataDataElementsMissing
+        | WorldpayvantivResponseCode::InvalidDataDataFormatError
+        | WorldpayvantivResponseCode::VerifyBillingAddress
+        | WorldpayvantivResponseCode::InactiveAccount
+        | WorldpayvantivResponseCode::InvalidAuth
+        | WorldpayvantivResponseCode::CheckoutIdWasInvalid
+        | WorldpayvantivResponseCode::CheckoutIdWasNotFound
+        | WorldpayvantivResponseCode::TransactionTypeIsNotSupportedWithThisMethodOfPayment
+        | WorldpayvantivResponseCode::UnreferencedOrphanRefundsAreNotAllowed
+        | WorldpayvantivResponseCode::ThisFundingInstructionResultsInANegativeAccountBalance
+        | WorldpayvantivResponseCode::ProcessingError
+        | WorldpayvantivResponseCode::ThisFundingInstructionTypeIsInvalidForCanadianMerchants
+        | WorldpayvantivResponseCode::ThisFundingInstructionTypeIsInvalid
+        | WorldpayvantivResponseCode::AbsoluteDecline
+        | WorldpayvantivResponseCode::TheMerchantProfileDoesNotAllowTheRequestedOperation
+        | WorldpayvantivResponseCode::AmountGreaterThanLimitSpecifiedInTheMerchantProfile
+        | WorldpayvantivResponseCode::AccountNotEligibleForRtp
+        | WorldpayvantivResponseCode::NoValidParentDepositOrParentRefundFound
+        | WorldpayvantivResponseCode::FundingInstructionHeldPleaseContactYourRelationshipManager
+        | WorldpayvantivResponseCode::InvalidCreditAccount => Ok(common_enums::RefundStatus::Failure),
+        _ => Err(Report::new(ConnectorError::UnexpectedResponseError {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some("Invalid response code for refund".to_string()),
+            },
+        })),
     }
 }

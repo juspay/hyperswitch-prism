@@ -181,6 +181,8 @@ pub enum ConnectorEnum {
     Payhere,
     Betterpayment,
     Ecommpay,
+    Payhound,
+    Revpay,
 }
 
 // snake case for enum variants
@@ -458,148 +460,6 @@ impl ConnectorVariant {
             ConnectorVariant::Payout(conn) => conn.to_string(),
             ConnectorVariant::Frm(conn) => conn.to_string(),
             ConnectorVariant::Authenticator(conn) => conn.to_string(),
-        }
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        connector: grpc_api_types::payments::Connector,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        match connector {
-            grpc_api_types::payments::Connector::Adyen => Ok(Self::Adyen),
-            grpc_api_types::payments::Connector::Forte => Ok(Self::Forte),
-            grpc_api_types::payments::Connector::Razorpay => Ok(Self::Razorpay),
-            grpc_api_types::payments::Connector::Fiserv => Ok(Self::Fiserv),
-            grpc_api_types::payments::Connector::Elavon => Ok(Self::Elavon),
-            grpc_api_types::payments::Connector::Xendit => Ok(Self::Xendit),
-            grpc_api_types::payments::Connector::Checkout => Ok(Self::Checkout),
-            grpc_api_types::payments::Connector::Authorizedotnet => Ok(Self::Authorizedotnet),
-            grpc_api_types::payments::Connector::Bamboraapac => Ok(Self::Bamboraapac),
-            grpc_api_types::payments::Connector::Phonepe => Ok(Self::Phonepe),
-            grpc_api_types::payments::Connector::Cashfree => Ok(Self::Cashfree),
-            grpc_api_types::payments::Connector::Paytm => Ok(Self::Paytm),
-            grpc_api_types::payments::Connector::Fiuu => Ok(Self::Fiuu),
-            grpc_api_types::payments::Connector::Payu => Ok(Self::Payu),
-            grpc_api_types::payments::Connector::Cashtocode => Ok(Self::Cashtocode),
-            grpc_api_types::payments::Connector::Novalnet => Ok(Self::Novalnet),
-            grpc_api_types::payments::Connector::Nexinets => Ok(Self::Nexinets),
-            grpc_api_types::payments::Connector::Noon => Ok(Self::Noon),
-            grpc_api_types::payments::Connector::Mifinity => Ok(Self::Mifinity),
-            grpc_api_types::payments::Connector::Braintree => Ok(Self::Braintree),
-            grpc_api_types::payments::Connector::Volt => Ok(Self::Volt),
-            grpc_api_types::payments::Connector::Calida => Ok(Self::Calida),
-            grpc_api_types::payments::Connector::Cryptopay => Ok(Self::Cryptopay),
-            grpc_api_types::payments::Connector::Helcim => Ok(Self::Helcim),
-            grpc_api_types::payments::Connector::Dlocal => Ok(Self::Dlocal),
-            grpc_api_types::payments::Connector::Placetopay => Ok(Self::Placetopay),
-            grpc_api_types::payments::Connector::Rapyd => Ok(Self::Rapyd),
-            grpc_api_types::payments::Connector::Aci => Ok(Self::Aci),
-            grpc_api_types::payments::Connector::Trustpay => Ok(Self::Trustpay),
-            grpc_api_types::payments::Connector::Stripe => Ok(Self::Stripe),
-            grpc_api_types::payments::Connector::Cybersource => Ok(Self::Cybersource),
-            grpc_api_types::payments::Connector::Worldpay => Ok(Self::Worldpay),
-            grpc_api_types::payments::Connector::Worldpayxml => Ok(Self::Worldpayxml),
-            grpc_api_types::payments::Connector::Multisafepay => Ok(Self::Multisafepay),
-            grpc_api_types::payments::Connector::Payload => Ok(Self::Payload),
-            grpc_api_types::payments::Connector::Fiservemea => Ok(Self::Fiservemea),
-            grpc_api_types::payments::Connector::Paysafe => Ok(Self::Paysafe),
-            grpc_api_types::payments::Connector::Datatrans => Ok(Self::Datatrans),
-            grpc_api_types::payments::Connector::Bluesnap => Ok(Self::Bluesnap),
-            grpc_api_types::payments::Connector::Authipay => Ok(Self::Authipay),
-            grpc_api_types::payments::Connector::Silverflow => Ok(Self::Silverflow),
-            grpc_api_types::payments::Connector::Celero => Ok(Self::Celero),
-            grpc_api_types::payments::Connector::Paypal => Ok(Self::Paypal),
-            grpc_api_types::payments::Connector::Stax => Ok(Self::Stax),
-            grpc_api_types::payments::Connector::Billwerk => Ok(Self::Billwerk),
-            grpc_api_types::payments::Connector::Hipay => Ok(Self::Hipay),
-            grpc_api_types::payments::Connector::Trustpayments => Ok(Self::Trustpayments),
-            grpc_api_types::payments::Connector::Globalpay => Ok(Self::Globalpay),
-            grpc_api_types::payments::Connector::Nuvei => Ok(Self::Nuvei),
-            grpc_api_types::payments::Connector::Iatapay => Ok(Self::Iatapay),
-            grpc_api_types::payments::Connector::Nmi => Ok(Self::Nmi),
-            grpc_api_types::payments::Connector::Shift4 => Ok(Self::Shift4),
-            grpc_api_types::payments::Connector::Barclaycard => Ok(Self::Barclaycard),
-            grpc_api_types::payments::Connector::Redsys => Ok(Self::Redsys),
-            grpc_api_types::payments::Connector::Nexixpay => Ok(Self::Nexixpay),
-            grpc_api_types::payments::Connector::Mollie => Ok(Self::Mollie),
-            grpc_api_types::payments::Connector::Airwallex => Ok(Self::Airwallex),
-            grpc_api_types::payments::Connector::Tsys => Ok(Self::Tsys),
-            grpc_api_types::payments::Connector::Bankofamerica => Ok(Self::Bankofamerica),
-            grpc_api_types::payments::Connector::Powertranz => Ok(Self::Powertranz),
-            grpc_api_types::payments::Connector::Getnet => Ok(Self::Getnet),
-            grpc_api_types::payments::Connector::Jpmorgan => Ok(Self::Jpmorgan),
-            grpc_api_types::payments::Connector::Bambora => Ok(Self::Bambora),
-            grpc_api_types::payments::Connector::Payme => Ok(Self::Payme),
-            grpc_api_types::payments::Connector::Revolut => Ok(Self::Revolut),
-            grpc_api_types::payments::Connector::Gigadat => Ok(Self::Gigadat),
-            grpc_api_types::payments::Connector::Loonio => Ok(Self::Loonio),
-            grpc_api_types::payments::Connector::Wellsfargo => Ok(Self::Wellsfargo),
-            grpc_api_types::payments::Connector::Hyperpg => Ok(Self::Hyperpg),
-            grpc_api_types::payments::Connector::Zift => Ok(Self::Zift),
-            grpc_api_types::payments::Connector::Revolv3 => Ok(Self::Revolv3),
-            grpc_api_types::payments::Connector::Moneris => Ok(Self::Moneris),
-            grpc_api_types::payments::Connector::Etisalat => Ok(Self::Etisalat),
-            grpc_api_types::payments::Connector::Merchante => Ok(Self::Merchante),
-            grpc_api_types::payments::Connector::Ppro => Ok(Self::Ppro),
-            grpc_api_types::payments::Connector::Fiservcommercehub => Ok(Self::Fiservcommercehub),
-            grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
-            grpc_api_types::payments::Connector::Peachpayments => Ok(Self::Peachpayments),
-            grpc_api_types::payments::Connector::Finix => Ok(Self::Finix),
-            grpc_api_types::payments::Connector::Trustly => Ok(Self::Trustly),
-            grpc_api_types::payments::Connector::Itaubank => Ok(Self::Itaubank),
-            grpc_api_types::payments::Connector::PinelabsOnline => Ok(Self::PinelabsOnline),
-            grpc_api_types::payments::Connector::Easebuzz => Ok(Self::Easebuzz),
-            grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
-            grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
-            grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
-            grpc_api_types::payments::Connector::Reddot => Ok(Self::Reddot),
-            grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
-            grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
-                Ok(Self::GlobalpaymentsRealex)
-            }
-            grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
-            grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
-            grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
-            grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
-            grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
-            grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
-            grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
-            grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
-            grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
-            grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
-            grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
-            grpc_api_types::payments::Connector::Ilixium => Ok(Self::Ilixium),
-            grpc_api_types::payments::Connector::GlobalpaymentsHeartland => {
-                Ok(Self::GlobalpaymentsHeartland)
-            }
-            grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
-            grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
-            grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
-            grpc_api_types::payments::Connector::JpmorganOrbital => Ok(Self::JpmorganOrbital),
-            grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
-            grpc_api_types::payments::Connector::Travelhub => Ok(Self::Travelhub),
-            grpc_api_types::payments::Connector::Paynearme => Ok(Self::Paynearme),
-            grpc_api_types::payments::Connector::D24 => Ok(Self::D24),
-            grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
-            grpc_api_types::payments::Connector::ElavonPg => Ok(Self::ElavonPg),
-            grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
-            grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
-            grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
-            grpc_api_types::payments::Connector::Unspecified => {
-                Err(IntegrationError::InvalidDataFormat {
-                    field_name: "connector",
-                    context: IntegrationErrorContext::default(),
-                }
-                .into())
-            }
-            _ => Err(IntegrationError::InvalidDataFormat {
-                field_name: "connector",
-                context: IntegrationErrorContext::default(),
-            }
-            .into()),
         }
     }
 }
@@ -1930,6 +1790,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -3767,7 +3629,14 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
         Ok(Self {
             method,
             uri: value.uri,
-            headers: value.headers,
+            // HTTP header names are case-insensitive. Callers forward them in whatever case
+            // they received (`Cko-Signature`, `x-signature`), so normalise once here and
+            // connectors look them up in lowercase.
+            headers: value
+                .headers
+                .into_iter()
+                .map(|(name, value)| (name.to_ascii_lowercase(), value))
+                .collect(),
             body: value.body,
             query_params: value.query_params,
         })
@@ -4090,6 +3959,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -4215,6 +4086,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Details about the sender of funds for account-funded transactions.
+    pub sender_details: Option<SenderDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
@@ -4683,6 +4556,8 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
                 payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
                 payment_method_data::WalletData::PayhereRedirect {} => Self::PayhereRedirect,
+                payment_method_data::WalletData::BoostRedirect {} => Self::BoostRedirect,
+                payment_method_data::WalletData::AliPayPlusRedirect {} => Self::AliPayPlusRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -5255,7 +5130,17 @@ pub struct AirlineData {
     pub total_fee_money: Option<common_utils::types::Money>,
     pub boarding_fee_money: Option<common_utils::types::Money>,
     pub flight_segments: Vec<AirlineSegment>,
+    pub flight_journeys: Vec<AirlineJourneyDetails>,
     pub passengers: Vec<AirlinePassenger>,
+}
+
+/// Airline journey endpoints and optional UTC departure timestamp.
+#[derive(Debug, Clone, Default)]
+pub struct AirlineJourneyDetails {
+    pub journey_no: Option<u32>,
+    pub departure: Option<AirlineLocation>,
+    pub arrival: Option<AirlineLocation>,
+    pub utc_departure: Option<String>,
 }
 
 /// One flight leg. `departure`/`arrival` reuse the shared [`AirlineLocation`].
@@ -6768,6 +6653,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
+            AuthType::Payhound(_) => Ok(Self::Payment(ConnectorEnum::Payhound)),
+            AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {
@@ -6842,6 +6729,65 @@ pub struct RecipientDetails {
     pub address: Option<AddressDetails>,
 }
 
+/// Address of the party providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SenderAddress {
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
+    pub line3: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub country: Option<common_enums::CountryAlpha2>,
+}
+
+/// An individual (natural person) providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndividualSenderDetails {
+    /// Required by connectors only when the payment is an AFT; validated there, not at parse time.
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub date_of_birth: Option<Secret<time::Date>>,
+    pub address: Option<SenderAddress>,
+    pub email: Option<Email>,
+    pub phone_number: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+}
+
+/// A company (legal entity) providing the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CorporateSenderDetails {
+    /// Required by connectors only when the payment is an AFT; validated there, not at parse time.
+    pub company_name: Option<Secret<String>>,
+    pub address: Option<SenderAddress>,
+    pub email: Option<Email>,
+    pub phone_number: Option<Secret<String>>,
+    pub phone_country_code: Option<String>,
+}
+
+/// Details about the sender of funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SenderDetails {
+    Individual(IndividualSenderDetails),
+    Corporate(CorporateSenderDetails),
+}
+
+impl SenderDetails {
+    pub fn get_address(&self) -> Option<&SenderAddress> {
+        match self {
+            Self::Individual(individual) => individual.address.as_ref(),
+            Self::Corporate(corporate) => corporate.address.as_ref(),
+        }
+    }
+
+    pub fn get_email(&self) -> Option<&Email> {
+        match self {
+            Self::Individual(individual) => individual.email.as_ref(),
+            Self::Corporate(corporate) => corporate.email.as_ref(),
+        }
+    }
+}
+
 /// Connector-specific additional details passed through the payment request.
 #[derive(Debug, Clone)]
 pub struct AdditionalConnectorDetails {
@@ -6851,6 +6797,12 @@ pub struct AdditionalConnectorDetails {
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
     /// Stripe-specific additional information.
     pub stripe: Option<StripeAdditionalInformation>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData1).
+    pub user_data1: Option<String>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData2).
+    pub user_data2: Option<String>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData3).
+    pub user_data3: Option<String>,
 }
 
 /// Stripe-specific additional information.

@@ -133,7 +133,7 @@ pub fn build_create_client_authentication_token_request(
 ) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
         merchant_client_session_id: "probe_sdk_session_001".to_string(), // Infrastructure.
-        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
+        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}, "return_url": "https://example.com/return"}}
         ..Default::default()
     }
 }
