@@ -649,6 +649,11 @@ connector_base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGat
 # Production Environment Overrides
 # ============================================================================
 
+# MultiSafepay Production
+[[overrides]]
+_context_ = { connector = "multisafepay", environment = "production" }
+connector_base_url = "https://api.multisafepay.com/v1/json"
+
 # Global Payments Ecommerce XML API Production.
 # NOTE: production also requires IP allow-listing; an un-listed source IP is
 # rejected with result 505 (tech spec section 2).
