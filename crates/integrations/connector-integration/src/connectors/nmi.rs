@@ -12,11 +12,10 @@ use domain_types::{
     },
     connector_types::{
         ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
     },
     errors::WebhookError,
     payment_method_data::PaymentMethodDataTypes,
@@ -48,6 +47,7 @@ pub type NmiRSyncResponse = SyncResponse;
 pub type NmiPreAuthenticateResponse = NmiVaultResponse;
 
 use super::macros;
+use crate::webhooks::nmi::Nmi as NmiWebhook;
 use crate::{
     types::ResponseRouterData, with_error_response_body, ConnectorError, IntegrationError,
 };
@@ -178,57 +178,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let event_type_body: transformers::NmiWebhookEventBody =
-            serde_json::from_slice(&request.body)
-                .change_context(WebhookError::WebhookResourceObjectNotFound)
-                .attach_printable("Failed to decode the NMI webhook event body")?;
-
-        Ok(transformers::get_nmi_webhook_event(
-            event_type_body.event_type,
-        ))
-    }
-
-    /// Ports HS `get_webhook_object_reference_id`: NMI echoes back the hyperswitch-side
-    /// identifier in `event_body.order_id` — the payment attempt id for payment actions
-    /// (`PaymentIdType::PaymentAttemptId`) and the refund id for refunds
-    /// (`RefundIdType::RefundId`). Both are caller-assigned (merchant) references, so the
-    /// connector-assigned id fields MUST stay `None` for the reference to normalise
-    /// identically to the Direct gateway.
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let reference_body: transformers::NmiWebhookObjectReference =
-            serde_json::from_slice(&request.body)
-                .change_context(WebhookError::WebhookResourceObjectNotFound)
-                .attach_printable("Failed to decode the NMI webhook object reference")?;
-
-        match reference_body.event_body.action.action_type {
-            transformers::NmiActionType::Sale
-            | transformers::NmiActionType::Auth
-            | transformers::NmiActionType::Capture
-            | transformers::NmiActionType::Void => Ok(Some(WebhookResourceReference::Payment(
-                PaymentWebhookReference {
-                    connector_transaction_id: None,
-                    merchant_transaction_id: Some(reference_body.event_body.order_id),
-                    connector_preprocessing_id: None,
-                },
-            ))),
-            transformers::NmiActionType::Refund => Ok(Some(WebhookResourceReference::Refund(
-                RefundWebhookReference {
-                    connector_refund_id: None,
-                    merchant_refund_id: Some(reference_body.event_body.order_id),
-                    connector_transaction_id: None,
-                    merchant_transaction_id: None,
-                },
-            ))),
-            // HS maps `credit` to `WebhooksNotImplemented`.
-            transformers::NmiActionType::Credit => {
-                Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
-                    operation: "nmi credit webhooks",
-                }))
-            }
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            NmiWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
