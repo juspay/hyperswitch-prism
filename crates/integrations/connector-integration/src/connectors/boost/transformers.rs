@@ -840,8 +840,8 @@ impl BoostWebhookBody {
     ) -> WebhookDetailsResponse {
         let status = AttemptStatus::from(self.status);
 
-        let amount_captured = match (self.amount, self.currency) {
-            (Some(amount), Some(currency)) => {
+        let amount_captured = match (status, self.amount, self.currency) {
+            (AttemptStatus::Charged, Some(amount), Some(currency)) => {
                 match FloatMajorUnitForConnector.convert_back(amount, currency) {
                     Ok(money) => Some(money),
                     Err(err) => {
@@ -892,3 +892,6 @@ impl BoostWebhookBody {
         })
     }
 }
+
+#[cfg(test)]
+mod captured_money_tests;
