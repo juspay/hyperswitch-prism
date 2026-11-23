@@ -600,7 +600,6 @@ fn authorize_data(
             access_key: Secret::new("test_access_key".to_string()),
             secret_key: Secret::new("test_secret_key".to_string()),
             country_of_incorporation: Some(common_enums::CountryAlpha2::IS),
-            statement_descriptor: None,
             base_url: None,
         },
         request,

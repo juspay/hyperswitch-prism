@@ -1248,20 +1248,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             .into());
         }
-        let ConnectorSpecificConfig::Rapyd {
-            statement_descriptor,
-            ..
-        } = &item.router_data.connector_config
-        else {
-            return Err(IntegrationError::InvalidConnectorConfig {
-                config: "rapyd",
-                context: utils::integration_ctx(
-                    "The connector configuration is not for Rapyd",
-                    "Use Rapyd connector configuration.",
-                ),
-            }
-            .into());
-        };
         let return_url = item.router_data.request.get_router_return_url()?;
         let amount = item
             .connector
@@ -1736,7 +1722,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: item.router_data.request.email.clone(),
-            statement_descriptor: statement_descriptor.clone(),
+            statement_descriptor: item
+                .router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone())
+                .map(Secret::new),
             ewallet: ewallet_from_metadata(item.router_data.request.metadata.as_ref())?,
             customer,
             save_payment_method,
@@ -2583,21 +2575,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let return_url = request.get_router_return_url()?;
 
-        let ConnectorSpecificConfig::Rapyd {
-            statement_descriptor,
-            ..
-        } = &router_data.connector_config
-        else {
-            return Err(IntegrationError::InvalidConnectorConfig {
-                config: "rapyd",
-                context: utils::integration_ctx(
-                    "The connector configuration is not for Rapyd",
-                    "Use Rapyd connector configuration.",
-                ),
-            }
-            .into());
-        };
-
         Ok(Self {
             amount,
             currency: request.currency,
@@ -2622,7 +2599,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: request.email.clone(),
-            statement_descriptor: statement_descriptor.clone(),
+            statement_descriptor: request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone())
+                .map(Secret::new),
             ewallet: ewallet_from_metadata(request.metadata.as_ref())?,
             save_payment_method: Some(true),
             initiation_type: Some(purpose.initiation_type),
@@ -2786,21 +2767,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             })?;
 
-        let ConnectorSpecificConfig::Rapyd {
-            statement_descriptor,
-            ..
-        } = &router_data.connector_config
-        else {
-            return Err(IntegrationError::InvalidConnectorConfig {
-                config: "rapyd",
-                context: utils::integration_ctx(
-                    "The connector configuration is not for Rapyd",
-                    "Use Rapyd connector configuration.",
-                ),
-            }
-            .into());
-        };
-
         Ok(Self {
             amount,
             currency: request.currency,
@@ -2833,7 +2799,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: request.email.clone(),
-            statement_descriptor: statement_descriptor.clone(),
+            statement_descriptor: request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone())
+                .map(Secret::new),
             ewallet: ewallet_from_metadata(request.metadata.as_ref())?,
         })
     }
