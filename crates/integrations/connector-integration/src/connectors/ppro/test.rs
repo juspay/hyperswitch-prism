@@ -776,7 +776,7 @@ mod tests {
         }"#
         .as_bytes();
         let details = connector.process_payment_webhook(make_request(body), None, None, None)?;
-        ensure_eq!(details.status, common_enums::AttemptStatus::Failure);
+        ensure_eq!(details.status, common_enums::AttemptStatus::CaptureFailed);
         ensure_eq!(
             details.error_code.as_deref(),
             Some("CAPTURE_TIMEOUT"),
@@ -819,7 +819,7 @@ mod tests {
         }"#
         .as_bytes();
         let details = connector.process_payment_webhook(make_request(body), None, None, None)?;
-        ensure_eq!(details.status, common_enums::AttemptStatus::Failure);
+        ensure_eq!(details.status, common_enums::AttemptStatus::VoidFailed);
         ensure_eq!(details.error_code.as_deref(), Some("VOID_NOT_ALLOWED"),);
         ensure!(
             details.error_message.is_some(),
