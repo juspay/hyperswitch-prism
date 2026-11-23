@@ -3066,6 +3066,9 @@ message PaymentServiceReverseRequest {
   // Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at
   // different endpoints.
   optional CaptureMethod capture_method = 12;
+
+  // State Information
+  optional ConnectorState state = 13;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
