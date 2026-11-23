@@ -15252,6 +15252,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
         let payment_method_type = <Option<common_enums::PaymentMethodType>>::foreign_try_from(
             value.payment_method_type(),
         )?;
+        let capture_method = value
+            .capture_method
+            .map(|_| CaptureMethod::foreign_try_from(value.capture_method()))
+            .transpose()?;
         let setup_future_usage = optional_future_usage(value.setup_future_usage())?;
         // Carried on the CreateOrder request data, not on `PaymentFlowData`, which
         // stays `None` here so connectors reading `resource_common_data.customer_id`
@@ -15283,6 +15287,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
             order_details,
             setup_future_usage,
             customer_id,
+            capture_method,
         })
     }
 }
