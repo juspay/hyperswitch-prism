@@ -1009,7 +1009,14 @@ pub enum RevolutWebhookEvent {
     DisputeLost,
 }
 
-/// Maps Revolut webhook event to AttemptStatus for webhook processing
+/// Maps Revolut webhook event to AttemptStatus for webhook processing.
+///
+/// Revolut emits two layers of events: `Order*` events describe the order as a
+/// whole, and `OrderPayment*` events describe one payment attempt under it.
+/// A declined or failed attempt leaves the order retryable, so those events must
+/// not carry a terminal order outcome. `ORDER_PAYMENT_AUTHENTICATED` likewise
+/// means the authentication step of an attempt passed — not that the order is
+/// authorised — so it maps to `AuthenticationSuccessful`, never `Authorized`.
 fn map_webhook_event_to_attempt_status(
     event: RevolutWebhookEvent,
 ) -> Result<AttemptStatus, IntegrationError> {
@@ -1018,6 +1025,12 @@ fn map_webhook_event_to_attempt_status(
         RevolutWebhookEvent::OrderAuthorised => Ok(AttemptStatus::Authorized),
         RevolutWebhookEvent::OrderCancelled => Ok(AttemptStatus::Voided),
         RevolutWebhookEvent::OrderFailed => Ok(AttemptStatus::Failure),
+        RevolutWebhookEvent::OrderPaymentAuthenticated => {
+            Ok(AttemptStatus::AuthenticationSuccessful)
+        }
+        RevolutWebhookEvent::OrderPaymentDeclined | RevolutWebhookEvent::OrderPaymentFailed => {
+            Ok(AttemptStatus::Pending)
+        }
         _ => Err(IntegrationError::NotImplemented(
             "webhook event type not found".to_string(),
             Default::default(),

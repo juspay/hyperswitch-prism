@@ -256,13 +256,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             revolut::RevolutWebhookEvent::OrderCancelled => Ok(EventType::PaymentIntentCancelled),
             revolut::RevolutWebhookEvent::OrderFailed => Ok(EventType::PaymentIntentFailure),
-            revolut::RevolutWebhookEvent::OrderPaymentAuthenticated => {
-                Ok(EventType::PaymentIntentAuthorizationSuccess)
+            // `ORDER_PAYMENT_*` events are per-attempt, not per-order: a declined or
+            // failed attempt leaves the order retryable, and authentication success is
+            // not completed authorization. Classify them as processing so ParseEvent and
+            // HandleEvent agree, and so neither phase invents a terminal outcome.
+            revolut::RevolutWebhookEvent::OrderPaymentAuthenticated
+            | revolut::RevolutWebhookEvent::OrderPaymentDeclined
+            | revolut::RevolutWebhookEvent::OrderPaymentFailed => {
+                Ok(EventType::PaymentIntentProcessing)
             }
-            revolut::RevolutWebhookEvent::OrderPaymentDeclined => {
-                Ok(EventType::PaymentIntentAuthorizationFailure)
-            }
-            revolut::RevolutWebhookEvent::OrderPaymentFailed => Ok(EventType::PaymentIntentFailure),
             revolut::RevolutWebhookEvent::PayoutInitiated => Ok(EventType::PayoutCreated),
             revolut::RevolutWebhookEvent::PayoutCompleted => Ok(EventType::PayoutSuccess),
             revolut::RevolutWebhookEvent::PayoutFailed => Ok(EventType::PayoutFailure),
