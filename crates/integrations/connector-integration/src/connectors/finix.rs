@@ -1,6 +1,7 @@
 pub mod transformers;
 
 use super::macros;
+use crate::webhooks::finix::{transformers as webhook_transformers, Finix as FinixWebhook};
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
@@ -197,7 +198,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
         })?;
 
-        let signature_header = finix::decode_finix_signature(&request.headers)?;
+        let signature_header = webhook_transformers::decode_finix_signature(&request.headers)?;
 
         // HS hex-decodes the `sig` value before comparing
         // (get_webhook_source_verification_signature).
@@ -224,27 +225,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        // HS: an empty body or a body that trims to `{}` is Finix's
-        // endpoint-verification probe (get_webhook_event_type).
-        if finix::is_endpoint_verification_body(&request.body) {
-            return Ok(EventType::EndpointVerification);
-        }
-        let webhook_body = finix::parse_finix_webhook_body(&request.body)?;
-        finix::get_finix_webhook_event_type(&webhook_body)
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        // Endpoint-verification probes carry no resource; HS's Direct gateway
-        // also resolves no reference for them (`get_webhook_object_reference_id`
-        // fails to parse `{}` and the router `.ok()`s it away).
-        if finix::is_endpoint_verification_body(&request.body) {
-            return Ok(None);
-        }
-        let webhook_body = finix::parse_finix_webhook_body(&request.body)?;
-        finix::get_finix_webhook_reference(&webhook_body)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            FinixWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -254,8 +239,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let webhook_body = finix::parse_finix_webhook_body(&request.body)?;
-        finix::build_finix_payment_webhook_response(self, &webhook_body, &request.body)
+        let webhook_body = webhook_transformers::parse_finix_webhook_body(&request.body)?;
+        webhook_transformers::build_finix_payment_webhook_response(
+            self,
+            &webhook_body,
+            &request.body,
+        )
     }
 
     fn process_refund_webhook(
@@ -264,8 +253,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let webhook_body = finix::parse_finix_webhook_body(&request.body)?;
-        finix::build_finix_refund_webhook_response(&webhook_body, &request.body)
+        let webhook_body = webhook_transformers::parse_finix_webhook_body(&request.body)?;
+        webhook_transformers::build_finix_refund_webhook_response(&webhook_body, &request.body)
     }
 
     fn process_dispute_webhook(
@@ -274,8 +263,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let webhook_body = finix::parse_finix_webhook_body(&request.body)?;
-        finix::build_finix_dispute_webhook_response(&webhook_body, &request.body)
+        let webhook_body = webhook_transformers::parse_finix_webhook_body(&request.body)?;
+        webhook_transformers::build_finix_dispute_webhook_response(&webhook_body, &request.body)
     }
 
     fn get_webhook_resource_object(
@@ -283,7 +272,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let webhook_body = finix::parse_finix_webhook_body(&request.body)?;
+        let webhook_body = webhook_transformers::parse_finix_webhook_body(&request.body)?;
         Ok(Box::new(webhook_body))
     }
 

@@ -119,6 +119,7 @@ let config = ConnectorConfig {
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
@@ -252,7 +253,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L119) · [Kotlin](../../examples/payu/payu.kt#L115) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L131) · [Kotlin](../../examples/payu/payu.kt#L117) · [Rust](../../examples/payu/payu.rs)
 
 #### PaymentService.Capture
 
@@ -263,7 +264,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L128) · [Kotlin](../../examples/payu/payu.kt#L127) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L140) · [Kotlin](../../examples/payu/payu.kt#L129) · [Rust](../../examples/payu/payu.rs)
 
 #### PaymentService.Get
 
@@ -274,7 +275,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L146) · [Kotlin](../../examples/payu/payu.kt#L152) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L158) · [Kotlin](../../examples/payu/payu.kt#L154) · [Rust](../../examples/payu/payu.rs)
 
 #### PaymentService.Refund
 
@@ -285,7 +286,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L155) · [Kotlin](../../examples/payu/payu.kt#L160) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L176) · [Kotlin](../../examples/payu/payu.kt#L177) · [Rust](../../examples/payu/payu.rs)
 
 #### PaymentService.Void
 
@@ -296,7 +297,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts) · [Kotlin](../../examples/payu/payu.kt#L182) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts) · [Kotlin](../../examples/payu/payu.kt#L199) · [Rust](../../examples/payu/payu.rs)
 
 ### Refunds
 
@@ -309,7 +310,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L164) · [Kotlin](../../examples/payu/payu.kt#L170) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L185) · [Kotlin](../../examples/payu/payu.kt#L187) · [Rust](../../examples/payu/payu.rs)
 
 ### Authentication
 
@@ -322,4 +323,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L137) · [Kotlin](../../examples/payu/payu.kt#L137) · [Rust](../../examples/payu/payu.rs)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L149) · [Kotlin](../../examples/payu/payu.kt#L139) · [Rust](../../examples/payu/payu.rs)

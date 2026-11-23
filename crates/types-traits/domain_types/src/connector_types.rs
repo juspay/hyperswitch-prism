@@ -276,6 +276,188 @@ pub enum PayoutConnectorEnum {
     GotymeSanlam,
     Mifinity,
 }
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookConnectorEnum {
+    Adyen,
+    Imerchantsolutions,
+    ElavonPg,
+    Revpay,
+    Payhound,
+    Trustly,
+    Truelayer,
+    Peachpayments,
+    Nuvei,
+    Novalnet,
+    Noon,
+    Nmi,
+    Glomopay,
+    Globalpay,
+    Fiuu,
+    Cybersource,
+    Checkout,
+    Authorizedotnet,
+    Tamara,
+    Stripe,
+    Revolut,
+    Reddot,
+    Paypal,
+    Payload,
+    Payhere,
+    Nexixpay,
+    Maya,
+    Givepayments,
+    Hyperswitch,
+    Grabpay,
+    Finix,
+    Ecommpay,
+    Dlocal,
+    Cryptopay,
+    Boost,
+    Bluesnap,
+    Betterpayment,
+    AbsaSanlam,
+    Flywire,
+    Worldpayxml,
+    Trustpay,
+    Razorpay,
+    Ppro,
+    Phonepe,
+    Cashtocode,
+    Braintree,
+    Calida,
+    Rapyd,
+}
+
+/// Each webhook connector maps to the payment connector of the same name, whose
+/// config (auth, base URLs) it shares.
+impl From<WebhookConnectorEnum> for ConnectorEnum {
+    fn from(connector: WebhookConnectorEnum) -> Self {
+        match connector {
+            WebhookConnectorEnum::Adyen => Self::Adyen,
+            WebhookConnectorEnum::Imerchantsolutions => Self::Imerchantsolutions,
+            WebhookConnectorEnum::ElavonPg => Self::ElavonPg,
+            WebhookConnectorEnum::Revpay => Self::Revpay,
+            WebhookConnectorEnum::Payhound => Self::Payhound,
+            WebhookConnectorEnum::Trustly => Self::Trustly,
+            WebhookConnectorEnum::Truelayer => Self::Truelayer,
+            WebhookConnectorEnum::Peachpayments => Self::Peachpayments,
+            WebhookConnectorEnum::Nuvei => Self::Nuvei,
+            WebhookConnectorEnum::Novalnet => Self::Novalnet,
+            WebhookConnectorEnum::Noon => Self::Noon,
+            WebhookConnectorEnum::Nmi => Self::Nmi,
+            WebhookConnectorEnum::Glomopay => Self::Glomopay,
+            WebhookConnectorEnum::Globalpay => Self::Globalpay,
+            WebhookConnectorEnum::Fiuu => Self::Fiuu,
+            WebhookConnectorEnum::Cybersource => Self::Cybersource,
+            WebhookConnectorEnum::Checkout => Self::Checkout,
+            WebhookConnectorEnum::Authorizedotnet => Self::Authorizedotnet,
+            WebhookConnectorEnum::Tamara => Self::Tamara,
+            WebhookConnectorEnum::Stripe => Self::Stripe,
+            WebhookConnectorEnum::Revolut => Self::Revolut,
+            WebhookConnectorEnum::Reddot => Self::Reddot,
+            WebhookConnectorEnum::Paypal => Self::Paypal,
+            WebhookConnectorEnum::Payload => Self::Payload,
+            WebhookConnectorEnum::Payhere => Self::Payhere,
+            WebhookConnectorEnum::Nexixpay => Self::Nexixpay,
+            WebhookConnectorEnum::Maya => Self::Maya,
+            WebhookConnectorEnum::Givepayments => Self::Givepayments,
+            WebhookConnectorEnum::Hyperswitch => Self::Hyperswitch,
+            WebhookConnectorEnum::Grabpay => Self::Grabpay,
+            WebhookConnectorEnum::Finix => Self::Finix,
+            WebhookConnectorEnum::Ecommpay => Self::Ecommpay,
+            WebhookConnectorEnum::Dlocal => Self::Dlocal,
+            WebhookConnectorEnum::Cryptopay => Self::Cryptopay,
+            WebhookConnectorEnum::Boost => Self::Boost,
+            WebhookConnectorEnum::Bluesnap => Self::Bluesnap,
+            WebhookConnectorEnum::Betterpayment => Self::Betterpayment,
+            WebhookConnectorEnum::AbsaSanlam => Self::AbsaSanlam,
+            WebhookConnectorEnum::Flywire => Self::Flywire,
+            WebhookConnectorEnum::Worldpayxml => Self::Worldpayxml,
+            WebhookConnectorEnum::Trustpay => Self::Trustpay,
+            WebhookConnectorEnum::Razorpay => Self::Razorpay,
+            WebhookConnectorEnum::Ppro => Self::Ppro,
+            WebhookConnectorEnum::Phonepe => Self::Phonepe,
+            WebhookConnectorEnum::Cashtocode => Self::Cashtocode,
+            WebhookConnectorEnum::Braintree => Self::Braintree,
+            WebhookConnectorEnum::Calida => Self::Calida,
+            WebhookConnectorEnum::Rapyd => Self::Rapyd,
+        }
+    }
+}
+
+impl TryFrom<ConnectorEnum> for WebhookConnectorEnum {
+    type Error = IntegrationError;
+
+    fn try_from(value: ConnectorEnum) -> Result<Self, Self::Error> {
+        match value {
+            ConnectorEnum::Adyen => Ok(Self::Adyen),
+            ConnectorEnum::Imerchantsolutions => Ok(Self::Imerchantsolutions),
+            ConnectorEnum::ElavonPg => Ok(Self::ElavonPg),
+            ConnectorEnum::Revpay => Ok(Self::Revpay),
+            ConnectorEnum::Payhound => Ok(Self::Payhound),
+            ConnectorEnum::Trustly => Ok(Self::Trustly),
+            ConnectorEnum::Truelayer => Ok(Self::Truelayer),
+            ConnectorEnum::Peachpayments => Ok(Self::Peachpayments),
+            ConnectorEnum::Nuvei => Ok(Self::Nuvei),
+            ConnectorEnum::Novalnet => Ok(Self::Novalnet),
+            ConnectorEnum::Noon => Ok(Self::Noon),
+            ConnectorEnum::Nmi => Ok(Self::Nmi),
+            ConnectorEnum::Glomopay => Ok(Self::Glomopay),
+            ConnectorEnum::Globalpay => Ok(Self::Globalpay),
+            ConnectorEnum::Fiuu => Ok(Self::Fiuu),
+            ConnectorEnum::Cybersource => Ok(Self::Cybersource),
+            ConnectorEnum::Checkout => Ok(Self::Checkout),
+            ConnectorEnum::Authorizedotnet => Ok(Self::Authorizedotnet),
+            ConnectorEnum::Tamara => Ok(Self::Tamara),
+            ConnectorEnum::Stripe => Ok(Self::Stripe),
+            ConnectorEnum::Revolut => Ok(Self::Revolut),
+            ConnectorEnum::Reddot => Ok(Self::Reddot),
+            ConnectorEnum::Paypal => Ok(Self::Paypal),
+            ConnectorEnum::Payload => Ok(Self::Payload),
+            ConnectorEnum::Payhere => Ok(Self::Payhere),
+            ConnectorEnum::Nexixpay => Ok(Self::Nexixpay),
+            ConnectorEnum::Maya => Ok(Self::Maya),
+            ConnectorEnum::Givepayments => Ok(Self::Givepayments),
+            ConnectorEnum::Hyperswitch => Ok(Self::Hyperswitch),
+            ConnectorEnum::Grabpay => Ok(Self::Grabpay),
+            ConnectorEnum::Finix => Ok(Self::Finix),
+            ConnectorEnum::Ecommpay => Ok(Self::Ecommpay),
+            ConnectorEnum::Dlocal => Ok(Self::Dlocal),
+            ConnectorEnum::Cryptopay => Ok(Self::Cryptopay),
+            ConnectorEnum::Boost => Ok(Self::Boost),
+            ConnectorEnum::Bluesnap => Ok(Self::Bluesnap),
+            ConnectorEnum::Betterpayment => Ok(Self::Betterpayment),
+            ConnectorEnum::AbsaSanlam => Ok(Self::AbsaSanlam),
+            ConnectorEnum::Flywire => Ok(Self::Flywire),
+            ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
+            ConnectorEnum::Trustpay => Ok(Self::Trustpay),
+            ConnectorEnum::Razorpay => Ok(Self::Razorpay),
+            ConnectorEnum::Ppro => Ok(Self::Ppro),
+            ConnectorEnum::Phonepe => Ok(Self::Phonepe),
+            ConnectorEnum::Cashtocode => Ok(Self::Cashtocode),
+            ConnectorEnum::Braintree => Ok(Self::Braintree),
+            ConnectorEnum::Calida => Ok(Self::Calida),
+            ConnectorEnum::Rapyd => Ok(Self::Rapyd),
+            _ => Err(IntegrationError::InvalidDataFormat {
+                field_name: "connector",
+                context: IntegrationErrorContext::default(),
+            }),
+        }
+    }
+}
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
     type Error = IntegrationError;
@@ -410,6 +592,7 @@ pub enum ConnectorVariant {
     Payout(PayoutConnectorEnum),
     Frm(FrmConnectorEnum),
     Authenticator(AuthenticatorConnectorEnum),
+    Webhook(WebhookConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -453,6 +636,13 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the webhook connector if this is an webhook connector variant
+    pub fn as_webhook(&self) -> Option<WebhookConnectorEnum> {
+        match self {
+            ConnectorVariant::Webhook(conn) => Some(*conn),
+            _ => None,
+        }
+    }
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
@@ -460,6 +650,7 @@ impl ConnectorVariant {
             ConnectorVariant::Payout(conn) => conn.to_string(),
             ConnectorVariant::Frm(conn) => conn.to_string(),
             ConnectorVariant::Authenticator(conn) => conn.to_string(),
+            ConnectorVariant::Webhook(conn) => conn.to_string(),
         }
     }
 }
@@ -833,7 +1024,7 @@ impl PaymentFlowData {
                     Some(format!(
                         "status {:?} is not allowed in flow {}",
                         status,
-                        F::NAME,
+                        F::NAME
                     )),
                 ),
             )
@@ -2420,9 +2611,9 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(IntegrationError::CaptureMethodNotSupported {
+                Err((IntegrationError::CaptureMethodNotSupported {
                     context: Default::default(),
-                }
+                })
                 .into())
             }
         }
@@ -2519,9 +2710,9 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(IntegrationError::CaptureMethodNotSupported {
+                Err((IntegrationError::CaptureMethodNotSupported {
                     context: Default::default(),
-                }
+                })
                 .into())
             }
         }
@@ -2617,9 +2808,9 @@ impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
             Some(common_enums::CaptureMethod::Manual) => Ok(false),
             Some(common_enums::CaptureMethod::ManualMultiple)
             | Some(common_enums::CaptureMethod::Scheduled) => {
-                Err(IntegrationError::CaptureMethodNotSupported {
+                Err((IntegrationError::CaptureMethodNotSupported {
                     context: Default::default(),
-                }
+                })
                 .into())
             }
         }
@@ -2631,10 +2822,10 @@ impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
             .as_ref()
             .and_then(|res| res.payload.to_owned())
             .ok_or(
-                IntegrationError::MissingRequiredField {
+                (IntegrationError::MissingRequiredField {
                     field_name: "request.redirect_response.payload",
                     context: Default::default(),
-                }
+                })
                 .into(),
             )
     }
@@ -5643,10 +5834,10 @@ impl CustomerInfo {
     /// Format a phone number in E.123 international notation (`+<country><number>`).
     /// `None` when the customer has no phone number.
     pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
-        PhoneDetails {
+        (PhoneDetails {
             number: self.customer_phone_number.clone(),
             country_code: self.customer_phone_country_code.clone(),
-        }
+        })
         .get_e123_phone_number()
     }
 }

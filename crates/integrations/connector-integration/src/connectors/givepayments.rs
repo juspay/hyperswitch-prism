@@ -13,10 +13,9 @@ use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund, RepeatPayment},
     connector_types::{
         ConnectorWebhookSecrets, EventContext, EventType, MandateReference, PaymentFlowData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        WebhookDetailsResponse, WebhookResourceReference,
+        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, WebhookDetailsResponse,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -33,16 +32,20 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as givepayments, GivepaymentsIncomingWebhookData, GivepaymentsPaymentResponseData,
+    self as givepayments, GivepaymentsPaymentResponseData,
     GivepaymentsPaymentResponseData as GivepaymentsRepeatPaymentResponse,
     GivepaymentsPaymentResponseData as GivepaymentsPaymentSyncResponse,
     GivepaymentsPaymentsRequestData,
     GivepaymentsPaymentsRequestData as GivepaymentsRepeatPaymentRequest,
     GivepaymentsRefundRequestData, GivepaymentsRefundResponseData,
-    GivepaymentsRefundResponseData as GivepaymentsRefundSyncResponse, GivepaymentsWebhookData,
+    GivepaymentsRefundResponseData as GivepaymentsRefundSyncResponse,
 };
 
 use super::macros;
+use crate::webhooks::givepayments::transformers::{
+    GivepaymentsIncomingWebhookData, GivepaymentsWebhookData,
+};
+use crate::webhooks::givepayments::Givepayments as GivepaymentsWebhook;
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 
 use error_stack::ResultExt;
@@ -151,12 +154,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let webhook_body: GivepaymentsIncomingWebhookData = request
-            .body
-            .parse_struct("GivepaymentsIncomingWebhookData")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(webhook_body.event_type.into())
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            GivepaymentsWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn get_webhook_resource_object(
@@ -172,36 +174,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(Box::new(webhook_body))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let webhook_body: GivepaymentsIncomingWebhookData = request
-            .body
-            .parse_struct("GivepaymentsIncomingWebhookData")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        let webhook_resource_reference = match webhook_body.data {
-            GivepaymentsWebhookData::Payment(response_data) => {
-                WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(response_data.id),
-                    merchant_transaction_id: response_data.external_reference,
-                    connector_preprocessing_id: None,
-                })
-            }
-            GivepaymentsWebhookData::Refund(response_data) => {
-                WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(response_data.id),
-                    merchant_refund_id: response_data.external_reference,
-                    connector_transaction_id: None,
-                    merchant_transaction_id: None,
-                })
-            }
-        };
-
-        Ok(Some(webhook_resource_reference))
     }
 
     fn process_payment_webhook(

@@ -5,9 +5,9 @@
 // Iatapay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx iatapay.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "create_server_authentication_token", "get", "refund", "refund_get"];
+import { PaymentClient, MerchantAuthenticationClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authorize", "create_server_authentication_token", "get", "parse_event", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -77,6 +77,18 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
     };
 }
 
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
 function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
@@ -142,6 +154,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -163,7 +184,7 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
 // Export all process* functions for the smoke test
 export {
-    authorize, createServerAuthenticationToken, get, refund, refundGet, _buildAuthorizeRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest
+    authorize, createServerAuthenticationToken, get, parseEvent, refund, refundGet, _buildAuthorizeRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest
 };
 
 // CLI runner

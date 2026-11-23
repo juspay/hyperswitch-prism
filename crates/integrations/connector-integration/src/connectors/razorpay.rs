@@ -3,6 +3,9 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use super::macros;
+use crate::webhooks::razorpay::{
+    transformers as webhook_transformers, Razorpay as RazorpayWebhook,
+};
 use common_enums::{
     AttemptStatus, CaptureMethod, CardNetwork, EventClass, PaymentMethod, PaymentMethodType,
 };
@@ -943,13 +946,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let payload = transformers::get_webhook_object_from_body(request.body)?;
-
-        if payload.refund.is_some() {
-            Ok(EventType::RefundSuccess)
-        } else {
-            Ok(EventType::PaymentIntentSuccess)
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            RazorpayWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -960,7 +961,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let request_body_copy = request.body.clone();
-        let payload = transformers::get_webhook_object_from_body(request.body)?;
+        let payload = webhook_transformers::get_webhook_object_from_body(request.body)?;
 
         let notif = payload
             .payment
@@ -998,7 +999,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let request_body_copy = request.body.clone();
-        let payload = transformers::get_webhook_object_from_body(request.body)?;
+        let payload = webhook_transformers::get_webhook_object_from_body(request.body)?;
 
         let notif = payload
             .refund

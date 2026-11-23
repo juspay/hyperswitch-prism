@@ -17,13 +17,12 @@ use domain_types::{
         SetupMandate, Void,
     },
     connector_types::{
-        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, DisputeWebhookReference,
-        EventContext, EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookDetailsResponse,
-        WebhookResourceReference,
+        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, SetupMandateRequestData,
+        WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -51,6 +50,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::novalnet::Novalnet as NovalnetWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
@@ -772,75 +772,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         br#"{"event":{"checksum":"probe_checksum","tid":12345678901234,"type":"PAYMENT"},"result":{"status":"SUCCESS","status_code":100,"status_text":"Success"},"transaction":{"tid":12345678901234,"payment_type":"CREDITCARD","status":"CONFIRMED","status_code":100,"order_no":"probe_order_001","amount":1000,"currency":"EUR"}}"#
     }
 
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let notif = get_webhook_object_from_body(&request.body)?;
-        // `event.tid` / `event.type` are inside the Novalnet checksum preimage
-        // (spec: ### Webhook Authentication & Signature Verification) and decide the event class.
-        // `event.parent_tid` (spec: ### IncomingWebhook, source_24: parentTid = event.parent_tid
-        // ?: event.tid) is outside that preimage; it is used only as the lookup key that locates
-        // the original payment of a dispute-class event, never to classify or to derive a status.
-        let tid = notif.event.tid.to_string();
-
-        let reference = match notif.event.event_type {
-            // spec: ### Webhook Payload Structure (TRANSACTION_REFUND -> refund id = event.tid)
-            novalnet::WebhookEventType::TransactionRefund => {
-                WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(tid),
-                    merchant_refund_id: None,
-                    connector_transaction_id: None,
-                    merchant_transaction_id: None,
-                })
-            }
-            // spec: ### IncomingWebhook (dispute id = event.tid; original payment =
-            // event.parent_tid ?: event.tid)
-            novalnet::WebhookEventType::Chargeback
-            | novalnet::WebhookEventType::ReturnDebit
-            | novalnet::WebhookEventType::Reversal
-            | novalnet::WebhookEventType::Credit => {
-                let original_payment_tid = notif
-                    .event
-                    .parent_tid
-                    .map(|parent_tid| parent_tid.to_string())
-                    .unwrap_or_else(|| tid.clone());
-                WebhookResourceReference::Dispute(DisputeWebhookReference {
-                    connector_dispute_id: Some(tid),
-                    connector_transaction_id: Some(original_payment_tid),
-                })
-            }
-            // spec: ### Webhook Payload Structure (otherwise payment by event.tid)
-            novalnet::WebhookEventType::Payment
-            | novalnet::WebhookEventType::TransactionCapture
-            | novalnet::WebhookEventType::TransactionCancel
-            | novalnet::WebhookEventType::Unknown => {
-                WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(tid),
-                    merchant_transaction_id: None,
-                    connector_preprocessing_id: None,
-                })
-            }
-        };
-
-        Ok(Some(reference))
-    }
-
     fn get_event_type(
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let notif = get_webhook_object_from_body(&request.body)?;
-
-        // Classified from the signed checksum preimage (event.type, result.status).
-        // transaction.status is outside it, so it is passed under the lower-only rule: it can
-        // narrow PAYMENT/SUCCESS to authorization-success or processing, never widen an event.
-        let transaction_status = notif.transaction.transaction_status();
-        Ok(novalnet::get_incoming_webhook_event(
-            notif.event.event_type,
-            notif.result.status,
-            transaction_status,
-        ))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            NovalnetWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -937,7 +877,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-fn get_webhook_object_from_body(
+pub(crate) fn get_webhook_object_from_body(
     body: &[u8],
 ) -> Result<novalnet::NovalnetWebhookNotificationResponse, error_stack::Report<WebhookError>> {
     body.parse_struct("NovalnetWebhookNotificationResponse")

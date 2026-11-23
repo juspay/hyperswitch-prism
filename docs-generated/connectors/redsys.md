@@ -122,6 +122,7 @@ let config = ConnectorConfig {
 | [PaymentMethodAuthenticationService.Authenticate](#paymentmethodauthenticationserviceauthenticate) | Authentication | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentMethodAuthenticationService.PreAuthenticate](#paymentmethodauthenticationservicepreauthenticate) | Authentication | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -138,7 +139,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L161) · [Kotlin](../../examples/redsys/redsys.kt#L137) · [Rust](../../examples/redsys/redsys.rs)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L173) · [Kotlin](../../examples/redsys/redsys.kt#L139) · [Rust](../../examples/redsys/redsys.rs)
 
 #### PaymentService.Get
 
@@ -149,7 +150,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L170) · [Kotlin](../../examples/redsys/redsys.kt#L147) · [Rust](../../examples/redsys/redsys.rs)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L182) · [Kotlin](../../examples/redsys/redsys.kt#L149) · [Rust](../../examples/redsys/redsys.rs)
 
 #### PaymentService.Refund
 
@@ -160,7 +161,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L188) · [Kotlin](../../examples/redsys/redsys.kt#L183) · [Rust](../../examples/redsys/redsys.rs)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L209) · [Kotlin](../../examples/redsys/redsys.kt#L200) · [Rust](../../examples/redsys/redsys.rs)
 
 #### PaymentService.Void
 
@@ -171,7 +172,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts) · [Kotlin](../../examples/redsys/redsys.kt#L205) · [Rust](../../examples/redsys/redsys.rs)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts) · [Kotlin](../../examples/redsys/redsys.kt#L222) · [Rust](../../examples/redsys/redsys.rs)
 
 ### Refunds
 
@@ -184,7 +185,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L197) · [Kotlin](../../examples/redsys/redsys.kt#L193) · [Rust](../../examples/redsys/redsys.rs)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L218) · [Kotlin](../../examples/redsys/redsys.kt#L210) · [Rust](../../examples/redsys/redsys.rs)
 
 ### Authentication
 
@@ -197,7 +198,7 @@ Execute 3DS challenge or frictionless verification. Authenticates customer via b
 | **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L152) · [Kotlin](../../examples/redsys/redsys.kt#L89) · [Rust](../../examples/redsys/redsys.rs)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L164) · [Kotlin](../../examples/redsys/redsys.kt#L91) · [Rust](../../examples/redsys/redsys.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -208,4 +209,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L179) · [Kotlin](../../examples/redsys/redsys.kt#L155) · [Rust](../../examples/redsys/redsys.rs)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L200) · [Kotlin](../../examples/redsys/redsys.kt#L172) · [Rust](../../examples/redsys/redsys.rs)

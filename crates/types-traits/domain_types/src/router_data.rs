@@ -3214,6 +3214,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
     ) -> Result<Self, Error> {
         use connector_types::{
             ConnectorEnum, ConnectorVariant, PayoutConnectorEnum, SurchargeConnectorEnum,
+            WebhookConnectorEnum,
         };
 
         let err = || errors::IntegrationError::FailedToObtainAuthType {
@@ -4925,6 +4926,191 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+            },
+            // Webhook connectors share auth config with the payment connector of the same name.
+            ConnectorVariant::Webhook(webhook_connector) => match webhook_connector {
+                WebhookConnectorEnum::Imerchantsolutions => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Imerchantsolutions),
+                )),
+                WebhookConnectorEnum::ElavonPg => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::ElavonPg),
+                )),
+                WebhookConnectorEnum::Revpay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Revpay),
+                )),
+                WebhookConnectorEnum::Payhound => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Payhound),
+                )),
+                WebhookConnectorEnum::Trustly => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Trustly),
+                )),
+                WebhookConnectorEnum::Truelayer => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Truelayer),
+                )),
+                WebhookConnectorEnum::Peachpayments => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Peachpayments),
+                )),
+                WebhookConnectorEnum::Nuvei => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Nuvei)))
+                }
+                WebhookConnectorEnum::Novalnet => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Novalnet),
+                )),
+                WebhookConnectorEnum::Noon => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Noon)))
+                }
+                WebhookConnectorEnum::Nmi => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Nmi)))
+                }
+                WebhookConnectorEnum::Glomopay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Glomopay),
+                )),
+                WebhookConnectorEnum::Globalpay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Globalpay),
+                )),
+                WebhookConnectorEnum::Fiuu => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Fiuu)))
+                }
+                WebhookConnectorEnum::Cybersource => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Cybersource),
+                )),
+                WebhookConnectorEnum::Checkout => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Checkout),
+                )),
+                WebhookConnectorEnum::Authorizedotnet => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Authorizedotnet),
+                )),
+                WebhookConnectorEnum::Tamara => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Tamara),
+                )),
+                WebhookConnectorEnum::Stripe => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Stripe),
+                )),
+                WebhookConnectorEnum::Revolut => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Revolut),
+                )),
+                WebhookConnectorEnum::Reddot => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Reddot),
+                )),
+                WebhookConnectorEnum::Paypal => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Paypal),
+                )),
+                WebhookConnectorEnum::Payload => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Payload),
+                )),
+                WebhookConnectorEnum::Payhere => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Payhere),
+                )),
+                WebhookConnectorEnum::Nexixpay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Nexixpay),
+                )),
+                WebhookConnectorEnum::Maya => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Maya)))
+                }
+                WebhookConnectorEnum::Givepayments => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Givepayments),
+                )),
+                WebhookConnectorEnum::Hyperswitch => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Hyperswitch),
+                )),
+                WebhookConnectorEnum::Grabpay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Grabpay),
+                )),
+                WebhookConnectorEnum::Finix => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Finix)))
+                }
+                WebhookConnectorEnum::Ecommpay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Ecommpay),
+                )),
+                WebhookConnectorEnum::Dlocal => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Dlocal),
+                )),
+                WebhookConnectorEnum::Cryptopay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Cryptopay),
+                )),
+                WebhookConnectorEnum::Boost => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Boost)))
+                }
+                WebhookConnectorEnum::Bluesnap => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Bluesnap),
+                )),
+                WebhookConnectorEnum::Betterpayment => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Betterpayment),
+                )),
+                WebhookConnectorEnum::AbsaSanlam => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::AbsaSanlam),
+                )),
+                WebhookConnectorEnum::Flywire => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Flywire),
+                )),
+                WebhookConnectorEnum::Worldpayxml => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Worldpayxml),
+                )),
+                WebhookConnectorEnum::Trustpay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Trustpay),
+                )),
+                WebhookConnectorEnum::Razorpay => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Razorpay),
+                )),
+                WebhookConnectorEnum::Ppro => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Ppro)))
+                }
+                WebhookConnectorEnum::Phonepe => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Phonepe),
+                )),
+                WebhookConnectorEnum::Cashtocode => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Cashtocode),
+                )),
+                WebhookConnectorEnum::Adyen => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Adyen)))
+                }
+                WebhookConnectorEnum::Braintree => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Braintree),
+                )),
+                WebhookConnectorEnum::Calida => Self::foreign_try_from((
+                    auth,
+                    &ConnectorVariant::Payment(ConnectorEnum::Calida),
+                )),
+                WebhookConnectorEnum::Rapyd => {
+                    Self::foreign_try_from((auth, &ConnectorVariant::Payment(ConnectorEnum::Rapyd)))
+                }
             },
         }
     }

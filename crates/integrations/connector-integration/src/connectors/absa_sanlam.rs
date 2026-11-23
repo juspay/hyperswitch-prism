@@ -5,6 +5,9 @@ use super::{
     },
 };
 use crate::types::ResponseRouterData;
+use crate::webhooks::absa_sanlam::{
+    transformers as webhook_transformers, AbsaSanlam as AbsaSanlamWebhook,
+};
 use common_enums::CurrencyUnit;
 use common_utils::{
     crypto::{self, VerifySignature},
@@ -16,9 +19,8 @@ use common_utils::{
 use domain_types::{
     connector_flow::Authorize,
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsResponseData, RequestDetails, WebhookDetailsResponse,
-        WebhookResourceReference,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, RequestDetails, WebhookDetailsResponse,
     },
     errors::{IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -128,46 +130,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
-            .body
-            .parse_struct("AbsaSanlamWebhookEvent")
-            .change_context(WebhookError::WebhookEventTypeNotFound)?;
-
-        let event_type = match details {
-            absa_sanlam::AbsaSanlamWebhookEvent::Payment(ref event) => match event.event_type {
-                absa_sanlam::AbsaSanlamWebhookEventType::PaymentSucceeded => {
-                    EventType::PaymentIntentSuccess
-                }
-                absa_sanlam::AbsaSanlamWebhookEventType::PaymentFailed => {
-                    EventType::PaymentIntentFailure
-                }
-                absa_sanlam::AbsaSanlamWebhookEventType::DisputeOpened => EventType::DisputeOpened,
-            },
-        };
-
-        Ok(event_type)
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
-            .body
-            .parse_struct("AbsaSanlamWebhookEvent")
-            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
-
-        let id = match details {
-            absa_sanlam::AbsaSanlamWebhookEvent::Payment(ref event) => {
-                WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: None,
-                    merchant_transaction_id: Some(event.payment.user_reference.clone()),
-                    connector_preprocessing_id: None,
-                })
-            }
-        };
-
-        Ok(Some(id))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            AbsaSanlamWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -177,7 +144,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let details: absa_sanlam::AbsaSanlamWebhookEvent = request
+        let details: webhook_transformers::AbsaSanlamWebhookEvent = request
             .body
             .parse_struct("AbsaSanlamWebhookEvent")
             .change_context(WebhookError::WebhookResponseEncodingFailed)?;

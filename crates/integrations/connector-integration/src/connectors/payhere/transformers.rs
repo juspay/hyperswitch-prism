@@ -833,17 +833,6 @@ impl TryFrom<ResponseRouterData<PayhereRefundResponse, Self>>
 
 // ---- Webhook ----
 
-#[derive(Debug, Deserialize)]
-pub struct PayhereWebhookPayload {
-    pub merchant_id: String,
-    pub order_id: String,
-    pub payment_id: Option<i64>,
-    pub payhere_amount: String,
-    pub payhere_currency: String,
-    pub status_code: i32,
-    pub md5sig: String,
-}
-
 /// PayHere speaks two error dialects:
 /// - the business-envelope `{status, msg}` (e.g. refund `status: -1`,
 ///   oauth-token `status: -2`), and

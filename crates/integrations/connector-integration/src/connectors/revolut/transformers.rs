@@ -25,6 +25,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use time::PrimitiveDateTime;
 
+use crate::webhooks::revolut::transformers::{RevolutWebhookBody, RevolutWebhookEvent};
+
 pub struct RevolutAuthType {
     pub secret_api_key: Secret<String>,
     pub signing_secret: Option<Secret<String>>,
@@ -982,32 +984,6 @@ impl<F> TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
 }
 
 // Webhook related structures and implementations
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RevolutWebhookBody {
-    pub event: RevolutWebhookEvent,
-    pub order_id: String,
-    pub merchant_order_ext_ref: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum RevolutWebhookEvent {
-    OrderCompleted,
-    OrderAuthorised,
-    OrderCancelled,
-    OrderFailed,
-    OrderPaymentAuthenticated,
-    OrderPaymentDeclined,
-    OrderPaymentFailed,
-    PayoutInitiated,
-    PayoutCompleted,
-    PayoutFailed,
-    DisputeActionRequired,
-    DisputeUnderReview,
-    DisputeWon,
-    DisputeLost,
-}
 
 /// Maps Revolut webhook event to AttemptStatus for webhook processing
 fn map_webhook_event_to_attempt_status(

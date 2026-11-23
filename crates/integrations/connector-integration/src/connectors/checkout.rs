@@ -18,15 +18,13 @@ use domain_types::{
     },
     connector_types::{
         AcceptDisputeData, ConnectorSpecifications, ConnectorWebhookSecrets, DisputeDefendData,
-        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
-        DisputeWebhookReference, EventContext, EventType, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, PayoutWebhookDetailsResponse, PayoutWebhookReference, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        SetupMandateRequestData, SubmitEvidenceData, WebhookDetailsResponse,
-        WebhookResourceReference,
+        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse, EventContext,
+        EventType, PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, PayoutWebhookDetailsResponse, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ResponseId, SetupMandateRequestData, SubmitEvidenceData,
+        WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -44,8 +42,7 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    is_chargeback_event, is_payout_webhook, is_refund_event, CheckoutDisputeActionResponse,
-    CheckoutDisputeActionResponse as CheckoutEvidenceResponse,
+    CheckoutDisputeActionResponse, CheckoutDisputeActionResponse as CheckoutEvidenceResponse,
     CheckoutDisputeActionResponse as CheckoutDefendDisputeResponse, CheckoutDisputeEmptyRequest,
     CheckoutDisputeEmptyRequest as CheckoutDefendDisputeRequest, CheckoutDisputeWebhookBody,
     CheckoutErrorResponse, CheckoutEvidenceRequest, CheckoutTokenRequest, CheckoutTokenResponse,
@@ -58,6 +55,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::checkout::Checkout as CheckoutWebhook;
 use crate::{
     types::ResponseRouterData,
     utils::{
@@ -347,93 +345,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<domain_types::errors::WebhookError>> {
-        if request.body.is_empty() {
-            return Ok(EventType::EndpointVerification);
-        }
-
-        let body: CheckoutWebhookEventTypeBody = request
-            .body
-            .parse_struct("CheckoutWebhookEventTypeBody")
-            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(EventType::from(body))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<
-        Option<WebhookResourceReference>,
-        error_stack::Report<domain_types::errors::WebhookError>,
-    > {
-        if request.body.is_empty() {
-            return Ok(None);
-        }
-
-        // Peek at only the event type first to branch on the body shape.
-        let type_body: CheckoutWebhookEventTypeBody = request
-            .body
-            .parse_struct("CheckoutWebhookEventTypeBody")
-            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        if is_chargeback_event(&type_body.transaction_type) {
-            let body: CheckoutDisputeWebhookBody = request
-                .body
-                .parse_struct("CheckoutDisputeWebhookBody")
-                .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-            return Ok(Some(WebhookResourceReference::Dispute(
-                DisputeWebhookReference {
-                    connector_dispute_id: Some(body.data.id),
-                    connector_transaction_id: body.data.payment_id,
-                },
-            )));
-        }
-
-        let body: CheckoutWebhookBody = request
-            .body
-            .parse_struct("CheckoutWebhookBody")
-            .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        if is_payout_webhook(&body) {
-            if body.data.id.trim().is_empty() {
-                return Err(error_stack::report!(
-                    domain_types::errors::WebhookError::WebhookMissingRequiredField {
-                        field: "data.id",
-                    }
-                ));
-            }
-
-            return Ok(Some(WebhookResourceReference::Payout(
-                PayoutWebhookReference {
-                    connector_payout_id: Some(body.data.id),
-                    merchant_payout_id: None,
-                },
-            )));
-        }
-
-        if is_refund_event(&type_body.transaction_type) {
-            return Ok(Some(WebhookResourceReference::Refund(
-                RefundWebhookReference {
-                    // Checkout uses action_id as the refund identifier
-                    connector_refund_id: body.data.action_id,
-                    // The `reference` field echoes the merchant-assigned refund ID
-                    merchant_refund_id: body.data.reference,
-                    connector_transaction_id: body.data.payment_id,
-                    merchant_transaction_id: None,
-                },
-            )));
-        }
-
-        // Payment event — the canonical payment ID is `payment_id`; `id` may be an action ID
-        let connector_transaction_id = body.data.payment_id.or(Some(body.data.id));
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                connector_transaction_id,
-                merchant_transaction_id: body.data.reference,
-                connector_preprocessing_id: None,
-            },
-        )))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            CheckoutWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

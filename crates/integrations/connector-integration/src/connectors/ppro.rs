@@ -3,6 +3,11 @@ pub mod transformers;
 use super::macros;
 use transformers::*;
 
+use crate::webhooks::ppro::{
+    transformers::{PproWebhookData, PproWebhookEvent},
+    Ppro as PproWebhook,
+};
+
 use common_utils::{
     crypto::{self, VerifySignature},
     errors::CustomResult,
@@ -228,12 +233,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let event: PproWebhookEvent = request
-            .body
-            .parse_struct("PproWebhookEvent")
-            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
-
-        EventType::try_from(event.r#type)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            PproWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

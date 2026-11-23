@@ -27,7 +27,6 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
         RequestDetails, SetupMandateRequestData, SubmitEvidenceData, WebhookDetailsResponse,
-        WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -59,6 +58,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::stripe::Stripe as StripeWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
@@ -352,23 +352,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        // `get_event_type` decodes the lighter `WebhookEventTypeBody` (it exposes
-        // `payment_method_details`, needed for the `charge.succeeded` sub-mapping), so it keeps
-        // its own decode/error variant rather than sharing `get_webhook_object_from_body`.
-        let details: stripe::WebhookEventTypeBody = request
-            .body
-            .parse_struct("WebhookEventTypeBody")
-            .change_context(WebhookError::WebhookEventTypeNotFound)?;
-        Ok(stripe::map_webhook_event_type(&details))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        let details = stripe::get_webhook_object_from_body(&request.body)
-            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
-        stripe::get_webhook_reference(&details)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            StripeWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

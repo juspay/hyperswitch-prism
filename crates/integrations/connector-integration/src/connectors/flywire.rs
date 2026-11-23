@@ -1,5 +1,6 @@
-mod transformers;
+pub(crate) mod transformers;
 use super::macros;
+use crate::webhooks::flywire::{transformers as webhook_transformers, Flywire as FlywireWebhook};
 
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PSync, RSync, Refund},
@@ -218,11 +219,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let notif: flywire::FlywireWebhookBody = request
-            .body
-            .parse_struct("FlywireWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        Ok(flywire::webhook_event_type(&notif))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            FlywireWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -232,7 +233,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let notif: flywire::FlywireWebhookBody = request
+        let notif: webhook_transformers::FlywireWebhookBody = request
             .body
             .parse_struct("FlywireWebhookBody")
             .attach_printable("Failed to parse Flywire webhook body")
@@ -253,7 +254,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let notif: flywire::FlywireWebhookBody = request
+        let notif: webhook_transformers::FlywireWebhookBody = request
             .body
             .parse_struct("FlywireWebhookBody")
             .attach_printable("Failed to parse Flywire webhook body")

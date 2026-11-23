@@ -10,7 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["get"];
+pub const SUPPORTED_FLOWS: &[&str] = &["get", "parse_event"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -51,6 +51,18 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     }
 }
 
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+    }
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -67,6 +79,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -76,8 +98,12 @@ async fn main() {
         .unwrap_or_else(|| "process_get".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_get", flow);
+            eprintln!(
+                "Unknown flow: {}. Available: process_get, process_parse_event",
+                flow
+            );
             return;
         }
     };

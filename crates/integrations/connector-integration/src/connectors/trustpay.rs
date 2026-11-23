@@ -52,6 +52,9 @@ use transformers::{
 use super::macros::{self, ContentTypeSelector};
 use crate::types::ResponseRouterData;
 use crate::utils::{self, ConnectorErrorType, ConnectorErrorTypeMapping};
+use crate::webhooks::trustpay::{
+    transformers as webhook_transformers, Trustpay as TrustpayWebhook,
+};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 
@@ -130,7 +133,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, Report<WebhookError>> {
-        let webhook_response: trustpay::TrustpayWebhookResponse = request
+        let webhook_response: webhook_transformers::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -143,7 +146,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, Report<WebhookError>> {
-        let trustpay_response: trustpay::TrustpayWebhookResponse = request
+        let trustpay_response: webhook_transformers::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -187,15 +190,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        let webhook_response: trustpay::TrustpayWebhookResponse = request
-            .body
-            .parse_struct("TrustpayWebhookResponse")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(trustpay::get_event_type_from_webhook(
-            &webhook_response.payment_information.credit_debit_indicator,
-            &webhook_response.payment_information.status,
-        ))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            TrustpayWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -205,7 +204,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
-        let webhook_response: trustpay::TrustpayWebhookResponse = request
+        let webhook_response: webhook_transformers::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -269,7 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
-        let webhook_response: trustpay::TrustpayWebhookResponse = request
+        let webhook_response: webhook_transformers::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -311,7 +310,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<domain_types::connector_types::DisputeWebhookDetailsResponse, Report<WebhookError>>
     {
-        let webhook_response: trustpay::TrustpayWebhookResponse = request
+        let webhook_response: webhook_transformers::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -354,7 +353,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
-        let webhook_response: trustpay::TrustpayWebhookResponse = request
+        let webhook_response: webhook_transformers::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;

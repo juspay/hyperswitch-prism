@@ -35,11 +35,10 @@ use domain_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, ConnectorWebhookSecrets, EventContext,
         EventType, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -69,6 +68,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::elavon_pg::ElavonPg as ElavonPgWebhook;
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 
 pub(crate) mod headers {
@@ -414,30 +414,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        Ok(parse_elavon_pg_notification(&request)?.event_type())
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        let notification = parse_elavon_pg_notification(&request)?;
-        Ok(match notification.event_type() {
-            EventType::IncomingWebhookEventUnspecified => None,
-            _ if notification.is_refund_event() => {
-                Some(WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(notification.transaction_id()?),
-                    merchant_refund_id: None,
-                    connector_transaction_id: None,
-                    merchant_transaction_id: None,
-                }))
-            }
-            _ => Some(WebhookResourceReference::Payment(PaymentWebhookReference {
-                connector_transaction_id: Some(notification.transaction_id()?),
-                merchant_transaction_id: None,
-                connector_preprocessing_id: None,
-            })),
-        })
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            ElavonPgWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -501,7 +482,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-fn parse_elavon_pg_notification(
+pub(crate) fn parse_elavon_pg_notification(
     request: &RequestDetails,
 ) -> Result<elavon_pg::ElavonPgNotification, Report<WebhookError>> {
     request

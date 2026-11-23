@@ -605,7 +605,7 @@ mod tests {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod webhook_additional_data_tests {
-    use crate::connectors::adyen::transformers::get_webhook_object_from_body;
+    use crate::webhooks::adyen::transformers::get_webhook_object_from_body;
 
     #[test]
     fn notification_without_additional_data_decodes() {

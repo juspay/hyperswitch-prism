@@ -35,6 +35,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::bluesnap::Bluesnap as BluesnapWebhook;
 use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
@@ -182,29 +183,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_event_type(
         &self,
         request: domain_types::connector_types::RequestDetails,
-    ) -> CustomResult<domain_types::connector_types::EventType, WebhookError> {
-        match serde_urlencoded::from_bytes::<transformers::BluesnapWebhookBody>(&request.body) {
-            Ok(webhook_body) => match webhook_body.transaction_type {
-                transformers::BluesnapWebhookEvent::Chargeback
-                | transformers::BluesnapWebhookEvent::ChargebackStatusChanged => {
-                    let dispute_body: transformers::BluesnapDisputeWebhookBody =
-                        serde_urlencoded::from_bytes(&request.body)
-                            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-                    transformers::map_chargeback_status_to_event_type(&dispute_body.cb_status)
-                }
-                _ => Ok(transformers::map_webhook_event_to_incoming_webhook_event(
-                    &webhook_body.transaction_type,
-                )),
-            },
-            Err(_) => {
-                let dispute_body: transformers::BluesnapDisputeWebhookBody =
-                    serde_urlencoded::from_bytes(&request.body)
-                        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-                transformers::map_chargeback_status_to_event_type(&dispute_body.cb_status)
-            }
-        }
+    ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            BluesnapWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

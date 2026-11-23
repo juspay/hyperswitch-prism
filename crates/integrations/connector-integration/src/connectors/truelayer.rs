@@ -41,6 +41,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::truelayer::Truelayer as TruelayerWebhook;
 use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 
 // Trait for types that can provide access tokens
@@ -766,89 +767,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: domain_types::connector_types::RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        let webhook_body: truelayer::TruelayerWebhookEventTypeBody = request
-            .body
-            .parse_struct("TruelayerPayoutsWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(truelayer::get_webhook_event(webhook_body._type))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: domain_types::connector_types::RequestDetails,
-    ) -> Result<
-        Option<domain_types::connector_types::WebhookResourceReference>,
-        error_stack::Report<WebhookError>,
-    > {
-        let event_type_body: truelayer::TruelayerWebhookEventTypeBody = request
-            .body
-            .parse_struct("TruelayerWebhookEventTypeBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        // Payout webhooks carry `payout_id` and no `payment_id`, so each arm
-        // deserializes the body shape that matches its event family.
-        match event_type_body._type {
-            truelayer::TruelayerWebhookEventType::PayoutExecuted
-            | truelayer::TruelayerWebhookEventType::PayoutFailed => {
-                let payout_body: truelayer::TruelayerPayoutWebhookBody = request
-                    .body
-                    .parse_struct("TruelayerPayoutWebhookBody")
-                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-                Ok(Some(
-                    domain_types::connector_types::WebhookResourceReference::Payout(
-                        domain_types::connector_types::PayoutWebhookReference {
-                            connector_payout_id: Some(payout_body.payout_id),
-                            merchant_payout_id: None,
-                        },
-                    ),
-                ))
-            }
-            truelayer::TruelayerWebhookEventType::PaymentAuthorized
-            | truelayer::TruelayerWebhookEventType::PaymentExecuted
-            | truelayer::TruelayerWebhookEventType::PaymentReversed
-            | truelayer::TruelayerWebhookEventType::PaymentFailed
-            | truelayer::TruelayerWebhookEventType::PaymentSettlementStalled
-            | truelayer::TruelayerWebhookEventType::PaymentSettled
-            | truelayer::TruelayerWebhookEventType::PaymentCreditable
-            | truelayer::TruelayerWebhookEventType::PaymentFundsReceived => {
-                let webhook_body: truelayer::TruelayerWebhookBody = request
-                    .body
-                    .parse_struct("TruelayerWebhookBody")
-                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-                Ok(Some(
-                    domain_types::connector_types::WebhookResourceReference::Payment(
-                        domain_types::connector_types::PaymentWebhookReference {
-                            connector_transaction_id: Some(webhook_body.payment_id),
-                            merchant_transaction_id: None,
-                            connector_preprocessing_id: None,
-                        },
-                    ),
-                ))
-            }
-            truelayer::TruelayerWebhookEventType::RefundExecuted
-            | truelayer::TruelayerWebhookEventType::RefundFailed => {
-                let webhook_body: truelayer::TruelayerWebhookBody = request
-                    .body
-                    .parse_struct("TruelayerWebhookBody")
-                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-                Ok(Some(
-                    domain_types::connector_types::WebhookResourceReference::Refund(
-                        domain_types::connector_types::RefundWebhookReference {
-                            connector_refund_id: webhook_body.refund_id,
-                            merchant_refund_id: None,
-                            connector_transaction_id: Some(webhook_body.payment_id),
-                            merchant_transaction_id: None,
-                        },
-                    ),
-                ))
-            }
-            truelayer::TruelayerWebhookEventType::PaymentDisputed
-            | truelayer::TruelayerWebhookEventType::Unknown => Ok(None),
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            TruelayerWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

@@ -14,7 +14,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        EventType, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
@@ -2953,39 +2953,6 @@ use crate::unimplemented_payment_method;
 pub const DUIT_NOW_BRAND_COLOR: &str = "#ED2E67";
 
 pub const DUIT_NOW_BRAND_TEXT: &str = "MALAYSIA NATIONAL QR";
-
-impl From<FiuuPaymentWebhookStatus> for EventType {
-    fn from(value: FiuuPaymentWebhookStatus) -> Self {
-        match value {
-            FiuuPaymentWebhookStatus::Success => Self::PaymentIntentSuccess,
-            FiuuPaymentWebhookStatus::Failure => Self::PaymentIntentFailure,
-            FiuuPaymentWebhookStatus::Pending => Self::PaymentIntentProcessing,
-            FiuuPaymentWebhookStatus::Unknown => {
-                tracing::warn!(
-                    "Unknown fiuu payment webhook status received; acknowledging without processing"
-                );
-                Self::IncomingWebhookEventUnspecified
-            }
-        }
-    }
-}
-
-impl From<FiuuRefundsWebhookStatus> for EventType {
-    fn from(value: FiuuRefundsWebhookStatus) -> Self {
-        match value {
-            FiuuRefundsWebhookStatus::RefundSuccess => Self::RefundSuccess,
-            FiuuRefundsWebhookStatus::RefundFailure => Self::RefundFailure,
-            FiuuRefundsWebhookStatus::RefundPending => Self::IncomingWebhookEventUnspecified,
-            FiuuRefundsWebhookStatus::Unknown => {
-                tracing::warn!(
-                    "Unknown fiuu refund webhook status received; acknowledging without processing"
-                );
-                Self::IncomingWebhookEventUnspecified
-            }
-        }
-    }
-}
-
 impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
     type Error = error_stack::Report<IntegrationError>;
 

@@ -5,6 +5,7 @@ use domain_types::{
         WebhookDetailsResponse, WebhookIntegrityCheck, WebhookResourceReference,
     },
     errors::WebhookError,
+    payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
 };
 use serde::{Deserialize, Serialize};
@@ -195,5 +196,24 @@ pub trait IncomingWebhook {
             headers: vec![],
             body: None,
         })
+    }
+}
+
+pub trait IncomingWebhookEventParser<T: PaymentMethodDataTypes> {
+    fn get_event_type(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        Err(WebhookError::WebhooksNotImplemented {
+            operation: "get_event_type",
+        }
+        .into())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        _request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        Ok(None)
     }
 }

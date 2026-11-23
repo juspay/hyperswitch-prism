@@ -15,12 +15,11 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
-        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventContext, EventType,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        DisputeWebhookDetailsResponse, EventContext, EventType, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookDetailsResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -49,6 +48,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::rapyd::{transformers as webhook_transformers, Rapyd as RapydWebhook};
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
@@ -126,57 +126,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::webhooks::IncomingWebhook for Rapyd<T>
 {
     fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
-        let event: transformers::RapydIncomingWebhook = request
-            .body
-            .parse_struct("RapydIncomingWebhook")
-            .change_context(WebhookError::WebhookEventTypeNotFound)?;
-        event.try_into()
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
-        let event: transformers::RapydIncomingWebhook = request
-            .body
-            .parse_struct("RapydIncomingWebhook")
-            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
-        use transformers::RapydWebhookEventType;
-        Ok(match event.webhook_type {
-            RapydWebhookEventType::PaymentSucceeded
-            | RapydWebhookEventType::PaymentCompleted
-            | RapydWebhookEventType::PaymentCaptured
-            | RapydWebhookEventType::PaymentCanceled
-            | RapydWebhookEventType::PaymentExpired
-            | RapydWebhookEventType::PaymentFailed => {
-                let data = event.payment_data()?;
-                Some(WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(data.id),
-                    merchant_transaction_id: None,
-                    connector_preprocessing_id: None,
-                }))
-            }
-            RapydWebhookEventType::RefundCompleted
-            | RapydWebhookEventType::PaymentRefundRejected
-            | RapydWebhookEventType::PaymentRefundFailed => {
-                let data = event.refund_data()?;
-                Some(WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(data.id),
-                    connector_transaction_id: Some(data.payment),
-                    merchant_refund_id: None,
-                    merchant_transaction_id: None,
-                }))
-            }
-            RapydWebhookEventType::PaymentDisputeCreated
-            | RapydWebhookEventType::PaymentDisputeUpdated => {
-                let data = event.dispute_data()?;
-                Some(WebhookResourceReference::Dispute(DisputeWebhookReference {
-                    connector_dispute_id: Some(data.token),
-                    connector_transaction_id: Some(data.original_transaction_id),
-                }))
-            }
-            RapydWebhookEventType::Unknown => None,
-        })
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            RapydWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -186,7 +140,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
-        let event: transformers::RapydIncomingWebhook = request
+        let event: webhook_transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
@@ -199,11 +153,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
-        let event: transformers::RapydIncomingWebhook = request
+        let event: webhook_transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        use transformers::{RapydWebhookEventType, RefundStatus};
+        use transformers::RefundStatus;
+        use webhook_transformers::RapydWebhookEventType;
         let status = match event.webhook_type {
             RapydWebhookEventType::RefundCompleted => RefundStatus::Completed,
             RapydWebhookEventType::PaymentRefundRejected => RefundStatus::Rejected,
@@ -236,7 +191,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
-        let event: transformers::RapydIncomingWebhook = request
+        let event: webhook_transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;

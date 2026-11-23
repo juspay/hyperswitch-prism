@@ -14,12 +14,13 @@ use serde_json::{json, Value};
 
 use super::transformers::{build_checkout_sender, build_checkout_sender_address};
 use super::Checkout;
+use crate::webhooks::checkout::Checkout as CheckoutWebhook;
 use common_enums::PayoutStatus;
 use domain_types::{
     connector_types::{EventType, HttpMethod, RequestDetails, WebhookResourceReference},
     payment_method_data::DefaultPCIHolder,
 };
-use interfaces::webhooks::IncomingWebhook;
+use interfaces::webhooks::{IncomingWebhook, IncomingWebhookEventParser};
 use std::collections::HashMap;
 
 fn secret(value: &str) -> Secret<String> {
@@ -368,10 +369,13 @@ fn card_payout_approved_webhook_routes_to_payout_success() {
         connector.get_event_type(request.clone()).expect("event"),
         EventType::PayoutSuccess
     );
-    match connector
-        .get_webhook_event_reference(request.clone())
-        .expect("reference")
-        .expect("present")
+    // The event reference is resolved by the webhook parser, not the connector.
+    match IncomingWebhookEventParser::get_webhook_event_reference(
+        CheckoutWebhook::<DefaultPCIHolder>::new(),
+        request.clone(),
+    )
+    .expect("reference")
+    .expect("present")
     {
         WebhookResourceReference::Payout(reference) => {
             assert_eq!(

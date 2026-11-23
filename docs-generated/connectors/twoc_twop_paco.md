@@ -126,6 +126,7 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.VerifyRedirectResponse](#paymentserviceverifyredirectresponse) | Payments | `PaymentServiceVerifyRedirectResponseRequest` |
 
 ### Payments
@@ -139,4 +140,4 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L40) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L44) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L61) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L61) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)

@@ -30,6 +30,7 @@ use transformers::{
 
 use super::macros;
 use crate::types::ResponseRouterData;
+use crate::webhooks::maya::Maya as MayaWebhook;
 use crate::with_error_response_body;
 
 pub(crate) mod headers {
@@ -279,33 +280,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body: MayaWebhookBody = request
-            .body
-            .parse_struct("MayaWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(EventType::from(body.status))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let body: MayaWebhookBody = request
-            .body
-            .parse_struct("MayaWebhookBody")
-            .change_context(errors::WebhookError::WebhookResourceObjectNotFound)?;
-
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                // Maya's payment `id` is the connector transaction id.
-                connector_transaction_id: Some(body.id),
-                // `requestReferenceNumber` is the merchant-assigned reference we
-                // sent when creating the payment, echoed back by Maya.
-                merchant_transaction_id: body.request_reference_number,
-                connector_preprocessing_id: None,
-            },
-        )))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            MayaWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

@@ -59,9 +59,8 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RequestDetails,
-        WebhookDetailsResponse, WebhookResourceReference,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RequestDetails, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -87,6 +86,7 @@ use transformers::{
 use url::Url;
 
 use super::macros;
+use crate::webhooks::payhound::Payhound as PayhoundWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
@@ -506,43 +506,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        // Payhound sends no event-type field: the callback body *is* the invoice object, so the
-        // event is derived from its status.
-        let invoice: PayhoundInvoiceResponse = request
-            .body
-            .parse_struct("PayhoundInvoiceResponse")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        match invoice.status {
-            payhound::PayhoundInvoiceStatus::Completed
-            | payhound::PayhoundInvoiceStatus::Overpaid => Ok(EventType::PaymentIntentSuccess),
-            payhound::PayhoundInvoiceStatus::Pending
-            | payhound::PayhoundInvoiceStatus::Underpaid => Ok(EventType::PaymentActionRequired),
-            payhound::PayhoundInvoiceStatus::Aborted | payhound::PayhoundInvoiceStatus::Timeout => {
-                Ok(EventType::PaymentIntentFailure)
-            }
-            payhound::PayhoundInvoiceStatus::Unknown => {
-                Ok(EventType::IncomingWebhookEventUnspecified)
-            }
-        }
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let invoice: PayhoundInvoiceResponse = request
-            .body
-            .parse_struct("PayhoundInvoiceResponse")
-            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
-
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                connector_transaction_id: Some(invoice.id),
-                merchant_transaction_id: invoice.reference,
-                connector_preprocessing_id: None,
-            },
-        )))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            PayhoundWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

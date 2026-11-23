@@ -37,6 +37,7 @@ use responses::{
 use serde::Serialize;
 
 use super::macros;
+use crate::webhooks::peachpayments::Peachpayments as PeachpaymentsWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
@@ -44,9 +45,6 @@ use domain_types::errors::{IntegrationError, WebhookError};
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
 }
-
-const REFUND: &str = "Refund";
-const TRANSACTION: &str = "transaction";
 
 macros::create_all_prerequisites!(
     connector_name: Peachpayments,
@@ -496,61 +494,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let body = String::from_utf8(request.body.clone())
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        let webhook_body: responses::PeachpaymentsIncomingWebhook = body
-            .parse_struct("PeachpaymentsIncomingWebhook")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        let description = webhook_body
-            .transaction
-            .as_ref()
-            .map(|transaction| transaction.transaction_type.description.clone());
-
-        match webhook_body.webhook_type.as_str() {
-            TRANSACTION => {
-                if let Some(transaction) = webhook_body.transaction {
-                    match transaction.transaction_result {
-                        responses::PeachpaymentsPaymentStatus::Successful => {
-                            Ok(EventType::PaymentIntentSuccess)
-                        }
-                        responses::PeachpaymentsPaymentStatus::ApprovedConfirmed => {
-                            if description == Some(REFUND.to_string()) {
-                                Ok(EventType::RefundSuccess)
-                            } else {
-                                Ok(EventType::PaymentIntentSuccess)
-                            }
-                        }
-                        responses::PeachpaymentsPaymentStatus::Authorized
-                        | responses::PeachpaymentsPaymentStatus::Approved => {
-                            Ok(EventType::PaymentIntentAuthorizationSuccess)
-                        }
-                        responses::PeachpaymentsPaymentStatus::Pending => {
-                            Ok(EventType::PaymentIntentProcessing)
-                        }
-                        responses::PeachpaymentsPaymentStatus::Declined
-                        | responses::PeachpaymentsPaymentStatus::Failed => {
-                            if description == Some(REFUND.to_string()) {
-                                Ok(EventType::RefundFailure)
-                            } else {
-                                Ok(EventType::PaymentIntentFailure)
-                            }
-                        }
-                        responses::PeachpaymentsPaymentStatus::Voided
-                        | responses::PeachpaymentsPaymentStatus::Reversed => {
-                            Ok(EventType::PaymentIntentCancelled)
-                        }
-                        responses::PeachpaymentsPaymentStatus::ThreedsRequired => {
-                            Ok(EventType::PaymentActionRequired)
-                        }
-                    }
-                } else {
-                    Err(report!(WebhookError::WebhookEventTypeNotFound))
-                }
-            }
-            _ => Err(report!(WebhookError::WebhookEventTypeNotFound)),
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            PeachpaymentsWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

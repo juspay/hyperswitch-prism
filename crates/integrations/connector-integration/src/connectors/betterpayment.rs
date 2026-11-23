@@ -17,11 +17,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
-        RequestDetails, ResponseId, SupportedPaymentMethodsExt, WebhookDetailsResponse,
-        WebhookResourceReference,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
+        SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
     errors,
     payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes},
@@ -43,8 +42,11 @@ use serde::Serialize;
 use transformers::{
     self as betterpayment, BetterpaymentAuthorizeRequest, BetterpaymentAuthorizeResponse,
     BetterpaymentPSyncResponse, BetterpaymentRSyncResponse, BetterpaymentRefundRequest,
-    BetterpaymentRefundResponse, BetterpaymentWebhookBody,
+    BetterpaymentRefundResponse,
 };
+
+use crate::webhooks::betterpayment::transformers::BetterpaymentWebhookBody;
+use crate::webhooks::betterpayment::Betterpayment as BetterpaymentWebhook;
 
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 
@@ -268,36 +270,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-        Ok(betterpayment::get_webhook_event_type(&body))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let body: BetterpaymentWebhookBody = serde_urlencoded::from_bytes(&request.body)
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        if let Some(refund_id) = body.refund_id {
-            return Ok(Some(WebhookResourceReference::Refund(
-                domain_types::connector_types::RefundWebhookReference {
-                    connector_refund_id: Some(refund_id),
-                    merchant_refund_id: None,
-                    connector_transaction_id: Some(body.transaction_id),
-                    merchant_transaction_id: None,
-                },
-            )));
-        }
-
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                connector_preprocessing_id: None,
-                connector_transaction_id: Some(body.transaction_id),
-                merchant_transaction_id: None,
-            },
-        )))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            BetterpaymentWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn get_webhook_source_verification_signature(

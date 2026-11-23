@@ -16,10 +16,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RequestDetails,
-        ResponseId, WebhookDetailsResponse, WebhookResourceReference,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
+        WebhookDetailsResponse,
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -38,10 +38,12 @@ use serde::Serialize;
 use transformers::{
     self as reddot, ReddotAuthorizeRequest, ReddotAuthorizeResponse, ReddotPSyncRequest,
     ReddotPSyncResponse, ReddotRefundRequest, ReddotRefundResponse, ReddotRefundSyncRequest,
-    ReddotRefundSyncResponse, ReddotWebhookBody,
+    ReddotRefundSyncResponse,
 };
 
 use super::macros;
+use crate::webhooks::reddot::transformers::ReddotWebhookBody;
+use crate::webhooks::reddot::Reddot as ReddotWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 macros::create_amount_converter_wrapper!(connector_name: Reddot, amount_type: StringMajorUnit);
@@ -235,34 +237,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body: ReddotWebhookBody = request
-            .body
-            .parse_struct("ReddotWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(match body.response_code.as_str() {
-            "0" => EventType::PaymentIntentSuccess,
-            "-01" => EventType::PaymentIntentProcessing,
-            _ => EventType::PaymentIntentFailure,
-        })
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let body: ReddotWebhookBody = request
-            .body
-            .parse_struct("ReddotWebhookBody")
-            .change_context(errors::WebhookError::WebhookResourceObjectNotFound)?;
-
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                connector_transaction_id: body.transaction_id,
-                merchant_transaction_id: body.merchant_reference,
-                connector_preprocessing_id: None,
-            },
-        )))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            ReddotWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

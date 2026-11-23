@@ -792,9 +792,14 @@ pub fn parse_event_transformer(
         |e: error_stack::Report<domain_types::errors::WebhookError>| e.current_context().switch(),
     )?;
 
-    let connector_data: connector_integration::types::ConnectorData<
+    let webhook_connector =
+        domain_types::connector_types::WebhookConnectorEnum::try_from(connector)
+            .map_err(|e| e.switch())?;
+    let connector_data: connector_integration::types::WebhookConnectorData<
         domain_types::payment_method_data::DefaultPCIHolder,
-    > = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+    > = connector_integration::types::WebhookConnectorData::get_connector_by_name(
+        &webhook_connector,
+    );
 
     connector_integration::webhook_utils::parse_webhook_event(connector_data, request_details)
         .map_err(

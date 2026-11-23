@@ -130,6 +130,7 @@ let config = ConnectorConfig {
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 
 ### Payments
@@ -260,7 +261,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L84) · [Kotlin](../../examples/volt/volt.kt#L92) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L96) · [Kotlin](../../examples/volt/volt.kt#L94) · [Rust](../../examples/volt/volt.rs)
 
 #### PaymentService.Refund
 
@@ -271,7 +272,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L93) · [Kotlin](../../examples/volt/volt.kt#L100) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L114) · [Kotlin](../../examples/volt/volt.kt#L117) · [Rust](../../examples/volt/volt.rs)
 
 ### Authentication
 
@@ -284,4 +285,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L75) · [Kotlin](../../examples/volt/volt.kt#L82) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L87) · [Kotlin](../../examples/volt/volt.kt#L84) · [Rust](../../examples/volt/volt.rs)

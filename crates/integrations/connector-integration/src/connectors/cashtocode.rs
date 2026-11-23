@@ -27,6 +27,7 @@ use serde::Serialize;
 use transformers::{self as cashtocode, CashtocodePaymentsRequest, CashtocodePaymentsResponse};
 
 use super::macros;
+use crate::webhooks::cashtocode::Cashtocode as CashtocodeWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
@@ -92,9 +93,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn get_event_type(
         &self,
-        _request: RequestDetails,
+        request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        Ok(domain_types::connector_types::EventType::PaymentIntentSuccess)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            CashtocodeWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

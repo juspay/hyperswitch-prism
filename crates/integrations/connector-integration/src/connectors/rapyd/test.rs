@@ -32,9 +32,10 @@ type TestResult = Result<(), Box<dyn Error>>;
 #[test]
 fn payment_webhook_returns_payment_state_and_preserves_routing() -> TestResult {
     use domain_types::connector_types::{EventType, ResponseId, WebhookResourceReference};
-    use interfaces::webhooks::IncomingWebhook;
+    use interfaces::webhooks::{IncomingWebhook, IncomingWebhookEventParser};
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
+    let parser = crate::webhooks::Rapyd::<DefaultPCIHolder>::new();
     let body = json!({
         "type": "PAYMENT_COMPLETED",
         "data": {
@@ -48,7 +49,7 @@ fn payment_webhook_returns_payment_state_and_preserves_routing() -> TestResult {
         return Err("expected a successful payment event".into());
     }
     let Some(WebhookResourceReference::Payment(reference)) =
-        connector.get_webhook_event_reference(request.clone())?
+        parser.get_webhook_event_reference(request.clone())?
     else {
         return Err("expected payment reference".into());
     };
@@ -105,9 +106,10 @@ fn webhook_secrets() -> domain_types::connector_types::ConnectorWebhookSecrets {
 #[test]
 fn refund_webhooks_keep_the_refund_and_parent_payment_distinct() -> TestResult {
     use domain_types::connector_types::{EventType, WebhookResourceReference};
-    use interfaces::webhooks::IncomingWebhook;
+    use interfaces::webhooks::{IncomingWebhook, IncomingWebhookEventParser};
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
+    let parser = crate::webhooks::Rapyd::<DefaultPCIHolder>::new();
     for (event, expected_event, expected_status) in [
         (
             "REFUND_COMPLETED",
@@ -134,7 +136,7 @@ fn refund_webhooks_keep_the_refund_and_parent_payment_distinct() -> TestResult {
             return Err(format!("unexpected refund event type for {event}").into());
         }
         let Some(WebhookResourceReference::Refund(reference)) =
-            connector.get_webhook_event_reference(request.clone())?
+            parser.get_webhook_event_reference(request.clone())?
         else {
             return Err("expected refund reference".into());
         };
@@ -255,9 +257,10 @@ fn webhook_verification_rejects_missing_or_invalid_inputs() -> TestResult {
 #[test]
 fn dispute_webhooks_use_the_token_and_currency_precision() -> TestResult {
     use domain_types::connector_types::{EventType, WebhookResourceReference};
-    use interfaces::webhooks::IncomingWebhook;
+    use interfaces::webhooks::{IncomingWebhook, IncomingWebhookEventParser};
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
+    let parser = crate::webhooks::Rapyd::<DefaultPCIHolder>::new();
     for (event, status, expected_event, expected_status) in [
         (
             "PAYMENT_DISPUTE_CREATED",
@@ -299,7 +302,7 @@ fn dispute_webhooks_use_the_token_and_currency_precision() -> TestResult {
                 return Err(format!("unexpected dispute event type for {event}/{status}").into());
             }
             let Some(WebhookResourceReference::Dispute(reference)) =
-                connector.get_webhook_event_reference(request.clone())?
+                parser.get_webhook_event_reference(request.clone())?
             else {
                 return Err("expected dispute reference".into());
             };
@@ -397,9 +400,10 @@ fn payment_webhooks_preserve_authorization_and_failure_details() -> TestResult {
 #[test]
 fn unsupported_and_malformed_webhooks_do_not_produce_payment_updates() -> TestResult {
     use domain_types::connector_types::EventType;
-    use interfaces::webhooks::IncomingWebhook;
+    use interfaces::webhooks::{IncomingWebhook, IncomingWebhookEventParser};
 
     let connector = Rapyd::<DefaultPCIHolder>::new();
+    let parser = crate::webhooks::Rapyd::<DefaultPCIHolder>::new();
     for body in [
         json!({"type": "FUTURE_EVENT", "data": {"id": "unrelated"}}),
         json!({"type": "FUTURE_EVENT", "data": [1, 2, 3]}),
@@ -409,7 +413,7 @@ fn unsupported_and_malformed_webhooks_do_not_produce_payment_updates() -> TestRe
         {
             return Err("unknown webhook was assigned a supported event type".into());
         }
-        if connector
+        if parser
             .get_webhook_event_reference(request.clone())?
             .is_some()
         {
@@ -436,7 +440,7 @@ fn unsupported_and_malformed_webhooks_do_not_produce_payment_updates() -> TestRe
         "PAYMENT_DISPUTE_UPDATED",
     ] {
         let request = webhook_request(serde_json::to_vec(&json!({"type":event,"data":{}}))?);
-        if connector.get_webhook_event_reference(request).is_ok() {
+        if parser.get_webhook_event_reference(request).is_ok() {
             return Err(format!("malformed {event} payload was accepted").into());
         }
     }
@@ -463,8 +467,11 @@ fn unsupported_and_malformed_webhooks_do_not_produce_payment_updates() -> TestRe
 
 #[test]
 fn webhook_dispatch_returns_the_correct_public_response() -> TestResult {
-    use crate::{types::ConnectorData, webhook_utils};
-    use domain_types::connector_types::ConnectorEnum;
+    use crate::{
+        types::{ConnectorData, WebhookConnectorData},
+        webhook_utils,
+    };
+    use domain_types::connector_types::{ConnectorEnum, WebhookConnectorEnum};
     use grpc::event_content::Content;
 
     for body in [
@@ -478,7 +485,10 @@ fn webhook_dispatch_returns_the_correct_public_response() -> TestResult {
         let connector_data =
             ConnectorData::<DefaultPCIHolder>::get_connector_by_name(&ConnectorEnum::Rapyd);
         let request = webhook_request(serde_json::to_vec(&body)?);
-        let parsed = webhook_utils::parse_webhook_event(connector_data.clone(), request.clone())?;
+        let parser_data = WebhookConnectorData::<DefaultPCIHolder>::get_connector_by_name(
+            &WebhookConnectorEnum::Rapyd,
+        );
+        let parsed = webhook_utils::parse_webhook_event(parser_data, request.clone())?;
         if parsed.reference.is_none() {
             return Err("parsed webhook has no resource reference".into());
         }

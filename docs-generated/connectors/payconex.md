@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L121) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L113) · [Rust](../../examples/payconex/payconex.rs#L157)
+**Examples:** [Python](../../examples/payconex/payconex.py#L132) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L115) · [Rust](../../examples/payconex/payconex.rs#L169)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L140) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L129) · [Rust](../../examples/payconex/payconex.rs#L173)
+**Examples:** [Python](../../examples/payconex/payconex.py#L151) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L131) · [Rust](../../examples/payconex/payconex.rs#L185)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L165) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L151) · [Rust](../../examples/payconex/payconex.rs#L196)
+**Examples:** [Python](../../examples/payconex/payconex.py#L176) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L153) · [Rust](../../examples/payconex/payconex.rs#L208)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L190) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L173) · [Rust](../../examples/payconex/payconex.rs#L219)
+**Examples:** [Python](../../examples/payconex/payconex.py#L201) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L175) · [Rust](../../examples/payconex/payconex.rs#L231)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L212) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L192) · [Rust](../../examples/payconex/payconex.rs#L238)
+**Examples:** [Python](../../examples/payconex/payconex.py#L223) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L194) · [Rust](../../examples/payconex/payconex.rs#L250)
 
 ## API Reference
 
@@ -168,6 +168,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -306,7 +307,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L245) · [Kotlin](../../examples/payconex/payconex.kt#L210) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L257) · [Kotlin](../../examples/payconex/payconex.kt#L212) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.Capture
 
@@ -317,7 +318,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L254) · [Kotlin](../../examples/payconex/payconex.kt#L222) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L266) · [Kotlin](../../examples/payconex/payconex.kt#L224) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.Get
 
@@ -328,7 +329,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L263) · [Kotlin](../../examples/payconex/payconex.kt#L232) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L275) · [Kotlin](../../examples/payconex/payconex.kt#L234) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -339,7 +340,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L272) · [Kotlin](../../examples/payconex/payconex.kt#L240) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L293) · [Kotlin](../../examples/payconex/payconex.kt#L257) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.Refund
 
@@ -350,7 +351,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L281) · [Kotlin](../../examples/payconex/payconex.kt#L269) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L302) · [Kotlin](../../examples/payconex/payconex.kt#L286) · [Rust](../../examples/payconex/payconex.rs)
 
 #### PaymentService.Void
 
@@ -361,7 +362,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts) · [Kotlin](../../examples/payconex/payconex.kt#L291) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts) · [Kotlin](../../examples/payconex/payconex.kt#L308) · [Rust](../../examples/payconex/payconex.rs)
 
 ### Refunds
 
@@ -374,4 +375,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L290) · [Kotlin](../../examples/payconex/payconex.kt#L279) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L311) · [Kotlin](../../examples/payconex/payconex.kt#L296) · [Rust](../../examples/payconex/payconex.rs)

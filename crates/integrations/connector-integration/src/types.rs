@@ -3,17 +3,18 @@ use std::fmt::Debug;
 use domain_types::{
     connector_types::{
         AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
-        SurchargeConnectorEnum,
+        SurchargeConnectorEnum, WebhookConnectorEnum,
     },
     payment_method_data::PaymentMethodDataTypes,
 };
 use interfaces::connector_types::{
     BoxedAuthenticatorConnector, BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector,
-    BoxedSurchargeConnector,
+    BoxedSurchargeConnector, BoxedWebhookConnector,
 };
 
 use crate::{
     authenticator_connectors, connectors, frm_connectors, payout_connectors, surcharge_connectors,
+    webhooks,
 };
 
 #[derive(Clone)]
@@ -376,6 +377,95 @@ impl ConnectorDataProvider for AuthenticatorConnectorData {
         variant
             .as_authenticator()
             .map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+#[derive(Clone)]
+pub struct WebhookConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static>
+{
+    pub connector: BoxedWebhookConnector<T>,
+    pub connector_name: WebhookConnectorEnum,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    ConnectorDataProvider for WebhookConnectorData<T>
+{
+    type ConnectorEnumType = WebhookConnectorEnum;
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant
+            .as_webhook()
+            .map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
+    WebhookConnectorData<T>
+{
+    pub fn get_connector_by_name(connector_name: &WebhookConnectorEnum) -> Self {
+        let connector = Self::convert_connector(*connector_name);
+        Self {
+            connector,
+            connector_name: *connector_name,
+        }
+    }
+
+    pub fn convert_connector(connector_name: WebhookConnectorEnum) -> BoxedWebhookConnector<T> {
+        match connector_name {
+            WebhookConnectorEnum::Adyen => Box::new(webhooks::Adyen::<T>::new()),
+            WebhookConnectorEnum::Imerchantsolutions => {
+                Box::new(webhooks::Imerchantsolutions::<T>::new())
+            }
+            WebhookConnectorEnum::ElavonPg => Box::new(webhooks::ElavonPg::<T>::new()),
+            WebhookConnectorEnum::Revpay => Box::new(webhooks::Revpay::<T>::new()),
+            WebhookConnectorEnum::Payhound => Box::new(webhooks::Payhound::<T>::new()),
+            WebhookConnectorEnum::Trustly => Box::new(webhooks::Trustly::<T>::new()),
+            WebhookConnectorEnum::Truelayer => Box::new(webhooks::Truelayer::<T>::new()),
+            WebhookConnectorEnum::Peachpayments => Box::new(webhooks::Peachpayments::<T>::new()),
+            WebhookConnectorEnum::Nuvei => Box::new(webhooks::Nuvei::<T>::new()),
+            WebhookConnectorEnum::Novalnet => Box::new(webhooks::Novalnet::<T>::new()),
+            WebhookConnectorEnum::Noon => Box::new(webhooks::Noon::<T>::new()),
+            WebhookConnectorEnum::Nmi => Box::new(webhooks::Nmi::<T>::new()),
+            WebhookConnectorEnum::Glomopay => Box::new(webhooks::Glomopay::<T>::new()),
+            WebhookConnectorEnum::Globalpay => Box::new(webhooks::Globalpay::<T>::new()),
+            WebhookConnectorEnum::Fiuu => Box::new(webhooks::Fiuu::<T>::new()),
+            WebhookConnectorEnum::Cybersource => Box::new(webhooks::Cybersource::<T>::new()),
+            WebhookConnectorEnum::Checkout => Box::new(webhooks::Checkout::<T>::new()),
+            WebhookConnectorEnum::Authorizedotnet => {
+                Box::new(webhooks::Authorizedotnet::<T>::new())
+            }
+            WebhookConnectorEnum::Tamara => Box::new(webhooks::Tamara::<T>::new()),
+            WebhookConnectorEnum::Stripe => Box::new(webhooks::Stripe::<T>::new()),
+            WebhookConnectorEnum::Revolut => Box::new(webhooks::Revolut::<T>::new()),
+            WebhookConnectorEnum::Reddot => Box::new(webhooks::Reddot::<T>::new()),
+            WebhookConnectorEnum::Paypal => Box::new(webhooks::Paypal::<T>::new()),
+            WebhookConnectorEnum::Payload => Box::new(webhooks::Payload::<T>::new()),
+            WebhookConnectorEnum::Payhere => Box::new(webhooks::Payhere::<T>::new()),
+            WebhookConnectorEnum::Nexixpay => Box::new(webhooks::Nexixpay::<T>::new()),
+            WebhookConnectorEnum::Maya => Box::new(webhooks::Maya::<T>::new()),
+            WebhookConnectorEnum::Givepayments => Box::new(webhooks::Givepayments::<T>::new()),
+            WebhookConnectorEnum::Hyperswitch => Box::new(webhooks::Hyperswitch::<T>::new()),
+            WebhookConnectorEnum::Grabpay => Box::new(webhooks::Grabpay::<T>::new()),
+            WebhookConnectorEnum::Finix => Box::new(webhooks::Finix::<T>::new()),
+            WebhookConnectorEnum::Ecommpay => Box::new(webhooks::Ecommpay::<T>::new()),
+            WebhookConnectorEnum::Dlocal => Box::new(webhooks::Dlocal::<T>::new()),
+            WebhookConnectorEnum::Cryptopay => Box::new(webhooks::Cryptopay::<T>::new()),
+            WebhookConnectorEnum::Boost => Box::new(webhooks::Boost::<T>::new()),
+            WebhookConnectorEnum::Bluesnap => Box::new(webhooks::Bluesnap::<T>::new()),
+            WebhookConnectorEnum::Betterpayment => Box::new(webhooks::Betterpayment::<T>::new()),
+            WebhookConnectorEnum::AbsaSanlam => Box::new(webhooks::AbsaSanlam::<T>::new()),
+            WebhookConnectorEnum::Flywire => Box::new(webhooks::Flywire::<T>::new()),
+            WebhookConnectorEnum::Worldpayxml => Box::new(webhooks::Worldpayxml::<T>::new()),
+            WebhookConnectorEnum::Trustpay => Box::new(webhooks::Trustpay::<T>::new()),
+            WebhookConnectorEnum::Razorpay => Box::new(webhooks::Razorpay::<T>::new()),
+            WebhookConnectorEnum::Ppro => Box::new(webhooks::Ppro::<T>::new()),
+            WebhookConnectorEnum::Phonepe => Box::new(webhooks::Phonepe::<T>::new()),
+            WebhookConnectorEnum::Cashtocode => Box::new(webhooks::Cashtocode::<T>::new()),
+            WebhookConnectorEnum::Braintree => Box::new(webhooks::Braintree::<T>::new()),
+            WebhookConnectorEnum::Calida => Box::new(webhooks::Calida::<T>::new()),
+            WebhookConnectorEnum::Rapyd => Box::new(webhooks::Rapyd::<T>::new()),
+        }
     }
 }
 

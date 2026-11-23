@@ -5,9 +5,9 @@
 // Pinelabs_Online — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx pinelabs_online.ts checkout_autocapture
 
-import { MerchantAuthenticationClient, types } from 'hyperswitch-prism';
-const { Environment } = types;
-export const SUPPORTED_FLOWS = ["create_server_authentication_token"];
+import { MerchantAuthenticationClient, EventClient, types } from 'hyperswitch-prism';
+const { Environment, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["create_server_authentication_token", "parse_event"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -28,6 +28,18 @@ function _buildCreateServerAuthenticationTokenRequest(): types.IMerchantAuthenti
     };
 }
 
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
@@ -39,10 +51,19 @@ async function createServerAuthenticationToken(merchantTransactionId: string, co
     return createResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    createServerAuthenticationToken, _buildCreateServerAuthenticationTokenRequest
+    createServerAuthenticationToken, parseEvent, _buildCreateServerAuthenticationTokenRequest, _buildParseEventRequest
 };
 
 // CLI runner

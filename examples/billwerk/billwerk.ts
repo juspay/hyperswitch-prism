@@ -5,9 +5,9 @@
 // Billwerk — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx billwerk.ts checkout_autocapture
 
-import { PaymentClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, CaptureMethod, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void"];
+import { PaymentClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, CaptureMethod, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["capture", "get", "parse_event", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -44,6 +44,18 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
             "currency": Currency.USD
         },
         "connectorOrderReferenceId": "probe_order_ref_001"  // Connector Reference Id.
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
+        }
     };
 }
 
@@ -168,6 +180,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: RecurringPaymentService.Charge
 async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const recurringPaymentClient = new RecurringPaymentClient(config);
@@ -225,7 +246,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
+    capture, get, parseEvent, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildParseEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

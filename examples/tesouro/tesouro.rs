@@ -10,7 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["create_server_authentication_token"];
+pub const SUPPORTED_FLOWS: &[&str] = &["create_server_authentication_token", "parse_event"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -41,6 +41,18 @@ pub fn build_create_server_authentication_token_request(
     }
 }
 
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
+            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+    }
+}
+
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
 #[allow(dead_code)]
 pub async fn process_create_server_authentication_token(
@@ -57,6 +69,16 @@ pub async fn process_create_server_authentication_token(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 #[allow(dead_code)]
 #[tokio::main]
 async fn main() {
@@ -68,11 +90,9 @@ async fn main() {
         "process_create_server_authentication_token" => {
             process_create_server_authentication_token(&client, "txn_001").await
         }
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         _ => {
-            eprintln!(
-                "Unknown flow: {}. Available: process_create_server_authentication_token",
-                flow
-            );
+            eprintln!("Unknown flow: {}. Available: process_create_server_authentication_token, process_parse_event", flow);
             return;
         }
     };

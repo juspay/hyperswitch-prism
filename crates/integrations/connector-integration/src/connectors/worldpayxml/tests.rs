@@ -7,7 +7,7 @@ use domain_types::{
     payment_method_data::DefaultPCIHolder,
     router_data::AdditionalPaymentMethodConnectorResponse,
 };
-use interfaces::webhooks::IncomingWebhook;
+use interfaces::webhooks::{IncomingWebhook, IncomingWebhookEventParser};
 
 use super::{
     responses::WorldpayxmlAuthorizeResponse, transformers::get_worldpayxml_connector_response,
@@ -45,7 +45,7 @@ fn pending_refund_webhooks_report_processing_and_preserve_refund_reference() {
                 .expect("refund request event must decode"),
             EventType::RefundProcessing
         );
-        let reference = connector
+        let reference = crate::webhooks::Worldpayxml::<DefaultPCIHolder>::new()
             .get_webhook_event_reference(request.clone())
             .expect("pending refund reference must decode");
         let Some(WebhookResourceReference::Refund(reference)) = reference else {

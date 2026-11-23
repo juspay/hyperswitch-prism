@@ -47,6 +47,7 @@ use serde::Serialize;
 use std::fmt::{Debug, Write};
 
 use super::macros;
+use crate::webhooks::paypal::Paypal as PaypalWebhook;
 use crate::{
     connectors::paypal::transformers::{
         self as paypal, auth_headers, constants as paypal_constants, PaypalAuthResponse,
@@ -160,23 +161,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        let payload: paypal::PaypalWebooksEventType = request
-            .body
-            .parse_struct("PaypalWebooksEventType")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-
-        let outcome_code = match payload.event_type {
-            paypal::PaypalWebhookEventType::CustomerDisputeResolved => Some(
-                request
-                    .body
-                    .parse_struct::<paypal::DisputeOutcome>("PaypalDisputeOutcome")
-                    .change_context(WebhookError::WebhookEventTypeNotFound)?
-                    .outcome_code,
-            ),
-            _ => None,
-        };
-
-        Ok(get_paypal_event_type(payload.event_type, outcome_code))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            PaypalWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
@@ -367,34 +356,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .change_context(WebhookError::WebhookBodyDecodingFailed)?;
         let resource: Box<dyn hyperswitch_masking::ErasedMaskSerialize> = Box::new(details);
         Ok(resource)
-    }
-}
-
-fn get_paypal_event_type(
-    event: paypal::PaypalWebhookEventType,
-    outcome: Option<paypal::OutcomeCode>,
-) -> domain_types::connector_types::EventType {
-    use domain_types::connector_types::EventType as E;
-    match event {
-        paypal::PaypalWebhookEventType::PaymentCaptureCompleted
-        | paypal::PaypalWebhookEventType::CheckoutOrderCompleted => E::PaymentIntentSuccess,
-        paypal::PaypalWebhookEventType::PaymentCapturePending
-        | paypal::PaypalWebhookEventType::CheckoutOrderProcessed => E::PaymentIntentProcessing,
-        paypal::PaypalWebhookEventType::PaymentCaptureDeclined => E::PaymentIntentFailure,
-        paypal::PaypalWebhookEventType::PaymentCaptureRefunded => E::RefundSuccess,
-        paypal::PaypalWebhookEventType::CustomerDisputeCreated => E::DisputeOpened,
-        paypal::PaypalWebhookEventType::RiskDisputeCreated => E::DisputeAccepted,
-        paypal::PaypalWebhookEventType::CustomerDisputeResolved => outcome
-            .map(|o| match o {
-                paypal::OutcomeCode::ResolvedBuyerFavour => E::DisputeLost,
-                paypal::OutcomeCode::ResolvedSellerFavour => E::DisputeWon,
-                paypal::OutcomeCode::CanceledByBuyer => E::DisputeCancelled,
-                paypal::OutcomeCode::ACCEPTED => E::DisputeAccepted,
-                paypal::OutcomeCode::DENIED | paypal::OutcomeCode::NONE => E::DisputeCancelled,
-                paypal::OutcomeCode::ResolvedWithPayout => E::IncomingWebhookEventUnspecified,
-            })
-            .unwrap_or(E::IncomingWebhookEventUnspecified),
-        _ => E::IncomingWebhookEventUnspecified,
     }
 }
 

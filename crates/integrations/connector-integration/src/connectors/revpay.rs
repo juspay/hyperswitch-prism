@@ -13,10 +13,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RequestDetails,
-        ResponseId, WebhookDetailsResponse, WebhookResourceReference,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
+        WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -38,6 +38,7 @@ use interfaces::{
 use serde::Serialize;
 use transformers as revpay;
 
+use crate::webhooks::revpay::Revpay as RevpayWebhook;
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 use transformers::{
     RevpayPSyncRequest, RevpayPSyncResponse, RevpayPaymentsRequest, RevpayPaymentsResponse,
@@ -471,26 +472,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(&request.body)
-            .change_context(WebhookError::WebhookEventTypeNotFound)?;
-        Ok(body.event_type())
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let body: revpay::RevpayWebhookBody = serde_urlencoded::from_bytes(&request.body)
-            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                connector_transaction_id: Some(body.reference_number.clone()),
-                // Reference_Number is the merchant-assigned reference the
-                // original Payment call was keyed by.
-                merchant_transaction_id: Some(body.reference_number),
-                connector_preprocessing_id: None,
-            },
-        )))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            RevpayWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn get_webhook_resource_object(

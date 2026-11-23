@@ -165,6 +165,9 @@ pub async fn apply_url_overrides(
                         connector_types::ConnectorVariant::Authenticator(c) => config
                             .connectors
                             .patch_authenticator_connector_urls(c, &urls),
+                        connector_types::ConnectorVariant::Webhook(c) => config
+                            .connectors
+                            .patch_connector_urls(&connector_types::ConnectorEnum::from(*c), &urls),
                     };
                     let patched_connectors = patch_result.map_err(|e| {
                         Report::new(IntegrationError::ConfigurationError {

@@ -11,10 +11,12 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.EventClient
 import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.Currency
+import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -22,7 +24,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.ForteConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "parse_event", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -160,6 +162,21 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
+}
+
 // Flow: RefundService.Get
 fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = RefundClient(config)
@@ -192,8 +209,9 @@ fun main(args: Array<String>) {
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
         "get" -> get(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processVoidPayment, processGetPayment, authorize, get, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processVoidPayment, processGetPayment, authorize, get, parseEvent, refundGet, void")
     }
 }

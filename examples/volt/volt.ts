@@ -5,9 +5,9 @@
 // Volt — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx volt.ts checkout_autocapture
 
-import { MerchantAuthenticationClient, PaymentClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["create_server_authentication_token", "get", "refund"];
+import { MerchantAuthenticationClient, PaymentClient, EventClient, types } from 'hyperswitch-prism';
+const { Environment, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["create_server_authentication_token", "get", "parse_event", "refund"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -45,6 +45,18 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -89,6 +101,15 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -101,7 +122,7 @@ async function refund(merchantTransactionId: string, config: types.IConnectorCon
 
 // Export all process* functions for the smoke test
 export {
-    createServerAuthenticationToken, get, refund, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest
+    createServerAuthenticationToken, get, parseEvent, refund, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildParseEventRequest, _buildRefundRequest
 };
 
 // CLI runner

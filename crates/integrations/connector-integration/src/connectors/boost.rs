@@ -27,10 +27,11 @@ use serde::Serialize;
 use transformers::{
     self as boost, BoostPaymentInitRequest, BoostPaymentInitResponse, BoostPaymentSyncResponse,
     BoostReversalRequest, BoostReversalResponse,
-    BoostReversalResponse as BoostReversalSyncResponse, BoostWebhookBody,
+    BoostReversalResponse as BoostReversalSyncResponse,
 };
 
 use super::macros;
+use crate::webhooks::boost::{transformers::BoostWebhookBody, Boost as BoostWebhook};
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
@@ -637,26 +638,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let payload: BoostWebhookBody = request
-            .body
-            .parse_struct("BoostWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable("Failed to parse Boost webhook body to determine event type")?;
-        Ok(payload.get_event_type())
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let payload: BoostWebhookBody = request
-            .body
-            .parse_struct("BoostWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable(
-                "Failed to parse Boost webhook body to build the webhook reference",
-            )?;
-        Ok(Some(payload.into_webhook_event_reference()))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            BoostWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
