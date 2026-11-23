@@ -704,7 +704,8 @@
               "amount": {
                 "minor_amount": 1000,
                 "currency": "EUR"
-              }
+              },
+              "return_url": "https://example.com/return"
             }
           }
         },
@@ -719,7 +720,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"merchant_reference_id\":\"probe_sdk_session_001\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"EUR\",\"merchant_reference_id\":\"probe_sdk_session_001\",\"complete_checkout_url\":\"https://example.com/return\",\"cancel_checkout_url\":\"https://example.com/return\"}"
         }
       }
     },

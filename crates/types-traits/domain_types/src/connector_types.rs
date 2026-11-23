@@ -6797,6 +6797,12 @@ pub struct AdditionalConnectorDetails {
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
     /// Stripe-specific additional information.
     pub stripe: Option<StripeAdditionalInformation>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData1).
+    pub user_data1: Option<String>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData2).
+    pub user_data2: Option<String>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData3).
+    pub user_data3: Option<String>,
 }
 
 /// Stripe-specific additional information.
