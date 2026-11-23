@@ -380,12 +380,25 @@ where
                     payment_account_reference: None,
                 })
             }
-            _ => Err(error_response_from_qc(
-                (&body).into(),
-                Some(body.transaction_id.to_string()),
-                item.http_code,
-                Some(AttemptStatus::Failure),
-            )),
+            _ => {
+                // `ErrorCode`/`ErrorDescription` are populated only on system
+                // exceptions (the 50x class) per the Qwikcilver APIResponse quad.
+                // A system exception is not a payment outcome, so it must not be
+                // stamped terminal. A business `ResponseCode` failure (e.g.
+                // "Balance is insufficient") is a definitive redeem outcome and
+                // stays Failure.
+                let is_system_error = body.error_code.is_some() || body.error_description.is_some();
+                Err(error_response_from_qc(
+                    (&body).into(),
+                    Some(body.transaction_id.to_string()),
+                    item.http_code,
+                    if is_system_error {
+                        None
+                    } else {
+                        Some(AttemptStatus::Failure)
+                    },
+                ))
+            }
         };
         Ok(data)
     }
