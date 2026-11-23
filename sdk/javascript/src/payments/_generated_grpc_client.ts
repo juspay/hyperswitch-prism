@@ -134,6 +134,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   WorldpayxmlDdcData: ["jwt"],
   WorldpayxmlChallengeData: ["jwt"],
   NmiData: ["publicKey"],
+  WebhookSecrets: ["secretV2", "additionalSecretV2"],
+  RedirectResponseSecrets: ["secretV2", "additionalSecretV2"],
   NotifyConnectorRequest: ["connectorFeatureData"],
   FrmNotificationContent: ["connectorFeatureData"],
   AdditionalCardInfo: ["cardExpMonth", "cardExpYear", "cardHolderName"],
