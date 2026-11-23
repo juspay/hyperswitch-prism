@@ -401,14 +401,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: gigadat::GigadatErrorResponse = res
+        let response: gigadat::GigadatErrorResponse = match res
             .response
             .parse_struct("GigadatErrorResponse")
-            .change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "gigadat: response body did not match the expected format; confirm API version and connector documentation."),
-            )?;
+        {
+            Ok(response) => response,
+            Err(error_msg) => {
+                if let Some(event) = event_builder {
+                    event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}))
+                };
+                tracing::error!(deserialization_error =? error_msg);
+                return crate::utils::handle_json_response_deserialization_failure(res, "gigadat");
+            }
+        };
 
         with_error_response_body!(event_builder, response);
 
