@@ -37,6 +37,7 @@ pub mod rapyd;
 pub mod razorpay;
 pub mod reddot;
 pub mod revolut;
+pub mod revpay;
 pub mod stripe;
 pub mod tamara;
 pub mod truelayer;
@@ -52,7 +53,7 @@ pub use self::{
     grabpay::Grabpay, hyperswitch::Hyperswitch, maya::Maya, nexixpay::Nexixpay, nmi::Nmi,
     noon::Noon, novalnet::Novalnet, nuvei::Nuvei, payhere::Payhere, payhound::Payhound,
     payload::Payload, paypal::Paypal, peachpayments::Peachpayments, phonepe::Phonepe, ppro::Ppro,
-    rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot, revolut::Revolut, stripe::Stripe,
-    tamara::Tamara, truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay,
+    rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot, revolut::Revolut, revpay::Revpay,
+    stripe::Stripe, tamara::Tamara, truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay,
     worldpayxml::Worldpayxml,
 };

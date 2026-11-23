@@ -15,7 +15,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
-        EventType, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
@@ -2068,21 +2068,6 @@ impl RevpayWebhookBody {
             expected.peek().as_bytes(),
             self.signature.peek().trim().to_lowercase().as_bytes(),
         )
-    }
-
-    /// Event interpretation: "00" — the sale settled → success;
-    /// "09"/"99" — still in flight at the bank / pending authorization →
-    /// processing; every other code → failure.
-    pub fn event_type(&self) -> EventType {
-        match &self.response_code {
-            RevpayResponseCode::Success => EventType::PaymentIntentSuccess,
-            RevpayResponseCode::RedirectRequired | RevpayResponseCode::PendingAuthorization => {
-                EventType::PaymentIntentProcessing
-            }
-            RevpayResponseCode::TransactionNotFound | RevpayResponseCode::Unknown(_) => {
-                EventType::PaymentIntentFailure
-            }
-        }
     }
 
     /// Attempt-status interpretation, via the SAME payment status mapping

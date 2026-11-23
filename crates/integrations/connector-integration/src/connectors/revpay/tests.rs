@@ -14,7 +14,7 @@ fn string_amount(value: &str) -> StringMajorUnit {
 
 use crate::connectors::revpay::RevpayAmountConvertor;
 use common_utils::types::MinorUnit;
-use domain_types::payment_method_data::DefaultPCIHolder;
+use domain_types::{connector_types::EventType, payment_method_data::DefaultPCIHolder};
 
 // Known-answer vectors from the revPAY Merchant API doc (§3.28 / §3.29)
 // with sample key material Merchant Key "1OoL87PmJQ", Merchant ID
