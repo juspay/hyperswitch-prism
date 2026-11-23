@@ -2882,12 +2882,12 @@ fn get_payment_intent_shipping_address(
         })
 }
 
-/// Stripe `payment_method_types` for a tokenized (`pm_...`) pay later payment method. Stripe
-/// defaults `payment_method_types` to `card`, so a Klarna PaymentMethod is rejected unless its
-/// type is sent alongside it. A Klarna token is typed `TokenPaymentMethod::Klarna`, which the gRPC
-/// conversion also turns into `payment_method_type = Klarna`, so the requested payment method type
-/// is read here. `None` for every other payment method, where Stripe's default applies.
-fn get_tokenized_pay_later_payment_method_type(
+/// Stripe `payment_method_types` for a pay later PaymentMethod (`pm_...`) sent by reference: a
+/// token, or a saved mandate on a MIT. Stripe defaults `payment_method_types` to `card`, so a Klarna
+/// PaymentMethod is rejected unless its type is sent alongside it. The type is read from the
+/// requested payment method type (a `TokenPaymentMethod::Klarna` token sets it through the gRPC
+/// conversion). `None` for every other payment method, where Stripe's default applies.
+fn get_pay_later_payment_method_type(
     payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<StripePaymentMethodType> {
     match payment_method_type {
@@ -2897,9 +2897,9 @@ fn get_tokenized_pay_later_payment_method_type(
 }
 
 /// Whether a connector token is a pay later PaymentMethod (Klarna `pm_...`) rather than a card,
-/// read from the requested payment method type (see `get_tokenized_pay_later_payment_method_type`).
+/// read from the requested payment method type (see `get_pay_later_payment_method_type`).
 fn is_pay_later_token(payment_method_type: Option<common_enums::PaymentMethodType>) -> bool {
-    get_tokenized_pay_later_payment_method_type(payment_method_type).is_some()
+    get_pay_later_payment_method_type(payment_method_type).is_some()
 }
 
 /// Whether a connector token is a card: it has no token type (Apple Pay, Google Pay and Klarna
@@ -3193,9 +3193,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
             // Stripe defaults payment_method_types to card, so a tokenized pay later payment
             // method needs its type on the PaymentIntent
-            let payment_method_types = get_tokenized_pay_later_payment_method_type(
-                item.request.get_optional_payment_method_type(),
-            );
+            let payment_method_types =
+                get_pay_later_payment_method_type(item.request.get_optional_payment_method_type());
 
             (
                 None,
@@ -3365,6 +3364,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             setup_future_usage
         };
         let setup_future_usage = get_setup_future_usage_for_moto(setup_future_usage, is_moto);
+
+        validate_off_session_mandate(
+            payment_method_types.as_ref(),
+            setup_future_usage,
+            setup_mandate_details.as_ref(),
+            "setup_mandate_details.customer_acceptance",
+        )?;
 
         let error_on_requires_action =
             get_external_three_ds_error_on_requires_action(payment_data.as_ref());
@@ -6507,9 +6513,6 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     }
 }
 
-/// `payment_method_types` of a SetupIntent built from inline payment method data: the pay later
-/// type for pay later data (Klarna), `card` for every other mandate payment method (cards,
-/// wallets)
 fn get_setup_intent_payment_method_type<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
 ) -> Result<StripePaymentMethodType, error_stack::Report<IntegrationError>> {
@@ -6522,6 +6525,46 @@ fn get_setup_intent_payment_method_type<T: PaymentMethodDataTypes>(
         // stores as card PaymentMethods) are set up as `card`, so every payment method other
         // than pay later keeps that type and its SetupIntent request is unchanged.
         _ => Ok(StripePaymentMethodType::Card),
+    }
+}
+
+impl StripePaymentMethodType {
+    fn requires_mandate_for_off_session_use(self) -> bool {
+        matches!(self, Self::Klarna)
+    }
+}
+
+fn validate_off_session_mandate(
+    payment_method_type: Option<&StripePaymentMethodType>,
+    future_usage: Option<common_enums::FutureUsage>,
+    mandate: Option<&StripeMandateRequest>,
+    acceptance_field: &'static str,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    let saves_for_off_session_use = payment_method_type
+        .is_some_and(|pm_type| pm_type.requires_mandate_for_off_session_use())
+        && future_usage == Some(common_enums::FutureUsage::OffSession);
+    if saves_for_off_session_use && mandate.is_none() {
+        Err(IntegrationError::MissingRequiredField {
+            field_name: acceptance_field,
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "send a customer_acceptance; an online one needs ip_address and user_agent \
+                     (browser_info is used when they are missing)"
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://docs.stripe.com/api/setup_intents/create#create_setup_intent-mandate_data"
+                        .to_string(),
+                ),
+                additional_context: Some(
+                    "Stripe needs a mandate to charge this saved payment method off-session"
+                        .to_string(),
+                ),
+            },
+        }
+        .into())
+    } else {
+        Ok(())
     }
 }
 
@@ -6697,7 +6740,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         Some(payment_method_data::TokenPaymentMethod::Klarna) | None => (
                             Some(token_data.token.clone()),
                             None,
-                            get_tokenized_pay_later_payment_method_type(
+                            get_pay_later_payment_method_type(
                                 item.router_data.request.get_optional_payment_method_type(),
                             ),
                         ),
@@ -6753,6 +6796,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_data.as_ref(),
         );
         let setup_mandate_details = get_setup_intent_mandate_details(&item.router_data.request);
+        // A SetupIntent without `usage` is set up for off-session use (Stripe's default)
+        validate_off_session_mandate(
+            payment_method_types.as_ref(),
+            setup_future_usage.or(Some(common_enums::FutureUsage::OffSession)),
+            setup_mandate_details.as_ref(),
+            "customer_acceptance",
+        )?;
         let klarna_currency = get_setup_intent_klarna_currency(
             &item.router_data.request,
             payment_method_types.as_ref(),
@@ -7298,6 +7348,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let mut payment_method_options = None;
 
+        // A Charge (MIT) always arrives as category `Card`, so the pay later type requested on the
+        // Charge (Klarna) sets `payment_method_types` for both a saved token and a saved mandate.
+        let pay_later_payment_method_type =
+            get_pay_later_payment_method_type(item.request.get_optional_payment_method_type());
+
         let (
             payment_data,
             payment_method,
@@ -7329,14 +7384,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     }),
                 });
             }
-            (None, None, StripeBillingAddress::default(), None, None)
+            (
+                None,
+                None,
+                StripeBillingAddress::default(),
+                pay_later_payment_method_type,
+                None,
+            )
         } else {
             match &item.request.mandate_reference {
                 MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => (
                     None,
                     connector_mandate_ids.get_connector_mandate_id(),
                     StripeBillingAddress::default(),
-                    get_payment_method_type_for_saved_payment_method_payment(&item)?,
+                    match pay_later_payment_method_type {
+                        Some(pay_later_type) => Some(pay_later_type),
+                        None => get_payment_method_type_for_saved_payment_method_payment(&item)?,
+                    },
                     None,
                 ),
                 MandateReferenceId::NetworkMandateId(network_transaction_id) => {
@@ -7587,13 +7651,7 @@ fn get_payment_method_type_for_saved_payment_method_payment<
 >(
     item: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
 ) -> Result<Option<StripePaymentMethodType>, error_stack::Report<IntegrationError>> {
-    // A Charge (MIT) always arrives as category `Card`, which sends a saved Klarna PaymentMethod
-    // as `payment_method_types=card` (Stripe rejects it), so the requested type is checked first.
-    if let Some(pay_later_type) =
-        get_tokenized_pay_later_payment_method_type(item.request.get_optional_payment_method_type())
-    {
-        Ok(Some(pay_later_type))
-    } else if item.resource_common_data.payment_method == common_enums::PaymentMethod::Card {
+    if item.resource_common_data.payment_method == common_enums::PaymentMethod::Card {
         Ok(Some(StripePaymentMethodType::Card)) //stripe takes ["Card"] as default
     } else {
         let stripe_payment_method_type = match item
@@ -8194,11 +8252,11 @@ mod klarna_mandate_tests {
     use hyperswitch_masking::Secret;
 
     use super::{
-        get_setup_intent_payment_method_type, get_stripe_moto_flag,
-        get_token_request_three_d_secure, get_tokenized_pay_later_payment_method_type,
-        tokenize_mints_payment_method, validate_setup_mandate_return_url,
-        validate_three_ds_return_url, StripeBillingAddressCardToken, StripeKlarnaToken,
-        StripeMandateRequest, StripeMandateType, StripePaymentMethodType,
+        get_pay_later_payment_method_type, get_setup_intent_payment_method_type,
+        get_stripe_moto_flag, get_token_request_three_d_secure, tokenize_mints_payment_method,
+        validate_setup_mandate_return_url, validate_three_ds_return_url,
+        StripeBillingAddressCardToken, StripeKlarnaToken, StripeMandateRequest, StripeMandateType,
+        StripePaymentMethodType,
     };
 
     fn tokenization_data(
@@ -8403,15 +8461,11 @@ mod klarna_mandate_tests {
     #[test]
     fn tokenized_klarna_gets_its_payment_method_type() {
         assert_eq!(
-            get_tokenized_pay_later_payment_method_type(Some(
-                common_enums::PaymentMethodType::Klarna
-            )),
+            get_pay_later_payment_method_type(Some(common_enums::PaymentMethodType::Klarna)),
             Some(StripePaymentMethodType::Klarna)
         );
         assert_eq!(
-            get_tokenized_pay_later_payment_method_type(Some(
-                common_enums::PaymentMethodType::Card
-            )),
+            get_pay_later_payment_method_type(Some(common_enums::PaymentMethodType::Card)),
             None
         );
     }
