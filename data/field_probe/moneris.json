@@ -1051,8 +1051,33 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by moneris connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/cancel",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
+            "via": "HyperSwitch",
+            "x-correlation-id": "probe_reverse_001",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"void_pc_probe_reverse_001\",\"reason\":null}"
+        }
       }
     },
     "setup_recurring": {

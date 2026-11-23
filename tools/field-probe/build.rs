@@ -139,6 +139,7 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
         "authorize"
             | "capture"
             | "void"
+            | "reverse"
             | "get"
             | "refund"
             | "create_order"

@@ -3066,6 +3066,9 @@ message PaymentServiceReverseRequest {
   // Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at
   // different endpoints.
   optional CaptureMethod capture_method = 12;
+
+  // State Information
+  optional ConnectorState state = 13;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
@@ -5318,6 +5321,9 @@ message ElavonConfig {
   SecretString ssl_user_id = 2;
   SecretString ssl_pin = 3;
   optional string base_url = 50;
+  // Optional Elavon-assigned vendor ID, from the merchant's connector account; sent on
+  // every request when set (Elavon uses it for Converge certification)
+  optional SecretString ssl_vendor_id = 51;
 }
 
 message FiservConfig {
