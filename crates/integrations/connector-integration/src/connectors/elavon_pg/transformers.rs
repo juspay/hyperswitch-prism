@@ -23,10 +23,10 @@ use domain_types::{
         PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, EventContext, EventType,
-        MandateReference, MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        ConnectorCustomerData, ConnectorCustomerResponse, EventContext, MandateReference,
+        MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
@@ -3037,7 +3037,7 @@ pub enum ElavonPgResourceType {
 
 impl ElavonPgNotification {
     /// The mapped event, or `Other` when the notification is not about a transaction.
-    fn transaction_event(&self) -> ElavonPgEventType {
+    pub(crate) fn transaction_event(&self) -> ElavonPgEventType {
         match self.resource_type {
             ElavonPgResourceType::Transaction => self.event_type,
             ElavonPgResourceType::Other => ElavonPgEventType::Other,
@@ -3072,22 +3072,6 @@ impl ElavonPgNotification {
                 | ElavonPgEventType::RefundCaptured
                 | ElavonPgEventType::RefundSettled
         )
-    }
-
-    pub fn event_type(&self) -> EventType {
-        match self.transaction_event() {
-            ElavonPgEventType::SaleAuthorized => EventType::PaymentIntentAuthorizationSuccess,
-            ElavonPgEventType::SaleCaptured | ElavonPgEventType::SaleSettled => {
-                EventType::PaymentIntentSuccess
-            }
-            ElavonPgEventType::SaleDeclined => EventType::PaymentIntentFailure,
-            ElavonPgEventType::SaleHeldForReview => EventType::PaymentIntentProcessing,
-            ElavonPgEventType::RefundAuthorized
-            | ElavonPgEventType::RefundCaptured
-            | ElavonPgEventType::RefundSettled => EventType::RefundSuccess,
-            ElavonPgEventType::RefundDeclined => EventType::RefundFailure,
-            ElavonPgEventType::Other => EventType::IncomingWebhookEventUnspecified,
-        }
     }
 
     /// The transaction id: the last path segment of `resource`. Sales and refunds are
