@@ -730,39 +730,6 @@ pub struct RapydPaymentsRequest<
     pub initiation_type: Option<RapydInitiationType>,
 }
 
-#[derive(Debug, Deserialize)]
-struct RapydConnectorMetadata {
-    ewallet: Option<Secret<String>>,
-}
-
-fn ewallet_from_connector_metadata(
-    metadata: Option<&common_utils::pii::SecretSerdeValue>,
-) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
-    let Some(rapyd) = metadata
-        .and_then(|metadata| metadata.peek().get("rapyd"))
-        .filter(|rapyd| !rapyd.is_null())
-    else {
-        return Ok(None);
-    };
-
-    let invalid_metadata = || {
-        error_stack::report!(IntegrationError::InvalidDataFormat {
-            field_name: "metadata.rapyd",
-            context: utils::integration_ctx(
-                "The Rapyd connector metadata could not be parsed",
-                "Provide a rapyd object with an optional string ewallet field.",
-            ),
-        })
-    };
-    if !rapyd.is_object() {
-        return Err(invalid_metadata());
-    }
-
-    serde_json::from_value::<RapydConnectorMetadata>(rapyd.clone())
-        .map(|metadata| metadata.ewallet)
-        .map_err(|_| invalid_metadata())
-}
-
 /// Inline customer object embedded in a `/v1/payments` call. Both fields
 /// are required by Rapyd when `save_payment_method: true` — without them
 /// Rapyd cannot mint a `cus_*` to attach the saved `card_*` to. The
@@ -1739,7 +1706,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor.clone()),
-            ewallet: ewallet_from_connector_metadata(item.router_data.request.metadata.as_ref())?,
+            ewallet: item
+                .router_data
+                .request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.rapyd.as_ref())
+                .and_then(|rapyd| rapyd.ewallet.clone()),
             customer,
             save_payment_method,
             initiation_type,
@@ -2613,7 +2586,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor.clone()),
-            ewallet: ewallet_from_connector_metadata(request.metadata.as_ref())?,
+            ewallet: request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.rapyd.as_ref())
+                .and_then(|rapyd| rapyd.ewallet.clone()),
             save_payment_method: Some(true),
             initiation_type: Some(purpose.initiation_type),
         })
@@ -2812,7 +2789,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .billing_descriptor
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor.clone()),
-            ewallet: ewallet_from_connector_metadata(request.metadata.as_ref())?,
+            ewallet: request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.rapyd.as_ref())
+                .and_then(|rapyd| rapyd.ewallet.clone()),
         })
     }
 }

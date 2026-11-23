@@ -7035,6 +7035,11 @@ message AdditionalConnectorDetails {
   optional string user_data2 = 5;
   // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData3.
   optional string user_data3 = 6;
+  optional RapydAdditionalInformation rapyd = 7;
+}
+
+message RapydAdditionalInformation {
+  optional types.SecretString ewallet = 1;
 }
 
 message WorldpayxmlAdditionalInformation {
