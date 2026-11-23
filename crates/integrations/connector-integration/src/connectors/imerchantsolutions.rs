@@ -14,10 +14,9 @@ use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, Void},
     connector_types::{
         ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, WebhookDetailsResponse, WebhookResourceReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId, WebhookDetailsResponse,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -34,7 +33,7 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as imerchantsolutions, ForeignTryFrom, ImerchantsolutionsCaptureRequestData,
+    self as imerchantsolutions, ImerchantsolutionsCaptureRequestData,
     ImerchantsolutionsCaptureResponseData, ImerchantsolutionsPaymentSyncResponse,
     ImerchantsolutionsPaymentsRequestData,
     ImerchantsolutionsPaymentsRequestData as ImerchantsolutionsRepeatPaymentRequest,
@@ -43,10 +42,10 @@ use transformers::{
     ImerchantsolutionsRefundRequestData, ImerchantsolutionsRefundResponseData,
     ImerchantsolutionsRefundSyncResponse, ImerchantsolutionsVoidRequestData,
     ImerchantsolutionsVoidResponseData, ImerchantsolutionsWebhookData,
-    ImerchantsolutionsWebhookEventType,
 };
 
 use super::macros;
+use crate::webhooks::imerchantsolutions::Imerchantsolutions as ImerchantsolutionsWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 use error_stack::ResultExt;
@@ -162,12 +161,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let webhook_body: ImerchantsolutionsWebhookData = request
-            .body
-            .parse_struct("ImerchantsolutionsWebhookData")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        EventType::foreign_try_from((webhook_body.event_type, webhook_body.status))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            ImerchantsolutionsWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn get_webhook_resource_object(
@@ -183,38 +181,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(Box::new(webhook_body))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
-        let webhook_body: ImerchantsolutionsWebhookData = request
-            .body
-            .parse_struct("ImerchantsolutionsWebhookData")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        let webhook_resource_reference = match webhook_body.event_type {
-            ImerchantsolutionsWebhookEventType::PaymentCompleted
-            | ImerchantsolutionsWebhookEventType::PaymentCancelled
-            | ImerchantsolutionsWebhookEventType::PaymentFailed => {
-                WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(webhook_body.psp_reference),
-                    merchant_transaction_id: webhook_body.merchant_reference,
-                    connector_preprocessing_id: None,
-                })
-            }
-            ImerchantsolutionsWebhookEventType::PaymentRefunded => {
-                WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(webhook_body.psp_reference.clone()),
-                    merchant_refund_id: Some(webhook_body.psp_reference),
-                    connector_transaction_id: webhook_body.original_reference,
-                    merchant_transaction_id: None,
-                })
-            }
-        };
-
-        Ok(Some(webhook_resource_reference))
     }
 
     fn process_payment_webhook(

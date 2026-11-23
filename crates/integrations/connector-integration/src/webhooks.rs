@@ -21,6 +21,7 @@ pub mod globalpay;
 pub mod glomopay;
 pub mod grabpay;
 pub mod hyperswitch;
+pub mod imerchantsolutions;
 pub mod maya;
 pub mod nexixpay;
 pub mod nmi;
@@ -51,10 +52,11 @@ pub use self::{
     calida::Calida, cashtocode::Cashtocode, checkout::Checkout, cryptopay::Cryptopay,
     cybersource::Cybersource, dlocal::Dlocal, ecommpay::Ecommpay, elavon_pg::ElavonPg,
     finix::Finix, fiuu::Fiuu, flywire::Flywire, givepayments::Givepayments, globalpay::Globalpay,
-    glomopay::Glomopay, grabpay::Grabpay, hyperswitch::Hyperswitch, maya::Maya, nexixpay::Nexixpay,
-    nmi::Nmi, noon::Noon, novalnet::Novalnet, nuvei::Nuvei, payhere::Payhere, payhound::Payhound,
-    payload::Payload, paypal::Paypal, peachpayments::Peachpayments, phonepe::Phonepe, ppro::Ppro,
-    rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot, revolut::Revolut, revpay::Revpay,
-    stripe::Stripe, tamara::Tamara, truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay,
+    glomopay::Glomopay, grabpay::Grabpay, hyperswitch::Hyperswitch,
+    imerchantsolutions::Imerchantsolutions, maya::Maya, nexixpay::Nexixpay, nmi::Nmi, noon::Noon,
+    novalnet::Novalnet, nuvei::Nuvei, payhere::Payhere, payhound::Payhound, payload::Payload,
+    paypal::Paypal, peachpayments::Peachpayments, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,
+    razorpay::Razorpay, reddot::Reddot, revolut::Revolut, revpay::Revpay, stripe::Stripe,
+    tamara::Tamara, truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay,
     worldpayxml::Worldpayxml,
 };
