@@ -74,6 +74,25 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
       asynchronousCapture,
     "payments/create-confirm/card/one-time/no3ds/guest-manual-capture-create-confirm":
       asynchronousCapture,
+    "payments/create-confirm/card/recurring/connector-mandate/no3ds/nonzero-amount-manual-capture-setup-mandate-then-recurring":
+      {
+        expectations: {
+          "setup-capture-fields": {
+            reason:
+              "Adyen accepts manual capture asynchronously and completes it after webhook delivery",
+            patch: {
+              status: "processing",
+              amount_capturable: 6000,
+              amount_received: null,
+            },
+          },
+          "setup-capture-recorded-outcome": {
+            reason:
+              "Adyen manual capture remains pending until the asynchronous completion webhook",
+            patch: { attemptStatus: "pending" },
+          },
+        },
+      },
     "refunds/create/full-refund-captured-payment": {
       expectations: {
         "refund-submission-fields": {

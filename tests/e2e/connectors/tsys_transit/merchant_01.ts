@@ -17,6 +17,16 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
         reason:
           "Connector-mandate recurring sandbox certification is deferred to its follow-up coverage change.",
       },
+    "payments/create-confirm/card/recurring/connector-mandate/no3ds/nonzero-amount-manual-capture-setup-mandate-then-recurring":
+      {
+        reason:
+          "Connector-mandate manual-capture recurring sandbox certification is deferred to its follow-up coverage change.",
+      },
+    "payments/create-confirm/card/recurring/connector-mandate/no3ds/zero-amount-setup-mandate-then-recurring":
+      {
+        reason:
+          "Connector-mandate zero-amount recurring sandbox certification is deferred to its follow-up coverage change.",
+      },
     "payments/retrieve/force-sync-payment": {
       reason:
         "3DS PSync sandbox certification for this connector is deferred to its follow-up coverage change.",

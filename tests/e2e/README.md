@@ -114,14 +114,15 @@ Use native Playwright `expect` for equality, partial nested objects, arrays, ran
 
 Choose `toMatchObject` for partial nested objects and `toEqual` for exact object/array equality. A range can use `report.check("Amount received > 0", { actual: response.amount_received, expected: 0 }, ({ actual, expected }) => expect(actual).toBeGreaterThan(expected))`. Expected/actual values are explicitly selected for the report: do not attach entire payment responses, credentials or card data. Use boolean presence checks for sensitive references. The scenario still owns all matching logic.
 
-Eleven shared specs are implemented: six one-time No3DS payment journeys, a completed browser 3DS payment, a nonzero mandate setup followed by an off-session recurring charge, full void of an authorized payment, forced payment synchronization, and full-refund submission. Each manual-capture journey includes its own full capture, so it verifies the complete authorization-to-capture lifecycle. Adyen runs ten applicable cases and explicitly excludes PSync because its redirect-completion sync requires customer-returned encoded data. Other connector exclusions document unsupported or not-yet-certified behavior. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The comprehensive automatic inline-confirmation sequence is:
+Thirteen shared specs are implemented: six one-time No3DS payment journeys, a completed browser 3DS payment, three connector-mandate setup-and-recurring variants, full void of an authorized payment, forced payment synchronization, and full-refund submission. Manual-capture journeys submit a full capture and assert its response; Adyen reports manual capture asynchronously, so this suite does not claim settlement before its completion webhook. Adyen explicitly excludes PSync because its redirect-completion sync requires customer-returned encoded data. Other connector exclusions document unsupported or not-yet-certified behavior. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The comprehensive automatic inline-confirmation sequence is:
 
 ### Adyen coverage matrix
 
 `✅` means an executable scenario passed against the Adyen sandbox in this
-change. `🟡` means the agreed scenario has a `.planned.ts` placeholder but is
-not executable coverage. `❌` means the scenario is not yet represented; it
-does not mean that Adyen or HS cannot support it.
+change. `🔵` means executable coverage has been added but not yet validated
+against the Adyen sandbox. `🟡` means the agreed scenario has a `.planned.ts`
+placeholder but is not executable coverage. `❌` means the scenario is not yet
+represented; it does not mean that Adyen or HS cannot support it.
 
 | Journey | Status | Current coverage |
 | --- | :---: | --- |
@@ -129,10 +130,10 @@ does not mean that Adyen or HS cannot support it.
 | Guest payment, automatic capture (without customer) | ✅ | Inline confirm and automatic capture |
 | One-time payment, manual capture | ✅ | Inline and separate confirmation variants, followed by full capture |
 | One-time payment, automatic capture | ✅ | Inline and separate confirmation variants |
-| Setup mandate, nonzero CIT, manual capture | 🟡 | Planned standalone mandate-setup journey |
+| Setup mandate, nonzero CIT, manual capture | 🔵 | Executable setup → full-capture request → connector-mandate recurring journey; Adyen capture completion is asynchronous |
 | Setup mandate, nonzero CIT, automatic capture | ✅ | Nonzero setup followed by an off-session recurring charge |
-| Setup mandate, zero CIT, manual capture | 🟡 | Planned standalone mandate-setup journey |
-| Setup mandate, zero CIT, automatic capture | 🟡 | Planned standalone and recurring journeys |
+| Setup mandate, zero CIT, manual capture | 🔵 | Executable zero-value setup → connector-mandate recurring journey; no separate capture is sent for a zero-value authorization |
+| Setup mandate, zero CIT, automatic capture | 🔵 | Executable zero-value setup → connector-mandate recurring journey |
 | Repeat CIT using a saved card | 🟡 | Planned saved-card journey |
 | Recurring using connector mandate ID | ✅ | Reuses the mandate created by the nonzero setup payment without card data |
 | Recurring using network transaction ID | 🟡 | Planned recurring-reference journey |
@@ -190,7 +191,9 @@ scenarios/
 │   │   │   └── recurring/
 │   │   │       └── connector-mandate/
 │   │   │           └── no3ds/
-│   │   │               └── nonzero-amount-setup-mandate-then-recurring.spec.ts
+│   │   │               ├── nonzero-amount-manual-capture-setup-mandate-then-recurring.spec.ts
+│   │   │               ├── nonzero-amount-setup-mandate-then-recurring.spec.ts
+│   │   │               └── zero-amount-setup-mandate-then-recurring.spec.ts
 │   │   └── wallet/
 │   ├── incremental-authorization/
 │   │   └── increase-authorized-amount.planned.ts

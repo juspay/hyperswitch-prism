@@ -10,7 +10,9 @@ export const scenarioIds = [
   "payments/create-confirm/card/one-time/no3ds/guest-automatic-capture-create-confirm",
   "payments/create-confirm/card/one-time/no3ds/guest-manual-capture-create-confirm",
   "payments/create-confirm/card/one-time/three-ds/automatic-capture-create-confirm",
+  "payments/create-confirm/card/recurring/connector-mandate/no3ds/nonzero-amount-manual-capture-setup-mandate-then-recurring",
   "payments/create-confirm/card/recurring/connector-mandate/no3ds/nonzero-amount-setup-mandate-then-recurring",
+  "payments/create-confirm/card/recurring/connector-mandate/no3ds/zero-amount-setup-mandate-then-recurring",
   "payments/retrieve/force-sync-payment",
   "refunds/create/full-refund-captured-payment",
 ] as const;
