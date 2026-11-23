@@ -134,7 +134,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
-    pub(crate) const X_PAYLOAD_SIGNATURE: &str = "X-PAYLOAD-SIGNATURE";
+    // Lowercase: incoming webhook header names are normalised to lowercase.
+    pub(crate) const X_PAYLOAD_SIGNATURE: &str = "x-payload-signature";
 }
 
 macros::create_amount_converter_wrapper!(connector_name: Payload, amount_type: StringMajorUnit);

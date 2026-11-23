@@ -759,6 +759,7 @@ enum Connector {
   BETTERPAYMENT = 155;
   REDDOT = 156;
   PAYHOUND = 157;
+  REVPAY = 158;
 }
 
 // Payment method types
@@ -915,6 +916,8 @@ enum PaymentMethodType {
   GRABPAY_WALLET = 141;
   PAYHERE_WALLET = 142;
   TAMARA_BNPL = 143;
+  BOOST_WALLET = 144; // BOOST is already the connector enum value.
+  ALI_PAY_PLUS_WALLET = 145; // Alipay+ cross-border wallet payment method.
 }
 
 // Product type enumeration
@@ -2433,6 +2436,52 @@ message RecipientDetails {
   optional Address address = 4;
 }
 
+// Address of the party providing the funds in an AFT. Location only, no names.
+message SenderAddress {
+  // First line of the street address (e.g. house number and street).
+  optional SecretString line1 = 1;
+  // Second line of the street address (e.g. flat, suite or building).
+  optional SecretString line2 = 2;
+  // Third line of the street address (e.g. district or additional locality detail).
+  optional SecretString line3 = 7;
+  // City or locality.
+  optional SecretString city = 3;
+  // State, province or region. Some connectors require it for US and CA addresses.
+  optional SecretString state = 4;
+  // Postal or ZIP code.
+  optional SecretString zip_code = 5;
+  // Country, as an ISO 3166-1 alpha-2 code.
+  optional CountryAlpha2 country_alpha2_code = 6;
+}
+
+// An individual (natural person) providing the funds in an AFT.
+message IndividualSenderDetails {
+  SecretString first_name = 1;               // Required for AFT, enforced by the connector
+  SecretString last_name = 2;                // Required for AFT, enforced by the connector
+  optional SecretString date_of_birth = 3;   // ISO 8601: yyyy-MM-dd
+  optional SenderAddress address = 4;
+  optional SecretString email = 5;
+  optional SecretString phone_number = 6;
+  optional string phone_country_code = 7;
+}
+
+// A company (legal entity) providing the funds in an AFT.
+message CorporateSenderDetails {
+  SecretString company_name = 1;             // Required for AFT, enforced by the connector
+  optional SenderAddress address = 2;
+  optional SecretString email = 3;
+  optional SecretString phone_number = 4;
+  optional string phone_country_code = 5;
+}
+
+// Details of the party providing the funds in an AFT.
+message SenderDetails {
+  oneof sender_type {
+    IndividualSenderDetails individual = 1;
+    CorporateSenderDetails corporate = 2;
+  }
+}
+
 // ============================================================================
 // PAYMENT SERVICE REQUESTS
 // ============================================================================
@@ -2599,6 +2648,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Whether the payment uses a previously stored credential.
   optional bool is_stored_credential = 60;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 62;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -3751,6 +3803,9 @@ message PaymentServiceSetupRecurringRequest {
 
   // Opt in to account name verification for supported connectors.
   optional bool enable_account_name_verification = 45;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 46;
 }
 
 // Response message for a mandate setup operation
@@ -3941,6 +3996,9 @@ message RecurringPaymentServiceChargeRequest {
     // Currency conversion quote and decision data passed through the
   // recurring flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 45;
+
+  // Details about the sender of funds for account funding transactions.
+  optional SenderDetails sender_details = 46;
 }
 
 // Response message for repeat payment operation
@@ -5787,7 +5845,7 @@ message ClearsaleBrConfig {
   optional string b2b_b2c = 3;
   // ClearSale product id for the order `product` field, when the merchant runs
   // a product other than the connector's default (Total Garantido).
-  optional int32 product = 4;
+  optional string product = 4;
   optional string base_url = 50;
 }
 
@@ -6017,6 +6075,24 @@ message PayhoundConfig {
   // Payhound signs incoming callbacks with (there is no separate webhook secret).
   SecretString api_secret = 2;
   // Overrides the Payhound API host from config (e.g. https://sandbox-api.payhound.com).
+  optional string base_url = 50;
+}
+
+// revPAY (Revenue Group Berhad). There is no HTTP auth header:
+// authentication is an in-body SHA-512 signature on every request.
+// Field names follow revPAY's own credential vocabulary (Merchant API 3.1.10).
+message RevpayConfig {
+  // revPAY Merchant ID (`Revpay_Merchant_ID`, e.g. `MER00000000001`) — sent in
+  // every request body and used as the second signature input.
+  SecretString merchant_id = 1;
+  // revPAY Merchant Key — signature secret (prepended to the SHA-512 preimage),
+  // never transmitted on the wire.
+  SecretString merchant_key = 2;
+  // revPAY `Key_Index` as a decimal string (e.g. "1") — identifies which
+  // merchant key the signature was computed with; sent on every message.
+  // Defaults to "1" when omitted: revPAY issues merchant key #1 first
+  // (spec Appendix D) and single-key accounts always use index 1.
+  optional SecretString key_index = 3;
   optional string base_url = 50;
 }
 
@@ -6382,6 +6458,8 @@ message ConnectorSpecificConfig {
     ReddotConfig reddot = 167;
     // PAYHOUND = 157
     PayhoundConfig payhound = 168;
+    // REVPAY = 158
+    RevpayConfig revpay = 169;
   }
 }
 
@@ -6941,13 +7019,19 @@ message SplitSettlementResponseVendor {
   optional string connector_transaction_id = 11;
 }
 
-// Additional connector-specific details to be passed through to the
-// connector for the transaction. Currently only the Checkout variant is defined.
+// Additional connector-specific details that may be forwarded to a connector
+// for the transaction.
 message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
   optional WorldpayxmlAdditionalInformation worldpayxml = 2;
   optional StripeAdditionalInformation stripe = 3;
+  // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData1.
+  optional string user_data1 = 4;
+  // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData2.
+  optional string user_data2 = 5;
+  // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData3.
+  optional string user_data3 = 6;
 }
 
 message WorldpayxmlAdditionalInformation {

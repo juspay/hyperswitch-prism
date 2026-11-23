@@ -7,7 +7,7 @@
 //! What this validates:
 //!  1. SDK routes to the correct connector from identity alone
 //!  2. Adyen webhook body is parsed correctly
-//!  3. event_type is returned
+//!  3. a specific (non-unspecified) event_type is returned
 //!  4. source_verified=false is expected — no real HMAC secret provided,
 //!     and Adyen verification is not mandatory so it must NOT error out
 //!  5. IntegrationError / ConnectorError are NOT returned for a valid payload
@@ -18,8 +18,13 @@
 use grpc_api_types::payments::{
     event_context::EventContext as EventContextVariant, AdyenConfig, ConnectorConfig,
     ConnectorSpecificConfig, Environment, EventContext, EventServiceHandleRequest,
-    EventServiceParseRequest, PaymentEventContext, RequestDetails, SdkOptions,
+    EventServiceParseRequest, PaymentEventContext, RequestDetails, SdkOptions, WebhookEventType,
 };
+
+/// A real event type, not the proto default an unparsed / unmapped webhook falls back to.
+fn is_specified(event_type: i32) -> bool {
+    event_type != WebhookEventType::Unspecified as i32
+}
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
@@ -138,7 +143,6 @@ fn test_handle_event(client: &ConnectorClient) -> bool {
         event_context: Some(EventContext {
             event_context: Some(EventContextVariant::Payment(PaymentEventContext {
                 capture_method: Some(CAPTURE_METHOD_MANUAL),
-                previous_status: None,
             })),
         }),
         ..Default::default()
@@ -167,9 +171,16 @@ fn test_handle_event(client: &ConnectorClient) -> bool {
                     yellow("  ~ source_verified=false (expected — no real HMAC secret)")
                 );
             }
+            if !is_specified(response.event_type) {
+                println!(
+                    "{}",
+                    red("  ✗ FAILED: event_type is unspecified for a valid AUTHORISATION webhook")
+                );
+                return false;
+            }
             println!(
                 "{}",
-                green("  ✓ PASSED: handle_event returned response without crashing")
+                green("  ✓ PASSED: handle_event returned a specific event_type")
             );
             true
         }
@@ -198,7 +209,17 @@ fn test_parse_event(client: &ConnectorClient) -> bool {
                 "{}",
                 grey(&format!("  reference  : {:?}", response.reference))
             );
-            println!("{}", green("  ✓ PASSED: parse_event returned response"));
+            if !response.event_type.is_some_and(is_specified) {
+                println!(
+                    "{}",
+                    red("  ✗ FAILED: event_type is missing or unspecified for a valid AUTHORISATION webhook")
+                );
+                return false;
+            }
+            println!(
+                "{}",
+                green("  ✓ PASSED: parse_event returned a specific event_type")
+            );
             true
         }
         Err(e) => {
@@ -221,12 +242,12 @@ fn test_malformed_body(client: &ConnectorClient) -> bool {
         Ok(response) => {
             println!(
                 "{}",
-                yellow(&format!(
-                    "  ~ accepted malformed body — event_type: {:?}",
+                red(&format!(
+                    "  ✗ FAILED: malformed body accepted — event_type: {:?}",
                     response.event_type
                 ))
             );
-            true
+            false
         }
         Err(e) => {
             println!(
@@ -250,6 +271,16 @@ fn test_unknown_event_code(client: &ConnectorClient) -> bool {
     };
 
     match client.handle_event(request) {
+        Ok(response) if is_specified(response.event_type) => {
+            println!(
+                "{}",
+                red(&format!(
+                    "  ✗ FAILED: unknown eventCode mapped to a specific event_type: {:?}",
+                    response.event_type
+                ))
+            );
+            false
+        }
         Ok(response) => {
             println!(
                 "{}",

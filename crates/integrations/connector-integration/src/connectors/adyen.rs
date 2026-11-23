@@ -7,9 +7,7 @@ use std::{
 };
 
 use base64::Engine;
-use common_enums::{
-    AttemptStatus, CaptureMethod, CardNetwork, EventClass, PaymentMethod, PaymentMethodType,
-};
+use common_enums::{CaptureMethod, CardNetwork, EventClass, PaymentMethod, PaymentMethodType};
 use common_utils::{
     consts,
     crypto::{self, VerifySignature},
@@ -909,20 +907,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
 
-        let (error_code, error_message, error_reason) =
-            if transformers::get_adyen_payment_webhook_event(
-                notif.event_code.clone(),
-                notif.success.clone(),
-            )? == AttemptStatus::Failure
-            {
-                (
-                    notif.reason.clone(),
-                    notif.reason.clone(),
-                    notif.reason.clone(),
-                )
-            } else {
-                (None, None, None)
-            };
+        let status = transformers::get_adyen_payment_webhook_event(
+            notif.event_code.clone(),
+            notif.success.clone(),
+        )?;
+        let references = transformers::get_adyen_payment_webhook_references(&notif);
+
+        let (error_code, error_message, error_reason) = if utils::is_payment_failure(status) {
+            (
+                notif.reason.clone(),
+                notif.reason.clone(),
+                notif.reason.clone(),
+            )
+        } else {
+            (None, None, None)
+        };
 
         let mandate_reference = transformers::get_adyen_mandate_reference_from_webhook(&notif);
         let network_txn_id = transformers::get_adyen_network_txn_id_from_webhook(&notif);
@@ -933,12 +932,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_status: None,
             amount: None,
             connector_returned_payment_method_details: None,
-            resource_id: Some(ResponseId::ConnectorTransactionId(
-                notif.psp_reference.clone(),
-            )),
-            status: transformers::get_adyen_payment_webhook_event(notif.event_code, notif.success)?,
-            connector_response_reference_id: Some(notif.psp_reference.clone()),
-            connector_request_reference_id: Some(notif.psp_reference),
+            resource_id: Some(ResponseId::ConnectorTransactionId(references.resource_id)),
+            status,
+            connector_response_reference_id: Some(references.connector_response_reference_id),
+            connector_request_reference_id: Some(references.connector_request_reference_id),
             error_code,
             mandate_reference,
             error_message,

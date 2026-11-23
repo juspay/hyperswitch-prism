@@ -751,6 +751,32 @@
         "error": "This feature is not implemented: setup_mandate flow for getnet"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Only card tokenization supported is not supported by Getnet"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Only card tokenization supported is not supported by Getnet"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only card tokenization supported is not supported by Getnet"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Only card tokenization supported is not supported by Getnet"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Only card tokenization supported is not supported by Getnet"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

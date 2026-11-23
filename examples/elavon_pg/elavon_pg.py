@@ -97,7 +97,7 @@ def _build_parse_event_request():
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
-            body="{}".encode(),  # Body of the HTTP request.
+            body="{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}".encode(),  # Body of the HTTP request.
         ),
     )
 

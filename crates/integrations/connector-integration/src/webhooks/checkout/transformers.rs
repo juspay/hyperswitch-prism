@@ -1,13 +1,4 @@
-use crate::connectors::checkout::transformers::CheckoutWebhookEventType;
-use serde::Deserialize;
-
-/// Thin body used by `get_event_type` — deserialises only the `type` field so we
-/// avoid pulling in the full data payload during the stateless ParseEvent phase.
-#[derive(Debug, Deserialize)]
-pub struct CheckoutWebhookEventTypeBody {
-    #[serde(rename = "type")]
-    pub transaction_type: CheckoutWebhookEventType,
-}
+use crate::connectors::checkout::transformers::{CheckoutWebhookBody, CheckoutWebhookEventType};
 
 pub fn is_refund_event(event_code: &CheckoutWebhookEventType) -> bool {
     matches!(
@@ -35,4 +26,14 @@ pub fn is_chargeback_event(event_code: &CheckoutWebhookEventType) -> bool {
             | CheckoutWebhookEventType::DisputeWon
             | CheckoutWebhookEventType::DisputeLost
     )
+}
+
+pub fn is_payout_webhook(body: &CheckoutWebhookBody) -> bool {
+    match &body.transaction_type {
+        CheckoutWebhookEventType::PayoutPaid => true,
+        CheckoutWebhookEventType::PaymentApproved | CheckoutWebhookEventType::PaymentDeclined => {
+            body.data.destination.is_some()
+        }
+        _ => false,
+    }
 }

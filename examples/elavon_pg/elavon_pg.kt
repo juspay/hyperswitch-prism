@@ -269,6 +269,22 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+        merchantEventId = "probe_event_001"
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
 // Flow: EventService.ParseEvent
 fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
@@ -277,7 +293,7 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
             putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{}")  // Body of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}")  // Body of the HTTP request.
         }
     }.build()
     val response = client.parse_event(request)
@@ -466,6 +482,7 @@ fun main(args: Array<String>) {
         "createOrder" -> createOrder(txnId)
         "customerCreate" -> customerCreate(txnId)
         "get" -> get(txnId)
+        "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
         "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
@@ -474,6 +491,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, customerCreate, get, parseEvent, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, customerCreate, get, handleEvent, parseEvent, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, void")
     }
 }

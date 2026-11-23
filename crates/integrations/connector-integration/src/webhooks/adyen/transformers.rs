@@ -59,7 +59,7 @@ pub enum DisputeStatus {
     Unknown,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAdditionalDataWH {
     #[serde(rename = "hmacSignature")]
@@ -96,6 +96,9 @@ pub struct AdyenNotificationRequestItemWH {
     pub merchant_reference: String,
     pub success: String,
     pub reason: Option<String>,
+    // Adyen omits `additionalData` on some notifications (e.g. CANCEL_OR_REFUND,
+    // REFUND_FAILED, OFFER_CLOSED, or when no HMAC / extra data is configured).
+    #[serde(default)]
     pub additional_data: AdyenAdditionalDataWH,
 }
 

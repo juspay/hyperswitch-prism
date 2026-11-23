@@ -6,7 +6,7 @@ use common_utils::{
     crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
-    ext_traits::{ByteSliceExt, BytesExt},
+    ext_traits::BytesExt,
     types::StringMajorUnit,
     Method,
 };

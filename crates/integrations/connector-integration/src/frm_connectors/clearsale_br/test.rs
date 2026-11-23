@@ -274,10 +274,18 @@ mod tests {
             clearsale_payment_outcome_status(Some(AttemptStatus::Charged), None),
             Some("PGA")
         );
-        assert_eq!(
-            clearsale_payment_outcome_status(Some(AttemptStatus::AuthorizationFailed), None),
-            Some("PGR")
-        );
+        for status in [
+            AttemptStatus::AuthenticationFailed,
+            AttemptStatus::AuthorizationFailed,
+            AttemptStatus::CaptureFailed,
+            AttemptStatus::Failure,
+        ] {
+            assert_eq!(
+                clearsale_payment_outcome_status(Some(status), None),
+                Some("PGR"),
+                "{status:?} must be reported as payment rejected"
+            );
+        }
         assert_eq!(
             clearsale_payment_outcome_status(None, Some(FrmDecision::Reject)),
             Some("PGR")
@@ -617,6 +625,61 @@ mod tests {
             Some("Legacy observation")
         );
         assert_eq!(parsed.order_info_metadata.is_gift, Some(true));
+    }
+
+    #[test]
+    fn text_encoded_phone_types_are_decoded_from_legacy_snake_case_metadata() {
+        let mut req = pre_risk_check_request();
+        req.address = Some(PaymentAddress::new(
+            Some(Address {
+                address: Some(AddressDetails {
+                    city: Some(Secret::new("São Paulo".to_owned())),
+                    ..billing_address_details()
+                }),
+                phone: Some(PhoneDetails {
+                    number: Some(Secret::new("11987654321".to_owned())),
+                    country_code: None,
+                }),
+                ..Address::default()
+            }),
+            Some(billing_address()),
+            None,
+            Some(false),
+        ));
+        req.connector_feature_data = Some(Secret::new(
+            r#"{"orderInfoMetadata":"{\"billing_phone_type\":\"6\",\"shipping_phone_type\":\"6\",\"origin\":\"Site\",\"channelId\":\"Desktop\"}"}"#
+                .to_owned(),
+        ));
+
+        let order = order_from_common(OrderInputs::from_pre_risk_check(&req, None, None).unwrap())
+            .unwrap()
+            .order;
+        assert_eq!(order.origin.as_deref(), Some("Site"));
+        assert_eq!(order.channel_id.as_deref(), Some("Desktop"));
+        assert_eq!(order.billing.phones[0].phone_type, 6);
+        assert_eq!(order.shipping.unwrap().phones[0].phone_type, 6);
+    }
+
+    #[test]
+    fn text_encoded_phone_types_fall_back_instead_of_rejecting_bad_values() {
+        for value in [
+            r#""""#,
+            r#""mobile""#,
+            r#""-1""#,
+            r#""1.5""#,
+            r#""4294967296""#,
+            "true",
+            "[]",
+        ] {
+            let raw = format!(r#"{{"orderInfoMetadata":{{"billing_phone_type":{value}}}}}"#);
+            let parsed = ClearSaleConnectorFeatureData::parse(Some(&Secret::new(raw)))
+                .unwrap_or_else(|err| {
+                    panic!(
+                        "value {value}: unparsable phone type must be dropped, not fail decoding: {err}"
+                    )
+                });
+            assert_eq!(parsed.order_info_metadata.billing_phone_type, None);
+        }
     }
 
     #[test]
@@ -1192,11 +1255,38 @@ mod tests {
     /// decimal quantity, phone DDD is real, person_type is CPF, payment type
     /// is credit card, and the order code is the business order ID.
     #[test]
+    fn product_is_signed_and_decodes_number_or_text() {
+        // Config product `-1` must not be rejected; it flows through when no
+        // per-request override is set.
+        let req = {
+            let mut r = pre_risk_check_request();
+            r.connector_feature_data = None;
+            r
+        };
+        let order =
+            order_from_common(OrderInputs::from_pre_risk_check(&req, None, Some(-1)).unwrap())
+                .unwrap()
+                .order;
+        assert_eq!(order.product, -1);
+
+        // Feature-data override wins over config, and accepts `-1` as a
+        // number or decimal string.
+        for raw in [r#"{"product":-1}"#, r#"{"product":"-1"}"#] {
+            let mut req = pre_risk_check_request();
+            req.connector_feature_data = Some(Secret::new(raw.to_owned()));
+            let order =
+                order_from_common(OrderInputs::from_pre_risk_check(&req, None, Some(4)).unwrap())
+                    .unwrap()
+                    .order;
+            assert_eq!(order.product, -1, "feature data {raw}");
+        }
+    }
+
+    #[test]
     fn order_from_common_builds_pre_risk_check_body() {
         let req = pre_risk_check_request();
         let inputs = OrderInputs::from_pre_risk_check(&req, None, None).unwrap();
         let order = order_from_common(inputs).unwrap().order;
-
         assert_eq!(order.code, "merchant-order-abc-001");
         assert_ne!(order.code, "txn-abc-001");
         assert_eq!(order.product, 4);

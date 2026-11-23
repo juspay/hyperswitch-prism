@@ -58,7 +58,8 @@ function _buildCreateClientAuthenticationTokenRequest(): types.IMerchantAuthenti
             "amount": {
                 "minorAmount": 1000,
                 "currency": Currency.USD
-            }
+            },
+            "returnUrl": "https://example.com/return"
         }
     };
 }

@@ -917,6 +917,8 @@ fn get_wallet_details<
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
+        | WalletData::AliPayPlusRedirect {}
+        | WalletData::BoostRedirect {}
         | WalletData::PayhereRedirect {}
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_)

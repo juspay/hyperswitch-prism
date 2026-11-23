@@ -19,9 +19,9 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "capture",
     "create_client_authentication_token",
     "get",
-    "parse_event",
     "proxy_authorize",
     "proxy_setup_recurring",
+    "recurring_charge",
     "refund",
     "refund_get",
     "reverse",
@@ -111,7 +111,7 @@ pub fn build_create_client_authentication_token_request(
 ) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
         merchant_client_session_id: "probe_sdk_session_001".to_string(), // Infrastructure.
-        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
+        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}, "return_url": "https://example.com/return"}}
         ..Default::default()
     }
 }
@@ -126,18 +126,6 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             currency: Currency::Usd.into(),
         }),
         ..Default::default()
-    }
-}
-
-pub fn build_parse_event_request() -> EventServiceParseRequest {
-    EventServiceParseRequest {
-        request_details: Some(RequestDetails {
-            method: HttpMethod::Post.into(), // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()), // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(), // Headers of the HTTP request.
-            body: "{}".as_bytes().to_vec(),  // Body of the HTTP request.
-            ..Default::default()
-        }),
     }
 }
 
@@ -203,6 +191,41 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
         }),
         auth_type: AuthenticationType::NoThreeDs.into(),
         setup_future_usage: Some(FutureUsage::OffSession.into()),
+        ..Default::default()
+    }
+}
+
+pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
+    RecurringPaymentServiceChargeRequest {
+        connector_recurring_payment_id: Some(MandateReference {
+            // Reference to existing mandate.
+            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            ..Default::default()
+        }),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            // Optional payment Method Information (for network transaction flows).
+            payment_method: Some(payment_method::PaymentMethod::Token(
+                TokenPaymentMethodType {
+                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
+                },
+            )),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/recurring-return".to_string()),
+        connector_customer_id: Some("cust_probe_123".to_string()),
+        payment_method_type: Some(PaymentMethodType::PayPal.into()),
+        off_session: Some(true), // Behavioral Flags and Preferences.
+        additional_payment_data: Some(AdditionalPaymentData {
+            // Additional payment data for various payment methods.
+            // payment_method_data: {"card": {"card_exp_month": "03", "card_exp_year": "2030"}}
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }
@@ -615,16 +638,6 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: EventService.ParseEvent
-#[allow(dead_code)]
-pub async fn process_parse_event(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.parse_event(build_parse_event_request())?;
-    Ok(format!("{response:?}"))
-}
-
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -645,6 +658,18 @@ pub async fn process_proxy_setup_recurring(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let response = client
         .proxy_setup_recurring(build_proxy_setup_recurring_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: RecurringPaymentService.Charge
+#[allow(dead_code)]
+pub async fn process_recurring_charge(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .recurring_charge(build_recurring_charge_request(), &HashMap::new(), None)
         .await?;
     Ok(format!("status: {:?}", response.status()))
 }
@@ -757,9 +782,9 @@ async fn main() {
             process_create_client_authentication_token(&client, "txn_001").await
         }
         "process_get" => process_get(&client, "txn_001").await,
-        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
+        "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_reverse" => process_reverse(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
@@ -767,7 +792,7 @@ async fn main() {
         "process_token_setup_recurring" => process_token_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_get, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_refund_get, process_reverse, process_setup_recurring, process_token_authorize, process_token_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_get, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_reverse, process_setup_recurring, process_token_authorize, process_token_setup_recurring, process_void", flow);
             return;
         }
     };

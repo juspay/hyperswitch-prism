@@ -2,13 +2,15 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData};
 
-use self::transformers::{is_chargeback_event, is_refund_event, CheckoutWebhookEventTypeBody};
-use crate::connectors::checkout::transformers::{CheckoutDisputeWebhookBody, CheckoutWebhookBody};
+use self::transformers::{is_chargeback_event, is_payout_webhook, is_refund_event};
+use crate::connectors::checkout::transformers::{
+    CheckoutDisputeWebhookBody, CheckoutWebhookBody, CheckoutWebhookEventTypeBody,
+};
 use common_utils::ext_traits::ByteSliceExt;
 use domain_types::{
     connector_types::{
-        DisputeWebhookReference, EventType, PaymentWebhookReference, RefundWebhookReference,
-        RequestDetails, WebhookResourceReference,
+        DisputeWebhookReference, EventType, PaymentWebhookReference, PayoutWebhookReference,
+        RefundWebhookReference, RequestDetails, WebhookResourceReference,
     },
     errors::WebhookError,
     payment_method_data::PaymentMethodDataTypes,
@@ -54,7 +56,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("CheckoutWebhookEventTypeBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
-        Ok(EventType::from(body.transaction_type))
+        Ok(EventType::from(body))
     }
 
     fn get_webhook_event_reference(
@@ -89,6 +91,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        if is_payout_webhook(&body) {
+            if body.data.id.trim().is_empty() {
+                return Err(error_stack::report!(
+                    WebhookError::WebhookMissingRequiredField { field: "data.id" }
+                ));
+            }
+
+            return Ok(Some(WebhookResourceReference::Payout(
+                PayoutWebhookReference {
+                    connector_payout_id: Some(body.data.id),
+                    merchant_payout_id: None,
+                },
+            )));
+        }
 
         if is_refund_event(&type_body.transaction_type) {
             return Ok(Some(WebhookResourceReference::Refund(

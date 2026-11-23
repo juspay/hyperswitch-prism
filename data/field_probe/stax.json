@@ -816,6 +816,32 @@
         }
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

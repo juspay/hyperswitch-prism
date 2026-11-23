@@ -114,7 +114,7 @@
       },
       "Blik": {
         "status": "not_supported",
-        "error": "BankRedirect type Blik { blik_code: Some(\"777124\") } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type Blik { blik_code: Some(*** alloc::string::String ***) } is not supported by Shift4 is not supported by Shift4"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -645,7 +645,8 @@
               "amount": {
                 "minor_amount": 1000,
                 "currency": "USD"
-              }
+              },
+              "return_url": "https://example.com/return"
             }
           }
         },
@@ -1125,6 +1126,32 @@
           },
           "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"customerId\":\"cust_probe_123\",\"type\":\"first_recurring\",\"external\":{\"vendorReference\":\"probe_tokenized_mandate_001\"},\"card\":\"pm_1AbcXyzStripeTestToken\"}"
         }
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for shift4"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for shift4"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for shift4"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for shift4"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for shift4"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for shift4"
       }
     },
     "verify_redirect": {

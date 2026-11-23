@@ -587,7 +587,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             query,
                             variables: GenericVariableInput {
                                 input: WalletPaymentInput {
-                                    payment_method_id: payment_method_id.into(),
+                                    payment_method_id,
                                     transaction: WalletTransactionBody {
                                         amount: amount.clone(),
                                         merchant_account_id: merchant_account_id.clone(),
@@ -2639,12 +2639,8 @@ fn get_braintree_redirect_form<
     complete_authorize_url: String,
 ) -> Result<RedirectForm, Report<ConnectorError>> {
     Ok(RedirectForm::Braintree {
-        client_token: client_token_data
-            .data
-            .create_client_token
-            .client_token
-            .expose(),
-        card_token: payment_method_token.expose(),
+        client_token: client_token_data.data.create_client_token.client_token,
+        card_token: payment_method_token,
         bin: match card_details {
             PaymentMethodData::Card(_) => {
                 match get_card_isin_from_payment_method_data(&card_details) {

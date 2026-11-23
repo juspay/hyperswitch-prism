@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 132
+# Connectors: 125
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 132
+  total_connectors: 125
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -30,20 +30,12 @@ payment_methods: none
 flows: handle_event, parse_event
 examples_python: none
 
-## Absasanlam
-connector_id: absasanlam
-doc: docs/connectors/absasanlam.md
-scenarios: none
-payment_methods: none
-flows: handle_event, parse_event
-examples_python: none
-
 ## ACI
 connector_id: aci
 doc: docs/connectors/aci.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Affirm, Afterpay, AliPayRedirect, Card, Eft, Eps, Giropay, Ideal, Interac, Klarna, Przelewy24, Sofort, Trustly
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, setup_recurring, void
 examples_python: examples/aci/aci.py
 
 ## Adyen
@@ -59,7 +51,7 @@ connector_id: affirm
 doc: docs/connectors/affirm.md
 scenarios: none
 payment_methods: Affirm
-flows: authorize, capture, get, parse_event, refund, refund_get, void
+flows: authorize, capture, get, refund, refund_get, void
 examples_python: none
 
 ## Airwallex
@@ -67,7 +59,7 @@ connector_id: airwallex
 doc: docs/connectors/airwallex.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Blik, Card, GooglePay, Ideal, Klarna, PaypalRedirect, Skrill, Trustly
-flows: authorize, capture, create_order, create_server_authentication_token, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_order, create_server_authentication_token, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/airwallex/airwallex.py
 
 ## Authipay
@@ -75,7 +67,7 @@ connector_id: authipay
 doc: docs/connectors/authipay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, reverse, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, reverse, void
 examples_python: examples/authipay/authipay.py
 
 ## Authorize.net
@@ -91,7 +83,7 @@ connector_id: axisbank
 doc: docs/connectors/axisbank.md
 scenarios: none
 payment_methods: none
-flows: parse_event
+flows: 
 examples_python: none
 
 ## Bambora
@@ -99,7 +91,7 @@ connector_id: bambora
 doc: docs/connectors/bambora.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/bambora/bambora.py
 
 ## Bamboraapac
@@ -107,7 +99,7 @@ connector_id: bamboraapac
 doc: docs/connectors/bamboraapac.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring
 examples_python: examples/bamboraapac/bamboraapac.py
 
 ## Bankofamerica
@@ -115,7 +107,7 @@ connector_id: bankofamerica
 doc: docs/connectors/bankofamerica.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, ApplePayDecrypted, Card
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, refund, refund_get, reverse, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, reverse, setup_recurring, void
 examples_python: examples/bankofamerica/bankofamerica.py
 
 ## Barclaycard
@@ -123,7 +115,7 @@ connector_id: barclaycard
 doc: docs/connectors/barclaycard.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay
-flows: authenticate, authorize, capture, get, parse_event, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authenticate, authorize, capture, get, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/barclaycard/barclaycard.py
 
 ## Betterpayment
@@ -138,8 +130,8 @@ examples_python: none
 connector_id: billwerk
 doc: docs/connectors/billwerk.md
 scenarios: none
-payment_methods: none
-flows: capture, get, parse_event, recurring_charge, refund, refund_get, token_authorize, token_setup_recurring, void
+payment_methods: Card
+flows: capture, get, recurring_charge, refund, refund_get, token_authorize, token_setup_recurring, tokenize, void
 examples_python: none
 
 ## Bluesnap
@@ -162,8 +154,8 @@ examples_python: none
 connector_id: braintree
 doc: docs/connectors/braintree.md
 scenarios: none
-payment_methods: ApplePayThirdPartySdk, GooglePayThirdPartySdk, PaypalSdk
-flows: authorize, capture, create_client_authentication_token, get, handle_event, parse_event, proxy_setup_recurring, refund, reverse, setup_recurring, void
+payment_methods: ApplePayThirdPartySdk, Card, GooglePayThirdPartySdk, PaypalSdk
+flows: authorize, capture, create_client_authentication_token, get, handle_event, parse_event, proxy_setup_recurring, refund, reverse, setup_recurring, tokenize, void
 examples_python: none
 
 ## Calida
@@ -179,7 +171,7 @@ connector_id: cashfree
 doc: docs/connectors/cashfree.md
 scenarios: none
 payment_methods: none
-flows: capture, create_order, get, parse_event, refund, refund_get, void
+flows: capture, create_order, get, refund, refund_get, void
 examples_python: none
 
 ## CashtoCode
@@ -195,15 +187,15 @@ connector_id: celero
 doc: docs/connectors/celero.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/celero/celero.py
 
 ## Checkout.com
 connector_id: checkout
 doc: docs/connectors/checkout.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Ach, ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, dispute_accept, dispute_defend, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring, void
+payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePayDecrypted
+flows: authorize, capture, dispute_accept, dispute_defend, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring, tokenize, void
 examples_python: examples/checkout/checkout.py
 
 ## Citigate
@@ -211,7 +203,7 @@ connector_id: citigate
 doc: docs/connectors/citigate.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/citigate/citigate.py
 
 ## CryptoPay
@@ -227,7 +219,7 @@ connector_id: cybersource
 doc: docs/connectors/cybersource.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted, SamsungPay
-flows: authenticate, authorize, capture, get, handle_event, incremental_authorization, parse_event, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, reverse, setup_recurring, token_authorize, void
+flows: authenticate, authorize, capture, create_client_authentication_token, get, handle_event, incremental_authorization, parse_event, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, reverse, setup_recurring, token_authorize, void
 examples_python: examples/cybersource/cybersource.py
 
 ## D24
@@ -235,15 +227,15 @@ connector_id: d24
 doc: docs/connectors/d24.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Webpay
-flows: authorize, get, parse_event, refund, refund_get
+flows: authorize, get, refund, refund_get
 examples_python: examples/d24/d24.py
 
 ## Datatrans
 connector_id: datatrans
 doc: docs/connectors/datatrans.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: ApplePay, Card
-flows: authorize, capture, create_client_authentication_token, get, parse_event, proxy_authorize, proxy_setup_recurring, refund, refund_get, reverse, setup_recurring, token_authorize, token_setup_recurring, void
+payment_methods: ApplePay, Card, GooglePay
+flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, reverse, setup_recurring, token_authorize, token_setup_recurring, tokenize, void
 examples_python: examples/datatrans/datatrans.py
 
 ## Deutschebank
@@ -267,7 +259,7 @@ connector_id: easebuzz
 doc: docs/connectors/easebuzz.md
 scenarios: none
 payment_methods: EaseBuzzRedirect, Netbanking, UpiCollect, UpiIntent, UpiQr
-flows: authorize, capture, create_order, get, parse_event, refund, refund_get
+flows: authorize, capture, create_order, get, refund, refund_get
 examples_python: none
 
 ## Ecommpay
@@ -283,7 +275,7 @@ connector_id: elavon
 doc: docs/connectors/elavon.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, recurring_charge, refund, refund_get
+flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get
 examples_python: examples/elavon/elavon.py
 
 ## Elavon Pg
@@ -291,23 +283,15 @@ connector_id: elavon_pg
 doc: docs/connectors/elavon_pg.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, create_order, customer_create, get, parse_event, pre_authenticate, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
+flows: authorize, capture, create_order, customer_create, get, handle_event, parse_event, pre_authenticate, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/elavon_pg/elavon_pg.py
-
-## Elavonpg
-connector_id: elavonpg
-doc: docs/connectors/elavonpg.md
-scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, create_order, get, pre_authenticate, proxy_authorize, refund, refund_get, void
-examples_python: examples/elavonpg/elavonpg.py
 
 ## Etisalat
 connector_id: etisalat
 doc: docs/connectors/etisalat.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: Card
-flows: authorize, capture, parse_event, proxy_authorize, recurring_charge, refund, void
+flows: authorize, capture, proxy_authorize, recurring_charge, refund, void
 examples_python: examples/etisalat/etisalat.py
 
 ## Finix
@@ -323,7 +307,7 @@ connector_id: fiserv
 doc: docs/connectors/fiserv.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/fiserv/fiserv.py
 
 ## Fiservcommercehub
@@ -331,7 +315,7 @@ connector_id: fiservcommercehub
 doc: docs/connectors/fiservcommercehub.md
 scenarios: none
 payment_methods: none
-flows: capture, create_server_authentication_token, get, incremental_authorization, parse_event, recurring_charge, refund, refund_get, reverse, void
+flows: capture, create_server_authentication_token, get, incremental_authorization, recurring_charge, refund, refund_get, reverse, void
 examples_python: none
 
 ## Fiservemea
@@ -339,7 +323,7 @@ connector_id: fiservemea
 doc: docs/connectors/fiservemea.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, reverse, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, reverse, void
 examples_python: examples/fiservemea/fiservemea.py
 
 ## Fiuu
@@ -363,7 +347,7 @@ connector_id: forte
 doc: docs/connectors/forte.md
 scenarios: checkout_autocapture, void_payment, get_payment
 payment_methods: Ach, Card
-flows: authorize, get, parse_event, refund_get, void
+flows: authorize, get, refund_get, void
 examples_python: examples/forte/forte.py
 
 ## Getnet
@@ -371,7 +355,7 @@ connector_id: getnet
 doc: docs/connectors/getnet.md
 scenarios: none
 payment_methods: none
-flows: capture, create_server_authentication_token, get, parse_event, refund, refund_get, void
+flows: capture, create_server_authentication_token, get, refund, refund_get, void
 examples_python: none
 
 ## Gigadat
@@ -379,7 +363,7 @@ connector_id: gigadat
 doc: docs/connectors/gigadat.md
 scenarios: none
 payment_methods: Interac
-flows: authorize, get, parse_event, refund
+flows: authorize, get, refund
 examples_python: none
 
 ## Givepayments
@@ -403,7 +387,7 @@ connector_id: globalpayments_heartland
 doc: docs/connectors/globalpayments_heartland.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/globalpayments_heartland/globalpayments_heartland.py
 
 ## Globalpayments Realex
@@ -411,16 +395,8 @@ connector_id: globalpayments_realex
 doc: docs/connectors/globalpayments_realex.md
 scenarios: checkout_autocapture, checkout_card, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, void
-examples_python: examples/globalpayments_realex/globalpayments_realex.py
-
-## Globalpaymentsrealex
-connector_id: globalpaymentsrealex
-doc: docs/connectors/globalpaymentsrealex.md
-scenarios: checkout_autocapture, checkout_card, void_payment, get_payment
-payment_methods: Card
 flows: authorize, capture, get, proxy_authorize, void
-examples_python: examples/globalpaymentsrealex/globalpaymentsrealex.py
+examples_python: examples/globalpayments_realex/globalpayments_realex.py
 
 ## Glomopay
 connector_id: glomopay
@@ -443,7 +419,7 @@ connector_id: helcim
 doc: docs/connectors/helcim.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/helcim/helcim.py
 
 ## Hipay
@@ -451,7 +427,7 @@ connector_id: hipay
 doc: docs/connectors/hipay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, token_authorize, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, token_authorize, tokenize, void
 examples_python: examples/hipay/hipay.py
 
 ## Hyperpg
@@ -459,7 +435,7 @@ connector_id: hyperpg
 doc: docs/connectors/hyperpg.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Card
-flows: authorize, get, parse_event, proxy_authorize, refund, refund_get
+flows: authorize, get, proxy_authorize, refund, refund_get
 examples_python: examples/hyperpg/hyperpg.py
 
 ## Hyperswitch
@@ -475,7 +451,7 @@ connector_id: iatapay
 doc: docs/connectors/iatapay.md
 scenarios: none
 payment_methods: Ideal, LocalBankRedirect, UpiCollect, UpiIntent, UpiQr
-flows: authorize, create_server_authentication_token, get, parse_event, refund, refund_get
+flows: authorize, create_server_authentication_token, get, refund, refund_get
 examples_python: none
 
 ## Ilixium
@@ -483,7 +459,7 @@ connector_id: ilixium
 doc: docs/connectors/ilixium.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, void
+flows: authorize, capture, get, proxy_authorize, refund, void
 examples_python: examples/ilixium/ilixium.py
 
 ## Imerchantsolutions
@@ -499,7 +475,7 @@ connector_id: itaubank
 doc: docs/connectors/itaubank.md
 scenarios: none
 payment_methods: none
-flows: create_server_authentication_token, parse_event
+flows: create_server_authentication_token
 examples_python: none
 
 ## Jpmorgan
@@ -507,7 +483,7 @@ connector_id: jpmorgan
 doc: docs/connectors/jpmorgan.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, setup_recurring, token_authorize, void
+flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, setup_recurring, token_authorize, void
 examples_python: examples/jpmorgan/jpmorgan.py
 
 ## Jpmorgan Orbital
@@ -515,23 +491,15 @@ connector_id: jpmorgan_orbital
 doc: docs/connectors/jpmorgan_orbital.md
 scenarios: checkout_autocapture, get_payment
 payment_methods: Card
-flows: authorize, get, parse_event, proxy_authorize
-examples_python: examples/jpmorgan_orbital/jpmorgan_orbital.py
-
-## Jpmorganorbital
-connector_id: jpmorganorbital
-doc: docs/connectors/jpmorganorbital.md
-scenarios: checkout_autocapture, get_payment
-payment_methods: Card
 flows: authorize, get, proxy_authorize
-examples_python: examples/jpmorganorbital/jpmorganorbital.py
+examples_python: examples/jpmorgan_orbital/jpmorgan_orbital.py
 
 ## Juspay
 connector_id: juspay
 doc: docs/connectors/juspay.md
 scenarios: checkout_autocapture, refund, void_payment, get_payment
 payment_methods: AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, GCash, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, KakaoPay, LazyPayRedirect, Momo, Netbanking, PaypalRedirect, PaypalSdk, PhonePeRedirect, SamsungPay, TouchNGo, UpiCollect, UpiIntent, UpiQr, WeChatPayQr
-flows: authorize, capture, create_order, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_order, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/juspay/juspay.py
 
 ## Kount
@@ -547,7 +515,7 @@ connector_id: loonio
 doc: docs/connectors/loonio.md
 scenarios: none
 payment_methods: Interac
-flows: authorize, get, parse_event
+flows: authorize, get
 examples_python: none
 
 ## Maya
@@ -563,7 +531,7 @@ connector_id: merchante
 doc: docs/connectors/merchante.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/merchante/merchante.py
 
 ## MiFinity
@@ -571,7 +539,7 @@ connector_id: mifinity
 doc: docs/connectors/mifinity.md
 scenarios: none
 payment_methods: Mifinity
-flows: authorize, get, parse_event
+flows: authorize, get
 examples_python: none
 
 ## Mollie
@@ -579,7 +547,7 @@ connector_id: mollie
 doc: docs/connectors/mollie.md
 scenarios: checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Card, Klarna
-flows: authorize, create_client_authentication_token, get, parse_event, proxy_authorize, refund, refund_get, token_authorize, void
+flows: authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void
 examples_python: examples/mollie/mollie.py
 
 ## Moneris
@@ -587,7 +555,7 @@ connector_id: moneris
 doc: docs/connectors/moneris.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, create_server_authentication_token, get, incremental_authorization, parse_event, post_authenticate, pre_authenticate, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_server_authentication_token, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, refund, refund_get, void
 examples_python: examples/moneris/moneris.py
 
 ## Multisafepay
@@ -595,7 +563,7 @@ connector_id: multisafepay
 doc: docs/connectors/multisafepay.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: AliPayRedirect, Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect, Sepa, Sofort, Trustly, Webpay
-flows: authorize, create_client_authentication_token, get, parse_event, proxy_authorize, refund, refund_get
+flows: authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get
 examples_python: examples/multisafepay/multisafepay.py
 
 ## Netcetera
@@ -603,7 +571,7 @@ connector_id: netcetera
 doc: docs/connectors/netcetera.md
 scenarios: none
 payment_methods: none
-flows: parse_event
+flows: 
 examples_python: none
 
 ## Nexinets
@@ -611,7 +579,7 @@ connector_id: nexinets
 doc: docs/connectors/nexinets.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: ApplePay, Card, Eps, Giropay, Ideal, PaypalRedirect, Sofort
-flows: authorize, create_client_authentication_token, get, parse_event, proxy_authorize, recurring_charge, refund
+flows: authorize, create_client_authentication_token, get, proxy_authorize, recurring_charge, refund
 examples_python: examples/nexinets/nexinets.py
 
 ## Nexixpay
@@ -619,7 +587,7 @@ connector_id: nexixpay
 doc: docs/connectors/nexixpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, handle_event, parse_event, refund, refund_get, void
+flows: authorize, capture, create_client_authentication_token, get, handle_event, parse_event, refund, refund_get, void
 examples_python: examples/nexixpay/nexixpay.py
 
 ## Nmi
@@ -659,7 +627,7 @@ connector_id: paybox
 doc: docs/connectors/paybox.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/paybox/paybox.py
 
 ## Payconex
@@ -667,7 +635,7 @@ connector_id: payconex
 doc: docs/connectors/payconex.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/payconex/payconex.py
 
 ## Paydotcom
@@ -675,7 +643,7 @@ connector_id: paydotcom
 doc: docs/connectors/paydotcom.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, get, parse_event, pre_authenticate, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, pre_authenticate, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/paydotcom/paydotcom.py
 
 ## Payhere
@@ -707,7 +675,7 @@ connector_id: payme
 doc: docs/connectors/payme.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, create_order, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, create_order, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/payme/payme.py
 
 ## Paynearme
@@ -715,7 +683,7 @@ connector_id: paynearme
 doc: docs/connectors/paynearme.md
 scenarios: checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, create_order, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, create_order, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/paynearme/paynearme.py
 
 ## Paypal
@@ -730,8 +698,8 @@ examples_python: examples/paypal/paypal.py
 connector_id: paysafe
 doc: docs/connectors/paysafe.md
 scenarios: none
-payment_methods: PaySafeCard
-flows: authenticate, authorize, capture, customer_create, get, parse_event, pre_authenticate, refund, refund_get, token_authorize, void
+payment_methods: Card, GooglePay, GooglePayDecrypted, PaySafeCard
+flows: authenticate, authorize, capture, customer_create, get, pre_authenticate, refund, refund_get, token_authorize, tokenize, void
 examples_python: none
 
 ## Paytm
@@ -739,7 +707,7 @@ connector_id: paytm
 doc: docs/connectors/paytm.md
 scenarios: none
 payment_methods: UpiCollect, UpiIntent, UpiQr
-flows: authorize, create_server_session_authentication_token, get, parse_event
+flows: authorize, create_server_session_authentication_token, get
 examples_python: none
 
 ## PayU
@@ -747,7 +715,7 @@ connector_id: payu
 doc: docs/connectors/payu.md
 scenarios: none
 payment_methods: BillDeskRedirect, CashfreeRedirect, EaseBuzzRedirect, LazyPayRedirect, Netbanking, PayURedirect, PhonePeRedirect, UpiCollect, UpiIntent, UpiQr
-flows: authorize, capture, create_server_session_authentication_token, get, parse_event, refund, refund_get, void
+flows: authorize, capture, create_server_session_authentication_token, get, refund, refund_get, void
 examples_python: none
 
 ## Peachpayments
@@ -771,14 +739,6 @@ connector_id: pinelabs_online
 doc: docs/connectors/pinelabs_online.md
 scenarios: none
 payment_methods: none
-flows: create_server_authentication_token, parse_event
-examples_python: none
-
-## Pinelabsonline
-connector_id: pinelabsonline
-doc: docs/connectors/pinelabsonline.md
-scenarios: none
-payment_methods: none
 flows: create_server_authentication_token
 examples_python: none
 
@@ -787,7 +747,7 @@ connector_id: placetopay
 doc: docs/connectors/placetopay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, reverse, void
+flows: authorize, capture, get, proxy_authorize, refund, reverse, void
 examples_python: examples/placetopay/placetopay.py
 
 ## Powertranz
@@ -795,7 +755,7 @@ connector_id: powertranz
 doc: docs/connectors/powertranz.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/powertranz/powertranz.py
 
 ## Ppro
@@ -811,7 +771,7 @@ connector_id: qwikcilver
 doc: docs/connectors/qwikcilver.md
 scenarios: none
 payment_methods: none
-flows: create_server_authentication_token, parse_event
+flows: create_server_authentication_token
 examples_python: none
 
 ## Rapyd
@@ -835,16 +795,8 @@ connector_id: razorpay_v2
 doc: docs/connectors/razorpay_v2.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Webpay, Wero
-flows: authorize, create_order, get, parse_event, proxy_authorize, refund, refund_get, token_authorize
-examples_python: examples/razorpay_v2/razorpay_v2.py
-
-## Razorpay V2
-connector_id: razorpayv2
-doc: docs/connectors/razorpayv2.md
-scenarios: checkout_autocapture, refund, get_payment
-payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Webpay, Wero
 flows: authorize, create_order, get, proxy_authorize, refund, refund_get, token_authorize
-examples_python: examples/razorpayv2/razorpayv2.py
+examples_python: examples/razorpay_v2/razorpay_v2.py
 
 ## Reddot
 connector_id: reddot
@@ -859,7 +811,7 @@ connector_id: redsys
 doc: docs/connectors/redsys.md
 scenarios: none
 payment_methods: none
-flows: authenticate, capture, get, parse_event, pre_authenticate, refund, refund_get, void
+flows: authenticate, capture, get, pre_authenticate, refund, refund_get, void
 examples_python: none
 
 ## Revolut
@@ -875,15 +827,23 @@ connector_id: revolv3
 doc: docs/connectors/revolv3.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, parse_event, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
+flows: authorize, capture, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/revolv3/revolv3.py
+
+## Revpay
+connector_id: revpay
+doc: docs/connectors/revpay.md
+scenarios: none
+payment_methods: none
+flows: handle_event, parse_event
+examples_python: none
 
 ## Saferpay
 connector_id: saferpay
 doc: docs/connectors/saferpay.md
 scenarios: none
 payment_methods: none
-flows: capture, get, parse_event, pre_authenticate, refund_get, void
+flows: capture, get, pre_authenticate, refund_get, void
 examples_python: none
 
 ## Shift4
@@ -891,7 +851,7 @@ connector_id: shift4
 doc: docs/connectors/shift4.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, Card, Eps, GooglePay, Ideal
-flows: authorize, capture, create_client_authentication_token, customer_create, get, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring, void
+flows: authorize, capture, create_client_authentication_token, customer_create, get, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring, void
 examples_python: examples/shift4/shift4.py
 
 ## Silverflow
@@ -899,7 +859,7 @@ connector_id: silverflow
 doc: docs/connectors/silverflow.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/silverflow/silverflow.py
 
 ## Stax
@@ -907,7 +867,7 @@ connector_id: stax
 doc: docs/connectors/stax.md
 scenarios: none
 payment_methods: none
-flows: capture, customer_create, get, parse_event, recurring_charge, refund, refund_get, token_authorize, token_setup_recurring, void
+flows: capture, customer_create, get, recurring_charge, refund, refund_get, token_authorize, token_setup_recurring, void
 examples_python: none
 
 ## Stripe
@@ -915,7 +875,7 @@ connector_id: stripe
 doc: docs/connectors/stripe.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, Bacs, BacsBankTransfer, BancontactCard, Becs, Blik, Card, CashappQr, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, Klarna, MultibancoBankTransfer, Przelewy24, RevolutPay, Sepa, SepaBankTransfer, WeChatPayQr
-flows: authorize, capture, create_client_authentication_token, customer_create, dispute_accept, dispute_submit_evidence, get, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring, void
+flows: authorize, capture, create_client_authentication_token, customer_create, dispute_accept, dispute_submit_evidence, get, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, token_setup_recurring, tokenize, void
 examples_python: examples/stripe/stripe.py
 
 ## Tamara
@@ -931,7 +891,7 @@ connector_id: tesouro
 doc: docs/connectors/tesouro.md
 scenarios: none
 payment_methods: none
-flows: create_server_authentication_token, parse_event
+flows: create_server_authentication_token
 examples_python: none
 
 ## Travelhub
@@ -939,7 +899,7 @@ connector_id: travelhub
 doc: docs/connectors/travelhub.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, ApplePayDecrypted, Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, void
+flows: authorize, capture, get, proxy_authorize, refund, void
 examples_python: examples/travelhub/travelhub.py
 
 ## Truelayer
@@ -971,7 +931,7 @@ connector_id: trustpayments
 doc: docs/connectors/trustpayments.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, get, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/trustpayments/trustpayments.py
 
 ## Tsys
@@ -979,20 +939,12 @@ connector_id: tsys
 doc: docs/connectors/tsys.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/tsys/tsys.py
 
 ## Tsys Transit
 connector_id: tsys_transit
 doc: docs/connectors/tsys_transit.md
-scenarios: none
-payment_methods: none
-flows: capture, get, parse_event, refund, refund_get, reverse, void
-examples_python: none
-
-## Tsystransit
-connector_id: tsystransit
-doc: docs/connectors/tsystransit.md
 scenarios: none
 payment_methods: none
 flows: capture, get, refund, refund_get, reverse, void
@@ -1003,15 +955,7 @@ connector_id: twoc_twop_paco
 doc: docs/connectors/twoc_twop_paco.md
 scenarios: none
 payment_methods: none
-flows: parse_event, verify_redirect
-examples_python: none
-
-## Twoctwoppaco
-connector_id: twoctwoppaco
-doc: docs/connectors/twoctwoppaco.md
-scenarios: none
-payment_methods: none
-flows: 
+flows: verify_redirect
 examples_python: none
 
 ## Volt
@@ -1019,7 +963,7 @@ connector_id: volt
 doc: docs/connectors/volt.md
 scenarios: none
 payment_methods: OpenBanking, OpenBankingUk
-flows: authorize, create_server_authentication_token, get, parse_event, refund
+flows: authorize, create_server_authentication_token, get, refund
 examples_python: none
 
 ## Wellsfargo
@@ -1027,7 +971,7 @@ connector_id: wellsfargo
 doc: docs/connectors/wellsfargo.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/wellsfargo/wellsfargo.py
 
 ## Worldpay
@@ -1035,7 +979,7 @@ connector_id: worldpay
 doc: docs/connectors/worldpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, Card, GooglePay
-flows: authorize, capture, get, incremental_authorization, parse_event, proxy_authorize, recurring_charge, refund, refund_get, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, recurring_charge, refund, refund_get, void
 examples_python: examples/worldpay/worldpay.py
 
 ## Worldpayraft
@@ -1043,7 +987,7 @@ connector_id: worldpayraft
 doc: docs/connectors/worldpayraft.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, reverse, setup_recurring, void
+flows: authorize, capture, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, reverse, setup_recurring, void
 examples_python: examples/worldpayraft/worldpayraft.py
 
 ## Worldpayvantiv
@@ -1051,7 +995,7 @@ connector_id: worldpayvantiv
 doc: docs/connectors/worldpayvantiv.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, incremental_authorization, parse_event, proxy_authorize, refund, refund_get, reverse, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, recurring_charge, refund, refund_get, reverse, void
 examples_python: examples/worldpayvantiv/worldpayvantiv.py
 
 ## Worldpayxml
@@ -1067,7 +1011,7 @@ connector_id: xendit
 doc: docs/connectors/xendit.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, refund, refund_get
+flows: authorize, capture, get, proxy_authorize, refund, refund_get
 examples_python: examples/xendit/xendit.py
 
 ## Zift
@@ -1075,5 +1019,5 @@ connector_id: zift
 doc: docs/connectors/zift.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, parse_event, proxy_authorize, proxy_setup_recurring, refund, setup_recurring, void
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, setup_recurring, void
 examples_python: examples/zift/zift.py

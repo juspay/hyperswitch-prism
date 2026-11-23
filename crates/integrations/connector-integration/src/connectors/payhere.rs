@@ -3,7 +3,7 @@ pub mod transformers;
 use common_enums::CurrencyUnit;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    crypto::GenerateDigest,
+    crypto::{GenerateDigest, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -199,13 +199,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             hash_secret_upper
         );
 
-        let final_hash = common_utils::crypto::Md5
-            .generate_digest(message.as_bytes())
-            .map_err(|_| {
-                error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
-            })?;
+        let signature = hex::decode(&payload.md5sig)
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)?;
 
-        Ok(hex::encode(final_hash).to_uppercase() == payload.md5sig)
+        common_utils::crypto::Md5
+            .verify_signature(&[], &signature, message.as_bytes())
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
     }
 
     fn get_event_type(

@@ -867,6 +867,32 @@
         "error": "This feature is not implemented: Fiserv Commerce Hub SetupMandate supports only Card, decrypted Apple Pay, or decrypted Google Pay. Received an unsupported payment method type for the SetupMandate flow"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiservcommercehub connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiservcommercehub connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiservcommercehub connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiservcommercehub connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiservcommercehub connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiservcommercehub connector"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

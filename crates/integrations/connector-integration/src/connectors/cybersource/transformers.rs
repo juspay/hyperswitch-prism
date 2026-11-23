@@ -330,6 +330,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::PayURedirect(_)
                     | WalletData::EaseBuzzRedirect(_)
                     | WalletData::PaymayaRedirect(_)
+                    | WalletData::AliPayPlusRedirect {}
+                    | WalletData::BoostRedirect {}
                     | WalletData::PayhereRedirect {}
                     | WalletData::QwikcilverWalletDirect(_)
                     | WalletData::Skrill(_)
@@ -3132,6 +3134,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::AliPayPlusRedirect {}
+                | WalletData::BoostRedirect {}
                 | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
@@ -4198,8 +4202,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     redirection_data: Some(Box::new(RedirectForm::CybersourceAuthSetup {
                         access_token: info_response
                             .consumer_authentication_information
-                            .access_token
-                            .expose(),
+                            .access_token,
                         ddc_url: info_response
                             .consumer_authentication_information
                             .device_data_collection_url,
@@ -4566,7 +4569,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     ) {
                         (Some(token), Some(step_up_url)) => {
                             Some(RedirectForm::CybersourceConsumerAuth {
-                                access_token: token.expose(),
+                                access_token: token,
                                 step_up_url,
                             })
                         }
@@ -5879,6 +5882,7 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
         | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::MyDebit
         | common_enums::CardNetwork::AirPlus
         | common_enums::CardNetwork::Aurore
         | common_enums::CardNetwork::EftposAustralia
@@ -7412,7 +7416,6 @@ mod tests {
     fn sequential_automatic_authorization_is_not_a_sale() {
         let context = domain_types::connector_types::EventContext {
             capture_method: Some(common_enums::CaptureMethod::SequentialAutomatic),
-            previous_status: None,
         };
 
         assert_eq!(

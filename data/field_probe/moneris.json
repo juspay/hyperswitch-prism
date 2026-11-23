@@ -135,7 +135,7 @@
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Blik { blik_code: Some(\"777124\") })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Blik { blik_code: Some(*** alloc::string::String ***) })."
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -483,7 +483,7 @@
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" })."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: PaypalSdk(PayPalWalletData { token: *** alloc::string::String *** })."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -1085,6 +1085,32 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for moneris"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by moneris connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by moneris connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by moneris connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by moneris connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by moneris connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by moneris connector"
       }
     },
     "verify_redirect": {

@@ -8,11 +8,11 @@
 import asyncio
 import sys
 from payments import PaymentClient
-from payments import EventClient
+from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
+from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "parse_event", "proxy_authorize", "refund", "refund_get", "reverse", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "recurring_charge", "refund", "refund_get", "reverse", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -88,16 +88,6 @@ def _build_incremental_authorization_request():
         reason="incremental_auth_probe",  # Optional Fields.
     )
 
-def _build_parse_event_request():
-    return events_pb2.EventServiceParseRequest(
-        request_details=payment_pb2.RequestDetails(
-            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
-            uri="https://example.com/webhook",  # URI of the request.
-            headers={},  # Headers of the HTTP request.
-            body="{}".encode(),  # Body of the HTTP request.
-        ),
-    )
-
 def _build_proxy_authorize_request():
     return payment_pb2.PaymentServiceProxyAuthorizeRequest(
         merchant_transaction_id="probe_proxy_txn_001",
@@ -119,6 +109,35 @@ def _build_proxy_authorize_request():
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
         return_url="https://example.com/return",
+    )
+
+def _build_recurring_charge_request():
+    return payment_pb2.RecurringPaymentServiceChargeRequest(
+        merchant_charge_id="probe_recurring_charge_001",  # Reference ID for tracking.
+        connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
+        ),
+        amount=common_types_pb2.Money(  # Amount Information.
+            minor_amount=1000,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
+            token=payment_methods_pb2.TokenPaymentMethodType(
+                token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+            ),
+        ),
+        return_url="https://example.com/recurring-return",
+        connector_customer_id="cust_probe_123",
+        payment_method_type=payment_pb2.PaymentMethodType.Value("CREDIT"),
+        off_session=True,  # Behavioral Flags and Preferences.
+        additional_payment_data=payment_pb2.AdditionalPaymentData(  # Additional payment data for various payment methods.
+            card=payment_pb2.AdditionalCardInfo(
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),  # Card expiry month (sensitive).
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),  # Card expiry year (sensitive).
+            ),
+        ),
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -300,15 +319,6 @@ async def process_incremental_authorization(merchant_transaction_id: str, config
     return {"status": incremental_response.status}
 
 
-async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: EventService.ParseEvent"""
-    event_client = EventClient(config)
-
-    parse_response = event_client.parse_event(_build_parse_event_request())
-
-    return {"event_type": parse_response.event_type}
-
-
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.ProxyAuthorize"""
     payment_client = PaymentClient(config)
@@ -316,6 +326,15 @@ async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_conf
     proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
 
     return {"status": proxy_response.status}
+
+
+async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RecurringPaymentService.Charge"""
+    recurringpayment_client = RecurringPaymentClient(config)
+
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
+
+    return {"status": recurring_response.status}
 
 
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
