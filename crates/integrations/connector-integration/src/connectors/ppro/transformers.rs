@@ -1527,14 +1527,14 @@ where
 pub fn get_ppro_bank_code(bank_name: common_enums::BankNames) -> Option<String> {
     match bank_name {
         common_enums::BankNames::AbnAmro => Some("ABNANL2A".to_string()),
-        common_enums::BankNames::AsnBank => Some("ASNBLL21".to_string()),
+        common_enums::BankNames::AsnBank => Some("ASNBNL21".to_string()),
         common_enums::BankNames::Bunq => Some("BUNQNL2A".to_string()),
         common_enums::BankNames::Ing => Some("INGBNL2A".to_string()),
         common_enums::BankNames::Knab => Some("KNABNL2H".to_string()),
         common_enums::BankNames::Rabobank => Some("RABONL2U".to_string()),
-        common_enums::BankNames::Regiobank => Some("ASNBLL21".to_string()),
+        common_enums::BankNames::Regiobank => Some("RBRBNL21".to_string()),
         common_enums::BankNames::Revolut => Some("REVO".to_string()),
-        common_enums::BankNames::SnsBank => Some("ASNBLL21".to_string()),
+        common_enums::BankNames::SnsBank => Some("SNSBNL2A".to_string()),
         common_enums::BankNames::TriodosBank => Some("TRIO".to_string()),
         common_enums::BankNames::VanLanschot => Some("FVLB".to_string()),
         _ => None,
