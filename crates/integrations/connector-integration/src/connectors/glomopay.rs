@@ -10,10 +10,9 @@ use domain_types::{
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookReference, RefundsData, RefundsResponseData, RequestDetails,
-        WebhookResourceReference,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RequestDetails,
     },
     errors::{self, IntegrationError, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
@@ -40,6 +39,7 @@ use transformers::{
 use crate::{types::ResponseRouterData, with_error_response_body};
 
 use super::macros;
+use crate::webhooks::glomopay::Glomopay as GlomopayWebhook;
 
 macros::create_amount_converter_wrapper!(connector_name: Glomopay, amount_type: MinorUnit);
 
@@ -521,76 +521,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
-        let probe: GlomopayWebhookEntityProbe = request
-            .body
-            .parse_struct("GlomopayWebhookEntityProbe")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable("Failed to read entity_type from Glomopay webhook")?;
-
-        match probe.entity_type.as_str() {
-            "payment" => {
-                let payload: GlomopayWebhookPayload = request
-                    .body
-                    .parse_struct("GlomopayWebhookPayload")
-                    .change_context(WebhookError::WebhookBodyDecodingFailed)
-                    .attach_printable("Failed to parse Glomopay payment webhook event type")?;
-                Ok(payload.get_event_type())
-            }
-            "refund" => {
-                let payload: GlomopayRefundWebhookPayload = request
-                    .body
-                    .parse_struct("GlomopayRefundWebhookPayload")
-                    .change_context(WebhookError::WebhookBodyDecodingFailed)
-                    .attach_printable("Failed to parse Glomopay refund webhook event type")?;
-                Ok(payload.get_event_type())
-            }
-            other => Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound)
-                .attach_printable(format!("Unknown Glomopay webhook entity_type: {other}"))),
-        }
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let probe: GlomopayWebhookEntityProbe = request
-            .body
-            .parse_struct("GlomopayWebhookEntityProbe")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable("Failed to read entity_type from Glomopay webhook")?;
-
-        match probe.entity_type.as_str() {
-            "payment" => {
-                let payload: GlomopayWebhookPayload = request
-                    .body
-                    .parse_struct("GlomopayWebhookPayload")
-                    .change_context(WebhookError::WebhookBodyDecodingFailed)
-                    .attach_printable("Failed to parse Glomopay payment webhook for reference")?;
-                Ok(Some(WebhookResourceReference::Payment(
-                    PaymentWebhookReference {
-                        connector_transaction_id: Some(payload.data.id),
-                        merchant_transaction_id: None,
-                        connector_preprocessing_id: None,
-                    },
-                )))
-            }
-            "refund" => {
-                let payload: GlomopayRefundWebhookPayload = request
-                    .body
-                    .parse_struct("GlomopayRefundWebhookPayload")
-                    .change_context(WebhookError::WebhookBodyDecodingFailed)
-                    .attach_printable("Failed to parse Glomopay refund webhook for reference")?;
-                Ok(Some(WebhookResourceReference::Refund(
-                    RefundWebhookReference {
-                        connector_refund_id: Some(payload.data.id),
-                        merchant_refund_id: None,
-                        connector_transaction_id: payload.data.payment_id,
-                        merchant_transaction_id: None,
-                    },
-                )))
-            }
-            _ => Ok(None),
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            GlomopayWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(

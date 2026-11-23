@@ -6,7 +6,7 @@ use domain_types::{
         Authorize, CreateConnectorCustomer, CreateOrder, GetConnectorCustomer, PSync, RSync, Refund,
     },
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, EventType, PaymentCreateOrderData,
+        ConnectorCustomerData, ConnectorCustomerResponse, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
         RefundsData, RefundsResponseData, ResponseId, WebhookDetailsResponse,
@@ -198,17 +198,6 @@ pub struct GlomopayWebhookPayload {
 }
 
 impl GlomopayWebhookPayload {
-    pub fn get_event_type(&self) -> EventType {
-        match self.event_type {
-            GlomopayWebhookEventType::Success | GlomopayWebhookEventType::FundsAvailable => {
-                EventType::PaymentIntentSuccess
-            }
-            GlomopayWebhookEventType::Failed => EventType::PaymentIntentFailure,
-            GlomopayWebhookEventType::InProgress => EventType::PaymentIntentProcessing,
-            GlomopayWebhookEventType::ActionRequired => EventType::PaymentActionRequired,
-        }
-    }
-
     pub fn get_attempt_status(&self) -> AttemptStatus {
         match self.event_type {
             GlomopayWebhookEventType::Success | GlomopayWebhookEventType::FundsAvailable => {
@@ -308,14 +297,6 @@ pub struct GlomopayRefundWebhookPayload {
 }
 
 impl GlomopayRefundWebhookPayload {
-    pub fn get_event_type(&self) -> EventType {
-        match self.event_type {
-            GlomopayRefundWebhookEventType::Success => EventType::RefundSuccess,
-            GlomopayRefundWebhookEventType::Failed => EventType::RefundFailure,
-            GlomopayRefundWebhookEventType::ActionRequired => EventType::RefundProcessing,
-        }
-    }
-
     pub fn get_refund_status(&self) -> RefundStatus {
         match self.event_type {
             GlomopayRefundWebhookEventType::Success => RefundStatus::Success,
