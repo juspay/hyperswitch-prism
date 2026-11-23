@@ -346,6 +346,7 @@ fn authorize_data() -> AuthorizeData {
             additional_connector_details: Default::default(),
             customer: Default::default(),
             business_country: Default::default(),
+            merchant_details: None,
             enable_avs_check: Default::default(),
             enable_account_name_verification: Default::default(),
             is_stored_credential: Default::default(),
