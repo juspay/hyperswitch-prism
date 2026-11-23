@@ -1711,8 +1711,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .request
                 .additional_connector_details
                 .as_ref()
-                .and_then(|details| details.rapyd.as_ref())
-                .and_then(|rapyd| rapyd.ewallet.clone()),
+                .and_then(|details| details.ewallet.clone()),
             customer,
             save_payment_method,
             initiation_type,
@@ -2589,8 +2588,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ewallet: request
                 .additional_connector_details
                 .as_ref()
-                .and_then(|details| details.rapyd.as_ref())
-                .and_then(|rapyd| rapyd.ewallet.clone()),
+                .and_then(|details| details.ewallet.clone()),
             save_payment_method: Some(true),
             initiation_type: Some(purpose.initiation_type),
         })
@@ -2792,8 +2790,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ewallet: request
                 .additional_connector_details
                 .as_ref()
-                .and_then(|details| details.rapyd.as_ref())
-                .and_then(|rapyd| rapyd.ewallet.clone()),
+                .and_then(|details| details.ewallet.clone()),
         })
     }
 }

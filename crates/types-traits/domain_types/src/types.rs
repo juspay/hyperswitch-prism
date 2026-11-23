@@ -16095,11 +16095,7 @@ impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
             user_data1: value.user_data1,
             user_data2: value.user_data2,
             user_data3: value.user_data3,
-            rapyd: value
-                .rapyd
-                .map(|rapyd| connector_types::RapydAdditionalInformation {
-                    ewallet: rapyd.ewallet,
-                }),
+            ewallet: value.ewallet,
         }
     }
 }

@@ -6803,13 +6803,7 @@ pub struct AdditionalConnectorDetails {
     pub user_data2: Option<String>,
     /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData3).
     pub user_data3: Option<String>,
-    /// Rapyd-specific additional information.
-    pub rapyd: Option<RapydAdditionalInformation>,
-}
-
-/// Rapyd-specific additional information.
-#[derive(Debug, Clone)]
-pub struct RapydAdditionalInformation {
+    /// Destination wallet to include in the connector payment request.
     pub ewallet: Option<Secret<String>>,
 }
 
