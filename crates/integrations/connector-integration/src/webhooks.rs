@@ -16,6 +16,7 @@ pub mod finix;
 pub mod fiuu;
 pub mod flywire;
 pub mod givepayments;
+pub mod globalpay;
 pub mod grabpay;
 pub mod hyperswitch;
 pub mod maya;
@@ -38,8 +39,8 @@ pub use self::{
     betterpayment::Betterpayment, bluesnap::Bluesnap, boost::Boost, braintree::Braintree,
     calida::Calida, cashtocode::Cashtocode, checkout::Checkout, cryptopay::Cryptopay,
     cybersource::Cybersource, dlocal::Dlocal, ecommpay::Ecommpay, finix::Finix, fiuu::Fiuu,
-    flywire::Flywire, givepayments::Givepayments, grabpay::Grabpay, hyperswitch::Hyperswitch,
-    maya::Maya, nexixpay::Nexixpay, payhere::Payhere, payload::Payload, paypal::Paypal,
-    phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot,
+    flywire::Flywire, givepayments::Givepayments, globalpay::Globalpay, grabpay::Grabpay,
+    hyperswitch::Hyperswitch, maya::Maya, nexixpay::Nexixpay, payhere::Payhere, payload::Payload,
+    paypal::Paypal, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot,
     revolut::Revolut, stripe::Stripe, tamara::Tamara, trustpay::Trustpay, worldpayxml::Worldpayxml,
 };

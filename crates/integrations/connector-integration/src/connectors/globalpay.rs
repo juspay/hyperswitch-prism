@@ -15,12 +15,11 @@ use domain_types::{
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPostAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData, WebhookDetailsResponse,
     },
     errors::WebhookError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -51,6 +50,7 @@ use transformers::{
 
 use crate::connectors::macros;
 use crate::types::ResponseRouterData;
+use crate::webhooks::globalpay::Globalpay as GlobalpayWebhook;
 use crate::with_error_response_body;
 use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
@@ -363,71 +363,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        let body: globalpay::GlobalpayWebhookBody = request
-            .body
-            .parse_struct("GlobalpayWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable("Failed to parse GlobalPay webhook body for event type detection")?;
-
-        let event_type = if body.transaction_type
-            == Some(globalpay::GlobalpayWebhookTransactionType::Refund)
-        {
-            match body.status {
-                globalpay::GlobalpayWebhookStatus::Captured
-                | globalpay::GlobalpayWebhookStatus::Funded => EventType::RefundSuccess,
-                globalpay::GlobalpayWebhookStatus::Declined
-                | globalpay::GlobalpayWebhookStatus::Failed
-                | globalpay::GlobalpayWebhookStatus::Rejected
-                | globalpay::GlobalpayWebhookStatus::Reversed => EventType::RefundFailure,
-                _ => EventType::RefundProcessing,
-            }
-        } else {
-            match body.status {
-                globalpay::GlobalpayWebhookStatus::Captured
-                | globalpay::GlobalpayWebhookStatus::Funded => EventType::PaymentIntentSuccess,
-                globalpay::GlobalpayWebhookStatus::Preauthorized => {
-                    EventType::PaymentIntentAuthorizationSuccess
-                }
-                globalpay::GlobalpayWebhookStatus::Declined
-                | globalpay::GlobalpayWebhookStatus::Failed
-                | globalpay::GlobalpayWebhookStatus::Rejected => EventType::PaymentIntentFailure,
-                globalpay::GlobalpayWebhookStatus::Reversed => EventType::PaymentIntentCancelled,
-                _ => EventType::PaymentIntentProcessing,
-            }
-        };
-
-        Ok(event_type)
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let body: globalpay::GlobalpayWebhookBody = request
-            .body
-            .parse_struct("GlobalpayWebhookBody")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable(
-                "Failed to parse GlobalPay webhook body for event reference extraction",
-            )?;
-
-        let reference =
-            if body.transaction_type == Some(globalpay::GlobalpayWebhookTransactionType::Refund) {
-                WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(body.id),
-                    merchant_refund_id: None,
-                    connector_transaction_id: None,
-                    merchant_transaction_id: body.reference,
-                })
-            } else {
-                WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(body.id),
-                    merchant_transaction_id: body.reference,
-                    connector_preprocessing_id: None,
-                })
-            };
-
-        Ok(Some(reference))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            GlobalpayWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
