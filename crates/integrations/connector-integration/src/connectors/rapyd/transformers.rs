@@ -711,7 +711,7 @@ pub struct RapydPaymentsRequest<
     #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_email: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub statement_descriptor: Option<Secret<String>>,
+    pub statement_descriptor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ewallet: Option<Secret<String>>,
     /// Inline customer used when saving a payment method.
@@ -728,28 +728,6 @@ pub struct RapydPaymentsRequest<
     /// emitted on the current MIT path.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initiation_type: Option<RapydInitiationType>,
-}
-
-fn ewallet_from_metadata(
-    metadata: Option<&common_utils::pii::SecretSerdeValue>,
-) -> Result<Option<Secret<String>>, error_stack::Report<IntegrationError>> {
-    metadata
-        .and_then(|metadata| metadata.peek().get("ewallet"))
-        .map(|value| {
-            value
-                .as_str()
-                .map(|wallet| Secret::new(wallet.to_owned()))
-                .ok_or_else(|| {
-                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "metadata.ewallet",
-                        context: utils::integration_ctx(
-                            "The payment wallet identifier must be a string",
-                            "Set metadata.ewallet to a string, or omit it.",
-                        ),
-                    })
-                })
-        })
-        .transpose()
 }
 
 /// Inline customer object embedded in a `/v1/payments` call. Both fields
@@ -1727,9 +1705,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .request
                 .billing_descriptor
                 .as_ref()
-                .and_then(|descriptor| descriptor.statement_descriptor.clone())
-                .map(Secret::new),
-            ewallet: ewallet_from_metadata(item.router_data.request.metadata.as_ref())?,
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            ewallet: item
+                .router_data
+                .request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.rapyd.as_ref())
+                .and_then(|rapyd| rapyd.ewallet.clone()),
             customer,
             save_payment_method,
             initiation_type,
@@ -2602,9 +2585,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             statement_descriptor: request
                 .billing_descriptor
                 .as_ref()
-                .and_then(|descriptor| descriptor.statement_descriptor.clone())
-                .map(Secret::new),
-            ewallet: ewallet_from_metadata(request.metadata.as_ref())?,
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            ewallet: request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.rapyd.as_ref())
+                .and_then(|rapyd| rapyd.ewallet.clone()),
             save_payment_method: Some(true),
             initiation_type: Some(purpose.initiation_type),
         })
@@ -2802,9 +2788,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             statement_descriptor: request
                 .billing_descriptor
                 .as_ref()
-                .and_then(|descriptor| descriptor.statement_descriptor.clone())
-                .map(Secret::new),
-            ewallet: ewallet_from_metadata(request.metadata.as_ref())?,
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            ewallet: request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.rapyd.as_ref())
+                .and_then(|rapyd| rapyd.ewallet.clone()),
         })
     }
 }

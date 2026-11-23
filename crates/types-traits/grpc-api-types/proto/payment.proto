@@ -7019,13 +7019,18 @@ message SplitSettlementResponseVendor {
   optional string connector_transaction_id = 11;
 }
 
-// Additional connector-specific details to be passed through to the
-// connector for the transaction. Currently only the Checkout variant is defined.
+// Additional connector-specific details passed to the connector for the transaction.
 message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
   optional WorldpayxmlAdditionalInformation worldpayxml = 2;
   optional StripeAdditionalInformation stripe = 3;
+  optional RapydAdditionalInformation rapyd = 7;
+}
+
+// Rapyd-specific additional information for the payment request.
+message RapydAdditionalInformation {
+  optional types.SecretString ewallet = 1;
 }
 
 message WorldpayxmlAdditionalInformation {

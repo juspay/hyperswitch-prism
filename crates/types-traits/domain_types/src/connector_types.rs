@@ -6934,6 +6934,14 @@ pub struct AdditionalConnectorDetails {
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
     /// Stripe-specific additional information.
     pub stripe: Option<StripeAdditionalInformation>,
+    /// Rapyd-specific additional information.
+    pub rapyd: Option<RapydAdditionalInformation>,
+}
+
+/// Rapyd-specific additional information.
+#[derive(Debug, Clone)]
+pub struct RapydAdditionalInformation {
+    pub ewallet: Option<Secret<String>>,
 }
 
 /// Stripe-specific additional information.
