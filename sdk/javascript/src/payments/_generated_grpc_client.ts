@@ -279,7 +279,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   BarclaycardConfig: ["apiKey", "merchantAccount", "apiSecret"],
   CybersourceConfig: ["apiKey", "merchantAccount", "apiSecret"],
   DlocalConfig: ["xLogin", "xTransKey", "secret"],
-  ElavonConfig: ["sslMerchantId", "sslUserId", "sslPin"],
+  ElavonConfig: ["sslMerchantId", "sslUserId", "sslPin", "sslVendorId"],
   FiservConfig: ["apiKey", "merchantAccount", "apiSecret", "terminalId"],
   GetnetConfig: ["apiKey", "apiSecret", "sellerId"],
   HyperpgConfig: ["username", "password", "merchantId"],

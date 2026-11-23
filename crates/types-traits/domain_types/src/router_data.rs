@@ -662,6 +662,7 @@ pub enum ConnectorSpecificConfig {
         ssl_user_id: Secret<String>,
         ssl_pin: Secret<String>,
         base_url: Option<String>,
+        ssl_vendor_id: Option<Secret<String>>,
     },
     Fiserv {
         api_key: Secret<String>,
@@ -2424,6 +2425,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 ssl_user_id: elavon.ssl_user_id.ok_or_else(err)?,
                 ssl_pin: elavon.ssl_pin.ok_or_else(err)?,
                 base_url: elavon.base_url,
+                ssl_vendor_id: elavon.ssl_vendor_id,
             }),
             AuthType::Fiserv(fiserv) => Ok(Self::Fiserv {
                 api_key: fiserv.api_key.ok_or_else(err)?,
@@ -3801,6 +3803,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         ssl_user_id: key1.clone(),
                         ssl_pin: api_secret.clone(),
                         base_url: None,
+                        ssl_vendor_id: None,
+                    }),
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Elavon {
+                        ssl_merchant_id: api_key.clone(),
+                        ssl_user_id: key1.clone(),
+                        ssl_pin: api_secret.clone(),
+                        base_url: None,
+                        ssl_vendor_id: Some(key2.clone()),
                     }),
                     _ => Err(err().into()),
                 },

@@ -16106,6 +16106,9 @@ impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
                 .map(|s| connector_types::StripeAdditionalInformation {
                     error_on_requires_action: s.error_on_requires_action,
                 }),
+            user_data1: value.user_data1,
+            user_data2: value.user_data2,
+            user_data3: value.user_data3,
         }
     }
 }

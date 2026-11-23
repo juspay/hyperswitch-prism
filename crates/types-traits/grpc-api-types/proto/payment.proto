@@ -5320,6 +5320,9 @@ message ElavonConfig {
   SecretString ssl_user_id = 2;
   SecretString ssl_pin = 3;
   optional string base_url = 50;
+  // Optional Elavon-assigned vendor ID, from the merchant's connector account; sent on
+  // every request when set (Elavon uses it for Converge certification)
+  optional SecretString ssl_vendor_id = 51;
 }
 
 message FiservConfig {
@@ -7041,13 +7044,19 @@ message SplitSettlementResponseVendor {
   optional string connector_transaction_id = 11;
 }
 
-// Additional connector-specific details to be passed through to the
-// connector for the transaction. Currently only the Checkout variant is defined.
+// Additional connector-specific details that may be forwarded to a connector
+// for the transaction.
 message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
   optional WorldpayxmlAdditionalInformation worldpayxml = 2;
   optional StripeAdditionalInformation stripe = 3;
+  // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData1.
+  optional string user_data1 = 4;
+  // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData2.
+  optional string user_data2 = 5;
+  // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData3.
+  optional string user_data3 = 6;
 }
 
 message WorldpayxmlAdditionalInformation {

@@ -19,6 +19,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.23.0
+
+### Bug Fixes
+
+- **connector:** [Adyen] combine outcome, reference, webhook, ECI, RepeatPayment and alignment fixes ([#2904](https://github.com/juspay/connector-service/pull/2904)) ([`6e74579`](https://github.com/juspay/connector-service/commit/6e7457974c5081598dba33eb6cdbc81a1f33b367))
+
+### Testing
+
+- **framework:** Add minimal Lean spec for authorize status ([#2916](https://github.com/juspay/connector-service/pull/2916)) ([`68392ac`](https://github.com/juspay/connector-service/commit/68392aca20a81dc14d3c4843d7437e9a9a042b68))
+
+**Full Changelog:** [`2026.11.21.0...2026.11.23.0`](https://github.com/juspay/connector-service/compare/2026.11.21.0...2026.11.23.0)
+
+- - -
+
+## 2026.11.21.0
+
+### Features
+
+- **connector:** Worldpay Raft additional user data fields ([#2902](https://github.com/juspay/connector-service/pull/2902)) ([`b270870`](https://github.com/juspay/connector-service/commit/b270870b101282608871af3ae1918d7712ce57a8))
+
+### Bug Fixes
+
+- Combine status, secret, webhook, validation and tooling fixes ([#2903](https://github.com/juspay/connector-service/pull/2903)) ([`e18021e`](https://github.com/juspay/connector-service/commit/e18021e38f4f626c795d17a665bc03528c64dc78))
+- Resolved merchanntTxnId sync ([#2908](https://github.com/juspay/connector-service/pull/2908)) ([`36d0579`](https://github.com/juspay/connector-service/commit/36d05793c428b09b3611f274d9717be4e6908643))
+
+**Full Changelog:** [`2026.11.20.2...2026.11.21.0`](https://github.com/juspay/connector-service/compare/2026.11.20.2...2026.11.21.0)
+
+- - -
+
 ## 2026.11.20.2
 
 ### Features

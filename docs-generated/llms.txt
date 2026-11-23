@@ -227,7 +227,7 @@ connector_id: cybersource
 doc: docs/connectors/cybersource.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted, SamsungPay
-flows: authenticate, authorize, capture, get, handle_event, incremental_authorization, parse_event, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, reverse, setup_recurring, token_authorize, void
+flows: authenticate, authorize, capture, create_client_authentication_token, get, handle_event, incremental_authorization, parse_event, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, recurring_revoke, refund, refund_get, reverse, setup_recurring, token_authorize, void
 examples_python: examples/cybersource/cybersource.py
 
 ## D24
@@ -281,9 +281,9 @@ examples_python: examples/ecommpay/ecommpay.py
 ## Elavon
 connector_id: elavon
 doc: docs/connectors/elavon.md
-scenarios: checkout_autocapture, checkout_card, refund, get_payment
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, reverse, setup_recurring, void
 examples_python: examples/elavon/elavon.py
 
 ## Elavon Pg
@@ -595,7 +595,7 @@ connector_id: nexixpay
 doc: docs/connectors/nexixpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, handle_event, parse_event, refund, refund_get, void
+flows: authorize, capture, create_client_authentication_token, get, handle_event, parse_event, refund, refund_get, void
 examples_python: examples/nexixpay/nexixpay.py
 
 ## Nmi
