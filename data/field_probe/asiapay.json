@@ -9,327 +9,327 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "BillDeskRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Card": {
         "status": "not_implemented"
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "CashfreeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "EaseBuzzRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "GCash": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "KakaoPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "LazyPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Netbanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "PaySafeCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "PayURedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -340,116 +340,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "PhonePeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Skrill": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Swish": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "TouchNGo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Twint": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Vipps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       },
       "Webpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Wallet is not supported by asiapay"
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
       }
     },
     "capture": {
@@ -708,8 +708,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card and LINE Pay payments are supported by asiapay"
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
       }
     },
     "token_setup_recurring": {
