@@ -30,6 +30,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::trustly::Trustly as TrustlyWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use error_stack::ResultExt;
 
@@ -282,70 +283,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<errors::WebhookError>>
     {
-        let webhook_body: TrustlyWebhookBody = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-        let message_id = webhook_body.params.data.messageid.clone();
-
-        Ok(trustly::get_webhook_event(
-            webhook_body.method,
-            message_id.expose(),
-        ))
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<
-        Option<domain_types::connector_types::WebhookResourceReference>,
-        error_stack::Report<errors::WebhookError>,
-    > {
-        let webhook_body: TrustlyWebhookBody = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        let message_id = webhook_body.params.data.messageid.clone().expose();
-        let order_id = webhook_body.params.data.orderid;
-
-        if trustly::is_payment_webhook_event(&webhook_body.method, &message_id) {
-            return Ok(Some(
-                domain_types::connector_types::WebhookResourceReference::Payment(
-                    domain_types::connector_types::PaymentWebhookReference {
-                        connector_transaction_id: Some(order_id),
-                        merchant_transaction_id: None,
-                        connector_preprocessing_id: None,
-                    },
-                ),
-            ));
-        }
-
-        if trustly::is_refund_webhook_event(&webhook_body.method, &message_id) {
-            return Ok(Some(
-                domain_types::connector_types::WebhookResourceReference::Refund(
-                    domain_types::connector_types::RefundWebhookReference {
-                        connector_refund_id: Some(order_id.clone()),
-                        merchant_refund_id: None,
-                        connector_transaction_id: Some(order_id),
-                        merchant_transaction_id: None,
-                    },
-                ),
-            ));
-        }
-
-        if trustly::is_payout_webhook_event(&webhook_body.method, &message_id) {
-            return Ok(Some(
-                domain_types::connector_types::WebhookResourceReference::Payout(
-                    domain_types::connector_types::PayoutWebhookReference {
-                        connector_payout_id: Some(order_id),
-                        merchant_payout_id: None,
-                    },
-                ),
-            ));
-        }
-
-        Ok(None)
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            TrustlyWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
