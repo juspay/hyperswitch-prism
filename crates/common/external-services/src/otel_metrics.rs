@@ -103,17 +103,6 @@ static AUTO_RETRY_CONNECTION_CLOSED: LazyLock<Counter<u64>> = LazyLock::new(|| {
         .build()
 });
 
-/// Requests not sent again after "connection closed before message completed"
-/// (only GET is re-sent).
-static CONNECTION_CLOSED_NOT_RESENT: LazyLock<Counter<u64>> = LazyLock::new(|| {
-    METER
-        .u64_counter(format!("{METRIC_PREFIX}connection_closed_not_resent"))
-        .with_description(
-            "Number of requests not sent again after connection closed before message completed",
-        )
-        .build()
-});
-
 /// Superposition policy resolutions, by consumer (`connector_urls` | `sampler`) and
 /// outcome (`hit` | `miss` | `key_missing` | `error` | `timeout` | `no_source`).
 static SUPERPOSITION_RESOLVE_TOTAL: LazyLock<Counter<u64>> = LazyLock::new(|| {
@@ -135,24 +124,8 @@ pub fn record_superposition_resolution(consumer: &str, outcome: &str) {
 }
 
 /// Record one automatic retry due to "connection closed before message completed".
-pub fn record_auto_retry_connection_closed(connector: &str, method: &str) {
-    AUTO_RETRY_CONNECTION_CLOSED.add(
-        1,
-        &[
-            KeyValue::new("connector", connector.to_string()),
-            KeyValue::new("method", method.to_string()),
-        ],
-    );
-}
-
-pub fn record_connection_closed_not_resent(connector: &str, method: &str) {
-    CONNECTION_CLOSED_NOT_RESENT.add(
-        1,
-        &[
-            KeyValue::new("connector", connector.to_string()),
-            KeyValue::new("method", method.to_string()),
-        ],
-    );
+pub fn record_auto_retry_connection_closed(connector: &str) {
+    AUTO_RETRY_CONNECTION_CLOSED.add(1, &[KeyValue::new("connector", connector.to_string())]);
 }
 
 /// Record one outbound connector API call (count). `mode` is "primary"/"shadow".
