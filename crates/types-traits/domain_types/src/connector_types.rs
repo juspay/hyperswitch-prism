@@ -292,6 +292,7 @@ pub enum PayoutConnectorEnum {
 #[strum(serialize_all = "snake_case")]
 pub enum WebhookConnectorEnum {
     Adyen,
+    ClearsaleBr,
     Imerchantsolutions,
     ElavonPg,
     Revpay,
@@ -348,6 +349,7 @@ impl From<WebhookConnectorEnum> for ConnectorVariant {
     fn from(connector: WebhookConnectorEnum) -> Self {
         match connector {
             WebhookConnectorEnum::Adyen => Self::Payment(ConnectorEnum::Adyen),
+            WebhookConnectorEnum::ClearsaleBr => Self::Frm(FrmConnectorEnum::ClearsaleBr),
             WebhookConnectorEnum::Imerchantsolutions => {
                 Self::Payment(ConnectorEnum::Imerchantsolutions)
             }
@@ -498,7 +500,8 @@ impl TryFrom<FrmConnectorEnum> for WebhookConnectorEnum {
 
     fn try_from(value: FrmConnectorEnum) -> Result<Self, Self::Error> {
         match value {
-            FrmConnectorEnum::Kount | FrmConnectorEnum::Nsure | FrmConnectorEnum::ClearsaleBr => {
+            FrmConnectorEnum::ClearsaleBr => Ok(Self::ClearsaleBr),
+            FrmConnectorEnum::Kount | FrmConnectorEnum::Nsure => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
                     context: IntegrationErrorContext::default(),

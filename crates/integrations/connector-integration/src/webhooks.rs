@@ -8,6 +8,7 @@ pub mod braintree;
 pub mod calida;
 pub mod cashtocode;
 pub mod checkout;
+pub mod clearsale_br;
 pub mod cryptopay;
 pub mod cybersource;
 pub mod dlocal;
@@ -49,10 +50,10 @@ pub mod worldpayxml;
 pub use self::{
     absa_sanlam::AbsaSanlam, adyen::Adyen, authorizedotnet::Authorizedotnet,
     betterpayment::Betterpayment, bluesnap::Bluesnap, boost::Boost, braintree::Braintree,
-    calida::Calida, cashtocode::Cashtocode, checkout::Checkout, cryptopay::Cryptopay,
-    cybersource::Cybersource, dlocal::Dlocal, ecommpay::Ecommpay, elavon_pg::ElavonPg,
-    finix::Finix, fiuu::Fiuu, flywire::Flywire, givepayments::Givepayments, globalpay::Globalpay,
-    glomopay::Glomopay, grabpay::Grabpay, hyperswitch::Hyperswitch,
+    calida::Calida, cashtocode::Cashtocode, checkout::Checkout, clearsale_br::ClearsaleBr,
+    cryptopay::Cryptopay, cybersource::Cybersource, dlocal::Dlocal, ecommpay::Ecommpay,
+    elavon_pg::ElavonPg, finix::Finix, fiuu::Fiuu, flywire::Flywire, givepayments::Givepayments,
+    globalpay::Globalpay, glomopay::Glomopay, grabpay::Grabpay, hyperswitch::Hyperswitch,
     imerchantsolutions::Imerchantsolutions, maya::Maya, nexixpay::Nexixpay, nmi::Nmi, noon::Noon,
     novalnet::Novalnet, nuvei::Nuvei, payhere::Payhere, payhound::Payhound, payload::Payload,
     paypal::Paypal, peachpayments::Peachpayments, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,

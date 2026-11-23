@@ -13,9 +13,8 @@ use domain_types::{
         ServerAuthenticationToken,
     },
     connector_types::{
-        EventType, PaymentWebhookReference, RequestDetails, ResponseId,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        EventType, RequestDetails, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     frm::frm_types::{
@@ -47,7 +46,10 @@ use transformers::{
 };
 
 use super::super::connectors::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{
+    types::ResponseRouterData, webhooks::clearsale_br::ClearsaleBr as ClearsaleBrWebhook,
+    with_error_response_body,
+};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -280,39 +282,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        // Map the payload `type` explicitly. ClearSale only documents
-        // `"status"` (an order status change — decision still unknown until a
-        // follow-up `GET /v1/orders/{code}/status`). Anything else is
-        // unrecognised and must not be hard-coded to Processing.
-        let payload: ClearSaleWebhookPayload = request
-            .body
-            .parse_struct("ClearSaleWebhookPayload")
-            .change_context(WebhookError::WebhookEventTypeNotFound)?;
-        match payload.event_type.as_str() {
-            "status" => Ok(EventType::Payment),
-            _ => Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound)),
-        }
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        // `code` is the order reference the merchant created the order with —
-        // it is the correlation key stored at order-create time. The same
-        // `code` is what `process_payment_webhook` returns as the resource id
-        // (merchant_transaction_id carrier — not a PSP connector id).
-        let payload: ClearSaleWebhookPayload = request
-            .body
-            .parse_struct("ClearSaleWebhookPayload")
-            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                connector_transaction_id: None,
-                merchant_transaction_id: Some(payload.code),
-                connector_preprocessing_id: None,
-            },
-        )))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            ClearsaleBrWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn process_payment_webhook(
