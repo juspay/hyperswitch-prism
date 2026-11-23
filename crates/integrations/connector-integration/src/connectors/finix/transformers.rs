@@ -2147,9 +2147,8 @@ pub(super) fn get_finix_webhook_event_type(
                     FinixState::Succeeded => Ok(EventType::RefundSuccess),
                     // HS: `EventNotSupported` (see doc comment above).
                     FinixState::Pending => Ok(EventType::IncomingWebhookEventUnspecified),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::RefundFailure)
-                    }
+                    FinixState::Unknown => Ok(EventType::RefundProcessing),
+                    FinixState::Failed | FinixState::Canceled => Ok(EventType::RefundFailure),
                 }
             } else {
                 match transfer.state {
@@ -2279,9 +2278,9 @@ fn get_finix_webhook_attempt_status(
 /// Ports HS `impl From<FinixState> for RefundStatus` (finix/transformers.rs).
 fn get_finix_webhook_refund_status(state: &FinixState) -> RefundStatus {
     match state {
-        FinixState::Pending => RefundStatus::Pending,
+        FinixState::Pending | FinixState::Unknown => RefundStatus::Pending,
         FinixState::Succeeded => RefundStatus::Success,
-        FinixState::Failed | FinixState::Canceled | FinixState::Unknown => RefundStatus::Failure,
+        FinixState::Failed | FinixState::Canceled => RefundStatus::Failure,
     }
 }
 
