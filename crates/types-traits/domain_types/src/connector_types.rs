@@ -343,57 +343,60 @@ pub enum WebhookConnectorEnum {
 
 /// Each webhook connector maps to the payment connector of the same name, whose
 /// config (auth, base URLs) it shares.
-impl From<WebhookConnectorEnum> for ConnectorEnum {
+/// The connector a webhook connector wraps; its auth config and URLs are that connector's.
+impl From<WebhookConnectorEnum> for ConnectorVariant {
     fn from(connector: WebhookConnectorEnum) -> Self {
         match connector {
-            WebhookConnectorEnum::Adyen => Self::Adyen,
-            WebhookConnectorEnum::Imerchantsolutions => Self::Imerchantsolutions,
-            WebhookConnectorEnum::ElavonPg => Self::ElavonPg,
-            WebhookConnectorEnum::Revpay => Self::Revpay,
-            WebhookConnectorEnum::Payhound => Self::Payhound,
-            WebhookConnectorEnum::Trustly => Self::Trustly,
-            WebhookConnectorEnum::Truelayer => Self::Truelayer,
-            WebhookConnectorEnum::Peachpayments => Self::Peachpayments,
-            WebhookConnectorEnum::Nuvei => Self::Nuvei,
-            WebhookConnectorEnum::Novalnet => Self::Novalnet,
-            WebhookConnectorEnum::Noon => Self::Noon,
-            WebhookConnectorEnum::Nmi => Self::Nmi,
-            WebhookConnectorEnum::Glomopay => Self::Glomopay,
-            WebhookConnectorEnum::Globalpay => Self::Globalpay,
-            WebhookConnectorEnum::Fiuu => Self::Fiuu,
-            WebhookConnectorEnum::Cybersource => Self::Cybersource,
-            WebhookConnectorEnum::Checkout => Self::Checkout,
-            WebhookConnectorEnum::Authorizedotnet => Self::Authorizedotnet,
-            WebhookConnectorEnum::Tamara => Self::Tamara,
-            WebhookConnectorEnum::Stripe => Self::Stripe,
-            WebhookConnectorEnum::Revolut => Self::Revolut,
-            WebhookConnectorEnum::Reddot => Self::Reddot,
-            WebhookConnectorEnum::Paypal => Self::Paypal,
-            WebhookConnectorEnum::Payload => Self::Payload,
-            WebhookConnectorEnum::Payhere => Self::Payhere,
-            WebhookConnectorEnum::Nexixpay => Self::Nexixpay,
-            WebhookConnectorEnum::Maya => Self::Maya,
-            WebhookConnectorEnum::Givepayments => Self::Givepayments,
-            WebhookConnectorEnum::Hyperswitch => Self::Hyperswitch,
-            WebhookConnectorEnum::Grabpay => Self::Grabpay,
-            WebhookConnectorEnum::Finix => Self::Finix,
-            WebhookConnectorEnum::Ecommpay => Self::Ecommpay,
-            WebhookConnectorEnum::Dlocal => Self::Dlocal,
-            WebhookConnectorEnum::Cryptopay => Self::Cryptopay,
-            WebhookConnectorEnum::Boost => Self::Boost,
-            WebhookConnectorEnum::Bluesnap => Self::Bluesnap,
-            WebhookConnectorEnum::Betterpayment => Self::Betterpayment,
-            WebhookConnectorEnum::AbsaSanlam => Self::AbsaSanlam,
-            WebhookConnectorEnum::Flywire => Self::Flywire,
-            WebhookConnectorEnum::Worldpayxml => Self::Worldpayxml,
-            WebhookConnectorEnum::Trustpay => Self::Trustpay,
-            WebhookConnectorEnum::Razorpay => Self::Razorpay,
-            WebhookConnectorEnum::Ppro => Self::Ppro,
-            WebhookConnectorEnum::Phonepe => Self::Phonepe,
-            WebhookConnectorEnum::Cashtocode => Self::Cashtocode,
-            WebhookConnectorEnum::Braintree => Self::Braintree,
-            WebhookConnectorEnum::Calida => Self::Calida,
-            WebhookConnectorEnum::Rapyd => Self::Rapyd,
+            WebhookConnectorEnum::Adyen => Self::Payment(ConnectorEnum::Adyen),
+            WebhookConnectorEnum::Imerchantsolutions => {
+                Self::Payment(ConnectorEnum::Imerchantsolutions)
+            }
+            WebhookConnectorEnum::ElavonPg => Self::Payment(ConnectorEnum::ElavonPg),
+            WebhookConnectorEnum::Revpay => Self::Payment(ConnectorEnum::Revpay),
+            WebhookConnectorEnum::Payhound => Self::Payment(ConnectorEnum::Payhound),
+            WebhookConnectorEnum::Trustly => Self::Payment(ConnectorEnum::Trustly),
+            WebhookConnectorEnum::Truelayer => Self::Payment(ConnectorEnum::Truelayer),
+            WebhookConnectorEnum::Peachpayments => Self::Payment(ConnectorEnum::Peachpayments),
+            WebhookConnectorEnum::Nuvei => Self::Payment(ConnectorEnum::Nuvei),
+            WebhookConnectorEnum::Novalnet => Self::Payment(ConnectorEnum::Novalnet),
+            WebhookConnectorEnum::Noon => Self::Payment(ConnectorEnum::Noon),
+            WebhookConnectorEnum::Nmi => Self::Payment(ConnectorEnum::Nmi),
+            WebhookConnectorEnum::Glomopay => Self::Payment(ConnectorEnum::Glomopay),
+            WebhookConnectorEnum::Globalpay => Self::Payment(ConnectorEnum::Globalpay),
+            WebhookConnectorEnum::Fiuu => Self::Payment(ConnectorEnum::Fiuu),
+            WebhookConnectorEnum::Cybersource => Self::Payment(ConnectorEnum::Cybersource),
+            WebhookConnectorEnum::Checkout => Self::Payment(ConnectorEnum::Checkout),
+            WebhookConnectorEnum::Authorizedotnet => Self::Payment(ConnectorEnum::Authorizedotnet),
+            WebhookConnectorEnum::Tamara => Self::Payment(ConnectorEnum::Tamara),
+            WebhookConnectorEnum::Stripe => Self::Payment(ConnectorEnum::Stripe),
+            WebhookConnectorEnum::Revolut => Self::Payment(ConnectorEnum::Revolut),
+            WebhookConnectorEnum::Reddot => Self::Payment(ConnectorEnum::Reddot),
+            WebhookConnectorEnum::Paypal => Self::Payment(ConnectorEnum::Paypal),
+            WebhookConnectorEnum::Payload => Self::Payment(ConnectorEnum::Payload),
+            WebhookConnectorEnum::Payhere => Self::Payment(ConnectorEnum::Payhere),
+            WebhookConnectorEnum::Nexixpay => Self::Payment(ConnectorEnum::Nexixpay),
+            WebhookConnectorEnum::Maya => Self::Payment(ConnectorEnum::Maya),
+            WebhookConnectorEnum::Givepayments => Self::Payment(ConnectorEnum::Givepayments),
+            WebhookConnectorEnum::Hyperswitch => Self::Payment(ConnectorEnum::Hyperswitch),
+            WebhookConnectorEnum::Grabpay => Self::Payment(ConnectorEnum::Grabpay),
+            WebhookConnectorEnum::Finix => Self::Payment(ConnectorEnum::Finix),
+            WebhookConnectorEnum::Ecommpay => Self::Payment(ConnectorEnum::Ecommpay),
+            WebhookConnectorEnum::Dlocal => Self::Payment(ConnectorEnum::Dlocal),
+            WebhookConnectorEnum::Cryptopay => Self::Payment(ConnectorEnum::Cryptopay),
+            WebhookConnectorEnum::Boost => Self::Payment(ConnectorEnum::Boost),
+            WebhookConnectorEnum::Bluesnap => Self::Payment(ConnectorEnum::Bluesnap),
+            WebhookConnectorEnum::Betterpayment => Self::Payment(ConnectorEnum::Betterpayment),
+            WebhookConnectorEnum::AbsaSanlam => Self::Payment(ConnectorEnum::AbsaSanlam),
+            WebhookConnectorEnum::Flywire => Self::Payment(ConnectorEnum::Flywire),
+            WebhookConnectorEnum::Worldpayxml => Self::Payment(ConnectorEnum::Worldpayxml),
+            WebhookConnectorEnum::Trustpay => Self::Payment(ConnectorEnum::Trustpay),
+            WebhookConnectorEnum::Razorpay => Self::Payment(ConnectorEnum::Razorpay),
+            WebhookConnectorEnum::Ppro => Self::Payment(ConnectorEnum::Ppro),
+            WebhookConnectorEnum::Phonepe => Self::Payment(ConnectorEnum::Phonepe),
+            WebhookConnectorEnum::Cashtocode => Self::Payment(ConnectorEnum::Cashtocode),
+            WebhookConnectorEnum::Braintree => Self::Payment(ConnectorEnum::Braintree),
+            WebhookConnectorEnum::Calida => Self::Payment(ConnectorEnum::Calida),
+            WebhookConnectorEnum::Rapyd => Self::Payment(ConnectorEnum::Rapyd),
         }
     }
 }
@@ -455,6 +458,71 @@ impl TryFrom<ConnectorEnum> for WebhookConnectorEnum {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
             }),
+        }
+    }
+}
+
+/// A payout connector's webhooks are parsed by the webhook connector of the same name, when one
+/// exists. The others send no webhooks the connector service parses.
+impl TryFrom<PayoutConnectorEnum> for WebhookConnectorEnum {
+    type Error = IntegrationError;
+
+    fn try_from(value: PayoutConnectorEnum) -> Result<Self, Self::Error> {
+        match value {
+            PayoutConnectorEnum::Checkout => Ok(Self::Checkout),
+            PayoutConnectorEnum::Nuvei => Ok(Self::Nuvei),
+            PayoutConnectorEnum::Paypal => Ok(Self::Paypal),
+            PayoutConnectorEnum::Stripe => Ok(Self::Stripe),
+            PayoutConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
+            PayoutConnectorEnum::Cybersource => Ok(Self::Cybersource),
+            PayoutConnectorEnum::Truelayer => Ok(Self::Truelayer),
+            PayoutConnectorEnum::Trustly => Ok(Self::Trustly),
+            PayoutConnectorEnum::Loonio
+            | PayoutConnectorEnum::Itaubank
+            | PayoutConnectorEnum::Deutschebank
+            | PayoutConnectorEnum::Gigadat
+            | PayoutConnectorEnum::Santander
+            | PayoutConnectorEnum::GotymeSanlam
+            | PayoutConnectorEnum::Mifinity => Err(IntegrationError::InvalidDataFormat {
+                field_name: "connector",
+                context: IntegrationErrorContext::default(),
+            }),
+        }
+    }
+}
+
+/// An FRM connector's webhooks are parsed by the webhook connector of the same name, when one
+/// exists.
+impl TryFrom<FrmConnectorEnum> for WebhookConnectorEnum {
+    type Error = IntegrationError;
+
+    fn try_from(value: FrmConnectorEnum) -> Result<Self, Self::Error> {
+        match value {
+            FrmConnectorEnum::Kount | FrmConnectorEnum::Nsure | FrmConnectorEnum::ClearsaleBr => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext::default(),
+                })
+            }
+        }
+    }
+}
+
+impl TryFrom<ConnectorVariant> for WebhookConnectorEnum {
+    type Error = IntegrationError;
+
+    fn try_from(value: ConnectorVariant) -> Result<Self, Self::Error> {
+        match value {
+            ConnectorVariant::Payment(connector) => Self::try_from(connector),
+            ConnectorVariant::Payout(connector) => Self::try_from(connector),
+            ConnectorVariant::Frm(connector) => Self::try_from(connector),
+            ConnectorVariant::Webhook(connector) => Ok(connector),
+            ConnectorVariant::Surcharge(_) | ConnectorVariant::Authenticator(_) => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext::default(),
+                })
+            }
         }
     }
 }

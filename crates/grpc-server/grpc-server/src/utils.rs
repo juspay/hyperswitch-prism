@@ -149,26 +149,7 @@ pub async fn apply_url_overrides(
             {
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
-                    let patch_result = match connector {
-                        connector_types::ConnectorVariant::Payment(c) => {
-                            config.connectors.patch_connector_urls(c, &urls)
-                        }
-                        connector_types::ConnectorVariant::Payout(c) => {
-                            config.connectors.patch_payout_connector_urls(c, &urls)
-                        }
-                        connector_types::ConnectorVariant::Frm(c) => {
-                            config.connectors.patch_frm_connector_urls(c, &urls)
-                        }
-                        connector_types::ConnectorVariant::Surcharge(c) => {
-                            config.connectors.patch_surcharge_connector_urls(c, &urls)
-                        }
-                        connector_types::ConnectorVariant::Authenticator(c) => config
-                            .connectors
-                            .patch_authenticator_connector_urls(c, &urls),
-                        connector_types::ConnectorVariant::Webhook(c) => config
-                            .connectors
-                            .patch_connector_urls(&connector_types::ConnectorEnum::from(*c), &urls),
-                    };
+                    let patch_result = patch_variant_urls(&config.connectors, connector, &urls);
                     let patched_connectors = patch_result.map_err(|e| {
                         Report::new(IntegrationError::ConfigurationError {
                             code: "URL_PATCHING_FAILED".to_string(),
@@ -193,6 +174,34 @@ pub async fn apply_url_overrides(
             tracing::info!("no x-environment header, using static config with overrides");
             connectors_with_connector_config_overrides(connector_config, config)
         }
+    }
+}
+
+/// Patches the URLs of `connector`'s family. A webhook connector patches the URLs of the
+/// connector it wraps.
+fn patch_variant_urls(
+    connectors: &domain_types::types::Connectors,
+    connector: &connector_types::ConnectorVariant,
+    urls: &ConnectorUrls,
+) -> Result<domain_types::types::Connectors, IntegrationError> {
+    match connector {
+        connector_types::ConnectorVariant::Payment(c) => connectors.patch_connector_urls(c, urls),
+        connector_types::ConnectorVariant::Payout(c) => {
+            connectors.patch_payout_connector_urls(c, urls)
+        }
+        connector_types::ConnectorVariant::Frm(c) => connectors.patch_frm_connector_urls(c, urls),
+        connector_types::ConnectorVariant::Surcharge(c) => {
+            connectors.patch_surcharge_connector_urls(c, urls)
+        }
+        connector_types::ConnectorVariant::Authenticator(c) => {
+            connectors.patch_authenticator_connector_urls(c, urls)
+        }
+        // `From<WebhookConnectorEnum>` never yields a webhook variant, so this recurses once.
+        connector_types::ConnectorVariant::Webhook(c) => patch_variant_urls(
+            connectors,
+            &connector_types::ConnectorVariant::from(*c),
+            urls,
+        ),
     }
 }
 
