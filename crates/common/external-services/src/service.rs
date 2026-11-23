@@ -1174,6 +1174,7 @@ where
                             "execute_connector_processing_step",
                             test_mode,
                             event_params.proxy_name,
+                            connector.get_request_timeout(),
                         )
                         .await
                         .map_err(report_common_api_client_to_flow)
@@ -1542,6 +1543,7 @@ pub async fn call_connector_api(
     _flow_name: &str,
     test_mode: bool,
     header_proxy_name: Option<&str>,
+    request_timeout: Option<Duration>,
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
     let connector_host = url.host_str().unwrap_or("unknown").to_string();
@@ -1696,6 +1698,10 @@ pub async fn call_connector_api(
             }
         }
         .add_headers(headers)
+    };
+    let request = match request_timeout {
+        Some(timeout) => request.timeout(timeout),
+        None => request,
     };
     // On "connection closed before message completed", the retry is sent over
     // a NEW TCP connection: a fresh client owns a fresh pool, so nothing stale
