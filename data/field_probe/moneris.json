@@ -1055,7 +1055,6 @@
         "proto_request": {
           "merchant_reverse_id": "probe_reverse_001",
           "connector_transaction_id": "probe_connector_txn_001",
-          "cancellation_reason": "customer_request",
           "state": {
             "access_token": {
               "token": "probe_access_token",
@@ -1077,7 +1076,7 @@
             "x-correlation-id": "probe_reverse_001",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"void_pc_probe_reverse_001\",\"reason\":\"customer_request\"}"
+          "body": "{\"idempotencyKey\":\"void_pc_probe_reverse_001\",\"reason\":null}"
         }
       }
     },
