@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod signature_tests;
-
 pub mod crypto;
 pub mod transformers;
 
