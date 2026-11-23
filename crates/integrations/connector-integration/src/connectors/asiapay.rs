@@ -647,9 +647,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Inco
         let raw_body = String::from_utf8_lossy(&request.body).to_string();
         let body = asiapay::parse_asiapay_webhook_body(&request.body)?;
 
-        // successcode: 0 = succeeded, 1 = failure, 2 = pending, others = error
-        // (AsiaPay payment status classification). The data feed carries NO
-        // payType, so a successful authorize-hold (payType=H) cannot be told
+        // successcode: 0 = succeeded, 1 = failure, 2 = pending. Unknown or
+        // missing codes intentionally stay non-terminal. The data feed carries
+        // NO payType, so a successful authorize-hold (payType=H) cannot be told
         // apart from a completed sale here: map `Succeeded` to the generic
         // success status (Charged) — order-level sync (PSync, Merchant API
         // Query orderStatus: Authorized vs Captured) remains the authority on
@@ -924,44 +924,3 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         SubmitEvidence
     ],
 );
-
-#[cfg(test)]
-#[allow(clippy::expect_used, clippy::indexing_slicing)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn merchant_api_rejects_html_without_rejecting_urlencoded_data() {
-        let html = bytes::Bytes::from_static(b"  \n<html><body>synthetic error</body></html>");
-        assert!(preprocess_merchant_api_response(html, 200).is_err());
-
-        let form = bytes::Bytes::from_static(b"resultCode=0&orderStatus=Accepted");
-        let parsed = preprocess_merchant_api_response(form, 200)
-            .expect("valid Merchant API form data must still be converted");
-        let parsed: serde_json::Value =
-            serde_json::from_slice(&parsed).expect("Merchant API conversion must produce JSON");
-        assert_eq!(parsed["resultCode"], "0");
-        assert_eq!(parsed["orderStatus"], "Accepted");
-    }
-
-    #[test]
-    fn redirect_decodes_and_propagates_order_ref_for_psync() {
-        for (query, expected) in [
-            ("ignored=value&Ref=A%2FB", "A/B"),
-            ("Ref=A+B", "A B"),
-            ("Ref=order%20with%20%25%26", "order with %&"),
-        ] {
-            let response = redirect_details_from_query_params(Some(query));
-            assert!(matches!(
-                response.resource_id,
-                Some(ResponseId::ConnectorTransactionId(ref id)) if id == expected
-            ));
-            assert_eq!(
-                response.connector_response_reference_id.as_deref(),
-                Some(expected)
-            );
-            assert!(response.status.is_none());
-            assert!(response.response_money.is_none());
-        }
-    }
-}

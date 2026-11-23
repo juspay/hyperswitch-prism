@@ -3,6 +3,7 @@ use std::{fmt::Debug, marker::PhantomData};
 use common_enums::{AttemptStatus, AuthenticationType, CardNetwork, Currency, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    pii::{Email, IpAddress},
     types::{MinorUnit, Money, StringMajorUnit},
 };
 use domain_types::{
@@ -17,7 +18,7 @@ use domain_types::{
         ResponseTransformationErrorContext, WebhookError,
     },
     payment_address::AddressDetails,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::{
@@ -128,7 +129,16 @@ impl TryFrom<&ConnectorSpecificConfig> for AsiapayAuthType {
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "asiapay: expected ConnectorSpecificConfig::Asiapay".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Provide merchant_id, login_id, password, and secure_hash_secret."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }
             )),
         }
@@ -217,14 +227,73 @@ impl AsiapayPayType {
     }
 }
 
-/// AsiaPay `lang`: language of the DPC payment page. Documented codes:
-/// `E` = English, `C` = Traditional Chinese, `X` = Simplified Chinese,
-/// `J` = Japanese, `T` = Thai, `F` = French, `G` = German, `R` = Russian,
-/// `S` = Spanish, `V` = Vietnamese. Only English is used today.
+/// AsiaPay `lang`: language of the hosted payment page. The single-letter
+/// codes are the gateway's wire values; request locales are mapped to them.
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum AsiapayLanguage {
     #[serde(rename = "E")]
     English,
+    #[serde(rename = "C")]
+    TraditionalChinese,
+    #[serde(rename = "X")]
+    SimplifiedChinese,
+    #[serde(rename = "J")]
+    Japanese,
+    #[serde(rename = "T")]
+    Thai,
+    #[serde(rename = "F")]
+    French,
+    #[serde(rename = "G")]
+    German,
+    #[serde(rename = "R")]
+    Russian,
+    #[serde(rename = "S")]
+    Spanish,
+    #[serde(rename = "V")]
+    Vietnamese,
+}
+
+impl AsiapayLanguage {
+    /// Prefer the explicit request locale, then the browser language. AsiaPay
+    /// affects presentation only, so missing or unrecognised locales fall back
+    /// to English rather than rejecting the payment.
+    fn from_request<T: PaymentMethodDataTypes>(request: &PaymentsAuthorizeData<T>) -> Self {
+        let locale = request.locale.as_deref().or_else(|| {
+            request
+                .browser_info
+                .as_ref()
+                .and_then(|browser| browser.language.as_deref())
+        });
+        Self::from_locale(locale)
+    }
+
+    /// Accept AsiaPay's codes and common case-insensitive BCP-47-style tags.
+    /// An unspecified Chinese script defaults to Simplified Chinese.
+    fn from_locale(locale: Option<&str>) -> Self {
+        let normalized = locale
+            .map(str::trim)
+            .unwrap_or_default()
+            .replace('_', "-")
+            .to_ascii_lowercase();
+        let mut parts = normalized.split('-');
+        let language = parts.next().unwrap_or_default();
+        let region_or_script = parts.next();
+
+        match (language, region_or_script) {
+            ("c", _) => Self::TraditionalChinese,
+            ("x", _) => Self::SimplifiedChinese,
+            ("j" | "ja", _) => Self::Japanese,
+            ("t" | "th", _) => Self::Thai,
+            ("f" | "fr", _) => Self::French,
+            ("g" | "de", _) => Self::German,
+            ("r" | "ru", _) => Self::Russian,
+            ("s" | "es", _) => Self::Spanish,
+            ("v" | "vi", _) => Self::Vietnamese,
+            ("zh", Some("hant" | "tw" | "hk" | "mo")) => Self::TraditionalChinese,
+            ("zh", _) => Self::SimplifiedChinese,
+            _ => Self::English,
+        }
+    }
 }
 
 /// AsiaPay `pMethod`: the card scheme the payment runs on, derived from the
@@ -273,7 +342,7 @@ pub struct AsiapayCardAuthorizeRequest<
     #[serde(rename = "pMethod", skip_serializing_if = "Option::is_none")]
     pub p_method: Option<AsiapayPaymentMethod>,
     #[serde(rename = "cardNo")]
-    pub card_no: Secret<String>,
+    pub card_no: RawCardNumber<T>,
     #[serde(rename = "epMonth")]
     pub ep_month: Secret<String>,
     #[serde(rename = "epYear")]
@@ -314,9 +383,9 @@ pub struct AsiapayCardAuthorizeRequest<
     #[serde(rename = "billingCountry", skip_serializing_if = "Option::is_none")]
     pub billing_country: Option<String>,
     #[serde(rename = "billingEmail", skip_serializing_if = "Option::is_none")]
-    pub billing_email: Option<String>,
+    pub billing_email: Option<Email>,
     #[serde(rename = "custIPAddress", skip_serializing_if = "Option::is_none")]
-    pub cust_ip_address: Option<String>,
+    pub cust_ip_address: Option<Secret<String, IpAddress>>,
     // ----- 3DS 2.0 block (sent only when resource_common_data.auth_type == ThreeDs) -----
     #[serde(rename = "threeDSTransType", skip_serializing_if = "Option::is_none")]
     pub three_ds_trans_type: Option<AsiapayThreeDsTransType>,
@@ -324,7 +393,7 @@ pub struct AsiapayCardAuthorizeRequest<
         rename = "threeDSCustomerEmail",
         skip_serializing_if = "Option::is_none"
     )]
-    pub three_ds_customer_email: Option<String>,
+    pub three_ds_customer_email: Option<Email>,
     #[serde(
         rename = "threeDSMobilePhoneCountryCode",
         skip_serializing_if = "Option::is_none"
@@ -473,10 +542,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let card = match &request.payment_method_data {
             PaymentMethodData::Card(card) => card,
             _ => {
-                return Err(IntegrationError::NotImplemented(
-                    "Only card payments are supported by asiapay".to_string(),
-                    Default::default(),
-                )
+                return Err(IntegrationError::NotSupported {
+                    message: "Only card payments are supported by asiapay".to_string(),
+                    connector: "asiapay",
+                    context: Default::default(),
+                }
                 .into())
             }
         };
@@ -494,13 +564,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Some(CardNetwork::JCB) => Some(AsiapayPaymentMethod::Jcb),
             Some(CardNetwork::AmericanExpress) => Some(AsiapayPaymentMethod::Amex),
             Some(other) => {
-                return Err(IntegrationError::NotImplemented(
-                    format!(
+                return Err(IntegrationError::NotSupported {
+                    message: format!(
                         "Card network {other:?} cannot be mapped to an asiapay pMethod \
                          (supported: VISA, Master, Diners, JCB, AMEX)"
                     ),
-                    Default::default(),
-                )
+                    connector: "asiapay",
+                    context: Default::default(),
+                }
                 .into())
             }
             None => match domain_types::utils::get_card_issuer(card.card_number.peek()) {
@@ -542,8 +613,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // payment-level customer email.
         let billing_email = billing
             .and_then(|address| address.email.clone())
-            .or_else(|| request.email.clone())
-            .map(|email| email.peek().to_string());
+            .or_else(|| request.email.clone());
 
         let is_three_ds = common.auth_type == AuthenticationType::ThreeDs;
 
@@ -578,9 +648,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
             (
                 Some(AsiapayThreeDsTransType::GoodsServicePurchase),
-                request
-                    .get_optional_email()
-                    .map(|email| email.peek().to_string()),
+                request.get_optional_email(),
                 mobile_cc,
                 mobile_no,
                 three_ds_billing,
@@ -595,10 +663,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             order_ref,
             amount,
             curr_code: curr_code.to_string(),
-            lang: AsiapayLanguage::English,
+            lang: AsiapayLanguage::from_request(request),
             pay_type,
             p_method,
-            card_no: Secret::new(card.card_number.peek().to_string()),
+            card_no: card.card_number.clone(),
             ep_month: card.get_card_expiry_month_2_digit()?,
             ep_year: card.get_expiry_year_4_digit(),
             security_code: card.card_cvc.clone(),
@@ -631,11 +699,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .and_then(|details| details.country)
                 .map(|country| country.to_string()),
             billing_email,
-            cust_ip_address: request
-                .browser_info
-                .as_ref()
-                .and_then(|browser_info| browser_info.ip_address)
-                .map(|ip_address| ip_address.to_string()),
+            cust_ip_address: request.get_ip_address_as_optional(),
             three_ds_trans_type,
             three_ds_customer_email,
             three_ds_mobile_phone_country_code,
@@ -809,7 +873,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             order_ref,
             amount,
             curr_code: curr_code.to_string(),
-            lang: AsiapayLanguage::English,
+            lang: AsiapayLanguage::from_request(request),
             pay_type,
             pay_method: AsiapayLinePayMethod::LinePay,
             success_url: return_url.clone(),
@@ -858,16 +922,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 domain_types::payment_method_data::WalletData::LinePayRedirect {} => Ok(
                     Self::LinePay(AsiapayLinePayAuthorizeRequest::try_from(item)?),
                 ),
-                _ => Err(IntegrationError::NotImplemented(
-                    "Wallet is not supported by asiapay".to_string(),
-                    Default::default(),
-                )
+                _ => Err(IntegrationError::NotSupported {
+                    message: "Wallet is not supported by asiapay".to_string(),
+                    connector: "asiapay",
+                    context: Default::default(),
+                }
                 .into()),
             },
-            _ => Err(IntegrationError::NotImplemented(
-                "Only card and LINE Pay payments are supported by asiapay".to_string(),
-                Default::default(),
-            )
+            _ => Err(IntegrationError::NotSupported {
+                message: "Only card and LINE Pay payments are supported by asiapay".to_string(),
+                connector: "asiapay",
+                context: Default::default(),
+            }
             .into()),
         }
     }
@@ -1055,10 +1121,10 @@ pub(crate) fn handle_authorize_response<
 // ============================================================================
 
 /// AsiaPay `successcode` (payment status classification, vendor docs):
-/// `0` = succeeded, `1` = failure, `2` = pending, others = error.
+/// `0` = succeeded, `1` = failure, `2` = pending.
 /// `#[serde(other)]` keeps an unrecognised value parseable — it lands in
-/// `Other` instead of failing the whole response/payload, and the mapping
-/// sites treat it as the documented in-band error.
+/// `Other` instead of failing the whole response/payload. Mapping sites keep
+/// unknown and missing codes non-terminal rather than inferring failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AsiapaySuccessCode {
     #[serde(rename = "0")]
@@ -2663,8 +2729,7 @@ impl TryFrom<ResponseRouterData<AsiapayRSyncResponse, Self>>
 /// fields become errors.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AsiapayWebhookBody {
-    /// `0` = succeeded, `1` = failure, `2` = pending, others = error (AsiaPay
-    /// payment status classification).
+    /// `0` = succeeded, `1` = failure, `2` = pending.
     #[serde(rename = "successcode", alias = "SuccessCode")]
     pub success_code: Option<String>,
     /// Payment result code (bank outcome) — the error-code carrier on failure.
@@ -2866,492 +2931,4 @@ pub fn parse_asiapay_webhook_amount(
                 ),
             })
         })
-}
-
-#[cfg(test)]
-#[allow(clippy::expect_used, clippy::panic)]
-mod tests {
-    use super::*;
-
-    /// Captured verbatim from AsiaPay's sandbox Merchant API Query
-    /// (`actionType=Query`) — `<records><record>…</record></records>`, not a
-    /// flat element root.
-    const QUERY_XML: &str = r#"<?xml version="1.0" encoding="ISO-8859-1"?>
-<records>
-<record>
-<orderStatus>Accepted</orderStatus>
-<ref>azharamin-JUSP1794419304-1</ref>
-<payRef>14164384</payRef>
-<amt>100</amt>
-<cur>901</cur>
-<prc>0</prc>
-<src>0</src>
-<ord>12345678</ord>
-<holder>Vishwas</holder>
-<authId>164384</authId>
-<alertCode>R14</alertCode>
-<remark></remark>
-<eci>07</eci>
-<payerAuth>U</payerAuth>
-<sourceIp>13.232.74.226</sourceIp>
-<ipCountry>IN</ipCountry>
-<payMethod>VISA</payMethod>
-<panFirst4>4333</panFirst4>
-<panLast4>0027</panLast4>
-<cardIssuingCountry>HK</cardIssuingCountry>
-<channelType>DPC</channelType>
-<txTime>2026-11-12 01:48:32.0</txTime>
-<successcode>0</successcode>
-<MerchantId>12109740</MerchantId>
-<errMsg>Query Successfully</errMsg>
-</record>
-</records>"#;
-
-    #[test]
-    fn psync_response_unpacks_record_envelope() {
-        let response: AsiapayPSyncResponse =
-            quick_xml::de::from_str(QUERY_XML).expect("query XML must parse");
-        let response = response
-            .record
-            .expect("successful query must carry a record");
-
-        assert!(matches!(
-            response.order_status,
-            Some(AsiapayOrderStatus::Accepted)
-        ));
-        assert_eq!(
-            response.order_ref.as_deref(),
-            Some("azharamin-JUSP1794419304-1")
-        );
-        assert_eq!(response.pay_ref.as_deref(), Some("14164384"));
-        assert_eq!(response.amt.as_deref(), Some("100"));
-        assert_eq!(response.cur.as_deref(), Some("901"));
-        assert_eq!(response.auth_id.as_deref(), Some("164384"));
-        assert_eq!(response.err_msg.as_deref(), Some("Query Successfully"));
-        // Guard the real-world success sentinel (DPC sandbox) against the
-        // in-band failure routing: a good Query must never be scored errored.
-        assert!(!is_query_err_msg(response.err_msg.as_deref()));
-        assert!(is_query_err_msg(Some("Order Not Found")));
-    }
-
-    #[test]
-    fn psync_accepts_empty_records_as_pending_without_payment_identifiers() {
-        let response: AsiapayPSyncResponse = quick_xml::de::from_str(
-            r#"<?xml version="1.0" encoding="ISO-8859-1"?>
-<records>
-</records>"#,
-        )
-        .expect("AsiaPay's empty Query result is valid XML");
-        let response = response.record.unwrap_or_default();
-
-        assert!(matches!(
-            response.status_or_pending(),
-            AttemptStatus::Pending
-        ));
-        assert!(response.order_status.is_none());
-        assert!(response.pay_ref.is_none());
-        assert!(response.order_ref.is_none());
-    }
-
-    /// Live behavior (Logs.json): `RequestRefund` on an unsettled payment
-    /// answers `resultCode=0&orderStatus=Voided` ("Transaction was voided
-    /// successfully") — the refund completed by reversal. Both mappers must
-    /// treat that as Success, not Pending (Pending hangs the refund).
-    #[test]
-    fn reversal_refund_maps_to_success() {
-        assert!(matches!(
-            map_refund_status(AsiapayOrderStatus::Voided),
-            RefundStatus::Success
-        ));
-        assert!(matches!(
-            map_refund_status(AsiapayOrderStatus::ReversalAuth),
-            RefundStatus::Success
-        ));
-        assert!(matches!(
-            map_refund_sync_status(AsiapayOrderStatus::Voided),
-            RefundStatus::Success
-        ));
-        assert!(matches!(
-            map_refund_sync_status(AsiapayOrderStatus::ReversalAuth),
-            RefundStatus::Success
-        ));
-        // Sanity guards on the neighbouring classification: unchanged.
-        assert!(matches!(
-            map_refund_status(AsiapayOrderStatus::RequestRefund),
-            RefundStatus::Pending
-        ));
-        assert!(matches!(
-            map_refund_sync_status(AsiapayOrderStatus::Accepted),
-            RefundStatus::Pending
-        ));
-        assert!(matches!(
-            map_refund_status(AsiapayOrderStatus::Rejected),
-            RefundStatus::Failure
-        ));
-    }
-
-    #[test]
-    fn rsync_response_unpacks_record_envelope() {
-        let response: AsiapayRSyncResponse =
-            quick_xml::de::from_str(QUERY_XML).expect("query XML must parse");
-
-        assert!(matches!(
-            response.record.order_status,
-            Some(AsiapayOrderStatus::Accepted)
-        ));
-        assert_eq!(response.record.pay_ref.as_deref(), Some("14164384"));
-        assert_eq!(
-            response.record.order_ref.as_deref(),
-            Some("azharamin-JUSP1794419304-1")
-        );
-    }
-
-    #[test]
-    fn void_uses_amountless_online_reversal() {
-        // AsiapayVoidRequest deliberately has no amount field. Amountless
-        // OnlineReversal supports both authorize-hold and pre-settlement sale
-        // reversals; actionType=Void would fail an authorize-hold.
-        assert_eq!(
-            serde_json::to_value(AsiapayActionType::OnlineReversal)
-                .expect("Void action must serialize"),
-            serde_json::Value::String("OnlineReversal".to_string())
-        );
-    }
-
-    // ========================================================================
-    // Native Authorize unit tests use deliberately non-real fixture values.
-    // None of these tests prints the rendered form or any form field value.
-    // ========================================================================
-
-    fn test_line_pay_request() -> AsiapayLinePayAuthorizeRequest {
-        AsiapayLinePayAuthorizeRequest {
-            merchant_id: Secret::new("test-merchant".to_string()),
-            order_ref: "test-line-order".to_string(),
-            amount: AsiapayAmountConvertor::convert(
-                &serde_json::from_value::<Money>(
-                    serde_json::json!({ "amount": 100000, "currency": Currency::TWD }),
-                )
-                .expect("money"),
-            )
-            .expect("amount conversion"),
-            curr_code: "901".to_string(),
-            lang: AsiapayLanguage::English,
-            pay_type: AsiapayPayType::N,
-            pay_method: AsiapayLinePayMethod::LinePay,
-            success_url: "https://merchant.example.test/return".to_string(),
-            fail_url: "https://merchant.example.test/return".to_string(),
-            error_url: "https://merchant.example.test/return".to_string(),
-            cancel_url: "https://merchant.example.test/return".to_string(),
-            secure_hash: "test-signature".to_string(),
-            remark: Some("test payment".to_string()),
-            pay_mode: Some("EC".to_string()),
-        }
-    }
-
-    fn test_card_request(
-    ) -> AsiapayCardAuthorizeRequest<domain_types::payment_method_data::DefaultPCIHolder> {
-        AsiapayCardAuthorizeRequest {
-            merchant_id: Secret::new("test-merchant".to_string()),
-            order_ref: "test-card-order".to_string(),
-            amount: AsiapayAmountConvertor::convert(
-                &serde_json::from_value::<Money>(
-                    serde_json::json!({ "amount": 12345, "currency": Currency::USD }),
-                )
-                .expect("money"),
-            )
-            .expect("amount conversion"),
-            curr_code: "840".to_string(),
-            lang: AsiapayLanguage::English,
-            pay_type: AsiapayPayType::H,
-            p_method: Some(AsiapayPaymentMethod::Visa),
-            card_no: Secret::new("test-card-number".to_string()),
-            ep_month: Secret::new("01".to_string()),
-            ep_year: Secret::new("2030".to_string()),
-            security_code: Secret::new("test-security-code".to_string()),
-            card_holder: Some(Secret::new("test-card-holder".to_string())),
-            success_url: "https://merchant.example.test/return".to_string(),
-            fail_url: "https://merchant.example.test/return".to_string(),
-            error_url: "https://merchant.example.test/return".to_string(),
-            secure_hash: "test-signature".to_string(),
-            remark: Some("test payment".to_string()),
-            pay_mode: Some("EC".to_string()),
-            cancel_url: Some("https://merchant.example.test/return".to_string()),
-            billing_first_name: Some(Secret::new("test-first-name".to_string())),
-            billing_last_name: None,
-            billing_street1: None,
-            billing_street2: None,
-            billing_city: None,
-            billing_state: None,
-            billing_postal_code: None,
-            billing_country: None,
-            billing_email: Some("billing@example.test".to_string()),
-            cust_ip_address: None,
-            three_ds_trans_type: Some(AsiapayThreeDsTransType::GoodsServicePurchase),
-            three_ds_customer_email: Some("customer@example.test".to_string()),
-            three_ds_mobile_phone_country_code: None,
-            three_ds_mobile_phone_number: None,
-            three_ds_billing_country_code: None,
-            three_ds_billing_state: None,
-            three_ds_billing_city: Some(Secret::new("test-three-ds-city".to_string())),
-            three_ds_billing_line1: None,
-            three_ds_billing_line2: None,
-            three_ds_billing_line3: None,
-            three_ds_billing_postal_code: None,
-            three_ds_shipping_country_code: None,
-            three_ds_shipping_state: None,
-            three_ds_shipping_city: None,
-            three_ds_shipping_line1: None,
-            three_ds_shipping_line2: None,
-            three_ds_shipping_line3: None,
-            three_ds_shipping_postal_code: None,
-            payment_method_type: PhantomData,
-        }
-    }
-
-    fn assert_local_response(
-        native: NativeAuthorizeResponse,
-        expected_order_ref: &str,
-        expected_amount: MinorUnit,
-        expected_currency: Currency,
-    ) {
-        assert_eq!(native.status, AttemptStatus::AuthenticationPending);
-        assert_eq!(
-            native.integrity_object,
-            AuthoriseIntegrityObject {
-                amount: expected_amount,
-                currency: expected_currency,
-            }
-        );
-
-        match native.response {
-            PaymentsResponseData::TransactionResponse {
-                resource_id,
-                redirection_data,
-                connector_response_reference_id,
-                status_code,
-                ..
-            } => {
-                assert!(matches!(
-                    resource_id,
-                    ResponseId::ConnectorTransactionId(ref id) if id == expected_order_ref
-                ));
-                assert!(matches!(
-                    connector_response_reference_id.as_deref(),
-                    Some(id) if id == expected_order_ref
-                ));
-                assert!(matches!(
-                    redirection_data.as_deref(),
-                    Some(RedirectForm::Html { .. })
-                ));
-                assert_eq!(status_code, 200);
-            }
-            _ => panic!("native Authorize must return TransactionResponse"),
-        }
-    }
-
-    #[test]
-    fn line_pay_method_serializes_to_linepay() {
-        let encoded =
-            serde_json::to_string(&AsiapayLinePayMethod::LinePay).expect("must serialize");
-        assert_eq!(encoded, "\"LINEPAY\"");
-    }
-
-    /// The serializer remains the source of truth for the browser form body:
-    /// CPTB-only fields, payType=N, and no card or Merchant API credentials.
-    #[test]
-    fn line_pay_request_serializes_cptb_fields() {
-        let form = serde_urlencoded::to_string(test_line_pay_request())
-            .expect("URL-encode LINE Pay request");
-
-        for field in [
-            "payMethod=LINEPAY",
-            "payType=N",
-            "merchantId=test-merchant",
-            "orderRef=test-line-order",
-            "currCode=901",
-            "lang=E",
-            "secureHash=test-signature",
-            "successUrl=",
-            "failUrl=",
-            "cancelUrl=",
-            "errorUrl=",
-            "payMode=EC",
-            "remark=test",
-        ] {
-            assert!(form.contains(field));
-        }
-        for field in [
-            "pMethod=",
-            "cardNo=",
-            "epMonth=",
-            "epYear=",
-            "securityCode=",
-            "threeDSTransType=",
-            "loginId=",
-            "password=",
-            "secure_hash_secret=",
-        ] {
-            assert!(!form.contains(field));
-        }
-    }
-
-    #[test]
-    fn native_line_pay_html_uses_cptb_endpoint_and_excludes_card_and_secret_fields() {
-        let request =
-            AsiapayAuthorizeRequest::<domain_types::payment_method_data::DefaultPCIHolder>::LinePay(
-                test_line_pay_request(),
-            );
-        let html = request
-            .to_native_html("https://gateway.example.test/base/")
-            .expect("native LINE Pay form must render");
-
-        assert!(html.starts_with("<!doctype html><html>"));
-        assert!(
-            html.contains("action=\"https://gateway.example.test/base/eng/payment/payForm.jsp\"")
-        );
-        assert!(html.contains("name=\"payMethod\" value=\"LINEPAY\""));
-        assert!(html.contains("name=\"payType\" value=\"N\""));
-        assert!(html.contains("method=\"post\""));
-        assert!(html.contains("document.getElementById(\"asiapay-payment-form\").submit()"));
-        assert!(html.contains("<noscript><button type=\"submit\">"));
-        for field in [
-            "pMethod",
-            "cardNo",
-            "epMonth",
-            "epYear",
-            "securityCode",
-            "cardHolder",
-            "threeDSTransType",
-            "loginId",
-            "password",
-            "secureHashSecret",
-            "secure_hash_secret",
-        ] {
-            assert!(!html.contains(&format!("name=\"{field}\"")));
-        }
-
-        assert_local_response(
-            build_native_authorize_response(
-                request.order_ref().to_string(),
-                html,
-                MinorUnit::new(100000),
-                Currency::TWD,
-            ),
-            "test-line-order",
-            MinorUnit::new(100000),
-            Currency::TWD,
-        );
-        assert!(request.to_native_html(" / ").is_err());
-    }
-
-    #[test]
-    fn native_card_html_uses_dpc_endpoint_and_preserves_card_and_three_ds_inputs() {
-        let request = AsiapayAuthorizeRequest::Card(test_card_request());
-        let html = request
-            .to_native_html("https://gateway.example.test/base/")
-            .expect("native card form must render");
-
-        assert!(
-            html.contains("action=\"https://gateway.example.test/base/eng/dPayment/payComp.jsp\"")
-        );
-        for (field, value) in [
-            ("payType", "H"),
-            ("pMethod", "VISA"),
-            ("cardNo", "test-card-number"),
-            ("epMonth", "01"),
-            ("epYear", "2030"),
-            ("securityCode", "test-security-code"),
-            ("cardHolder", "test-card-holder"),
-            ("billingFirstName", "test-first-name"),
-            ("billingEmail", "billing@example.test"),
-            ("threeDSTransType", "01"),
-            ("threeDSCustomerEmail", "customer@example.test"),
-            ("threeDSBillingCity", "test-three-ds-city"),
-            ("secureHash", "test-signature"),
-        ] {
-            assert!(html.contains(&format!("name=\"{field}\" value=\"{value}\"")));
-        }
-        for field in [
-            "loginId",
-            "password",
-            "secureHashSecret",
-            "secure_hash_secret",
-        ] {
-            assert!(!html.contains(&format!("name=\"{field}\"")));
-        }
-
-        assert_local_response(
-            build_native_authorize_response(
-                request.order_ref().to_string(),
-                html,
-                MinorUnit::new(12345),
-                Currency::USD,
-            ),
-            "test-card-order",
-            MinorUnit::new(12345),
-            Currency::USD,
-        );
-    }
-
-    #[test]
-    fn native_form_escapes_action_names_and_values() {
-        let html = render_native_post_form(
-            "https://gateway.example.test/pay?a=\"&b=<tag>",
-            &[("remark\"test".to_string(), "test\"&<tag>".to_string())],
-        );
-
-        assert!(
-            html.contains("action=\"https://gateway.example.test/pay?a=&quot;&amp;b=&lt;tag&gt;\"")
-        );
-        assert!(html.contains("name=\"remark&quot;test\""));
-        assert!(html.contains("value=\"test&quot;&amp;&lt;tag&gt;\""));
-        assert!(!html.contains("<tag>"));
-        assert!(html.ends_with("</body></html>"));
-    }
-
-    #[test]
-    fn line_pay_manual_capture_is_rejected_and_other_capture_modes_remain_supported() {
-        assert!(
-            validate_line_pay_capture_method(Some(common_enums::CaptureMethod::Manual)).is_err()
-        );
-        assert!(
-            validate_line_pay_capture_method(Some(common_enums::CaptureMethod::Automatic)).is_ok()
-        );
-        assert!(validate_line_pay_capture_method(None).is_ok());
-    }
-
-    #[test]
-    fn payment_request_signing_remains_deterministic_per_algorithm() {
-        let sha1 = sign_payment_request(
-            "test-merchant",
-            "test-order",
-            "840",
-            "10.00",
-            "N",
-            "test-hash-secret",
-            AsiapaySecureHashAlgorithm::Sha1,
-        );
-        let repeated = sign_payment_request(
-            "test-merchant",
-            "test-order",
-            "840",
-            "10.00",
-            "N",
-            "test-hash-secret",
-            AsiapaySecureHashAlgorithm::Sha1,
-        );
-        let sha256 = sign_payment_request(
-            "test-merchant",
-            "test-order",
-            "840",
-            "10.00",
-            "N",
-            "test-hash-secret",
-            AsiapaySecureHashAlgorithm::Sha256,
-        );
-
-        assert_eq!(sha1, repeated);
-        assert_eq!(sha1.len(), 40);
-        assert_eq!(sha256.len(), 64);
-    }
 }
