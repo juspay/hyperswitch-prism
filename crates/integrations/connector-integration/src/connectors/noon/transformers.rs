@@ -1781,13 +1781,6 @@ pub struct NoonWebhookOrderId {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NoonWebhookEvent {
-    pub order_status: NoonPaymentStatus,
-    pub event_type: NoonWebhookEventTypes,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct NoonWebhookObject {
     pub order_status: NoonPaymentStatus,
     pub order_id: u64,

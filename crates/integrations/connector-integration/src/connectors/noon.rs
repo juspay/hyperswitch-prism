@@ -17,11 +17,10 @@ use domain_types::{
     connector_types::{
         ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentFlowData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, SetupMandateRequestData, WebhookDetailsResponse,
-        WebhookResourceReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -52,6 +51,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::noon::Noon as NoonWebhook;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
@@ -122,80 +122,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
     for Noon<T>
 {
 }
-/// Maps a signed (`eventType`, `orderStatus`) pair to an event (spec ## Webhook Events).
-///
-/// Only the pairs the spec documents are mapped; every other pair (3DS, Authenticate, Cancel,
-/// Review, Lock, an unknown event, or an undocumented status) is
-/// `IncomingWebhookEventUnspecified`, so it can never move a payment or refund to a terminal state.
-fn get_noon_webhook_event_type(
-    event_type: &noon::NoonWebhookEventTypes,
-    order_status: &noon::NoonPaymentStatus,
-) -> EventType {
-    use noon::{NoonPaymentStatus as Status, NoonWebhookEventTypes as Event};
-
-    match event_type {
-        Event::Sale => match order_status {
-            Status::Captured => EventType::PaymentIntentSuccess,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        },
-        Event::Capture => match order_status {
-            Status::Captured => EventType::PaymentIntentSuccess,
-            Status::PartiallyCaptured => EventType::PaymentIntentCaptureSuccess,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        },
-        Event::Authorize => match order_status {
-            Status::Authorized => EventType::PaymentIntentAuthorizationSuccess,
-            Status::Failed => EventType::PaymentIntentAuthorizationFailure,
-            Status::Pending | Status::MarkedForReview => EventType::PaymentIntentProcessing,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        },
-        // Fail carries the order's resulting status: only a failed order is a payment failure.
-        // A failed later operation (e.g. a refund on a CAPTURED order) must not be terminal.
-        Event::Fail => match order_status {
-            Status::Failed | Status::Rejected | Status::Cancelled | Status::Expired => {
-                EventType::PaymentIntentFailure
-            }
-            Status::Initiated
-            | Status::Authorized
-            | Status::Captured
-            | Status::PartiallyCaptured
-            | Status::PartiallyRefunded
-            | Status::PaymentInfoAdded
-            | Status::ThreeDsEnrollInitiated
-            | Status::ThreeDsEnrollChecked
-            | Status::ThreeDsResultVerified
-            | Status::MarkedForReview
-            | Status::Authenticated
-            | Status::PartiallyReversed
-            | Status::Pending
-            | Status::Refunded
-            | Status::Reversed
-            | Status::Locked
-            | Status::Unknown => EventType::IncomingWebhookEventUnspecified,
-        },
-        Event::Reject => match order_status {
-            Status::Rejected => EventType::PaymentIntentFailure,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        },
-        Event::Reverse => match order_status {
-            Status::Reversed => EventType::PaymentIntentCancelled,
-            // AUTHORIZED on a Reverse event means the reversal failed (spec ## Webhook Events).
-            Status::Authorized => EventType::PaymentIntentCancelFailure,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        },
-        Event::Refund => match order_status {
-            Status::Refunded | Status::PartiallyRefunded => EventType::RefundSuccess,
-            Status::Pending => EventType::RefundProcessing,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        },
-        Event::ThreeDs
-        | Event::Authenticate
-        | Event::Cancel
-        | Event::Review
-        | Event::Lock
-        | Event::Unknown => EventType::IncomingWebhookEventUnspecified,
-    }
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::webhooks::IncomingWebhook for Noon<T>
@@ -248,20 +174,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        // Noon checks the endpoint with an empty body.
-        if request.body.is_empty() {
-            return Ok(EventType::EndpointVerification);
-        }
-        let details: noon::NoonWebhookEvent = request
-            .body
-            .parse_struct("NoonWebhookEvent")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable("Failed to parse webhook event type from Noon webhook body")?;
-
-        Ok(get_noon_webhook_event_type(
-            &details.event_type,
-            &details.order_status,
-        ))
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            NoonWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn verify_webhook_source(
@@ -289,52 +206,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Noon webhook signature verification failed")
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let webhook_object: noon::NoonWebhookObject = request
-            .body
-            .parse_struct("NoonWebhookObject")
-            .change_context(WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable("Failed to parse NoonWebhookObject for reference extraction")?;
-
-        // Noon's order_id is the connector transaction ID and the only identifier covered by
-        // the v1 signature. A refund event also echoes the refund's merchant reference
-        // (merchantTxnRef), but that field is NOT in the signed preimage, so it can be edited
-        // on a validly signed body and is never used to pick a refund. Noon documents no
-        // chargeback / dispute event, so no dispute reference is produced.
-        let connector_transaction_id = Some(webhook_object.order_id.to_string());
-        match webhook_object.event_type {
-            noon::NoonWebhookEventTypes::Refund => Ok(Some(WebhookResourceReference::Refund(
-                RefundWebhookReference {
-                    connector_refund_id: None,
-                    merchant_refund_id: None,
-                    connector_transaction_id,
-                    merchant_transaction_id: None,
-                },
-            ))),
-            noon::NoonWebhookEventTypes::ThreeDs
-            | noon::NoonWebhookEventTypes::Authenticate
-            | noon::NoonWebhookEventTypes::Authorize
-            | noon::NoonWebhookEventTypes::Cancel
-            | noon::NoonWebhookEventTypes::Capture
-            | noon::NoonWebhookEventTypes::Fail
-            | noon::NoonWebhookEventTypes::Lock
-            | noon::NoonWebhookEventTypes::Reject
-            | noon::NoonWebhookEventTypes::Reverse
-            | noon::NoonWebhookEventTypes::Review
-            | noon::NoonWebhookEventTypes::Sale
-            | noon::NoonWebhookEventTypes::Unknown => Ok(Some(WebhookResourceReference::Payment(
-                PaymentWebhookReference {
-                    connector_transaction_id,
-                    merchant_transaction_id: None,
-                    connector_preprocessing_id: None,
-                },
-            ))),
-        }
     }
 
     fn process_payment_webhook(

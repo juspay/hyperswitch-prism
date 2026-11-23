@@ -23,6 +23,7 @@ pub mod hyperswitch;
 pub mod maya;
 pub mod nexixpay;
 pub mod nmi;
+pub mod noon;
 pub mod payhere;
 pub mod payload;
 pub mod paypal;
@@ -43,7 +44,7 @@ pub use self::{
     cybersource::Cybersource, dlocal::Dlocal, ecommpay::Ecommpay, finix::Finix, fiuu::Fiuu,
     flywire::Flywire, givepayments::Givepayments, globalpay::Globalpay, glomopay::Glomopay,
     grabpay::Grabpay, hyperswitch::Hyperswitch, maya::Maya, nexixpay::Nexixpay, nmi::Nmi,
-    payhere::Payhere, payload::Payload, paypal::Paypal, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,
-    razorpay::Razorpay, reddot::Reddot, revolut::Revolut, stripe::Stripe, tamara::Tamara,
-    trustpay::Trustpay, worldpayxml::Worldpayxml,
+    noon::Noon, payhere::Payhere, payload::Payload, paypal::Paypal, phonepe::Phonepe, ppro::Ppro,
+    rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot, revolut::Revolut, stripe::Stripe,
+    tamara::Tamara, trustpay::Trustpay, worldpayxml::Worldpayxml,
 };
