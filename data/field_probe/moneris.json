@@ -1004,7 +1004,7 @@
             "x-correlation-id": "probe_proxy_mandate_001",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"setup_mandate_probe_proxy_mandate_001\",\"orderId\":\"probe_proxy_mandate_001\",\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"MERCHANT_INITIATED\"}}"
+          "body": "{\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\",\"orderId\":\"probe_proxy_mandate_001\",\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"MERCHANT_INITIATED\"},\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       }
     },
@@ -1176,7 +1176,7 @@
             "x-correlation-id": "probe_mandate_001",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"setup_mandate_probe_mandate_001\",\"orderId\":\"probe_mandate_001\",\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"MERCHANT_INITIATED\"}}"
+          "body": "{\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\",\"orderId\":\"probe_mandate_001\",\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"MERCHANT_INITIATED\"},\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       }
     },
