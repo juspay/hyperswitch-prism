@@ -1006,8 +1006,22 @@ pub enum RegulatedName {
 
 impl Currency {
     pub fn to_currency_base_unit(self, amount: i64) -> Result<String, CurrencyError> {
-        let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
-        Ok(format!("{amount_f64:.2}"))
+        let exponent = self.number_of_digits_after_decimal_point()?;
+        if exponent == 0 {
+            return Ok(amount.to_string());
+        }
+
+        let divisor = 10_i128.pow(u32::from(exponent));
+        let amount = i128::from(amount);
+        let sign = if amount.is_negative() { "-" } else { "" };
+        let absolute_amount = amount.abs();
+        let units = absolute_amount / divisor;
+        let fractional = absolute_amount % divisor;
+
+        Ok(format!(
+            "{sign}{units}.{fractional:0width$}",
+            width = usize::from(exponent)
+        ))
     }
 
     pub fn to_currency_base_unit_asf64(self, amount: i64) -> Result<f64, CurrencyError> {
