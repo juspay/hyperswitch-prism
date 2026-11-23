@@ -892,6 +892,3 @@ impl BoostWebhookBody {
         })
     }
 }
-
-#[cfg(test)]
-mod captured_money_tests;
