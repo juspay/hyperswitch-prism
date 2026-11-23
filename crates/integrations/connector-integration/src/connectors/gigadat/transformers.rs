@@ -474,7 +474,7 @@ impl TryFrom<ResponseRouterData<GigadatSyncResponse, Self>>
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
+                resource_id: router_data.request.connector_transaction_id.clone(),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata,
