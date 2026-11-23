@@ -4,7 +4,7 @@ use cards::CardNumber;
 use common_utils::{
     collect_missing_value_keys, consts, custom_serde,
     errors::CustomResult,
-    ext_traits::{ByteSliceExt, Encode, OptionExt},
+    ext_traits::{ByteSliceExt, Encode},
     pii::{self, Email},
     request::Method,
     types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
@@ -31,7 +31,7 @@ use domain_types::{
         SubmitEvidenceData, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
-    mandates::{AcceptanceType, CustomerAcceptance},
+    mandates::{AcceptanceType, CustomerAcceptance, MandateData},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         self, AchTransfer, BankRedirectData, BankTransferInstructions, BankTransferNextStepsData,
@@ -266,18 +266,12 @@ pub struct StripeMandateRequest {
     mandate_type: StripeMandateType,
 }
 
-fn get_online_mandate_type(
-    customer_acceptance: &CustomerAcceptance,
-    browser_info: Option<&BrowserInformation>,
-) -> Option<StripeMandateType> {
+fn get_online_mandate_type(customer_acceptance: &CustomerAcceptance) -> Option<StripeMandateType> {
     let online = customer_acceptance.online.as_ref();
-    let ip_address = online
-        .and_then(|online| online.ip_address.clone())
-        .or_else(|| browser_info.and_then(|info| info.get_ip_address().ok()));
+    let ip_address = online.and_then(|online| online.ip_address.clone());
     let user_agent = online
         .map(|online| online.user_agent.clone())
-        .filter(|user_agent| !user_agent.trim().is_empty())
-        .or_else(|| browser_info.and_then(|info| info.get_user_agent().ok()));
+        .filter(|user_agent| !user_agent.trim().is_empty());
     ip_address
         .zip(user_agent)
         .map(|(ip_address, user_agent)| StripeMandateType::Online {
@@ -286,51 +280,28 @@ fn get_online_mandate_type(
         })
 }
 
-/// Strict mandate request used by Authorize: an online acceptance without its online details or
-/// ip address fails the payment
-impl TryFrom<&CustomerAcceptance> for StripeMandateRequest {
-    type Error = error_stack::Report<IntegrationError>;
-    fn try_from(customer_acceptance: &CustomerAcceptance) -> Result<Self, Self::Error> {
-        let mandate_type = match customer_acceptance.acceptance_type {
-            AcceptanceType::Online => {
-                let online_mandate = customer_acceptance
-                    .online
-                    .clone()
-                    .get_required_value("online")
-                    .change_context(IntegrationError::MissingRequiredField {
-                        field_name: "online",
-                        context: Default::default(),
-                    })?;
-                StripeMandateType::Online {
-                    ip_address: online_mandate
-                        .ip_address
-                        .get_required_value("ip_address")
-                        .change_context(IntegrationError::MissingRequiredField {
-                            field_name: "ip_address",
-                            context: Default::default(),
-                        })?,
-                    user_agent: online_mandate.user_agent,
-                }
-            }
-            AcceptanceType::Offline => StripeMandateType::Offline,
-        };
-        Ok(Self { mandate_type })
-    }
-}
-
 impl StripeMandateRequest {
-    /// Mandate request only when the customer acceptance (with the browser info as fallback) has
-    /// everything Stripe needs; an incomplete online acceptance is skipped instead of failing
-    fn from_complete_customer_acceptance(
-        customer_acceptance: &CustomerAcceptance,
-        browser_info: Option<&BrowserInformation>,
-    ) -> Option<Self> {
+    /// Mandate request only when the customer acceptance has everything Stripe needs; an
+    /// incomplete online acceptance is skipped instead of failing
+    fn from_complete_customer_acceptance(customer_acceptance: &CustomerAcceptance) -> Option<Self> {
         let mandate_type = match customer_acceptance.acceptance_type {
-            AcceptanceType::Online => get_online_mandate_type(customer_acceptance, browser_info),
+            AcceptanceType::Online => get_online_mandate_type(customer_acceptance),
             AcceptanceType::Offline => Some(StripeMandateType::Offline),
         };
         mandate_type.map(|mandate_type| Self { mandate_type })
     }
+}
+
+/// The customer acceptance a mandate is built from, same rule for Authorize and SetupMandate: the
+/// request's own `customer_acceptance` first, then the one inside `setup_mandate_details`.
+fn get_customer_acceptance<'a>(
+    customer_acceptance: Option<&'a CustomerAcceptance>,
+    setup_mandate_details: Option<&'a MandateData>,
+) -> Option<&'a CustomerAcceptance> {
+    customer_acceptance.or_else(|| {
+        setup_mandate_details
+            .and_then(|mandate_details| mandate_details.customer_acceptance.as_ref())
+    })
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -3263,33 +3234,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         };
 
-        let setup_mandate_details = item
-            .request
-            .setup_mandate_details
-            .as_ref()
-            .and_then(|mandate_details| mandate_details.customer_acceptance.as_ref())
-            .map(StripeMandateRequest::try_from)
-            .transpose()?
-            .or_else(|| {
-                //stripe requires us to send mandate_data while making recurring payment through saved bank debit
-                if payment_method.is_some() {
-                    //check if payment is done through saved payment method
-                    match &payment_method_types {
-                        //check if payment method is bank debit
-                        Some(
-                            StripePaymentMethodType::Ach
-                            | StripePaymentMethodType::Sepa
-                            | StripePaymentMethodType::Becs
-                            | StripePaymentMethodType::Bacs,
-                        ) => Some(StripeMandateRequest {
-                            mandate_type: StripeMandateType::Offline,
-                        }),
-                        _ => None,
-                    }
-                } else {
-                    None
+        let setup_mandate_details = get_customer_acceptance(
+            item.request.customer_acceptance.as_ref(),
+            item.request.setup_mandate_details.as_ref(),
+        )
+        .and_then(|customer_acceptance| {
+            StripeMandateRequest::from_complete_customer_acceptance(customer_acceptance)
+        })
+        .or_else(|| {
+            //stripe requires us to send mandate_data while making recurring payment through saved bank debit
+            if payment_method.is_some() {
+                //check if payment is done through saved payment method
+                match &payment_method_types {
+                    //check if payment method is bank debit
+                    Some(
+                        StripePaymentMethodType::Ach
+                        | StripePaymentMethodType::Sepa
+                        | StripePaymentMethodType::Becs
+                        | StripePaymentMethodType::Bacs,
+                    ) => Some(StripeMandateRequest {
+                        mandate_type: StripeMandateType::Offline,
+                    }),
+                    _ => None,
                 }
-            });
+            } else {
+                None
+            }
+        });
 
         let meta_data = get_transaction_metadata(item.request.metadata.clone(), order_id);
 
@@ -3369,7 +3340,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_method_types.as_ref(),
             setup_future_usage,
             setup_mandate_details.as_ref(),
-            "setup_mandate_details.customer_acceptance",
+            "customer_acceptance",
         )?;
 
         let error_on_requires_action =
@@ -6548,8 +6519,7 @@ fn validate_off_session_mandate(
             field_name: acceptance_field,
             context: IntegrationErrorContext {
                 suggested_action: Some(
-                    "send a customer_acceptance; an online one needs ip_address and user_agent \
-                     (browser_info is used when they are missing)"
+                    "send a customer_acceptance; an online one needs ip_address and user_agent"
                         .to_string(),
                 ),
                 doc_url: Some(
@@ -6647,15 +6617,13 @@ fn get_setup_intent_browser_info<
 fn get_setup_intent_mandate_details<T: PaymentMethodDataTypes>(
     request: &SetupMandateRequestData<T>,
 ) -> Option<StripeMandateRequest> {
-    request
-        .customer_acceptance
-        .as_ref()
-        .and_then(|customer_acceptance| {
-            StripeMandateRequest::from_complete_customer_acceptance(
-                customer_acceptance,
-                request.browser_info.as_ref(),
-            )
-        })
+    get_customer_acceptance(
+        request.customer_acceptance.as_ref(),
+        request.setup_mandate_details.as_ref(),
+    )
+    .and_then(|customer_acceptance| {
+        StripeMandateRequest::from_complete_customer_acceptance(customer_acceptance)
+    })
 }
 
 /// Currency of the future payments, required by Stripe for Klarna SetupIntents
@@ -6796,10 +6764,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_data.as_ref(),
         );
         let setup_mandate_details = get_setup_intent_mandate_details(&item.router_data.request);
-        // A SetupIntent without `usage` is set up for off-session use (Stripe's default)
         validate_off_session_mandate(
             payment_method_types.as_ref(),
-            setup_future_usage.or(Some(common_enums::FutureUsage::OffSession)),
+            setup_future_usage,
             setup_mandate_details.as_ref(),
             "customer_acceptance",
         )?;
