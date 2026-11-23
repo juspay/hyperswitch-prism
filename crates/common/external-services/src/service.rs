@@ -1569,7 +1569,8 @@ pub async fn call_connector_api(
     let headers = request.headers.construct_header_map()?;
 
     // Only a GET is safe to send again after the connection closed mid-request
-    let resend_on_connection_closed = request.method == Method::Get;
+    let method = request.method;
+    let resend_on_connection_closed = method == Method::Get;
 
     // Process and log the request body based on content type
     let request = {
@@ -1722,11 +1723,27 @@ pub async fn call_connector_api(
 
     if retried {
         #[cfg(feature = "otel")]
-        crate::otel_metrics::record_auto_retry_connection_closed(&connector_host);
+        crate::otel_metrics::record_auto_retry_connection_closed(
+            &connector_host,
+            &method.to_string(),
+        );
         tracing::info!(
             connector = %connector_host,
+            %method,
             retry_received_http_response = response.is_ok(),
             "Auto-retried request due to connection closed before message completed"
+        );
+    } else if matches!(&response, Err(error) if error.current_context() == &ApiClientError::ConnectionClosedIncompleteMessage)
+    {
+        #[cfg(feature = "otel")]
+        crate::otel_metrics::record_connection_closed_not_resent(
+            &connector_host,
+            &method.to_string(),
+        );
+        tracing::info!(
+            connector = %connector_host,
+            %method,
+            "Not re-sending request after connection closed before message completed"
         );
     }
 
