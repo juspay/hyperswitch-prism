@@ -1051,8 +1051,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by moneris connector"
+        "status": "error",
+        "error": "Failed to obtain authentication type. Moneris requires an OAuth access token on `resource_common_data.access_token`, but it was None."
       }
     },
     "setup_recurring": {
