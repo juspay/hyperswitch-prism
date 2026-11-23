@@ -544,8 +544,29 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: return_url — Missing required field: return_url"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              },
+              "return_url": "https://example.com/return"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions/secureFields",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"returnUrl\":\"https://example.com/return\"}"
+        }
       }
     },
     "create_order": {
