@@ -193,7 +193,7 @@ impl
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SantanderAccessTokenResponse {
-    pub access_token: String,
+    pub access_token: Secret<String>,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
 }
