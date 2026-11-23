@@ -13,6 +13,7 @@ pub mod cybersource;
 pub mod dlocal;
 pub mod ecommpay;
 pub mod finix;
+pub mod fiuu;
 pub mod flywire;
 pub mod givepayments;
 pub mod grabpay;
@@ -36,9 +37,9 @@ pub use self::{
     absa_sanlam::AbsaSanlam, adyen::Adyen, authorizedotnet::Authorizedotnet,
     betterpayment::Betterpayment, bluesnap::Bluesnap, boost::Boost, braintree::Braintree,
     calida::Calida, cashtocode::Cashtocode, checkout::Checkout, cryptopay::Cryptopay,
-    cybersource::Cybersource, dlocal::Dlocal, ecommpay::Ecommpay, finix::Finix, flywire::Flywire,
-    givepayments::Givepayments, grabpay::Grabpay, hyperswitch::Hyperswitch, maya::Maya,
-    nexixpay::Nexixpay, payhere::Payhere, payload::Payload, paypal::Paypal, phonepe::Phonepe,
-    ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot, revolut::Revolut, stripe::Stripe,
-    tamara::Tamara, trustpay::Trustpay, worldpayxml::Worldpayxml,
+    cybersource::Cybersource, dlocal::Dlocal, ecommpay::Ecommpay, finix::Finix, fiuu::Fiuu,
+    flywire::Flywire, givepayments::Givepayments, grabpay::Grabpay, hyperswitch::Hyperswitch,
+    maya::Maya, nexixpay::Nexixpay, payhere::Payhere, payload::Payload, paypal::Paypal,
+    phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd, razorpay::Razorpay, reddot::Reddot,
+    revolut::Revolut, stripe::Stripe, tamara::Tamara, trustpay::Trustpay, worldpayxml::Worldpayxml,
 };

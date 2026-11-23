@@ -16,11 +16,10 @@ use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
         ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
-        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -51,6 +50,7 @@ use transformers::{
 };
 
 use super::macros;
+use crate::webhooks::fiuu::Fiuu as FiuuWebhook;
 use crate::{
     finalize_connector_response, types::ResponseRouterData,
     utils::xml_utils::flatten_json_structure, with_error_response_body,
@@ -842,33 +842,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
-        if request.body.is_empty() {
-            return Ok(EventType::EndpointVerification);
-        }
-        let header = request
-            .headers
-            .get("content-type")
-            .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
-
-        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
-                .change_context(WebhookError::WebhookBodyDecodingFailed)?
-        } else {
-            request
-                .body
-                .parse_struct("fiuu::FiuuWebhooksResponse")
-                .change_context(WebhookError::WebhookBodyDecodingFailed)?
-        };
-
-        match resource {
-            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => {
-                Ok(EventType::from(webhooks_payment_response.status))
-            }
-            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
-                Ok(EventType::from(webhooks_refunds_response.status))
-            }
-        }
+        // Delegates to the webhook parser so HandleEvent and ParseEvent share one implementation.
+        interfaces::webhooks::IncomingWebhookEventParser::<T>::get_event_type(
+            FiuuWebhook::<T>::new(),
+            request,
+        )
     }
 
     fn get_webhook_resource_object(
@@ -905,49 +883,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Ok(resource)
             }
         }
-    }
-
-    fn get_webhook_event_reference(
-        &self,
-        request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
-        let header = request
-            .headers
-            .get("content-type")
-            .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
-
-        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
-                .change_context(WebhookError::WebhookResourceObjectNotFound)?
-        } else {
-            request
-                .body
-                .parse_struct("fiuu::FiuuWebhooksResponse")
-                .change_context(WebhookError::WebhookResourceObjectNotFound)?
-        };
-
-        let reference = match payload {
-            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(p) => {
-                WebhookResourceReference::Payment(PaymentWebhookReference {
-                    connector_transaction_id: Some(p.tran_id),
-                    // order_id is the merchant-assigned order reference echoed back by Fiuu.
-                    merchant_transaction_id: Some(p.order_id),
-                    connector_preprocessing_id: None,
-                })
-            }
-            FiuuWebhooksResponse::FiuuWebhookRefundResponse(r) => {
-                WebhookResourceReference::Refund(RefundWebhookReference {
-                    connector_refund_id: Some(r.refund_id),
-                    merchant_refund_id: None,
-                    // txn_id is the connector ID of the original payment.
-                    connector_transaction_id: Some(r.txn_id),
-                    merchant_transaction_id: None,
-                })
-            }
-        };
-
-        Ok(Some(reference))
     }
 
     fn process_payment_webhook(
