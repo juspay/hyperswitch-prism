@@ -38,6 +38,7 @@ pub mod reddot;
 pub mod revolut;
 pub mod stripe;
 pub mod tamara;
+pub mod truelayer;
 pub mod trustpay;
 pub mod worldpayxml;
 pub use self::{
@@ -50,5 +51,5 @@ pub use self::{
     noon::Noon, novalnet::Novalnet, nuvei::Nuvei, payhere::Payhere, payload::Payload,
     paypal::Paypal, peachpayments::Peachpayments, phonepe::Phonepe, ppro::Ppro, rapyd::Rapyd,
     razorpay::Razorpay, reddot::Reddot, revolut::Revolut, stripe::Stripe, tamara::Tamara,
-    trustpay::Trustpay, worldpayxml::Worldpayxml,
+    truelayer::Truelayer, trustpay::Trustpay, worldpayxml::Worldpayxml,
 };
