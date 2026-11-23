@@ -1721,13 +1721,12 @@ pub async fn call_connector_api(
     )
     .await;
 
-    let method_label = method.to_string();
     if retried {
-        metrics::AUTO_RETRY_CONNECTION_CLOSED
-            .with_label_values(&[&connector_host, &method_label])
-            .inc();
         #[cfg(feature = "otel")]
-        crate::otel_metrics::record_auto_retry_connection_closed(&connector_host, &method_label);
+        crate::otel_metrics::record_auto_retry_connection_closed(
+            &connector_host,
+            &method.to_string(),
+        );
         tracing::info!(
             connector = %connector_host,
             %method,
@@ -1736,11 +1735,11 @@ pub async fn call_connector_api(
         );
     } else if matches!(&response, Err(error) if error.current_context() == &ApiClientError::ConnectionClosedIncompleteMessage)
     {
-        metrics::CONNECTION_CLOSED_NOT_RESENT
-            .with_label_values(&[&connector_host, &method_label])
-            .inc();
         #[cfg(feature = "otel")]
-        crate::otel_metrics::record_connection_closed_not_resent(&connector_host, &method_label);
+        crate::otel_metrics::record_connection_closed_not_resent(
+            &connector_host,
+            &method.to_string(),
+        );
         tracing::info!(
             connector = %connector_host,
             %method,

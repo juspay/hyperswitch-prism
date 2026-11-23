@@ -58,18 +58,6 @@ lazy_static! {
         &["method", "service", "connector", "error"]
     )
     .unwrap();
-    pub static ref AUTO_RETRY_CONNECTION_CLOSED: IntCounterVec = register_int_counter_vec!(
-        "AUTO_RETRY_CONNECTION_CLOSED",
-        "Requests sent again after connection closed before message completed",
-        &["connector", "method"]
-    )
-    .unwrap();
-    pub static ref CONNECTION_CLOSED_NOT_RESENT: IntCounterVec = register_int_counter_vec!(
-        "CONNECTION_CLOSED_NOT_RESENT",
-        "Requests not sent again after connection closed before message completed",
-        &["connector", "method"]
-    )
-    .unwrap();
     // Superposition policy resolution — one counter per consumer × outcome, the way
     // hyperswitch counts each rung of its config ladder. `consumer` is
     // connector_urls | sampler; `outcome` is hit | miss | key_missing | error |
