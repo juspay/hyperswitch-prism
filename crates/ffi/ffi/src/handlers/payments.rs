@@ -361,16 +361,8 @@ pub fn parse_event_handler(
     environment: Option<Environment>,
 ) -> Result<grpc_api_types::payments::EventServiceParseResponse, IntegrationError> {
     let config = get_config(environment)?;
-    let connector = request
-        .extracted_metadata
-        .connector
-        .as_payment()
-        .ok_or_else(|| IntegrationError {
-            error_message: "Invalid connector type for this flow".to_string(),
-            error_code: "INVALID_CONNECTOR_TYPE".to_string(),
-            suggested_action: None,
-            doc_url: None,
-        })?;
+    // Payment, payout and FRM connectors all resolve to a webhook parser in the transformer.
+    let connector = request.extracted_metadata.connector.clone();
     crate::services::payments::parse_event_transformer(
         request.payload,
         &config,

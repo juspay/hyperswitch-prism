@@ -775,7 +775,7 @@ pub fn get_webhook_sample_body(
 pub fn parse_event_transformer(
     payload: grpc_api_types::payments::EventServiceParseRequest,
     _config: &std::sync::Arc<ucs_env::configs::Config>,
-    connector: domain_types::connector_types::ConnectorEnum,
+    connector: domain_types::connector_types::ConnectorVariant,
     _connector_config: Option<domain_types::router_data::ConnectorSpecificConfig>,
     _metadata: &common_utils::metadata::MaskedMetadata,
 ) -> Result<grpc_api_types::payments::EventServiceParseResponse, IntegrationError> {
