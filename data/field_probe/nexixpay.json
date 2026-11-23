@@ -516,8 +516,30 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: return_url. Nexi XPay /orders/hpp marks both `paymentSession.resultUrl` and `paymentSession.cancelUrl` as REQUIRED; without `return_url` the hosted payment session — Missing required field: return_url. Nexi XPay /orders/hpp marks both `paymentSession.resultUrl` and `paymentSession.cancelUrl` as REQUIRED; without `return_url` the hosted payment session (ClientAuthenticationToken flow) cannot be initialized."
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              },
+              "return_url": "https://example.com/return"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/hpp",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"probe_sdk628a808fa\",\"amount\":\"1000\",\"currency\":\"USD\"},\"paymentSession\":{\"actionType\":\"PAY\",\"amount\":\"1000\",\"recurrence\":{\"action\":\"NO_RECURRING\"},\"resultUrl\":\"https://example.com/return\",\"cancelUrl\":\"https://example.com/return\",\"notificationUrl\":null}}"
+        }
       }
     },
     "create_order": {

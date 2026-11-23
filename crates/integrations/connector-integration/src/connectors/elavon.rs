@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod test;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -7,11 +9,15 @@ use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment,
+        SetupMandate, Void, VoidPC,
+    },
     connector_types::{
-        ConnectorSpecifications, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        ConnectorSpecifications, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData,
+        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -26,9 +32,12 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as elavon, ElavonCaptureResponse, ElavonPSyncResponse, ElavonPaymentsResponse,
-    ElavonRSyncResponse, ElavonRefundResponse, ElavonRepeatPaymentResponse, XMLCaptureRequest,
-    XMLElavonRequest, XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest, XMLRepeatPaymentRequest,
+    self as elavon, ElavonCaptureResponse, ElavonIncrementalAuthorizationResponse,
+    ElavonPSyncResponse, ElavonPaymentsResponse, ElavonRSyncResponse, ElavonRefundResponse,
+    ElavonRepeatPaymentResponse, ElavonSetupMandateResponse, ElavonVoidPCResponse,
+    ElavonVoidResponse, XMLCaptureRequest, XMLElavonRequest, XMLIncrementalAuthorizationRequest,
+    XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest, XMLRepeatPaymentRequest,
+    XMLSetupMandateRequest, XMLVoidPCRequest, XMLVoidRequest,
 };
 
 use super::macros;
@@ -88,6 +97,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Elavon<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Elavon<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Elavon<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Elavon<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentIncrementalAuthorization for Elavon<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -235,6 +260,18 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
+            flow: Void,
+            request_body: XMLVoidRequest,
+            response_body: ElavonVoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: XMLVoidPCRequest,
+            response_body: ElavonVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ),
+        (
             flow: Refund,
             request_body: XMLRefundRequest,
             response_body: ElavonRefundResponse,
@@ -251,6 +288,18 @@ macros::create_all_prerequisites!(
             request_body: XMLRepeatPaymentRequest,
             response_body: ElavonRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: XMLSetupMandateRequest,
+            response_body: ElavonSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: XMLIncrementalAuthorizationRequest,
+            response_body: ElavonIncrementalAuthorizationResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -476,6 +525,138 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type],
+    connector: Elavon,
+    curl_request: FormUrlEncoded(XMLVoidRequest),
+    curl_response: ElavonVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}processxml.do",
+                req.resource_common_data.connectors.elavon.base_url
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type],
+    connector: Elavon,
+    curl_request: FormUrlEncoded(XMLVoidPCRequest),
+    curl_response: ElavonVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}processxml.do",
+                req.resource_common_data.connectors.elavon.base_url
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type],
+    connector: Elavon,
+    curl_request: FormUrlEncoded(XMLSetupMandateRequest),
+    curl_response: ElavonSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}processxml.do",
+                req.resource_common_data.connectors.elavon.base_url
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type],
+    connector: Elavon,
+    curl_request: FormUrlEncoded(XMLIncrementalAuthorizationRequest),
+    curl_response: ElavonIncrementalAuthorizationResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}processxml.do",
+                req.resource_common_data.connectors.elavon.base_url
+            ))
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Elavon<T>
 {
@@ -486,15 +667,11 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        Void,
-        SetupMandate,
         PaymentMethodToken,
         MandateRevoke,
-        VoidPC,
     ],
     not_supported: [
         VoidPostRefund,
-        IncrementalAuthorization,
         CreateOrder,
         Accept,
         SubmitEvidence,

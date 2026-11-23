@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.23.0
+
+### Bug Fixes
+
+- **connector:** [Adyen] combine outcome, reference, webhook, ECI, RepeatPayment and alignment fixes ([#2904](https://github.com/juspay/connector-service/pull/2904)) ([`6e74579`](https://github.com/juspay/connector-service/commit/6e7457974c5081598dba33eb6cdbc81a1f33b367))
+
+### Testing
+
+- **framework:** Add minimal Lean spec for authorize status ([#2916](https://github.com/juspay/connector-service/pull/2916)) ([`68392ac`](https://github.com/juspay/connector-service/commit/68392aca20a81dc14d3c4843d7437e9a9a042b68))
+
+**Full Changelog:** [`2026.11.21.0...2026.11.23.0`](https://github.com/juspay/connector-service/compare/2026.11.21.0...2026.11.23.0)
+
+- - -
+
 ## 2026.11.21.0
 
 ### Features
