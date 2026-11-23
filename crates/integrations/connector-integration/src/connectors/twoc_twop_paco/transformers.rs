@@ -1773,50 +1773,72 @@ where
                             )
                         })?;
                     let status = map_attempt_status(&info.payment_status, &info.payment_step);
-                    let redirection_data =
-                        if let Some(challenge) = block.ares_acs_challenge.as_ref() {
-                            let acs_url = challenge.acs_url.clone().unwrap_or_default();
-                            let mut form_fields: HashMap<String, String> = HashMap::new();
-                            if let Some(creq) = &challenge.raw_creq {
-                                form_fields.insert("creq".to_string(), creq.peek().clone());
+                    let redirection_data = if let Some(challenge) =
+                        block.ares_acs_challenge.as_ref()
+                    {
+                        let acs_url = challenge
+                            .acs_url
+                            .clone()
+                            .filter(|url| !url.trim().is_empty());
+                        match (acs_url, challenge.challenge_html.as_ref()) {
+                            (Some(acs_url), _) => {
+                                let mut form_fields: HashMap<String, String> = HashMap::new();
+                                if let Some(creq) = &challenge.raw_creq {
+                                    form_fields.insert("creq".to_string(), creq.peek().clone());
+                                }
+                                if let Some(session_data) = &challenge.three_ds_session_data {
+                                    form_fields.insert(
+                                        "threeDSSessionData".to_string(),
+                                        session_data.peek().clone(),
+                                    );
+                                }
+                                Some(Box::new(RedirectForm::Form {
+                                    endpoint: acs_url,
+                                    method: Method::Post,
+                                    form_fields,
+                                }))
                             }
-                            if let Some(session_data) = &challenge.three_ds_session_data {
-                                form_fields.insert(
-                                    "threeDSSessionData".to_string(),
-                                    session_data.peek().clone(),
-                                );
+                            (None, Some(html)) => Some(Box::new(RedirectForm::Html {
+                                html_data: html.peek().clone(),
+                            })),
+                            (None, None) => {
+                                return Err(error_stack::report!(
+                                        errors::ConnectorError::response_deserialization_failed_with_context(
+                                            http_code,
+                                            Some(
+                                                "twoc_twop_paco: aresACSChallenge has neither acsURL nor challengeHTML"
+                                                    .to_string(),
+                                            ),
+                                        )
+                                    ));
                             }
-                            Some(Box::new(RedirectForm::Form {
-                                endpoint: acs_url,
-                                method: Method::Post,
-                                form_fields,
-                            }))
-                        } else {
-                            let url = block
-                                .web_payment_url
-                                .clone()
-                                .or_else(|| {
-                                    response
-                                        .data
-                                        .as_ref()
-                                        .and_then(|d| d.payment_page.as_ref())
-                                        .and_then(|p| p.payment_page_url.clone())
-                                })
-                                .or_else(|| {
-                                    block
-                                        .payment_page
-                                        .as_ref()
-                                        .and_then(|p| p.payment_page_url.clone())
-                                })
-                                .or_else(|| block.payment_page_url.clone());
-                            url.map(|endpoint| {
-                                Box::new(RedirectForm::Form {
-                                    endpoint,
-                                    method: Method::Get,
-                                    form_fields: HashMap::new(),
-                                })
+                        }
+                    } else {
+                        let url = block
+                            .web_payment_url
+                            .clone()
+                            .or_else(|| {
+                                response
+                                    .data
+                                    .as_ref()
+                                    .and_then(|d| d.payment_page.as_ref())
+                                    .and_then(|p| p.payment_page_url.clone())
                             })
-                        };
+                            .or_else(|| {
+                                block
+                                    .payment_page
+                                    .as_ref()
+                                    .and_then(|p| p.payment_page_url.clone())
+                            })
+                            .or_else(|| block.payment_page_url.clone());
+                        url.map(|endpoint| {
+                            Box::new(RedirectForm::Form {
+                                endpoint,
+                                method: Method::Get,
+                                form_fields: HashMap::new(),
+                            })
+                        })
+                    };
                     (
                         status,
                         redirection_data,
