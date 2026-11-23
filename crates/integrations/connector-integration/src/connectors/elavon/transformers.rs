@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use common_enums::{AttemptStatus, AuthorizationStatus, CaptureMethod, Currency, FutureUsage};
-use common_utils::{consts::NO_ERROR_CODE, types::StringMajorUnit};
+use common_utils::{
+    consts::NO_ERROR_CODE,
+    types::{ConnectorMinorUnit, ConnectorMinorUnitForConnector, StringMajorUnit},
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment,
@@ -2214,11 +2217,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request_data = &router_data.request;
 
         // ccgettoken takes no amount, so a non-zero setup would report a charge that never happened.
-        if request_data
-            .money
-            .as_ref()
-            .is_some_and(|money| money.amount() > common_utils::types::MinorUnit::zero())
-        {
+        if request_data.money.as_ref().is_some_and(|money| {
+            ConnectorMinorUnitForConnector.convert(money) > ConnectorMinorUnit::zero()
+        }) {
             return Err(report!(IntegrationError::FlowNotSupported {
                 flow: "SetupMandate with a non-zero amount".to_string(),
                 connector: "Elavon".to_string(),
@@ -2512,9 +2513,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(format!(
-                        "Failed to convert additional amount {} {} to major unit for \
+                        "Failed to convert additional amount in {} to major unit for \
                          Elavon IncrementalAuthorization (ccauthonly) request",
-                        additional_amount.amount(),
                         additional_amount.currency()
                     )),
                     ..Default::default()

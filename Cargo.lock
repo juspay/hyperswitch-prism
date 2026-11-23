@@ -1604,6 +1604,7 @@ dependencies = [
  "serde_with",
  "sha2",
  "strum 0.26.3",
+ "syn 2.0.117",
  "thiserror 1.0.69",
  "time",
  "tracing",

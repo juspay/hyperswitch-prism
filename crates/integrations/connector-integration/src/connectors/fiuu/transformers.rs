@@ -9,7 +9,7 @@ use common_utils::{
     ext_traits::Encode,
     pii::Email,
     request::{Method, MultipartData},
-    types::StringMajorUnit,
+    types::{AmountConvertor, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
@@ -223,29 +223,8 @@ impl TryFrom<BankNames> for FPXTxnChannel {
 
 #[derive(Serialize, Debug, Clone)]
 pub struct FiuuMandateRequest {
-    #[serde(rename = "0", serialize_with = "serialize_recurring_record")]
-    mandate_request: Secret<FiuuRecurringRecord>,
-}
-
-#[derive(Debug, Clone)]
-struct FiuuRecurringRecord {
-    prefix: Secret<String>,
-    amount: StringMajorUnit,
-    suffix: Secret<String>,
-}
-
-fn serialize_recurring_record<S: serde::Serializer>(
-    record: &Secret<FiuuRecurringRecord>,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    let record = record.peek();
-    let mut bytes = record.prefix.peek().as_bytes().to_vec();
-    crypto::SignatureValue::update_signature(&record.amount, &mut |amount| {
-        bytes.extend_from_slice(amount)
-    });
-    bytes.extend_from_slice(record.suffix.peek().as_bytes());
-    let value = std::str::from_utf8(&bytes).map_err(serde::ser::Error::custom)?;
-    serializer.serialize_str(value)
+    #[serde(rename = "0")]
+    mandate_request: Secret<String>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -255,7 +234,7 @@ pub struct FiuuRecurringRequest {
     token: Secret<String>,
     order_id: String,
     currency: Currency,
-    amount: StringMajorUnit,
+    amount: common_utils::types::StringMajorUnitWithTwoDecimals,
     billing_name: Secret<String>,
     email: Email,
     verify_key: Secret<String>,
@@ -299,10 +278,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let currency = item.router_data.request.currency;
-        let amount = item
-            .connector
-            .amount_converter
+        let currency = item.router_data.request.money.currency();
+        let amount = common_utils::types::StringMajorUnitWithTwoDecimalsForConnector
             .convert(&item.router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
@@ -339,25 +316,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             verify_key: verify_key.clone(),
         };
         let check_sum = calculate_check_sum(recurring_request)?;
-        Ok(Self {
-            mandate_request: Secret::new(FiuuRecurringRecord {
-                prefix: Secret::new(format!(
-                    "{}|{}||{}|{}|{}|",
-                    record_type,
-                    merchant_id.peek(),
-                    token.peek(),
-                    order_id,
-                    currency
-                )),
-                amount,
-                suffix: Secret::new(format!(
-                    "|{}|{}|||{}",
-                    billing_name.peek(),
-                    email.peek(),
-                    check_sum.peek()
-                )),
-            }),
-        })
+        let prefix = format!(
+            "{}|{}||{}|{}|{}|",
+            record_type,
+            merchant_id.peek(),
+            token.peek(),
+            order_id,
+            currency
+        );
+        let suffix = format!(
+            "|{}|{}|||{}",
+            billing_name.peek(),
+            email.peek(),
+            check_sum.peek()
+        );
+        let mandate_request =
+            common_utils::request::encode_secret_fields(&[&prefix, &amount, &suffix])
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?;
+        Ok(Self { mandate_request })
     }
 }
 

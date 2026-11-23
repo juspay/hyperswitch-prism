@@ -427,7 +427,7 @@ pub struct MerchantInitiatedTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub previous_transaction_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub original_authorized_amount: Option<String>,
+    pub original_authorized_amount: Option<StringMajorUnit>,
 }
 
 #[derive(Debug, Serialize)]

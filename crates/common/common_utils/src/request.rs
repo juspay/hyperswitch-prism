@@ -5,6 +5,17 @@ use utoipa::ToSchema;
 
 pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 
+/// Concatenates typed wire fields into secret text for normal request serialization.
+pub fn encode_secret_fields(
+    fields: &[&dyn crate::crypto::SignatureValue],
+) -> Result<Secret<String>, std::str::Utf8Error> {
+    let mut bytes = Vec::new();
+    crate::crypto::update_signature(fields, |field| bytes.extend_from_slice(field));
+    String::from_utf8(bytes)
+        .map(Secret::new)
+        .map_err(|error| error.utf8_error())
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum RequestError {
     #[error("Multipart rendering failed: {0}")]

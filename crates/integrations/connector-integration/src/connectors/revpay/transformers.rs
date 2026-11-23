@@ -7,9 +7,8 @@ use common_utils::{
     errors::ParsingError,
     pii::Email,
     types::{
-        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, Money, StringMajorUnit,
-        StringMajorUnitForConnector, StringMajorUnitWithTwoDecimals,
-        StringMajorUnitWithTwoDecimalsForConnector,
+        AmountConvertor, Money, StringMajorUnit, StringMajorUnitForConnector,
+        StringMajorUnitWithTwoDecimals, StringMajorUnitWithTwoDecimalsForConnector,
     },
 };
 use domain_types::{
@@ -904,35 +903,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // RESPONSE TYPES
 // =============================================================================
 
-/// RevPay JSON responses may echo amounts as strings or numbers. Both variants
-/// use shared money types and their converters. Form webhooks use StringMajorUnit
-/// directly so signature verification preserves the received amount text.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum RevpayAmount {
-    Text(StringMajorUnit),
-    Number(FloatMajorUnit),
-}
-
-impl RevpayAmount {
-    fn to_money(&self, currency: Currency) -> Result<Money, error_stack::Report<ParsingError>> {
-        match self {
-            Self::Text(amount) => {
-                StringMajorUnitForConnector.convert_back(amount.clone(), currency)
-            }
-            Self::Number(amount) => FloatMajorUnitForConnector.convert_back(*amount, currency),
-        }
-    }
-}
-
-impl common_utils::crypto::SignatureValue for RevpayAmount {
-    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
-        match self {
-            Self::Text(amount) => amount.update_signature(update),
-            Self::Number(amount) => amount.update_signature(update),
-        }
-    }
-}
+pub use common_utils::types::StringOrNumberMajorUnit as RevpayAmount;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevpayPaymentsResponse {

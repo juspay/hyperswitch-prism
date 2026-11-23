@@ -719,11 +719,6 @@ impl OrderDetailsWithAmount {
             .ok_or_else(missing_field_err("order_details[].sku"))
     }
 
-    /// Line total: the explicit `total_amount` when present, else the unit `amount`.
-    pub fn get_total_amount(&self) -> MinorUnit {
-        self.total_amount.unwrap_or_else(|| self.money.amount())
-    }
-
     /// Product type (`item_type`/`type` on most connector line items).
     pub fn get_product_type(&self) -> Result<ProductType, Error> {
         self.product_type
@@ -739,23 +734,6 @@ impl OrderDetailsWithAmount {
     /// Product image URL (`image_url` on most connector line items).
     pub fn get_optional_product_img_link(&self) -> Option<String> {
         self.product_img_link.clone()
-    }
-
-    /// Unit price (`amount` is per-quantity, `unit_price` on most connector line items).
-    pub fn get_unit_amount(&self) -> MinorUnit {
-        self.money.amount()
-    }
-
-    /// Discount amount on the unit, in minor units (`discount_amount` on most connector
-    /// line items).
-    pub fn get_optional_unit_discount_amount(&self) -> Option<MinorUnit> {
-        self.unit_discount_amount
-    }
-
-    /// Total tax amount for the line, in minor units (`tax_amount` on most connector
-    /// line items).
-    pub fn get_optional_total_tax_amount(&self) -> Option<MinorUnit> {
-        self.total_tax_amount
     }
 
     /// The payment argument is retained for compatibility; unit currency is already bound.

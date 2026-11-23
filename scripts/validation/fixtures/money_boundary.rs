@@ -9,6 +9,7 @@ use common_enums::Currency;
 #[cfg(feature = "domain_boundary")]
 use common_utils::types::MinorUnit;
 use common_utils::types::{AmountConvertor, ConnectorMinorUnitForConnector, Money};
+use domain_types::payment_address::OrderDetailsWithAmount;
 
 #[cfg(feature = "float_major_read")]
 pub fn float_major_read(amount: common_utils::FloatMajorUnit) {
@@ -82,8 +83,8 @@ pub fn money_currency_read(money: &Money) {
 }
 
 #[cfg(feature = "money_amount_write")]
-pub fn money_amount_write(money: &mut Money) {
-    money.amount = Default::default();
+pub fn money_amount_write(money: &mut Money, source: &Money) {
+    money.amount = source.amount;
 }
 
 #[cfg(feature = "money_currency_write")]
@@ -185,8 +186,13 @@ pub fn currencyless_order_mapper(proto: grpc_api_types::payments::OrderDetailsWi
 }
 
 #[cfg(feature = "percentage_ratio")]
-pub fn percentage_ratio() -> Option<common_utils::types::Percentage> {
-    common_utils::types::Percentage::from_minor_unit_ratio(Default::default(), Default::default())
+pub fn percentage_ratio(
+    source: &OrderDetailsWithAmount,
+) -> Option<common_utils::types::Percentage> {
+    common_utils::types::Percentage::from_minor_unit_ratio(
+        source.total_amount?,
+        source.total_amount?,
+    )
 }
 
 #[cfg(feature = "domain_boundary")]
@@ -200,7 +206,9 @@ pub fn connector_pass(money: &Money) {
     let float_converter = common_utils::FloatMajorUnitForConnector;
     let float_amount = float_converter.convert(money).unwrap();
     let _ = float_amount.is_positive();
-    let _ = float_converter.convert_back(float_amount, money.currency()).unwrap();
+    let _ = float_converter
+        .convert_back(float_amount, money.currency())
+        .unwrap();
     let _zero = Money::zero(money.currency());
     let _one_minor_unit = Money::one_minor_unit(money.currency());
     let amount: common_utils::types::ConnectorMinorUnit =
@@ -269,25 +277,28 @@ pub fn string_two_decimal_getter(amount: &common_utils::types::StringTwoDecimalU
 }
 
 #[cfg(feature = "boundary_expect")]
-pub fn boundary_expect(currency: Currency) -> Money {
+pub fn boundary_expect(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
     #[expect(
         clippy::disallowed_methods,
         reason = "Attempted exception must fail under the L3 forbid policy"
     )]
-    let money = common_utils::types::Money::from_minor_unit(Default::default(), currency);
+    let money = common_utils::types::Money::from_minor_unit(source.total_amount.unwrap(), currency);
     money
 }
 
 #[cfg(feature = "boundary_expect_scope")]
-pub fn boundary_expect_scope(currency: Currency) -> (Money, Money) {
+pub fn boundary_expect_scope(
+    source: &OrderDetailsWithAmount,
+    currency: Currency,
+) -> (Money, Money) {
     #[expect(
         clippy::disallowed_methods,
         reason = "Attempted exception must fail under the L3 forbid policy"
     )]
     let legacy_money =
-        common_utils::types::Money::from_minor_unit(Default::default(), currency);
+        common_utils::types::Money::from_minor_unit(source.total_amount.unwrap(), currency);
     let unapproved_money =
-        common_utils::types::Money::from_minor_unit(Default::default(), currency);
+        common_utils::types::Money::from_minor_unit(source.total_amount.unwrap(), currency);
     (legacy_money, unapproved_money)
 }
 
@@ -302,15 +313,15 @@ pub fn obsolete_boundary_expect(currency: Currency) -> Money {
 }
 
 #[cfg(feature = "boundary_allow")]
-pub fn boundary_allow(currency: Currency) -> Money {
+pub fn boundary_allow(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
     #[allow(clippy::disallowed_methods, clippy::disallowed_types)]
-    let money = common_utils::types::Money::from_minor_unit(Default::default(), currency);
+    let money = common_utils::types::Money::from_minor_unit(source.total_amount.unwrap(), currency);
     money
 }
 
 #[cfg(all(test, feature = "boundary_in_tests"))]
-pub fn boundary_in_tests(currency: Currency) -> Money {
-    common_utils::types::Money::from_minor_unit(Default::default(), currency)
+pub fn boundary_in_tests(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
+    common_utils::types::Money::from_minor_unit(source.total_amount.unwrap(), currency)
 }
 
 #[cfg(feature = "private_constructor")]
@@ -319,42 +330,42 @@ pub fn private_constructor(source: &Money, currency: Currency) -> Money {
 }
 
 #[cfg(feature = "private_fields")]
-pub fn private_fields(currency: Currency) -> Money {
+pub fn private_fields(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
     Money {
-        amount: Default::default(),
+        amount: source.total_amount.unwrap(),
         currency,
     }
 }
 
 #[cfg(feature = "boundary_direct")]
-pub fn boundary_direct(currency: Currency) -> Money {
-    common_utils::money::Money::from_minor_unit(Default::default(), currency)
+pub fn boundary_direct(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
+    common_utils::money::Money::from_minor_unit(source.total_amount.unwrap(), currency)
 }
 
 #[cfg(feature = "boundary_alias")]
-pub fn boundary_alias(currency: Currency) -> Money {
+pub fn boundary_alias(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
     use common_utils::Money as Factory;
-    Factory::from_minor_unit(Default::default(), currency)
+    Factory::from_minor_unit(source.total_amount.unwrap(), currency)
 }
 
 #[cfg(feature = "boundary_pointer")]
-pub fn boundary_pointer(currency: Currency) -> Money {
+pub fn boundary_pointer(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
     let create = common_utils::types::Money::from_minor_unit;
-    create(Default::default(), currency)
+    create(source.total_amount.unwrap(), currency)
 }
 
 #[cfg(feature = "boundary_type_alias")]
-pub fn boundary_type_alias(currency: Currency) -> Money {
+pub fn boundary_type_alias(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
     type Factory = common_utils::types::Money;
-    Factory::from_minor_unit(Default::default(), currency)
+    Factory::from_minor_unit(source.total_amount.unwrap(), currency)
 }
 
 #[cfg(feature = "boundary_reexport")]
-pub fn boundary_reexport(currency: Currency) -> Money {
+pub fn boundary_reexport(source: &OrderDetailsWithAmount, currency: Currency) -> Money {
     mod facade {
         pub use common_utils::types::Money as Factory;
     }
-    facade::Factory::from_minor_unit(Default::default(), currency)
+    facade::Factory::from_minor_unit(source.total_amount.unwrap(), currency)
 }
 
 #[cfg(feature = "proto_trait")]
@@ -390,10 +401,10 @@ pub fn domain_minor_converter(money: &Money) {
 }
 
 #[cfg(feature = "inferred_domain_minor_unit")]
-pub fn inferred_domain_minor_unit(
-    request: &domain_types::payment_address::OrderDetailsWithAmount,
-) {
-    let _ = request.get_total_amount().get_amount_as_i64();
+pub fn inferred_domain_minor_unit(request: &domain_types::payment_address::OrderDetailsWithAmount) {
+    if let Some(amount) = request.total_amount {
+        let _ = amount.get_amount_as_i64();
+    }
 }
 
 #[cfg(feature = "money_amount")]
@@ -404,8 +415,8 @@ pub fn money_amount(money: &Money) {
 #[cfg(feature = "inferred_minor_field_read")]
 pub fn inferred_minor_field_read(
     item: &domain_types::payment_address::OrderDetailsWithAmount,
-) -> i64 {
-    item.get_total_amount().0
+) -> Option<i64> {
+    item.total_amount.map(|amount| amount.0)
 }
 
 #[cfg(feature = "inferred_minor_field_write")]
@@ -420,25 +431,29 @@ pub fn inferred_minor_field_write(
 #[cfg(feature = "inferred_minor_to_string")]
 pub fn inferred_minor_to_string(
     item: &domain_types::payment_address::OrderDetailsWithAmount,
-) -> String {
-    item.get_total_amount().to_string()
+) -> Option<String> {
+    item.total_amount.map(|amount| amount.to_string())
 }
 
 #[cfg(feature = "inferred_minor_display")]
 pub fn inferred_minor_display(
     item: &domain_types::payment_address::OrderDetailsWithAmount,
-) -> String {
-    format!("{}", item.get_total_amount())
+) -> Option<String> {
+    item.total_amount.map(|amount| format!("{amount}"))
 }
 
 #[cfg(feature = "inferred_minor_add")]
 pub fn inferred_minor_add(item: &mut domain_types::payment_address::OrderDetailsWithAmount) {
-    item.total_amount = Some(item.get_total_amount() + item.get_total_amount());
+    if let Some(amount) = item.total_amount {
+        item.total_amount = Some(amount + amount);
+    }
 }
 
 #[cfg(feature = "inferred_minor_mul")]
 pub fn inferred_minor_mul(item: &mut domain_types::payment_address::OrderDetailsWithAmount) {
-    item.total_amount = Some(item.get_total_amount() * 2_u16);
+    if let Some(amount) = item.total_amount {
+        item.total_amount = Some(amount * 2_u16);
+    }
 }
 
 #[cfg(feature = "inferred_minor_sub")]
@@ -446,10 +461,14 @@ pub fn inferred_minor_sub(
     item: &mut domain_types::payment_address::OrderDetailsWithAmount,
     other: &domain_types::payment_address::OrderDetailsWithAmount,
 ) {
-    item.total_amount = Some(item.get_total_amount() - other.get_total_amount());
+    if let (Some(amount), Some(other_amount)) = (item.total_amount, other.total_amount) {
+        item.total_amount = Some(amount - other_amount);
+    }
 }
 
 #[cfg(feature = "inferred_minor_sum")]
 pub fn inferred_minor_sum(item: &mut domain_types::payment_address::OrderDetailsWithAmount) {
-    item.total_amount = Some(std::iter::once(item.get_total_amount()).sum());
+    if let Some(amount) = item.total_amount {
+        item.total_amount = Some(std::iter::once(amount).sum());
+    }
 }

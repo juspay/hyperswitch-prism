@@ -678,10 +678,7 @@ impl Default for PaymentsSyncData {
             mandate_id: Default::default(),
             payment_method_type: Default::default(),
             payment_experience: Default::default(),
-            money: common_utils::types::Money::from_minor_unit(
-                MinorUnit::default(),
-                Default::default(),
-            ),
+            money: common_utils::types::Money::zero(Default::default()),
             all_keys_required: Default::default(),
             integrity_object: Default::default(),
             integrity_specifications: Default::default(),
@@ -3761,14 +3758,8 @@ impl Default for RefundsData {
             webhook_url: Default::default(),
             connector_feature_data: Default::default(),
             refund_connector_metadata: Default::default(),
-            payment_money: common_utils::types::Money::from_minor_unit(
-                MinorUnit::default(),
-                Default::default(),
-            ),
-            refund_money: common_utils::types::Money::from_minor_unit(
-                MinorUnit::default(),
-                Default::default(),
-            ),
+            payment_money: common_utils::types::Money::zero(Default::default()),
+            refund_money: common_utils::types::Money::zero(Default::default()),
             refund_status: Default::default(),
             merchant_account_id: Default::default(),
             capture_method: Default::default(),
@@ -3869,10 +3860,7 @@ impl Default for PaymentsCaptureData {
         Self {
             domain_data: Default::default(),
             payment_method_data: Default::default(),
-            capture_money: common_utils::types::Money::from_minor_unit(
-                MinorUnit::default(),
-                Default::default(),
-            ),
+            capture_money: common_utils::types::Money::zero(Default::default()),
             currency: Default::default(),
             connector_transaction_id: Default::default(),
             multiple_capture_data: Default::default(),

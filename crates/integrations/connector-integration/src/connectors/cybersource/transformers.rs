@@ -42,7 +42,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types,
     router_response_types::{RedirectForm, Response},
-    utils::{to_currency_base_unit, CardIssuer},
+    utils::CardIssuer,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -901,7 +901,7 @@ pub struct MerchantInitiatedTransaction {
     reason: Option<String>,
     previous_transaction_id: Option<Secret<String>>,
     //Required for recurring mandates payment
-    original_authorized_amount: Option<String>,
+    original_authorized_amount: Option<StringMajorUnit>,
 }
 
 #[derive(Debug, Serialize)]
@@ -6421,12 +6421,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         });
 
                     let original_authorized_amount = match original_authorized_amount {
-                        Some((original_amount, _original_currency)) => {
-                            Some(domain_types::utils::get_amount_as_string(
-                                &common_enums::CurrencyUnit::Base,
-                                &original_amount,
-                            )?)
-                        }
+                        Some((original_amount, _original_currency)) => Some(
+                            item.connector
+                                .amount_converter
+                                .convert(&original_amount)
+                                .change_context(IntegrationError::AmountConversionFailed {
+                                    context: Default::default(),
+                                })?,
+                        ),
                         None => None,
                     };
                     (
@@ -6498,9 +6500,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     };
                     let original_authorized_amount = match original_amount.zip(original_currency) {
-                        Some((original_amount, _original_currency)) => {
-                            Some(to_currency_base_unit(&original_amount)?)
-                        }
+                        Some((original_amount, _original_currency)) => Some(
+                            item.connector
+                                .amount_converter
+                                .convert(&original_amount)
+                                .change_context(IntegrationError::AmountConversionFailed {
+                                    context: Default::default(),
+                                })?,
+                        ),
                         None => None,
                     };
                     commerce_indicator = "recurring".to_string();
@@ -6575,9 +6582,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     };
                     let original_authorized_amount = match original_amount.zip(original_currency) {
-                        Some((original_amount, _original_currency)) => {
-                            Some(to_currency_base_unit(&original_amount)?)
-                        }
+                        Some((original_amount, _original_currency)) => Some(
+                            item.connector
+                                .amount_converter
+                                .convert(&original_amount)
+                                .change_context(IntegrationError::AmountConversionFailed {
+                                    context: Default::default(),
+                                })?,
+                        ),
                         None => None,
                     };
                     commerce_indicator = "recurring".to_string();

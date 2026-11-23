@@ -235,7 +235,14 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let amount_text = common_utils::types::PaddedStringMinorUnitForConnector.convert(money, 12);
+        let amount_text = <common_utils::types::StringMinorUnitForConnector as common_utils::types::AmountConvertor>::convert(
+            &common_utils::types::StringMinorUnitForConnector,
+            money,
+        )
+        .map_err(|_| errors::IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        })?
+        .with_zero_padding(12);
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
             money,

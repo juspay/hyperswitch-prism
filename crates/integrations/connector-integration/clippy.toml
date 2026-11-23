@@ -13,6 +13,8 @@ disallowed-types = [
 ]
 
 disallowed-methods = [
+    { path = "domain_types::utils::get_amount_as_string", reason = "Use a typed connector amount converter instead of extracting a raw amount string from domain Money" },
+    { path = "domain_types::utils::to_currency_base_unit", reason = "Use a typed connector amount converter instead of extracting a raw major-unit string from domain Money" },
     { path = "ucs_common_utils::money::ConnectorMinorUnit::get_amount_as_i64", reason = "Retain typed connector amounts through comparison and serialization; monetary calculation belongs in the domain" },
     { path = "ucs_common_utils::money::Percentage::from_minor_unit_ratio", reason = "Derive monetary ratios in the domain; L3 only encodes the resulting percentage" },
     { path = "ucs_common_utils::money::MinorUnit::new", reason = "Do not construct domain minor units in L3; pass domain Money through the connector amount converter" },

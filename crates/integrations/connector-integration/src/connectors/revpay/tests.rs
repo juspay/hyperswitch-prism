@@ -830,7 +830,7 @@ fn redirect_response_processes_json_query_and_preserves_merchant_reference() {
     );
     assert_eq!(response.status, Some(AttemptStatus::Charged));
     let money = response.response_money.expect("redirect integrity money");
-    assert_eq!(money.amount(), MinorUnit::new(5240));
+    assert_eq!(money, response_money("5240", Currency::MYR));
     assert_eq!(money.currency(), Currency::MYR);
     assert_eq!(response.error_code, None);
 }

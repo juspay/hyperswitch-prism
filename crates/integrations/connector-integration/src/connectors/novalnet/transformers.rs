@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::OptionExt,
     pii,
     request::Method,
-    types::{ConnectorMinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, StringMinorUnit, StringOrNumberMinorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -289,19 +289,12 @@ pub struct NovalnetCustom {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(untagged)]
-pub enum NovalNetAmount {
-    StringMinor(StringMinorUnit),
-    Int(i64),
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NovalnetPaymentsRequestTransaction<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     test_mode: i8,
     payment_type: NovalNetPaymentTypes,
-    amount: NovalNetAmount,
+    amount: StringOrNumberMinorUnit,
     currency: common_enums::Currency,
     order_no: String,
     payment_data: Option<NovalNetPaymentData<T>>,
@@ -495,7 +488,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
                     payment_type: NovalNetPaymentTypes::CREDITCARD,
-                    amount: NovalNetAmount::StringMinor(amount.clone()),
+                    amount: StringOrNumberMinorUnit::Text(amount.clone()),
                     currency: item.router_data.request.currency,
                     order_no: item
                         .router_data
@@ -533,7 +526,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::GOOGLEPAY,
-                        amount: NovalNetAmount::StringMinor(amount.clone()),
+                        amount: StringOrNumberMinorUnit::Text(amount.clone()),
                         currency: item.router_data.request.currency,
                         order_no: item
                             .router_data
@@ -565,7 +558,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::APPLEPAY,
-                        amount: NovalNetAmount::StringMinor(amount.clone()),
+                        amount: StringOrNumberMinorUnit::Text(amount.clone()),
                         currency: item.router_data.request.currency,
                         order_no: item
                             .router_data
@@ -593,7 +586,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::PAYPAL,
-                        amount: NovalNetAmount::StringMinor(amount.clone()),
+                        amount: StringOrNumberMinorUnit::Text(amount.clone()),
                         currency: item.router_data.request.currency,
                         order_no: item
                             .router_data
@@ -690,7 +683,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         NovalnetPaymentsRequestTransaction {
                             test_mode,
                             payment_type,
-                            amount: NovalNetAmount::StringMinor(amount.clone()),
+                            amount: StringOrNumberMinorUnit::Text(amount.clone()),
                             currency: item.router_data.request.currency,
                             order_no: item
                                 .router_data
@@ -724,7 +717,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         NovalnetPaymentsRequestTransaction {
                             test_mode,
                             payment_type,
-                            amount: NovalNetAmount::StringMinor(amount.clone()),
+                            amount: StringOrNumberMinorUnit::Text(amount.clone()),
                             currency: item.router_data.request.currency,
                             order_no: item
                                 .router_data
@@ -2401,7 +2394,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
                     payment_type: NovalNetPaymentTypes::CREDITCARD,
-                    amount: NovalNetAmount::Int(0),
+                    amount: StringOrNumberMinorUnit::Number(ConnectorMinorUnit::zero()),
                     currency: item.router_data.request.currency,
                     order_no: item
                         .router_data
@@ -2440,7 +2433,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::GOOGLEPAY,
-                        amount: NovalNetAmount::Int(0),
+                        amount: StringOrNumberMinorUnit::Number(ConnectorMinorUnit::zero()),
                         currency: item.router_data.request.currency,
                         order_no: item
                             .router_data
@@ -2472,7 +2465,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::APPLEPAY,
-                        amount: NovalNetAmount::Int(0),
+                        amount: StringOrNumberMinorUnit::Number(ConnectorMinorUnit::zero()),
                         currency: item.router_data.request.currency,
                         order_no: item
                             .router_data
@@ -2521,7 +2514,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let transaction = NovalnetPaymentsRequestTransaction {
                         test_mode,
                         payment_type: NovalNetPaymentTypes::PAYPAL,
-                        amount: NovalNetAmount::Int(0),
+                        amount: StringOrNumberMinorUnit::Number(ConnectorMinorUnit::zero()),
                         currency: item.router_data.request.currency,
                         order_no: item
                             .router_data
@@ -2724,7 +2717,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let transaction = NovalnetPaymentsRequestTransaction {
                     test_mode,
                     payment_type,
-                    amount: NovalNetAmount::StringMinor(amount.clone()),
+                    amount: StringOrNumberMinorUnit::Text(amount.clone()),
                     currency: item.router_data.request.currency,
                     order_no: item
                         .router_data
@@ -2762,7 +2755,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         let transaction = NovalnetPaymentsRequestTransaction {
                             test_mode,
                             payment_type: NovalNetPaymentTypes::CREDITCARD,
-                            amount: NovalNetAmount::StringMinor(amount.clone()),
+                            amount: StringOrNumberMinorUnit::Text(amount.clone()),
                             currency: item.router_data.request.currency,
                             order_no: item
                                 .router_data

@@ -7404,12 +7404,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let pmt = router_data.request.payment_method_type;
         // Zero-amount setups stay non-manual (HS parity); a non-zero setup sent as a
         // PreAuth is only authorized and must not be reported as charged.
-        let is_manual_capture = router_data
-            .request
-            .money
-            .as_ref()
-            .is_some_and(|money| money.amount() > MinorUnit::zero())
-            && is_manual_capture(router_data.request.capture_method);
+        let is_manual_capture = router_data.request.money.as_ref().is_some_and(|money| {
+            common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                > ConnectorMinorUnit::zero()
+        }) && is_manual_capture(router_data.request.capture_method);
         // Unwrap the response wrapper to get AdyenPaymentResponse
         let SetupMandateResponse(adyen_response) = response;
 

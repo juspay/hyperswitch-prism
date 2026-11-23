@@ -6,7 +6,8 @@ use std::{
 use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethodType};
 use common_utils::{
-    consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, Money,
+    consts, fp_utils::when, metadata::MaskedMetadata, types::ConnectorAmount, AmountConvertor,
+    CustomResult, Money,
 };
 use error_stack::{report, Result, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -321,7 +322,7 @@ where
     }
 }
 
-pub fn convert_amount<T>(
+pub fn convert_amount<T: ConnectorAmount>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     money: &Money,
 ) -> core::result::Result<T, error_stack::Report<errors::IntegrationError>> {
@@ -332,7 +333,7 @@ pub fn convert_amount<T>(
     )
 }
 
-pub fn convert_amount_for_webhook<T>(
+pub fn convert_amount_for_webhook<T: ConnectorAmount>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     money: &Money,
 ) -> core::result::Result<T, error_stack::Report<errors::WebhookError>> {
@@ -347,7 +348,7 @@ pub fn convert_amount_for_webhook<T>(
     })
 }
 
-pub fn convert_back_amount_to_money_for_webhook<T>(
+pub fn convert_back_amount_to_money_for_webhook<T: ConnectorAmount>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
     currency: common_enums::Currency,
@@ -364,7 +365,7 @@ pub fn convert_back_amount_to_money_for_webhook<T>(
         })
 }
 
-pub fn convert_back_amount_to_money<T>(
+pub fn convert_back_amount_to_money<T: ConnectorAmount>(
     amount_convertor: &dyn AmountConvertor<Output = T>,
     amount: T,
     currency: common_enums::Currency,
