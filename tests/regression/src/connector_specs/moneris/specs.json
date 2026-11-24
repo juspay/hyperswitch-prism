@@ -47,6 +47,12 @@
       "no3ds_manual_capture_incremental_auth": "SANDBOX_NOT_ENTITLED: This Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for incremental authorization, indicating the account is not provisioned for that feature.",
       "threeds_manual_capture_credit_card": "HARNESS_FIXTURE_UNSUPPORTED: The shared 3DS authorize scenario has no real authentication result or completed challenge; Moneris requires a valid 3DS authentication session for this flow.",
       "wero_auto_capture_without_billing": "CONNECTOR_API_LACKS: Wero is not a payment method supported by the Moneris API integration."
+    },
+    "PaymentService/IncrementalAuthorization": {
+      "incremental_auth_basic": "SANDBOX_NOT_ENTITLED: The Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for the mandatory no3ds_manual_capture_incremental_auth prerequisite. The suite cannot be exercised until incremental authorization is enabled for this merchant.",
+      "incremental_auth_fail_invalid_transaction_id": "SANDBOX_NOT_ENTITLED: The Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for the mandatory no3ds_manual_capture_incremental_auth prerequisite. The suite cannot be exercised until incremental authorization is enabled for this merchant.",
+      "incremental_auth_multiple_increase": "SANDBOX_NOT_ENTITLED: The Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for the mandatory no3ds_manual_capture_incremental_auth prerequisite. The suite cannot be exercised until incremental authorization is enabled for this merchant.",
+      "incremental_auth_with_tip": "SANDBOX_NOT_ENTITLED: The Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for the mandatory no3ds_manual_capture_incremental_auth prerequisite. The suite cannot be exercised until incremental authorization is enabled for this merchant."
     }
   }
 }
