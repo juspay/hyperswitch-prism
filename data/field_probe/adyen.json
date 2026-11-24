@@ -2199,7 +2199,8 @@
               "amount": {
                 "minor_amount": 1000,
                 "currency": "USD"
-              }
+              },
+              "return_url": "https://example.com/return"
             }
           }
         },
@@ -2211,7 +2212,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"reference\":\"probe_sdk_session_001\",\"returnUrl\":\"https://hyperswitch.io\"}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"reference\":\"probe_sdk_session_001\",\"returnUrl\":\"https://example.com/return\"}"
         }
       }
     },
@@ -2719,6 +2720,32 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment method"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
       }
     },
     "verify_redirect": {

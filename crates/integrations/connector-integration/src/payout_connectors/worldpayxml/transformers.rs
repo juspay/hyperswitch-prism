@@ -315,12 +315,17 @@ impl TryFrom<&RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGe
     ) -> Result<Self, Self::Error> {
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        let order_code = router_data.request.connector_payout_id.clone().ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "connector_payout_id",
-                context: Default::default(),
-            },
-        )?;
+        // Order inquiries can use the original order code when no payout ID is stored.
+        let order_code = router_data
+            .request
+            .connector_payout_id
+            .clone()
+            .unwrap_or_else(|| {
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone()
+            });
 
         Ok(Self {
             version: API_VERSION.to_string(),

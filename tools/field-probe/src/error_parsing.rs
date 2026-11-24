@@ -237,7 +237,7 @@ pub fn parse_missing_field_alt(msg: &str) -> Option<String> {
 /// make payment requests. The probe handles this by providing mock state.
 pub fn is_oauth_connector(connector: &domain_types::connector_types::ConnectorEnum) -> bool {
     let config = crate::config::get_config();
-    let name = format!("{connector:?}").to_lowercase();
+    let name = connector.to_string();
     config.oauth_connectors.iter().any(|c| c.name == name)
 }
 

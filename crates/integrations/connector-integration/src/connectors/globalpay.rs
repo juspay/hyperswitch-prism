@@ -4,7 +4,8 @@ use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMinorUnit,
+    crypto::VerifySignature, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -36,7 +37,6 @@ use interfaces::{
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
-use sha2::{Digest, Sha512};
 use transformers as globalpay;
 use transformers::{
     GlobalpayAccessTokenErrorResponse, GlobalpayAccessTokenRequest, GlobalpayAccessTokenResponse,
@@ -349,13 +349,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_signature(&request, &secrets)?;
         let message = self.get_webhook_source_verification_message(&request, &secrets)?;
 
-        let computed_hex = hex::encode(Sha512::digest(&message));
-
-        let received_signature_str = std::str::from_utf8(&received_signature)
+        common_utils::crypto::Sha512
+            .verify_signature(&[], &received_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("GlobalPay x-gp-signature header value is not valid UTF-8")?;
-
-        Ok(computed_hex == received_signature_str)
+            .attach_printable("Failed to verify the GlobalPay webhook signature")
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {

@@ -10,6 +10,7 @@
     "PaymentService/Get",
     "PaymentService/Refund",
     "PaymentService/Void",
+    "PaymentService/Reverse",
     "RecurringPaymentService/Charge",
     "RefundService/Get"
   ]
