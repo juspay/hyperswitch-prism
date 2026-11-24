@@ -24,7 +24,14 @@ use error_stack::report;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{connectors::stripe::StripeAmountConvertor, types::ResponseRouterData};
+use crate::types::ResponseRouterData;
+
+/// Converts payout amounts to Stripe, using Stripe's decimal digits and whole-unit rules for each
+/// currency
+const STRIPE_PAYOUT_AMOUNT_CONVERTOR: domain_types::utils::MinorUnitInConnectorDecimals =
+    domain_types::utils::MinorUnitInConnectorDecimals::for_payouts(
+        domain_types::connector_types::ConnectorEnum::Stripe,
+    );
 
 // =============================================================================
 // AUTH
@@ -129,7 +136,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(&{
+        let amount = domain_types::utils::convert_amount(&STRIPE_PAYOUT_AMOUNT_CONVERTOR, &{
             #[expect(
                 clippy::disallowed_methods,
                 reason = "Temporary payout currency contract: stripe-create; see PR #2642"
@@ -246,7 +253,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let amount = StripeAmountConvertor::convert(&{
+        let amount = domain_types::utils::convert_amount(&STRIPE_PAYOUT_AMOUNT_CONVERTOR, &{
             #[expect(
                 clippy::disallowed_methods,
                 reason = "Temporary payout currency contract: stripe-transfer; see PR #2642"

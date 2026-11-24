@@ -17,6 +17,7 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 use crate::{
+    connector_types::ConnectorEnum,
     errors::{self, ConnectorError, IntegrationError, IntegrationErrorContext, ParsingError},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
@@ -372,6 +373,146 @@ pub fn convert_back_amount_to_money<T>(
     currency: common_enums::Currency,
 ) -> core::result::Result<Money, error_stack::Report<common_utils::errors::ParsingError>> {
     amount_convertor.convert_back(amount, currency)
+}
+
+/// Digits after the decimal point that `connector` expects in minor-unit amounts of `currency`,
+/// which differs from `Currency::number_of_digits_after_decimal_point` only where the connector
+/// keeps its own representation (Stripe sends UGX with two decimals: 5 UGX is `500`)
+pub fn number_of_digits_after_decimal_point_for_connector(
+    currency: common_enums::Currency,
+    connector: ConnectorEnum,
+) -> core::result::Result<u8, common_enums::CurrencyError> {
+    match (connector, currency) {
+        (ConnectorEnum::Stripe, common_enums::Currency::UGX) => Ok(2),
+        _ => currency.number_of_digits_after_decimal_point(),
+    }
+}
+
+/// Whether `connector` accepts only whole units of `currency` (no fractional amount)
+pub fn is_whole_units_only_for_connector(
+    currency: common_enums::Currency,
+    connector: ConnectorEnum,
+    is_payout: bool,
+) -> bool {
+    match (connector, currency) {
+        (ConnectorEnum::Stripe, common_enums::Currency::UGX | common_enums::Currency::ISK) => true,
+        (ConnectorEnum::Stripe, common_enums::Currency::HUF | common_enums::Currency::TWD) => {
+            is_payout
+        }
+        _ => false,
+    }
+}
+
+/// Connector required amount in minor units, written with the connector's own decimal digits for
+/// the currency (`number_of_digits_after_decimal_point_for_connector`) and rejecting fractional
+/// amounts where the connector accepts only whole units
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MinorUnitInConnectorDecimals {
+    connector: ConnectorEnum,
+    is_payout: bool,
+}
+
+impl MinorUnitInConnectorDecimals {
+    /// Convertor for payment amounts of `connector`
+    pub const fn new(connector: ConnectorEnum) -> Self {
+        Self {
+            connector,
+            is_payout: false,
+        }
+    }
+
+    /// Convertor for payout amounts of `connector`
+    pub const fn for_payouts(connector: ConnectorEnum) -> Self {
+        Self {
+            connector,
+            is_payout: true,
+        }
+    }
+
+    /// Rewrites `amount` from `from_digits` to `to_digits` digits after the decimal point
+    fn rescale(
+        amount: MinorUnit,
+        from_digits: u8,
+        to_digits: u8,
+    ) -> core::result::Result<MinorUnit, error_stack::Report<common_utils::errors::ParsingError>>
+    {
+        let factor = 10_i64
+            .checked_pow(u32::from(from_digits.abs_diff(to_digits)))
+            .ok_or(common_utils::errors::ParsingError::IntegerOverflow)?;
+        let amount = amount.get_amount_as_i64();
+        if to_digits >= from_digits {
+            amount
+                .checked_mul(factor)
+                .map(MinorUnit::new)
+                .ok_or_else(|| report!(common_utils::errors::ParsingError::IntegerOverflow))
+        } else if amount.checked_rem(factor) == Some(0) {
+            amount
+                .checked_div(factor)
+                .map(MinorUnit::new)
+                .ok_or_else(|| report!(common_utils::errors::ParsingError::IntegerOverflow))
+        } else {
+            Err(report!(
+                common_utils::errors::ParsingError::FractionalAmountNotSupported
+            ))
+        }
+    }
+
+    /// Converts a minor-unit amount in `currency` that is not held as `Money` (fees, line items)
+    pub fn convert_minor_unit(
+        &self,
+        amount: MinorUnit,
+        currency: common_enums::Currency,
+    ) -> core::result::Result<MinorUnit, error_stack::Report<common_utils::errors::ParsingError>>
+    {
+        let (digits, connector_digits) = self.digits(currency)?;
+        if is_whole_units_only_for_connector(currency, self.connector, self.is_payout) {
+            // Dropping the decimals fails if there are any
+            Self::rescale(amount, digits, 0)?;
+        }
+        Self::rescale(amount, digits, connector_digits)
+    }
+
+    /// Our digits and the connector's digits for `currency`
+    fn digits(
+        &self,
+        currency: common_enums::Currency,
+    ) -> core::result::Result<(u8, u8), error_stack::Report<common_utils::errors::ParsingError>>
+    {
+        let parsing_error = || {
+            common_utils::errors::ParsingError::StructParseFailure("currency decimal configuration")
+        };
+        Ok((
+            currency
+                .number_of_digits_after_decimal_point()
+                .change_context(parsing_error())?,
+            number_of_digits_after_decimal_point_for_connector(currency, self.connector)
+                .change_context(parsing_error())?,
+        ))
+    }
+}
+
+impl AmountConvertor for MinorUnitInConnectorDecimals {
+    type Output = MinorUnit;
+
+    fn convert(
+        &self,
+        money: &Money,
+    ) -> core::result::Result<MinorUnit, error_stack::Report<common_utils::errors::ParsingError>>
+    {
+        self.convert_minor_unit(money.amount(), money.currency())
+    }
+
+    fn convert_back(
+        &self,
+        amount: MinorUnit,
+        currency: common_enums::Currency,
+    ) -> core::result::Result<Money, error_stack::Report<common_utils::errors::ParsingError>> {
+        let (digits, connector_digits) = self.digits(currency)?;
+        Ok(Money::from_minor_unit(
+            Self::rescale(amount, connector_digits, digits)?,
+            currency,
+        ))
+    }
 }
 
 #[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]

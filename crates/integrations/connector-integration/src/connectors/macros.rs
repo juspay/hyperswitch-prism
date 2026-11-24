@@ -1701,7 +1701,7 @@ macro_rules! create_amount_converter_wrapper {
             );
         }
     };
-    (connector_name: $connector_name:ident, amount_type: $amount_type:ty, convertor: $convertor:ty) => {
+    (connector_name: $connector_name:ident, amount_type: $amount_type:ty, convertor: $convertor:expr) => {
         paste::paste! {
             #[derive(Default, Debug, Clone, Copy, PartialEq)]
             pub struct [<$connector_name AmountConvertor>];
@@ -1714,7 +1714,7 @@ macro_rules! create_amount_converter_wrapper {
                     error_stack::Report<domain_types::errors::IntegrationError>,
                 > {
                     domain_types::utils::convert_amount(
-                        &<$convertor as ::core::default::Default>::default(),
+                        &$convertor,
                         money,
                     ).change_context(domain_types::errors::IntegrationError::InvalidDataFormat {
                         field_name: "amount",
@@ -1737,7 +1737,7 @@ macro_rules! create_amount_converter_wrapper {
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
                     domain_types::utils::convert_back_amount_to_money(
-                        &<$convertor as ::core::default::Default>::default(),
+                        &$convertor,
                         amount,
                         currency,
                     )
@@ -1761,8 +1761,8 @@ macro_rules! create_amount_converter_wrapper {
                     Self::Output,
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
-                    <$convertor as common_utils::types::AmountConvertor>::convert(
-                        &<$convertor as ::core::default::Default>::default(),
+                    common_utils::types::AmountConvertor::convert(
+                        &$convertor,
                         money,
                     )
                 }
@@ -1775,8 +1775,8 @@ macro_rules! create_amount_converter_wrapper {
                     common_utils::types::Money,
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
-                    <$convertor as common_utils::types::AmountConvertor>::convert_back(
-                        &<$convertor as ::core::default::Default>::default(),
+                    common_utils::types::AmountConvertor::convert_back(
+                        &$convertor,
                         amount,
                         currency,
                     )

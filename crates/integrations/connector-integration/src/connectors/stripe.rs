@@ -463,7 +463,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 macros::create_amount_converter_wrapper!(
     connector_name: Stripe,
     amount_type: MinorUnit,
-    convertor: transformers::StripeMinorUnitForConnector
+    convertor: transformers::STRIPE_AMOUNT_CONVERTOR
 );
 macros::create_all_prerequisites!(
     connector_name: Stripe,

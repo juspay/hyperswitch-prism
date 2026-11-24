@@ -52,6 +52,9 @@ pub enum ParsingError {
     /// Failed to convert the given integer because of integer overflow error
     #[error("Integer Overflow error")]
     IntegerOverflow,
+    /// The amount has a fractional part but the connector accepts only whole units of the currency
+    #[error("Amount must be in whole units of the currency for this connector")]
+    FractionalAmountNotSupported,
 }
 
 /// Validation errors.

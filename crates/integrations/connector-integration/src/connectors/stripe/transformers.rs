@@ -49,7 +49,10 @@ use domain_types::{
         PaymentSynIntegrityObject, RefundIntegrityObject,
     },
     router_response_types::RedirectForm,
-    utils::{get_unimplemented_payment_method_error_message, is_payment_failure},
+    utils::{
+        get_unimplemented_payment_method_error_message, is_payment_failure,
+        MinorUnitInConnectorDecimals,
+    },
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
@@ -69,72 +72,20 @@ use crate::{
     },
 };
 
-/// Stripe takes amounts in the currency's minor unit, except for currencies it still represents
-/// with two decimals for backwards compatibility although they have none (UGX: 5 UGX is `500`).
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct StripeMinorUnitForConnector;
+/// Converts amounts between domain and Stripe, using Stripe's decimal digits for each currency
+pub const STRIPE_AMOUNT_CONVERTOR: MinorUnitInConnectorDecimals =
+    MinorUnitInConnectorDecimals::new(domain_types::connector_types::ConnectorEnum::Stripe);
 
-impl StripeMinorUnitForConnector {
-    fn is_two_decimal_at_stripe(currency: common_enums::Currency) -> bool {
-        matches!(currency, common_enums::Currency::UGX)
-    }
-
-    /// Converts a minor-unit amount in `currency` to the amount Stripe expects
-    pub fn to_stripe(
-        amount: MinorUnit,
-        currency: common_enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<IntegrationError>> {
-        if Self::is_two_decimal_at_stripe(currency) {
-            amount
-                .get_amount_as_i64()
-                .checked_mul(100)
-                .map(MinorUnit::new)
-                .ok_or_else(|| {
-                    error_stack::report!(IntegrationError::InvalidDataFormat {
-                        field_name: "amount",
-                        context: Default::default(),
-                    })
-                })
-        } else {
-            Ok(amount)
-        }
-    }
-}
-
-impl AmountConvertor for StripeMinorUnitForConnector {
-    type Output = MinorUnit;
-
-    fn convert(
-        &self,
-        money: &common_utils::types::Money,
-    ) -> Result<Self::Output, error_stack::Report<common_utils::errors::ParsingError>> {
-        if Self::is_two_decimal_at_stripe(money.currency()) {
-            money
-                .amount()
-                .get_amount_as_i64()
-                .checked_mul(100)
-                .map(MinorUnit::new)
-                .ok_or_else(|| {
-                    error_stack::report!(common_utils::errors::ParsingError::IntegerOverflow)
-                })
-        } else {
-            Ok(money.amount())
-        }
-    }
-
-    fn convert_back(
-        &self,
-        amount: MinorUnit,
-        currency: common_enums::Currency,
-    ) -> Result<common_utils::types::Money, error_stack::Report<common_utils::errors::ParsingError>>
-    {
-        let amount = if Self::is_two_decimal_at_stripe(currency) {
-            MinorUnit::new(amount.get_amount_as_i64() / 100)
-        } else {
-            amount
-        };
-        common_utils::types::MinorUnitForConnector.convert_back(amount, currency)
-    }
+/// Converts a minor-unit amount in `currency` to the amount Stripe expects
+pub fn to_stripe(
+    amount: MinorUnit,
+    currency: common_enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<IntegrationError>> {
+    STRIPE_AMOUNT_CONVERTOR
+        .convert_minor_unit(amount, currency)
+        .change_context(IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        })
 }
 
 pub mod auth_headers {
@@ -461,7 +412,7 @@ fn create_stripe_line_items_data(
     l2_l3_data: Option<&L2L3Data>,
     currency: common_enums::Currency,
 ) -> Result<Option<StripeLineItemsData>, error_stack::Report<IntegrationError>> {
-    let to_stripe = |amount: MinorUnit| StripeMinorUnitForConnector::to_stripe(amount, currency);
+    let to_stripe = |amount: MinorUnit| to_stripe(amount, currency);
     l2_l3_data
         .map(|data| {
             // Stripe takes tax either at order level or at line-item level, never both.
@@ -3259,14 +3210,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         common_enums::StripeChargeType::Direct => Some(IntentCharges {
                             application_fee_amount: stripe_split_payment
                                 .application_fees
-                                .map(|fee| StripeMinorUnitForConnector::to_stripe(fee, currency))
+                                .map(|fee| to_stripe(fee, currency))
                                 .transpose()?,
                             destination_account_id: None,
                         }),
                         common_enums::StripeChargeType::Destination => Some(IntentCharges {
                             application_fee_amount: stripe_split_payment
                                 .application_fees
-                                .map(|fee| StripeMinorUnitForConnector::to_stripe(fee, currency))
+                                .map(|fee| to_stripe(fee, currency))
                                 .transpose()?,
                             destination_account_id: Some(Secret::new(
                                 stripe_split_payment.transfer_account_id.clone(),
@@ -3284,7 +3235,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     common_enums::StripeChargeType::Direct,
                 )) => Some(IntentCharges {
                     application_fee_amount: application_fees
-                        .map(|fee| StripeMinorUnitForConnector::to_stripe(fee, currency))
+                        .map(|fee| to_stripe(fee, currency))
                         .transpose()?, // default to 0 if None
                     destination_account_id: None,
                 }),
@@ -3292,7 +3243,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     common_enums::StripeChargeType::Destination,
                 )) => Some(IntentCharges {
                     application_fee_amount: application_fees
-                        .map(|fee| StripeMinorUnitForConnector::to_stripe(fee, currency))
+                        .map(|fee| to_stripe(fee, currency))
                         .transpose()?,
                     destination_account_id: transfer_account_id,
                 }),
@@ -5706,7 +5657,7 @@ pub(crate) fn build_webhook_dispute_response(
     let amount = domain_types::utils::convert_amount_for_webhook(
         &StringMinorUnitForConnector,
         &domain_types::utils::convert_back_amount_to_money_for_webhook(
-            &StripeMinorUnitForConnector,
+            &STRIPE_AMOUNT_CONVERTOR,
             amount,
             event_object.currency,
         )?,
@@ -7286,14 +7237,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         common_enums::StripeChargeType::Direct => Some(IntentCharges {
                             application_fee_amount: stripe_split_payment
                                 .application_fees
-                                .map(|fee| StripeMinorUnitForConnector::to_stripe(fee, currency))
+                                .map(|fee| to_stripe(fee, currency))
                                 .transpose()?,
                             destination_account_id: None,
                         }),
                         common_enums::StripeChargeType::Destination => Some(IntentCharges {
                             application_fee_amount: stripe_split_payment
                                 .application_fees
-                                .map(|fee| StripeMinorUnitForConnector::to_stripe(fee, currency))
+                                .map(|fee| to_stripe(fee, currency))
                                 .transpose()?,
                             destination_account_id: Some(Secret::new(
                                 stripe_split_payment.transfer_account_id.clone(),
@@ -7311,7 +7262,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     common_enums::StripeChargeType::Direct,
                 )) => Some(IntentCharges {
                     application_fee_amount: application_fees
-                        .map(|fee| StripeMinorUnitForConnector::to_stripe(fee, currency))
+                        .map(|fee| to_stripe(fee, currency))
                         .transpose()?, // default to 0 if None
                     destination_account_id: None,
                 }),
@@ -7319,7 +7270,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     common_enums::StripeChargeType::Destination,
                 )) => Some(IntentCharges {
                     application_fee_amount: application_fees
-                        .map(|fee| StripeMinorUnitForConnector::to_stripe(fee, currency))
+                        .map(|fee| to_stripe(fee, currency))
                         .transpose()?,
                     destination_account_id: transfer_account_id,
                 }),
