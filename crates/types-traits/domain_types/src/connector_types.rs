@@ -1936,7 +1936,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub recipient_details: Option<RecipientDetails>,
     /// Details about the sender of funds for account-funded transactions.
     pub sender_details: Option<SenderDetails>,
-    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    /// Purpose of payment for the selected connector.
+    pub purpose_of_payment: Option<String>,
+    /// Connector-specific additional details.
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
@@ -4098,7 +4100,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub recipient_details: Option<RecipientDetails>,
     /// Details about the sender of funds for account-funded transactions.
     pub sender_details: Option<SenderDetails>,
-    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    /// Purpose of payment for the selected connector.
+    pub purpose_of_payment: Option<String>,
+    /// Connector-specific additional details.
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
@@ -4225,7 +4229,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub recipient_details: Option<RecipientDetails>,
     /// Details about the sender of funds for account-funded transactions.
     pub sender_details: Option<SenderDetails>,
-    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    /// Purpose of payment for the selected connector.
+    pub purpose_of_payment: Option<String>,
+    /// Connector-specific additional details.
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
@@ -6928,22 +6934,23 @@ impl SenderDetails {
 /// Connector-specific additional details passed through the payment request.
 #[derive(Debug, Clone)]
 pub struct AdditionalConnectorDetails {
-    /// Checkout.com-specific additional information.
+    /// Checkout.com-specific additional information retained for legacy payloads.
     pub checkout: Option<CheckoutAdditionalInformation>,
-    /// Worldpayxml-specific additional information.
+    /// Worldpayxml-specific additional information retained for legacy payloads.
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
-    /// Stripe-specific additional information.
+    /// Stripe-specific additional information retained for legacy payloads.
     pub stripe: Option<StripeAdditionalInformation>,
     /// Request an SCA exemption when the initial CIT completed 3D Secure.
     pub request_sca_exemption: Option<bool>,
+    /// Worldpayxml account funding transaction type.
+    pub funding_transaction_type: Option<String>,
+    /// Stripe MIT: fail instead of requesting additional customer authentication.
+    pub error_on_requires_action: Option<bool>,
 }
 
 /// Stripe-specific additional information.
 #[derive(Debug, Clone)]
 pub struct StripeAdditionalInformation {
-    /// For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright
-    /// instead of returning a `requires_action` status, since there's no customer present to
-    /// complete additional authentication.
     pub error_on_requires_action: Option<bool>,
 }
 
@@ -6957,6 +6964,5 @@ pub struct WorldpayxmlAdditionalInformation {
 /// Checkout.com-specific additional information.
 #[derive(Debug, Clone)]
 pub struct CheckoutAdditionalInformation {
-    /// Free-text description of the reason or intent behind the payment.
     pub purpose_of_payment: Option<String>,
 }

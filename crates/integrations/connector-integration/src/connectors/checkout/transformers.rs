@@ -2030,13 +2030,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let purpose = item
                 .router_data
                 .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|details| details.checkout.as_ref())
-                .and_then(|checkout| checkout.purpose_of_payment.clone())
-                .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.checkout.purpose_of_payment",
-                ))?;
+                .purpose_of_payment
+                .clone()
+                .or_else(|| {
+                    item.router_data
+                        .request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| {
+                            details
+                                .checkout
+                                .as_ref()
+                                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                        })
+                })
+                .ok_or_else(utils::missing_field_err("purpose_of_payment"))?;
 
             (
                 Some(build_checkout_recipient(
@@ -2469,13 +2477,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let purpose = item
                 .router_data
                 .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|details| details.checkout.as_ref())
-                .and_then(|checkout| checkout.purpose_of_payment.clone())
-                .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.checkout.purpose_of_payment",
-                ))?;
+                .purpose_of_payment
+                .clone()
+                .or_else(|| {
+                    item.router_data
+                        .request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| {
+                            details
+                                .checkout
+                                .as_ref()
+                                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                        })
+                })
+                .ok_or_else(utils::missing_field_err("purpose_of_payment"))?;
 
             (
                 Some(build_checkout_recipient(
@@ -2833,13 +2849,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let purpose = item
                 .router_data
                 .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|details| details.checkout.as_ref())
-                .and_then(|checkout| checkout.purpose_of_payment.clone())
-                .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.checkout.purpose_of_payment",
-                ))?;
+                .purpose_of_payment
+                .clone()
+                .or_else(|| {
+                    item.router_data
+                        .request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| {
+                            details
+                                .checkout
+                                .as_ref()
+                                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                        })
+                })
+                .ok_or_else(utils::missing_field_err("purpose_of_payment"))?;
 
             (
                 Some(build_checkout_recipient(
