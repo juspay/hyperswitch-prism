@@ -9,15 +9,15 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
 use domain_types::connector_types::{
     AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-    CreatePaymentMethodData, DisputeDefendData, GetPaymentMethodData, IntegritySpecifications,
-    MandateRevokeRequestData, PaymentCreateOrderData, PaymentMethodEligibilityData,
-    PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-    PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-    PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-    PaymentsPreAuthenticateData, PaymentsSyncData, RechargeRequestData, RefreshPaymentMethodData,
-    RefundSyncData, RefundVoidPostRefundData, RefundsData, RepeatPaymentData,
-    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
-    SetupMandateRequestData, SubmitEvidenceData,
+    CreatePaymentMethodData, DisputeDefendData, GenerateQrRequestData, GetPaymentMethodData,
+    IntegritySpecifications, MandateRevokeRequestData, PaymentCreateOrderData,
+    PaymentMethodEligibilityData, PaymentMethodTokenizationData, PaymentVoidData,
+    PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+    PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+    PaymentsPreAuthenticateData, PaymentsSyncData, PushNotificationRequestData,
+    RechargeRequestData, RefreshPaymentMethodData, RefundSyncData, RefundVoidPostRefundData,
+    RefundsData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+    ServerSessionAuthenticationTokenRequestData, SetupMandateRequestData, SubmitEvidenceData,
 };
 use domain_types::frm::frm_types::{
     FrmChargebackReceivedRequest, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
@@ -55,10 +55,10 @@ use domain_types::{
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
         PostRiskCheckIntegrityObject, PreAuthenticateIntegrityObject, PreRiskCheckIntegrityObject,
-        RechargeIntegrityObject, RefreshPaymentMethodIntegrityObject, RefundIntegrityObject,
-        RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
-        SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
-        VerifyWebhookSourceIntegrityObject,
+        RechargeIntegrityObject, RecurringConsentIntegrityObject,
+        RefreshPaymentMethodIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
+        RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
+        SubmitEvidenceIntegrityObject, VerifyWebhookSourceIntegrityObject,
     },
 };
 
@@ -278,6 +278,8 @@ impl_check_integrity!(ConnectorCustomerData);
 impl_check_integrity!(ClientAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
+impl_check_integrity!(PushNotificationRequestData);
+impl_check_integrity!(GenerateQrRequestData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
 impl_check_integrity!(PayoutCreateRequest<S>);
 impl_check_integrity!(PayoutTransferRequest<S>);
@@ -540,6 +542,26 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<RepeatPaymentIntegrityObject>
         )
     }
 }
+
+macro_rules! impl_recurring_consent_integrity {
+    ($request:ty) => {
+        impl GetIntegrityObject<RecurringConsentIntegrityObject> for $request {
+            fn get_response_integrity_object(&self) -> Option<RecurringConsentIntegrityObject> {
+                // Consent responses carry no independent integrity object. In particular,
+                // these operations have no financial amount or currency to compare.
+                None
+            }
+
+            fn get_request_integrity_object(&self) -> RecurringConsentIntegrityObject {
+                RecurringConsentIntegrityObject {
+                    connector_mandate_id: self.connector_mandate_id.clone(),
+                }
+            }
+        }
+    };
+}
+impl_recurring_consent_integrity!(PushNotificationRequestData);
+impl_recurring_consent_integrity!(GenerateQrRequestData);
 
 impl GetIntegrityObject<MandateRevokeIntegrityObject> for MandateRevokeRequestData {
     fn get_response_integrity_object(&self) -> Option<MandateRevokeIntegrityObject> {
@@ -1121,6 +1143,27 @@ impl FlowIntegrity for RepeatPaymentIntegrityObject {
             ));
         }
 
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for RecurringConsentIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        request: Self,
+        response: Self,
+        connector_transaction_id: Option<String>,
+        _tolerance: AmountTolerance,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+        if request.connector_mandate_id != response.connector_mandate_id {
+            mismatched_fields.push(format_mismatch(
+                "connector_mandate_id",
+                &request.connector_mandate_id,
+                &response.connector_mandate_id,
+            ));
+        }
         check_integrity_result(mismatched_fields, connector_transaction_id)
     }
 }

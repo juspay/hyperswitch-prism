@@ -202,6 +202,14 @@ class RecurringPaymentClient(_ConnectorClientBase):
         """RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details."""
         return self._execute_flow("charge", request, payment_pb2.RecurringPaymentServiceChargeResponse, options)
 
+    def recurring_get_qr(self, request, options=None):
+        """RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement."""
+        return self._execute_flow("recurring_get_qr", request, payment_pb2.RecurringPaymentServiceConsentResponse, options)
+
+    def recurring_request_confirmation(self, request, options=None):
+        """RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement."""
+        return self._execute_flow("recurring_request_confirmation", request, payment_pb2.RecurringPaymentServiceConsentResponse, options)
+
     def recurring_revoke(self, request, options=None):
         """RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations."""
         return self._execute_flow("recurring_revoke", request, payment_pb2.RecurringPaymentServiceRevokeResponse, options)

@@ -30,6 +30,8 @@ use grpc_api_types::payments::{
     PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVoidRequest,
     RecurringPaymentServiceChargeRequest,
+    RecurringPaymentServiceGetQrRequest,
+    RecurringPaymentServiceRequestConfirmationRequest,
     RecurringPaymentServiceRevokeRequest,
     RefundServiceGetRequest,
 };
@@ -85,6 +87,8 @@ use crate::handlers::payments::{
     pre_risk_check_req_handler, pre_risk_check_res_handler,
     proxy_authorize_req_handler, proxy_authorize_res_handler,
     proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler,
+    recurring_get_qr_req_handler, recurring_get_qr_res_handler,
+    recurring_request_confirmation_req_handler, recurring_request_confirmation_res_handler,
     recurring_revoke_req_handler, recurring_revoke_res_handler,
     refresh_req_handler, refresh_res_handler,
     refund_req_handler, refund_res_handler,
@@ -161,6 +165,10 @@ define_ffi_flow!(pre_risk_check, FrmServicePreRiskCheckRequest, pre_risk_check_r
 define_ffi_flow!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, proxy_authorize_req_handler, proxy_authorize_res_handler);
 // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
 define_ffi_flow!(proxy_setup_recurring, PaymentServiceProxySetupRecurringRequest, proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler);
+// recurring_get_qr: RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement.
+define_ffi_flow!(recurring_get_qr, RecurringPaymentServiceGetQrRequest, recurring_get_qr_req_handler, recurring_get_qr_res_handler);
+// recurring_request_confirmation: RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement.
+define_ffi_flow!(recurring_request_confirmation, RecurringPaymentServiceRequestConfirmationRequest, recurring_request_confirmation_req_handler, recurring_request_confirmation_res_handler);
 // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
 define_ffi_flow!(recurring_revoke, RecurringPaymentServiceRevokeRequest, recurring_revoke_req_handler, recurring_revoke_res_handler);
 // refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.

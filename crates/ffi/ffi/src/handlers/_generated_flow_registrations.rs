@@ -53,6 +53,9 @@ use grpc_api_types::payments::{
     PaymentServiceVoidResponse,
     RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse,
+    RecurringPaymentServiceConsentResponse,
+    RecurringPaymentServiceGetQrRequest,
+    RecurringPaymentServiceRequestConfirmationRequest,
     RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse,
     RefundResponse,
@@ -113,6 +116,8 @@ use crate::services::payments::{
     pre_authenticate_req_transformer, pre_authenticate_res_transformer,
     proxy_authorize_req_transformer, proxy_authorize_res_transformer,
     proxy_setup_recurring_req_transformer, proxy_setup_recurring_res_transformer,
+    recurring_get_qr_req_transformer, recurring_get_qr_res_transformer,
+    recurring_request_confirmation_req_transformer, recurring_request_confirmation_res_transformer,
     recurring_revoke_req_transformer, recurring_revoke_res_transformer,
     refresh_req_transformer, refresh_res_transformer,
     refund_req_transformer, refund_res_transformer,
@@ -206,6 +211,10 @@ impl_flow_handlers!(pre_risk_check, FrmServicePreRiskCheckRequest, FrmServicePre
 impl_flow_handlers!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, PaymentServiceAuthorizeResponse, proxy_authorize_req_transformer, proxy_authorize_res_transformer, domain_types::connector_types::ConnectorEnum);
 // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
 impl_flow_handlers!(proxy_setup_recurring, PaymentServiceProxySetupRecurringRequest, PaymentServiceSetupRecurringResponse, proxy_setup_recurring_req_transformer, proxy_setup_recurring_res_transformer, domain_types::connector_types::ConnectorEnum);
+// recurring_get_qr: RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement.
+impl_flow_handlers!(recurring_get_qr, RecurringPaymentServiceGetQrRequest, RecurringPaymentServiceConsentResponse, recurring_get_qr_req_transformer, recurring_get_qr_res_transformer, domain_types::connector_types::ConnectorEnum);
+// recurring_request_confirmation: RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement.
+impl_flow_handlers!(recurring_request_confirmation, RecurringPaymentServiceRequestConfirmationRequest, RecurringPaymentServiceConsentResponse, recurring_request_confirmation_req_transformer, recurring_request_confirmation_res_transformer, domain_types::connector_types::ConnectorEnum);
 // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
 impl_flow_handlers!(recurring_revoke, RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, recurring_revoke_req_transformer, recurring_revoke_res_transformer, domain_types::connector_types::ConnectorEnum);
 // refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.

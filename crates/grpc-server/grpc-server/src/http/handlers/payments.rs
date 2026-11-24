@@ -35,6 +35,10 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
+use grpc_api_types::payments::{
+    RecurringPaymentServiceConsentResponse, RecurringPaymentServiceGetQrRequest,
+    RecurringPaymentServiceRequestConfirmationRequest,
+};
 use std::sync::Arc;
 
 use crate::http::handlers::macros::http_handler;
@@ -218,4 +222,19 @@ http_handler!(
     PaymentServiceVerifyRedirectResponseResponse,
     verify_redirect_response,
     payments_service
+);
+
+http_handler!(
+    request_recurring_confirmation,
+    RecurringPaymentServiceRequestConfirmationRequest,
+    RecurringPaymentServiceConsentResponse,
+    request_confirmation,
+    recurring_payment_service
+);
+http_handler!(
+    get_recurring_qr,
+    RecurringPaymentServiceGetQrRequest,
+    RecurringPaymentServiceConsentResponse,
+    get_qr,
+    recurring_payment_service
 );

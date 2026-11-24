@@ -26,6 +26,12 @@ pub struct Capture;
 pub struct SetupMandate;
 
 #[derive(Debug, Clone)]
+pub struct PushNotification;
+
+#[derive(Debug, Clone)]
+pub struct GenerateQr;
+
+#[derive(Debug, Clone)]
 pub struct RepeatPayment;
 
 #[derive(Debug, Clone)]
@@ -160,6 +166,8 @@ pub enum FlowName {
     Void,
     VoidPc,
     SetupMandate,
+    PushNotification,
+    GenerateQr,
     RepeatPayment,
     Capture,
     AcceptDispute,

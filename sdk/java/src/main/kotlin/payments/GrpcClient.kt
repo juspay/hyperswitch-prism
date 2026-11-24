@@ -434,6 +434,16 @@ class GrpcRecurringPaymentClient internal constructor(
     private val config: GrpcConfig,
 ) {
     /**
+     * RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement.
+     */
+    suspend fun get_qr(req: RecurringPaymentServiceGetQrRequest): RecurringPaymentServiceConsentResponse =
+        callGrpc(config, "recurring_payment/get_qr", req, RecurringPaymentServiceConsentResponse.parser())
+    /**
+     * RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement.
+     */
+    suspend fun request_confirmation(req: RecurringPaymentServiceRequestConfirmationRequest): RecurringPaymentServiceConsentResponse =
+        callGrpc(config, "recurring_payment/request_confirmation", req, RecurringPaymentServiceConsentResponse.parser())
+    /**
      * RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
      */
     suspend fun charge(req: RecurringPaymentServiceChargeRequest): RecurringPaymentServiceChargeResponse =

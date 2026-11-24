@@ -183,6 +183,8 @@ message PaymentMethod {
     MultibancoBankTransfer multibanco_bank_transfer = 94;      // Multibanco - Portuguese payment method
     InstantBankTransferFinland instant_bank_transfer_finland = 95;         // Finland's instant bank transfer
     InstantBankTransferPoland instant_bank_transfer_poland = 96;           // Poland's instant bank transfer
+    PixAutomaticoPayment pix_automatico_push = 196;
+    PixAutomaticoPayment pix_automatico_qr = 197;
     PixPayment pix = 97;                                       // PIX - Brazilian instant payment
     PermataBankTransfer permata_bank_transfer = 130;           // Permata Bank transfer in Indonesia
     BCABankTransfer bca_bank_transfer = 131;                   // BCA Bank transfer in Indonesia
@@ -2504,3 +2506,6 @@ enum BankHolderType {
   BANK_HOLDER_TYPE_PERSONAL = 1;
   BANK_HOLDER_TYPE_BUSINESS = 2;
 }
+
+// Instrument selection for Pix Automático; agreement/charge details are supplied on the operation.
+message PixAutomaticoPayment {}

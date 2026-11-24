@@ -12,6 +12,7 @@ pub(crate) mod money;
 pub mod payment_address;
 pub mod payment_method_data;
 pub mod payouts;
+pub mod pix_automatico;
 pub mod router_data;
 pub mod router_data_v2;
 pub mod router_flow_types;

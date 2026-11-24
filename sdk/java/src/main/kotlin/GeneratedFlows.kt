@@ -71,6 +71,10 @@ import uniffi.connector_service_ffi.proxyAuthorizeReqTransformer
 import uniffi.connector_service_ffi.proxyAuthorizeResTransformer
 import uniffi.connector_service_ffi.proxySetupRecurringReqTransformer
 import uniffi.connector_service_ffi.proxySetupRecurringResTransformer
+import uniffi.connector_service_ffi.recurringGetQrReqTransformer
+import uniffi.connector_service_ffi.recurringGetQrResTransformer
+import uniffi.connector_service_ffi.recurringRequestConfirmationReqTransformer
+import uniffi.connector_service_ffi.recurringRequestConfirmationResTransformer
 import uniffi.connector_service_ffi.recurringRevokeReqTransformer
 import uniffi.connector_service_ffi.recurringRevokeResTransformer
 import uniffi.connector_service_ffi.refreshReqTransformer
@@ -135,6 +139,8 @@ object FlowRegistry {
         "pre_risk_check" to ::preRiskCheckReqTransformer,
         "proxy_authorize" to ::proxyAuthorizeReqTransformer,
         "proxy_setup_recurring" to ::proxySetupRecurringReqTransformer,
+        "recurring_get_qr" to ::recurringGetQrReqTransformer,
+        "recurring_request_confirmation" to ::recurringRequestConfirmationReqTransformer,
         "recurring_revoke" to ::recurringRevokeReqTransformer,
         "refresh" to ::refreshReqTransformer,
         "refund" to ::refundReqTransformer,
@@ -182,6 +188,8 @@ object FlowRegistry {
         "pre_risk_check" to ::preRiskCheckResTransformer,
         "proxy_authorize" to ::proxyAuthorizeResTransformer,
         "proxy_setup_recurring" to ::proxySetupRecurringResTransformer,
+        "recurring_get_qr" to ::recurringGetQrResTransformer,
+        "recurring_request_confirmation" to ::recurringRequestConfirmationResTransformer,
         "recurring_revoke" to ::recurringRevokeResTransformer,
         "refresh" to ::refreshResTransformer,
         "refund" to ::refundResTransformer,
@@ -442,6 +450,14 @@ class RecurringPaymentClient(
     // charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
     fun charge(request: RecurringPaymentServiceChargeRequest, options: RequestConfig? = null): RecurringPaymentServiceChargeResponse =
         executeFlow("charge", request.toByteArray(), RecurringPaymentServiceChargeResponse.parser(), options)
+
+    // recurring_get_qr: RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement.
+    fun recurring_get_qr(request: RecurringPaymentServiceGetQrRequest, options: RequestConfig? = null): RecurringPaymentServiceConsentResponse =
+        executeFlow("recurring_get_qr", request.toByteArray(), RecurringPaymentServiceConsentResponse.parser(), options)
+
+    // recurring_request_confirmation: RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement.
+    fun recurring_request_confirmation(request: RecurringPaymentServiceRequestConfirmationRequest, options: RequestConfig? = null): RecurringPaymentServiceConsentResponse =
+        executeFlow("recurring_request_confirmation", request.toByteArray(), RecurringPaymentServiceConsentResponse.parser(), options)
 
     // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
     fun recurring_revoke(request: RecurringPaymentServiceRevokeRequest, options: RequestConfig? = null): RecurringPaymentServiceRevokeResponse =

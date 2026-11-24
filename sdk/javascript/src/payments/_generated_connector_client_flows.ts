@@ -369,6 +369,22 @@ export class RecurringPaymentClient extends _ConnectorClientBase {
     return this._executeFlow('charge', requestMsg, options, 'RecurringPaymentServiceChargeRequest', 'RecurringPaymentServiceChargeResponse') as Promise<types.RecurringPaymentServiceChargeResponse>;
   }
 
+  /** RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement. */
+  async recurringGetQr(
+    requestMsg: types.IRecurringPaymentServiceGetQrRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.RecurringPaymentServiceConsentResponse> {
+    return this._executeFlow('recurring_get_qr', requestMsg, options, 'RecurringPaymentServiceGetQrRequest', 'RecurringPaymentServiceConsentResponse') as Promise<types.RecurringPaymentServiceConsentResponse>;
+  }
+
+  /** RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement. */
+  async recurringRequestConfirmation(
+    requestMsg: types.IRecurringPaymentServiceRequestConfirmationRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.RecurringPaymentServiceConsentResponse> {
+    return this._executeFlow('recurring_request_confirmation', requestMsg, options, 'RecurringPaymentServiceRequestConfirmationRequest', 'RecurringPaymentServiceConsentResponse') as Promise<types.RecurringPaymentServiceConsentResponse>;
+  }
+
   /** RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations. */
   async recurringRevoke(
     requestMsg: types.IRecurringPaymentServiceRevokeRequest,

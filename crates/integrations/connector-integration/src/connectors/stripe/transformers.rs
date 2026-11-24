@@ -1303,6 +1303,8 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::OnlineBankingFpx
             | common_enums::PaymentMethodType::Paypal
             | common_enums::PaymentMethodType::Pix
+            | common_enums::PaymentMethodType::PixAutomaticoPush
+            | common_enums::PaymentMethodType::PixAutomaticoQr
             | common_enums::PaymentMethodType::UpiCollect
             | common_enums::PaymentMethodType::UpiIntent
             | common_enums::PaymentMethodType::UpiQr
@@ -1997,7 +1999,9 @@ fn create_stripe_payment_method<
                 Some(StripePaymentMethodType::CustomerBalance),
                 payment_request_details.billing_address,
             )),
-            payment_method_data::BankTransferData::Pix { .. } => {
+            payment_method_data::BankTransferData::Pix { .. }
+            | payment_method_data::BankTransferData::PixAutomaticoPush {}
+            | payment_method_data::BankTransferData::PixAutomaticoQr {} => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
@@ -6659,6 +6663,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ))
                 }
                 payment_method_data::BankTransferData::Pix { .. }
+                | payment_method_data::BankTransferData::PixAutomaticoPush {}
+                | payment_method_data::BankTransferData::PixAutomaticoQr {}
                 | payment_method_data::BankTransferData::Pse {}
                 | payment_method_data::BankTransferData::PermataBankTransfer { .. }
                 | payment_method_data::BankTransferData::BcaBankTransfer { .. }

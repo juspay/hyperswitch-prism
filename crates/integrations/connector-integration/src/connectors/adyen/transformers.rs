@@ -2213,7 +2213,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Self::MandiriVa(Box::new(DokuBankData::try_from(item)?)))
             }
             BankTransferData::Pix { .. } => Ok(Self::Pix),
-            BankTransferData::AchBankTransfer {}
+            BankTransferData::PixAutomaticoPush {}
+            | BankTransferData::PixAutomaticoQr {}
+            | BankTransferData::AchBankTransfer {}
             | BankTransferData::SepaBankTransfer {}
             | BankTransferData::BacsBankTransfer {}
             | BankTransferData::MultibancoBankTransfer {}

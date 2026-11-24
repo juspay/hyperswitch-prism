@@ -38,7 +38,8 @@ use grpc_api_types::payments::{
     PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest,
-    RecurringPaymentServiceChargeRequest,
+    RecurringPaymentServiceChargeRequest, RecurringPaymentServiceGetQrRequest,
+    RecurringPaymentServiceRequestConfirmationRequest,
 };
 use prost::Message;
 use serde::Deserialize;
@@ -229,6 +230,16 @@ async fn dispatch(method: &str, cfg: GrpcConfigInput, req_bytes: &[u8]) -> Resul
             create_client_authentication_token,
             MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
         ),
+        "recurring_payment/request_confirmation" => call!(
+            RecurringPaymentServiceClient,
+            request_confirmation,
+            RecurringPaymentServiceRequestConfirmationRequest
+        ),
+        "recurring_payment/get_qr" => call!(
+            RecurringPaymentServiceClient,
+            get_qr,
+            RecurringPaymentServiceGetQrRequest
+        ),
         "recurring_payment/charge" => call!(
             RecurringPaymentServiceClient,
             charge,
@@ -341,6 +352,34 @@ pub unsafe extern "C" fn hyperswitch_grpc_free(ptr: *mut u8, len: u32) {
                 ptr,
                 len as usize,
             )));
+        }
+    }
+}
+
+#[cfg(test)]
+mod consent_dispatch_tests {
+    use super::{dispatch, GrpcConfigInput};
+
+    #[tokio::test]
+    async fn recurring_consent_methods_are_registered_and_decode_their_requests() {
+        for method in [
+            "recurring_payment/request_confirmation",
+            "recurring_payment/get_qr",
+        ] {
+            let cfg = GrpcConfigInput {
+                endpoint: "http://127.0.0.1:9".into(),
+                connector: "stripe".into(),
+                connector_config: serde_json::json!({}),
+            };
+            // An invalid protobuf tag fails during decoding, before opening a
+            // socket. An unregistered operation instead hits the unknown-method arm.
+            let error = dispatch(method, cfg, &[0xff])
+                .await
+                .expect_err("malformed request");
+            assert!(
+                error.contains("decode"),
+                "{method} was not routed to its protobuf decoder: {error}"
+            );
         }
     }
 }

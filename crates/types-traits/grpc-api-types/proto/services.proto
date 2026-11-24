@@ -191,6 +191,12 @@ service PaymentService {
 // ======================================================================================
 
 service RecurringPaymentService {
+  // Retrieve the customer-facing QR data for an existing recurring agreement.
+  rpc GetQr(RecurringPaymentServiceGetQrRequest) returns (RecurringPaymentServiceConsentResponse);
+
+  // Ask the payer's bank to obtain consent for an existing recurring agreement.
+  rpc RequestConfirmation(RecurringPaymentServiceRequestConfirmationRequest) returns (RecurringPaymentServiceConsentResponse);
+
   // Charge using an existing stored recurring payment instruction. Processes repeat payments for
   // subscriptions or recurring billing without collecting payment details.
   rpc Charge(RecurringPaymentServiceChargeRequest) returns (RecurringPaymentServiceChargeResponse);

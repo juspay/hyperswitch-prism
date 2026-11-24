@@ -93,6 +93,12 @@ const FLOWS = {
   // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
   proxy_setup_recurring                      : { request: "PaymentServiceProxySetupRecurringRequest", response: "PaymentServiceSetupRecurringResponse" },
 
+  // recurring_get_qr: RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement.
+  recurring_get_qr                           : { request: "RecurringPaymentServiceGetQrRequest", response: "RecurringPaymentServiceConsentResponse" },
+
+  // recurring_request_confirmation: RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement.
+  recurring_request_confirmation             : { request: "RecurringPaymentServiceRequestConfirmationRequest", response: "RecurringPaymentServiceConsentResponse" },
+
   // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
   recurring_revoke                           : { request: "RecurringPaymentServiceRevokeRequest", response: "RecurringPaymentServiceRevokeResponse" },
 

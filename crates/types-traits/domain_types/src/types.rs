@@ -5,6 +5,11 @@ pub use crate::payment_method_data::{
     AdditionalCardInfo, AdditionalPaymentData, GooglePayAdditionalData,
 };
 
+// Payment FFI response macros resolve their converters through this module.
+pub use crate::pix_automatico::{
+    generate_recurring_confirmation_response, generate_recurring_qr_response,
+};
+
 use crate::{
     connector_flow::{
         CreatePaymentMethod, GetPaymentMethod, MandateRevoke, PaymentMethodEligibility, Recharge,
@@ -2834,6 +2839,8 @@ impl<
                 // ============================================================================
                 // INDONESIAN BANK TRANSFERS - Doku Integration
                 // ============================================================================
+                grpc_api_types::payments::payment_method::PaymentMethod::PixAutomaticoPush(_) => Ok(Self::BankTransfer(Box::new(payment_method_data::BankTransferData::PixAutomaticoPush {}))),
+                grpc_api_types::payments::payment_method::PaymentMethod::PixAutomaticoQr(_) => Ok(Self::BankTransfer(Box::new(payment_method_data::BankTransferData::PixAutomaticoQr {}))),
                 grpc_api_types::payments::payment_method::PaymentMethod::Pix(pix_data) => {
                     // Parse expiry_date from ISO 8601 string if provided. A malformed value is
                     // an error: dropping it would silently apply the connector's default expiry.
@@ -3393,6 +3400,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::PayBright)
             }
             grpc_api_types::payments::PaymentMethodType::Pix => Ok(PaymentMethodType::Pix),
+            grpc_api_types::payments::PaymentMethodType::PixAutomaticoPush => {
+                Ok(PaymentMethodType::PixAutomaticoPush)
+            }
+            grpc_api_types::payments::PaymentMethodType::PixAutomaticoQr => {
+                Ok(PaymentMethodType::PixAutomaticoQr)
+            }
             grpc_api_types::payments::PaymentMethodType::Ted => Ok(PaymentMethodType::Ted),
             grpc_api_types::payments::PaymentMethodType::PaySafeCard => {
                 Ok(PaymentMethodType::PaySafeCard)
@@ -3473,8 +3486,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             | grpc_api_types::payments::PaymentMethodType::Payjustnow
             | grpc_api_types::payments::PaymentMethodType::Payshap
             | grpc_api_types::payments::PaymentMethodType::PayshapProxy
-            | grpc_api_types::payments::PaymentMethodType::PixAutomaticoPush
-            | grpc_api_types::payments::PaymentMethodType::PixAutomaticoQr
             | grpc_api_types::payments::PaymentMethodType::PixEmv
             | grpc_api_types::payments::PaymentMethodType::PixKey
             | grpc_api_types::payments::PaymentMethodType::PixQr
@@ -3774,6 +3785,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 // ============================================================================
                 // INDONESIAN BANK TRANSFERS - PaymentMethodType mappings
                 // ============================================================================
+                grpc_api_types::payments::payment_method::PaymentMethod::PixAutomaticoPush(_) => Ok(Some(PaymentMethodType::PixAutomaticoPush)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PixAutomaticoQr(_) => Ok(Some(PaymentMethodType::PixAutomaticoQr)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Pix(_) => Ok(Some(PaymentMethodType::Pix)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PermataBankTransfer(_) => Ok(Some(PaymentMethodType::PermataBankTransfer)),
                 grpc_api_types::payments::payment_method::PaymentMethod::BcaBankTransfer(_) => Ok(Some(PaymentMethodType::BcaBankTransfer)),
@@ -4075,6 +4088,7 @@ pub struct AuthorizationRequest {
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
 #[derive(Debug, Clone)]
 pub struct SetupRecurringRequest {
+    pub pix_automatico: Option<grpc_payment_types::PixAutomaticoMandateDetails>,
     pub merchant_recurring_payment_id: String,
     pub amount: Option<grpc_payment_types::Money>,
     pub payment_method: Option<grpc_payment_types::PaymentMethod>,
@@ -4295,6 +4309,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             other => Some(common_enums::MitCategory::foreign_from(other)),
         };
         Self {
+            pix_automatico: req.pix_automatico.clone(),
             auth_type: req.auth_type(),
             setup_future_usage: req.setup_future_usage(),
             merchant_recurring_payment_id: req.merchant_recurring_payment_id,
@@ -4358,6 +4373,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
                 });
 
         Self {
+            pix_automatico: None,
             auth_type: req.auth_type(),
             setup_future_usage: req.setup_future_usage(),
             merchant_recurring_payment_id: req.merchant_recurring_payment_id,
@@ -6031,6 +6047,10 @@ impl<
     fn foreign_try_from(
         (value, payment_method_data): (SetupRecurringRequest, PaymentMethodData<T>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        crate::pix_automatico::validate_configuration(
+            crate::pix_automatico::is_pix_automatico(&payment_method_data),
+            value.pix_automatico.is_some(),
+        )?;
         let email: Option<Email> = match value.customer.clone().and_then(|customer| customer.email)
         {
             Some(ref email_str) => {
@@ -6081,6 +6101,10 @@ impl<
             .transpose()?;
 
         Ok(Self {
+            pix_automatico: value
+                .pix_automatico
+                .map(crate::pix_automatico::PixAutomaticoMandateDetails::foreign_try_from)
+                .transpose()?,
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
             payment_method_data,
             confirm: true,
@@ -8823,7 +8847,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::BankTransfer),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Pix(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Pix(_)
+                         | grpc_api_types::payments::payment_method::PaymentMethod::PixAutomaticoPush(_)
+                         | grpc_api_types::payments::payment_method::PaymentMethod::PixAutomaticoQr(_)),
             } => Ok(Self::BankTransfer),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -10585,6 +10611,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
         value: grpc_api_types::payments::PaymentMethodType,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         match value {
+            grpc_api_types::payments::PaymentMethodType::PixAutomaticoPush
+            | grpc_api_types::payments::PaymentMethodType::PixAutomaticoQr => {
+                Ok(Self::BankTransfer)
+            }
             grpc_api_types::payments::PaymentMethodType::Credit => Ok(Self::Card),
             grpc_api_types::payments::PaymentMethodType::Debit => Ok(Self::Card),
 
@@ -14103,15 +14133,23 @@ impl<
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
             .and_then(map_customer_document_details);
-        let customer_acceptance = value.customer_acceptance.clone().ok_or_else(|| {
-            error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Customer acceptance is missing".to_string()),
-                    ..Default::default()
-                },
-            })
-        })?;
+        let is_pix_automatico = crate::pix_automatico::is_pix_automatico(&payment_method_data);
+        crate::pix_automatico::validate_configuration(
+            is_pix_automatico,
+            value.pix_automatico.is_some(),
+        )?;
+        if !is_pix_automatico && value.customer_acceptance.is_none() {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "customer_acceptance",
+                context: Default::default(),
+            }
+            .into());
+        }
+        let customer_acceptance = value
+            .customer_acceptance
+            .clone()
+            .map(mandates::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
 
         let amount = match value.amount {
             Some(amount) => Ok(crate::money::from_proto_money(amount)?),
@@ -14151,9 +14189,7 @@ impl<
         };
         let setup_mandate_details = MandateData {
             update_mandate_id: None,
-            customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
-                customer_acceptance.clone(),
-            )?),
+            customer_acceptance: customer_acceptance.clone(),
             mandate_type,
         };
 
@@ -14178,12 +14214,14 @@ impl<
         };
 
         Ok(Self {
+            pix_automatico: value
+                .pix_automatico
+                .map(crate::pix_automatico::PixAutomaticoMandateDetails::foreign_try_from)
+                .transpose()?,
             currency: amount.currency(),
             payment_method_data,
             confirm: true,
-            customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
-                customer_acceptance.clone(),
-            )?),
+            customer_acceptance: customer_acceptance.clone(),
             mandate_id: None,
             setup_future_usage: Some(common_enums::FutureUsage::foreign_try_from(
                 setup_future_usage,
@@ -15606,6 +15644,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     Crypto,
     MandatePayment,
@@ -16146,6 +16186,13 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest>
             .transpose()?;
 
         Ok(Self {
+            access_token: value
+                .state
+                .as_ref()
+                .and_then(|state| state.access_token.as_ref())
+                .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+                .transpose()?,
+            connector_customer_id: value.state.and_then(|state| state.connector_customer_id),
             money: amount.clone(),
             currency: amount.currency(),
             browser_info: value
@@ -16318,6 +16365,11 @@ impl
             .transpose()?;
 
         Ok(Self {
+            access_token: value.state.as_ref()
+                .and_then(|state| state.access_token.as_ref())
+                .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+                .transpose()?,
+            connector_customer_id: value.state.and_then(|state| state.connector_customer_id),
             money: amount.clone(),
             currency: amount.currency(),
             browser_info: payment_ctx
@@ -17507,6 +17559,21 @@ impl<
             .transpose()?;
         let payment_method_type =
             <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
+        let pix_method_type = crate::pix_automatico::is_pix_automatico_type(payment_method_type);
+        let pix_instrument = payment_method_data
+            .as_ref()
+            .map(crate::pix_automatico::is_pix_automatico);
+        if pix_instrument.is_some_and(|is_pix| is_pix != pix_method_type) {
+            return Err(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_type",
+                context: Default::default(),
+            }
+            .into());
+        }
+        crate::pix_automatico::validate_configuration(
+            pix_method_type,
+            value.pix_automatico.is_some(),
+        )?;
         let capture_method = value.capture_method();
         let merchant_order_id = value.merchant_order_id;
         let webhook_url = value.webhook_url;
@@ -17579,6 +17646,10 @@ impl<
         }?;
 
         Ok(Self {
+            pix_automatico: value
+                .pix_automatico
+                .map(crate::pix_automatico::PixAutomaticoChargeDetails::foreign_try_from)
+                .transpose()?,
             split_settlement: value
                 .split_settlement
                 .clone()
@@ -22322,6 +22393,7 @@ pub fn tokenized_setup_recurring_to_base(
     v: grpc_payment_types::PaymentServiceTokenSetupRecurringRequest,
 ) -> PaymentServiceSetupRecurringRequest {
     PaymentServiceSetupRecurringRequest {
+        pix_automatico: None,
         merchant_recurring_payment_id: v.merchant_recurring_payment_id,
         amount: v.amount,
         // Neither the token nor the proxy SetupRecurring contract carries split
@@ -22564,6 +22636,7 @@ pub fn proxied_setup_recurring_to_base(
         })
     })?;
     Ok(PaymentServiceSetupRecurringRequest {
+        pix_automatico: None,
         merchant_recurring_payment_id: v.merchant_recurring_payment_id,
         amount: v.amount,
         // Neither the token nor the proxy SetupRecurring contract carries split

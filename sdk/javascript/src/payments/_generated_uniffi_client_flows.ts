@@ -514,6 +514,40 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('proxy_setup_recurring', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for recurring_get_qr flow. */
+  recurringGetQrReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('recurring_get_qr', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for recurring_get_qr flow. */
+  recurringGetQrRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('recurring_get_qr', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for recurring_request_confirmation flow. */
+  recurringRequestConfirmationReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('recurring_request_confirmation', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for recurring_request_confirmation flow. */
+  recurringRequestConfirmationRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('recurring_request_confirmation', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for recurring_revoke flow. */
   recurringRevokeReq(
     requestBytes: Buffer | Uint8Array,
