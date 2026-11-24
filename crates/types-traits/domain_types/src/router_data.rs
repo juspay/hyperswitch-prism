@@ -902,6 +902,8 @@ pub enum ConnectorSpecificConfig {
     GotymeSanlam {
         api_key: Secret<String>,
         profile_id: Secret<String>,
+        merchant_id: Secret<String>,
+        connector_id: Secret<String>,
         base_url: Option<String>,
     },
     PinelabsOnline {
@@ -1342,7 +1344,9 @@ impl ConnectorSpecificConfig {
             AbsaSanlam { api_key, base_url },
             GotymeSanlam {
                 api_key,
-                profile_id
+                profile_id,
+                merchant_id,
+                merchant_connector_id
             },
             Bamboraapac {
                 username,
@@ -2004,8 +2008,9 @@ impl ConnectorSpecificConfig {
                 },
                 AbsaSanlam { api_key, base_url },
                 GotymeSanlam {
-                    api_key,
-                    profile_id
+                    merchant_id,
+                    profile_id,
+                    merchant_connector_id
                 },
                 Trustpay {
                     api_key,
@@ -2570,7 +2575,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::GotymeSanlam(gotyme_sanlam) => Ok(Self::GotymeSanlam {
                 api_key: gotyme_sanlam.api_key.ok_or_else(err)?,
+                merchant_id: gotyme_sanlam.merchant_id.ok_or_else(err)?,
                 profile_id: gotyme_sanlam.profile_id.ok_or_else(err)?,
+                connector_id: gotyme_sanlam.connector_id.ok_or_else(err)?,
                 base_url: gotyme_sanlam.base_url,
             }),
             AuthType::Redsys(redsys) => Ok(Self::Redsys {
@@ -4813,14 +4820,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Santander => Err(err().into()),
-                PayoutConnectorEnum::GotymeSanlam => match auth {
-                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {
-                        api_key: api_key.clone(),
-                        profile_id: key1.clone(),
-                        base_url: None,
-                    }),
-                    _ => Err(err().into()),
-                },
+                PayoutConnectorEnum::GotymeSanlam => Err(err().into()),
                 PayoutConnectorEnum::Truelayer => Err(err().into()),
                 PayoutConnectorEnum::Mifinity => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mifinity {
