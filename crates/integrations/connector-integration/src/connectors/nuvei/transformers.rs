@@ -891,12 +891,21 @@ pub(super) fn get_required_billing_address(
                 "Send address.billing_address.country_alpha2_code",
             )
         })?;
-    Ok(NuveiBillingAddress::new(
-        resource_data,
-        email,
-        country,
-        card_holder_name,
-    ))
+    let billing_address =
+        NuveiBillingAddress::new(resource_data, email, country, card_holder_name);
+    for (field, name) in [
+        ("billing_address.first_name", &billing_address.first_name),
+        ("billing_address.last_name", &billing_address.last_name),
+    ] {
+        if name.is_none() {
+            return Err(nuvei_missing_field(
+                field,
+                "Send the billing name or a cardholder name that provides it",
+            )
+            .into());
+        }
+    }
+    Ok(billing_address)
 }
 
 #[serde_with::skip_serializing_none]
@@ -3540,8 +3549,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let client_request_id = resource.connector_request_reference_id.clone();
         let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
-        // billing email and country are mandatory; a received Name_on_card
-        // fills missing billing names
+        // Payment billing requires email, country, and both names.
         let billing_address = get_required_billing_address(
             resource,
             email.clone(),
@@ -6365,8 +6373,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let client_request_id = resource.connector_request_reference_id.clone();
         let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
-        // Billing email and country are mandatory; shipping only when present.
-        // A received Name_on_card fills missing billing names.
+        // Payment billing requires email, country, and both names.
         let billing_address = get_required_billing_address(
             resource,
             request.email.clone(),
@@ -6819,8 +6826,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ip_address: Secret::new(ip_address),
         };
 
-        // All arms: billing email and country are mandatory; a received
-        // Name_on_card (NTID card) fills missing billing names
+        // Payment billing requires email, country, and both names.
         let billing_address = get_required_billing_address(
             resource,
             request.email.clone(),

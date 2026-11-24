@@ -317,8 +317,13 @@ fn billing_state_normalizes_names_and_enforces_five_character_cap() {
         ),
     ] {
         let resource = payment_with_billing(Some(CountryAlpha2::US), Some(state));
-        let address = get_required_billing_address(&resource, Some(email.clone()), None, None)
-            .expect("billing address with a country and email");
+        let address = get_required_billing_address(
+            &resource,
+            Some(email.clone()),
+            Some(Secret::new("Jane Doe".to_owned())),
+            None,
+        )
+        .expect("complete billing address");
         let state = address.state.map(|value| value.expose());
         assert_eq!(state.as_deref(), expected);
     }
@@ -335,7 +340,7 @@ fn billing_country_prefers_customer_country_and_falls_back_to_merchant_country()
         let address = get_required_billing_address(
             &resource,
             Some(email.clone()),
-            None,
+            Some(Secret::new("Jane Doe".to_owned())),
             Some(CountryAlpha2::GB),
         )
         .expect("billing or merchant country is available");
@@ -352,6 +357,28 @@ fn billing_country_prefers_customer_country_and_falls_back_to_merchant_country()
             ..
         }
     ));
+}
+
+#[test]
+fn payment_billing_rejects_missing_names_after_cardholder_fallback() {
+    let resource = payment_with_billing(Some(CountryAlpha2::US), None);
+    let email = Email::try_from("test@example.com".to_owned()).expect("valid test email");
+    for (holder, expected_field) in [
+        (None, "billing_address.first_name"),
+        (Some("Cher"), "billing_address.last_name"),
+    ] {
+        let error = get_required_billing_address(
+            &resource,
+            Some(email.clone()),
+            holder.map(|name| Secret::new(name.to_owned())),
+            None,
+        )
+        .expect_err("both billing names are required for payment");
+        assert!(matches!(
+            error.current_context(),
+            IntegrationError::MissingRequiredField { field_name, .. } if *field_name == expected_field
+        ));
+    }
 }
 
 fn payment_with_billing(
