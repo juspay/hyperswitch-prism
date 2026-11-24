@@ -222,7 +222,7 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     println!("\n[test_ucs] grand total: passed={passed} failed={failed} skipped={skipped}");
-    run_outcome(&scenario_selection, passed, failed)?;
+    run_outcome(&suite_selection, &scenario_selection, passed, failed)?;
 
     Ok(())
 }
@@ -496,7 +496,7 @@ fn run_interactive(args: &[String]) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     println!("\n[test_ucs] grand total: passed={passed} failed={failed} skipped={skipped}");
-    run_outcome(&scenario_selection, passed, failed)?;
+    run_outcome(&suite_selection, &scenario_selection, passed, failed)?;
 
     Ok(())
 }
@@ -569,28 +569,38 @@ fn build_equivalent_command(
 /// `execute_plan` counts a scenario the harness declines to run — unsupported
 /// payment method, unmet dependency, filter mismatch — as `skipped`, leaving
 /// `failed` at zero. For a sweep that is correct: skips are expected and the
-/// run still succeeded. When the caller named one scenario, exiting zero
-/// without having run it reports success for work that never happened, and
-/// anything keyed off the exit code inherits that false negative.
-fn requires_execution(selection: &ScenarioSelection) -> bool {
-    match selection {
-        // The caller named exactly what to run.
-        ScenarioSelection::Specific(_) => true,
+/// run still succeeded. When the caller named a scenario or a suite, exiting
+/// zero without having run anything reports success for work that never
+/// happened, and anything keyed off the exit code inherits that false negative.
+fn requires_execution(suites: &SuiteSelection, selection: &ScenarioSelection) -> bool {
+    match (suites, selection) {
+        // The caller named exactly what to run: a scenario, or a suite (a typo'd or
+        // unsupported suite otherwise skips everything and reports success).
+        (_, ScenarioSelection::Specific(_)) | (SuiteSelection::Specific(_), _) => true,
         // A sweep may legitimately skip what a connector does not support.
-        ScenarioSelection::All | ScenarioSelection::Multiple(_) => false,
+        (SuiteSelection::All, ScenarioSelection::All | ScenarioSelection::Multiple(_)) => false,
     }
 }
 
 /// Turns the run totals into an exit outcome.
-fn run_outcome(selection: &ScenarioSelection, passed: usize, failed: usize) -> Result<(), String> {
+fn run_outcome(
+    suites: &SuiteSelection,
+    selection: &ScenarioSelection,
+    passed: usize,
+    failed: usize,
+) -> Result<(), String> {
     if failed > 0 {
         return Err("one or more scenarios failed".to_string());
     }
-    if passed == 0 && requires_execution(selection) {
-        return Err(match selection {
-            ScenarioSelection::Specific(name) => {
+    if passed == 0 && requires_execution(suites, selection) {
+        return Err(match (selection, suites) {
+            (ScenarioSelection::Specific(name), _) => {
                 format!("scenario '{name}' was skipped, not executed — nothing was verified")
             }
+            (_, SuiteSelection::Specific(names)) => format!(
+                "suite(s) {} executed no scenario (unsupported or unknown) — nothing was verified",
+                names.join(", ")
+            ),
             _ => "no scenario executed — nothing was verified".to_string(),
         });
     }
@@ -1086,6 +1096,7 @@ enum ScenarioSelection {
 mod tests {
     use super::{
         compact_error_for_console, connector_error_for_console, run_outcome, ScenarioSelection,
+        SuiteSelection,
     };
 
     /// grpcurl's verbose output when the call itself produced no response. The
@@ -1195,14 +1206,19 @@ x-connector: fiserv\n";
             ScenarioSelection::All,
             ScenarioSelection::Specific("s".to_string()),
         ] {
-            assert!(run_outcome(&selection, 1, 1).is_err());
+            assert!(run_outcome(&SuiteSelection::All, &selection, 1, 1).is_err());
         }
     }
 
     #[test]
     fn a_named_scenario_that_never_ran_is_not_a_pass() {
         // passed=0, failed=0 is what a skip looks like from the outside.
-        let outcome = run_outcome(&ScenarioSelection::Specific("no3ds".to_string()), 0, 0);
+        let outcome = run_outcome(
+            &SuiteSelection::All,
+            &ScenarioSelection::Specific("no3ds".to_string()),
+            0,
+            0,
+        );
         assert!(
             outcome.is_err(),
             "a skipped named scenario must not report success"
@@ -1217,12 +1233,50 @@ x-connector: fiserv\n";
     #[test]
     fn a_sweep_may_skip_everything() {
         // Nothing ran, but nothing was promised either.
-        assert!(run_outcome(&ScenarioSelection::All, 0, 0).is_ok());
-        assert!(run_outcome(&ScenarioSelection::Multiple(vec!["a".to_string()]), 0, 0).is_ok());
+        assert!(run_outcome(&SuiteSelection::All, &ScenarioSelection::All, 0, 0).is_ok());
+        assert!(run_outcome(
+            &SuiteSelection::All,
+            &ScenarioSelection::Multiple(vec!["a".to_string()]),
+            0,
+            0
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn a_named_suite_that_ran_nothing_is_not_a_pass() {
+        let outcome = run_outcome(
+            &SuiteSelection::Specific(vec!["PaymentService/Typo".to_string()]),
+            &ScenarioSelection::All,
+            0,
+            0,
+        );
+        let message = outcome.err().unwrap_or_default();
+        assert!(
+            message.contains("PaymentService/Typo"),
+            "error should name the suite: {message}"
+        );
+    }
+
+    #[test]
+    fn a_named_suite_that_ran_and_passed_is_a_pass() {
+        assert!(run_outcome(
+            &SuiteSelection::Specific(vec!["PaymentService/Authorize".to_string()]),
+            &ScenarioSelection::All,
+            3,
+            0
+        )
+        .is_ok());
     }
 
     #[test]
     fn a_named_scenario_that_ran_and_passed_is_a_pass() {
-        assert!(run_outcome(&ScenarioSelection::Specific("s".to_string()), 1, 0).is_ok());
+        assert!(run_outcome(
+            &SuiteSelection::All,
+            &ScenarioSelection::Specific("s".to_string()),
+            1,
+            0
+        )
+        .is_ok());
     }
 }

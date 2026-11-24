@@ -15,9 +15,6 @@ pub fn preprocess_xml_response_bytes(
     xml_data: Bytes,
     http_status: u16,
 ) -> Result<Bytes, ConnectorError> {
-    // Log raw bytes for debugging
-    tracing::info!(bytes=?xml_data, "Raw XML bytes received for preprocessing");
-
     // Convert to UTF-8 string
     let response_str = std::str::from_utf8(&xml_data)
         .map_err(|_| {
@@ -34,9 +31,7 @@ pub fn preprocess_xml_response_bytes(
         match response_str.find("?>") {
             Some(pos) => {
                 let substring = &response_str[pos + 2..];
-                let cleaned = substring.trim();
-                tracing::info!("Removed XML declaration: {}", cleaned);
-                cleaned
+                substring.trim()
             }
             None => {
                 tracing::warn!("XML declaration start found but no closing '?>' tag");
@@ -85,8 +80,6 @@ pub fn preprocess_xml_response_bytes(
             "Internal JSON serialization failed after XML conversion.",
         )
     })?;
-
-    tracing::info!(json=?json_string, "Flattened JSON structure");
 
     // Return JSON as bytes
     Ok(Bytes::from(json_string.into_bytes()))

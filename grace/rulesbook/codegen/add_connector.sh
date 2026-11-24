@@ -2083,7 +2083,7 @@ PYEOF
 # over its enum with no `_` fallback - so adding a variant without adding an arm
 # here is a hard compile error, not a silent gap:
 #
-#   patch_connector_urls               ConnectorEnum              (has a `_ => {` fallback)
+#   patch_connector_urls               ConnectorEnum              (exhaustive)
 #   patch_payout_connector_urls        PayoutConnectorEnum        (exhaustive)
 #   patch_surcharge_connector_urls     SurchargeConnectorEnum     (exhaustive)
 #   patch_frm_connector_urls           FrmConnectorEnum           (exhaustive)
@@ -2109,53 +2109,30 @@ kind_enum = sys.argv[4]
 patch_fn = sys.argv[5]
 content = open(path).read()
 
-if patch_fn == "patch_connector_urls":
-    # Payment: this match HAS a `_ => {` fallback that raises
-    # "is not supported for dynamic URL patching from superposition".
-    # Anchor on that unique string and insert just above the fallback.
-    marker = "is not supported for dynamic URL patching from superposition"
-    mi = content.index(marker)
+# Every kind is an exhaustive `match connector { ... }` with no fallback.
+# Insert the new arm immediately before the match's closing brace.
+fn_start = content.index("pub fn %s(" % patch_fn)
+match_kw = content.index("match connector {", fn_start)
+brace_open = content.index("{", match_kw + len("match connector"))
 
-    fb = content.rindex("_ => {", 0, mi)
-    line_start = content.rindex("\n", 0, fb) + 1
-    indent = content[line_start:fb]  # leading whitespace of the `_ => {` line
-    arm = (
-        "%sConnectorEnum::%s => {\n"
-        "%s    patched.%s.apply(params_patch);\n"
-        "%s}\n"
-    ) % (indent, pascal, indent, snake, indent)
-    content = content[:line_start] + arm + content[line_start:]
+depth = 0
+match_close = -1
+for idx in range(brace_open, len(content)):
+    ch = content[idx]
+    if ch == "{":
+        depth += 1
+    elif ch == "}":
+        depth -= 1
+        if depth == 0:
+            match_close = idx
+            break
+if match_close == -1:
+    raise SystemExit("%s match closing brace not found" % patch_fn)
 
-    # Keep the human-readable "Supported connectors:" hint in sync.
-    key = "Supported connectors: "
-    ki = content.index(key)
-    end = content.index('"', ki)  # closing quote of the string literal
-    content = content[:end] + ", " + snake + content[end:]
-else:
-    # Every other kind: an exhaustive `match connector { ... }` with no fallback.
-    # Insert the new arm immediately before the match's closing brace.
-    fn_start = content.index("pub fn %s(" % patch_fn)
-    match_kw = content.index("match connector {", fn_start)
-    brace_open = content.index("{", match_kw + len("match connector"))
-
-    depth = 0
-    match_close = -1
-    for idx in range(brace_open, len(content)):
-        ch = content[idx]
-        if ch == "{":
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0:
-                match_close = idx
-                break
-    if match_close == -1:
-        raise SystemExit("%s match closing brace not found" % patch_fn)
-
-    line_start = content.rindex("\n", 0, match_close) + 1
-    indent = content[line_start:match_close] + "    "
-    arm = "%s%s::%s => patched.%s.apply(params_patch),\n" % (indent, kind_enum, pascal, snake)
-    content = content[:line_start] + arm + content[line_start:]
+line_start = content.rindex("\n", 0, match_close) + 1
+indent = content[line_start:match_close] + "    "
+arm = "%s%s::%s => patched.%s.apply(params_patch),\n" % (indent, kind_enum, pascal, snake)
+content = content[:line_start] + arm + content[line_start:]
 
 open(path, "w").write(content)
 APPLYEOF

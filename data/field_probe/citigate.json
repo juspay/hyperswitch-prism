@@ -141,7 +141,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"4111111111111111\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"737\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"StateProvince\":\"WA\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"Telephone\":\"+14155552671\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"4111111111111111\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"737\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"StateProvince\":\"WA\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"Telephone\":\"4155552671\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
         }
       },
       "CashappQr": {
@@ -684,7 +684,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_proxy_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"{{$card_number}}\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"{{$card_cvc}}\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"StateProvince\":\"WA\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"Telephone\":\"+14155552671\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_proxy_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"{{$card_number}}\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"{{$card_cvc}}\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"StateProvince\":\"WA\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"Telephone\":\"4155552671\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
         }
       }
     },
@@ -776,6 +776,32 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for citigate"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for citigate"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for citigate"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for citigate"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for citigate"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for citigate"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for citigate"
       }
     },
     "verify_redirect": {
