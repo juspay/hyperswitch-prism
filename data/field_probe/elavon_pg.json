@@ -125,7 +125,7 @@
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments (payment_method_data.card), its own stored cards and pre-decrypted Apple Pay / Google Pay. Other wallets, bank transfers and BNPL are not implemented for this connector."
+        "error": "Payment method BankRedirect(Blik { blik_code: Some(*** alloc::string::String ***) }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments (payment_method_data.card), its own stored cards and pre-decrypted Apple Pay / Google Pay. Other wallets, bank transfers and BNPL are not implemented for this connector."
       },
       "Bluecode": {
         "status": "not_supported",
@@ -453,7 +453,7 @@
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Wallet PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }) is not supported by elavon_pg. Elavon Payment Gateway supports Apple Pay and Google Pay (pre-decrypted) only"
+        "error": "Wallet PaypalSdk(PayPalWalletData { token: *** alloc::string::String *** }) is not supported by elavon_pg. Elavon Payment Gateway supports Apple Pay and Google Pay (pre-decrypted) only"
       },
       "Paysera": {
         "status": "not_implemented",
@@ -728,7 +728,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}"
+        }
       }
     },
     "incremental_authorization": {
@@ -739,7 +754,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -1001,6 +1030,32 @@
     },
     "token_setup_recurring": {
       "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
+      },
+      "GooglePayDecrypted": {
         "status": "error",
         "error": "Stuck on field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first — Missing required field: connector_customer_id. Elavon Payment Gateway stores a card under a shopper, so CreateConnectorCustomer must run first"
       }
