@@ -77,7 +77,7 @@ fn main() {
     let connectors: Vec<_> = all_connectors()
         .into_iter()
         .filter(|c| {
-            let name = format!("{c:?}").to_lowercase();
+            let name = c.to_string();
             !skip_set.contains(&name)
         })
         .collect();

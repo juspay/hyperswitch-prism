@@ -232,6 +232,18 @@ pub fn build_reverse_request(connector_transaction_id: &str) -> PaymentServiceRe
     PaymentServiceReverseRequest {
         merchant_reverse_id: Some("probe_reverse_001".to_string()), // Identification.
         connector_transaction_id: connector_transaction_id.to_string(),
+        state: Some(ConnectorState {
+            // State Information.
+            access_token: Some(AccessToken {
+                // Access token obtained from connector.
+                token: Some(Secret::new(
+                    "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA".to_string(),
+                )), // The token string.
+                expires_in_seconds: Some(3600), // Expiration timestamp (seconds since epoch).
+                token_type: Some("Bearer".to_string()), // Token type (e.g., "Bearer", "Basic").
+            }),
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }

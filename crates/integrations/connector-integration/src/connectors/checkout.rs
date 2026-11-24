@@ -427,10 +427,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Payment event — the canonical payment ID is `payment_id`; `id` may be an action ID
         let connector_transaction_id = body.data.payment_id.or(Some(body.data.id));
+
+        // Void references can contain the Checkout payment ID rather than the HS attempt ID.
+        // Omit them so HS looks up the payment by its connector transaction ID.
+        let merchant_transaction_id = match type_body.transaction_type {
+            transformers::CheckoutWebhookEventType::PaymentVoided
+            | transformers::CheckoutWebhookEventType::PaymentVoidDeclined => None,
+            _ => body.data.reference,
+        };
+
         Ok(Some(WebhookResourceReference::Payment(
             PaymentWebhookReference {
                 connector_transaction_id,
-                merchant_transaction_id: body.data.reference,
+                merchant_transaction_id,
                 connector_preprocessing_id: None,
             },
         )))

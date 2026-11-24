@@ -102,6 +102,13 @@ private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServi
     return PaymentServiceReverseRequest.newBuilder().apply {
         merchantReverseId = "probe_reverse_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
     }.build()
 }
 

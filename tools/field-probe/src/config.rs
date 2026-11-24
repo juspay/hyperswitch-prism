@@ -281,7 +281,7 @@ pub(crate) fn max_iterations() -> usize {
 /// Get connector-specific metadata JSON for connectors that require it
 pub(crate) fn connector_feature_data_json(connector: &ConnectorEnum) -> Option<String> {
     let config = get_config();
-    let name = format!("{connector:?}").to_lowercase();
+    let name = connector.to_string();
 
     // First check if config has metadata for this connector
     if let Some(meta) = config.connector_metadata.get(&name) {
@@ -297,7 +297,7 @@ pub(crate) fn connector_feature_data_json(connector: &ConnectorEnum) -> Option<S
 /// Returns the default token if no override is configured.
 pub(crate) fn connector_access_token_override(connector: &ConnectorEnum) -> Option<String> {
     let config = get_config();
-    let name = format!("{connector:?}").to_lowercase();
+    let name = connector.to_string();
     config.access_token.overrides.get(&name).cloned()
 }
 
@@ -308,7 +308,7 @@ pub(crate) fn connector_flow_overrides(
     flow: &str,
 ) -> Option<&'static HashMap<String, toml::Value>> {
     let config = get_config();
-    let name = format!("{connector:?}").to_lowercase();
+    let name = connector.to_string();
     // Pass 1: exact flow key  →  [connector_overrides.<flow>.<connector>]
     // Pass 2: multi-flow key  →  [connector_overrides."get,refund,void".<connector>]
     //         Find a comma-separated key that includes this flow AND has this connector.
@@ -330,7 +330,7 @@ pub(crate) fn connector_flow_overrides(
 
 /// Returns the wallet token override for `connector`/`pm_name`, if configured.
 pub(crate) fn wallet_token_override(connector: &ConnectorEnum, pm_name: &str) -> Option<String> {
-    let name = format!("{connector:?}").to_lowercase();
+    let name = connector.to_string();
     get_config()
         .wallet_token_overrides
         .get(&name)
