@@ -736,6 +736,8 @@ message PayoutServiceCreateRecipientRequest {
   optional string merchant_request_id = 8;
   // Vendor (business) and individual (KYC) onboarding details, e.g. Stripe Connect
   optional PayoutVendorAccountDetails vendor_account_details = 9;
+  // Funding party supplied on the payout, for connectors that consume sender identity directly
+  optional SenderDetails sender_details = 10;
 }
 
 // Vendor account details required to onboard a recipient with a connector

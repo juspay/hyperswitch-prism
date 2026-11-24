@@ -1,7 +1,7 @@
 use super::payout_method_data::{Bank, PayoutMethodData};
 use crate::{
     connector_types::{
-        ConnectorResponseHeaders, RawConnectorRequestResponse,
+        ConnectorResponseHeaders, RawConnectorRequestResponse, SenderDetails,
         ServerAuthenticationTokenResponseData,
     },
     errors::{IntegrationError, IntegrationErrorContext},
@@ -528,6 +528,9 @@ pub struct PayoutCreateRecipientRequest<T: PaymentMethodDataTypes = DefaultPCIHo
     pub address: Option<PayoutAddress>,
     pub customer: Option<PayoutCustomer>,
     pub vendor_account_details: Option<PayoutVendorAccountDetails>,
+    /// The funding party supplied on the payout, preserved for connectors that consume the
+    /// sender identity rather than the normalized vendor details.
+    pub sender_details: Option<SenderDetails>,
 }
 
 /// Day, month and year parts of a date of birth.
@@ -542,8 +545,9 @@ pub enum PayoutAccountType {
 }
 
 #[derive(Debug, Clone, Default)]
-/// Caller-normalized common party/account data. UCS never consumes SenderDetails.
-/// The flow determines the role: funding party for transfer, account party for enrollment.
+/// Caller-normalized common party/account data. The flow determines the role: funding party
+/// for transfer, account party for enrollment. Connectors that need the original funding
+/// party identity read `PayoutCreateRecipientRequest::sender_details` instead.
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: Option<PayoutVendorDetails>,
     pub individual_details: Option<PayoutIndividualDetails>,
@@ -609,6 +613,14 @@ impl<T: PaymentMethodDataTypes> PayoutCreateRecipientRequest<T> {
         self.vendor_account_details
             .as_ref()
             .and_then(|v| v.individual_details.as_ref())
+    }
+
+    /// Date of birth of the individual funding the payout, when supplied as sender details.
+    pub fn get_sender_date_of_birth(&self) -> Option<&Secret<time::Date>> {
+        match self.sender_details.as_ref()? {
+            SenderDetails::Individual(individual) => individual.date_of_birth.as_ref(),
+            SenderDetails::Corporate(_) => None,
+        }
     }
 
     pub fn get_phone(&self) -> Option<Secret<String>> {

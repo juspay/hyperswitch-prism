@@ -2311,6 +2311,11 @@ where
             .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
             .transpose()?;
 
+        let sender_details = value
+            .sender_details
+            .map(crate::connector_types::SenderDetails::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
@@ -2322,6 +2327,7 @@ where
             customer,
             address,
             vendor_account_details,
+            sender_details,
         })
     }
 }
