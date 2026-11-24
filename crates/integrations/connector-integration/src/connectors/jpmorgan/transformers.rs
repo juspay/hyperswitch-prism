@@ -3095,15 +3095,15 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 Some(requests::JpmorganAccountNumberType::SafetechToken)
             }
         };
+        let authentication = request
+            .additional_connector_details
+            .as_ref()
+            .and_then(|details| details.request_sca_exemption)
+            .filter(|request_sca_exemption| *request_sca_exemption)
+            .and_then(|_| build_mit_authentication(request.mit_category.as_ref()));
 
         Ok(requests::JpmorganMitCard {
-            authentication: build_mit_authentication(
-                request.mit_category.as_ref(),
-                request
-                    .additional_connector_details
-                    .as_ref()
-                    .and_then(|details| details.request_sca_exemption),
-            ),
+            authentication,
             account_number: number,
             account_number_type,
             expiry,
@@ -3120,23 +3120,19 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
 
 fn build_mit_authentication(
     mit_category: Option<&common_enums::MitCategory>,
-    request_sca_exemption: Option<bool>,
 ) -> Option<requests::JpmorganAuthentication> {
-    if request_sca_exemption != Some(true) {
-        return None;
-    }
     let sca_exemption_reason = match mit_category {
         Some(common_enums::MitCategory::Unscheduled) | None => {
-            requests::JpmorganScaExemptionReason::MerchantInitiatedTransaction
+            Some(requests::JpmorganScaExemptionReason::MerchantInitiatedTransaction)
         }
         Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
-            requests::JpmorganScaExemptionReason::RecurringPayment
+            Some(requests::JpmorganScaExemptionReason::RecurringPayment)
         }
         Some(common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission) => {
-            return None
+            None
         }
     };
-    Some(requests::JpmorganAuthentication {
+    sca_exemption_reason.map(|sca_exemption_reason| requests::JpmorganAuthentication {
         sca_exemption_reason: Some(sca_exemption_reason),
         token_authentication_value: None,
         electronic_commerce_indicator: None,
