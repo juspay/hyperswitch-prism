@@ -377,6 +377,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentMethodServiceEligibilityResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
   SplitSettlementVendor: ["splitMetadata"],
   SplitSettlementRefundVendor: ["splitMetadata"],
+  AdditionalConnectorDetails: ["ewallet"],
   FrmServicePreRiskCheckRequest: ["metadata", "connectorFeatureData"],
   FrmServicePreRiskCheckResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
   FrmServicePostRiskCheckRequest: ["metadata", "connectorFeatureData"],

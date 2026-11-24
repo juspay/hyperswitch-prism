@@ -7047,12 +7047,14 @@ message AdditionalConnectorDetails {
   optional string user_data2 = 5;
   // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData3.
   optional string user_data3 = 6;
+  // Destination wallet to include in the connector payment request.
+  optional SecretString ewallet = 8;
   // Request an SCA exemption in MIT when the initial CIT completed 3D Secure.
   optional bool request_sca_exemption = 7;
   // Funding transaction type (Worldpayxml uses this for AFT payments).
-  optional string funding_transaction_type = 8;
+  optional string funding_transaction_type = 9;
   // Fail MIT instead of requesting additional customer authentication.
-  optional bool error_on_requires_action = 9;
+  optional bool error_on_requires_action = 10;
 }
 
 message WorldpayxmlAdditionalInformation {
