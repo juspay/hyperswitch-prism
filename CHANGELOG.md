@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.24.1
+
+### Bug Fixes
+
+- **connector:** [checkout] correct async operation statuses and void webhook references ([#2937](https://github.com/juspay/connector-service/pull/2937)) ([`f738926`](https://github.com/juspay/connector-service/commit/f7389264868baef5f33ec2ccec82a3598db11e54))
+
+**Full Changelog:** [`2026.11.24.0...2026.11.24.1`](https://github.com/juspay/connector-service/compare/2026.11.24.0...2026.11.24.1)
+
+- - -
+
 ## 2026.11.24.0
 
 ### Features
