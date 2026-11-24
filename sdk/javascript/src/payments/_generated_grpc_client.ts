@@ -209,7 +209,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentMethodAuthenticationServicePostAuthenticateRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodAuthenticationServicePostAuthenticateResponse: ["connectorFeatureData", "rawConnectorResponse", "typedConnectorResponse"],
   PaymentServiceIncrementalAuthorizationRequest: ["connectorFeatureData"],
-  PaymentServiceIncrementalAuthorizationResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
+  PaymentServiceIncrementalAuthorizationResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse", "connectorFeatureData"],
   PaymentServiceVerifyRedirectResponseRequest: ["connectorFeatureData"],
   PaymentServiceVerifyRedirectResponseResponse: ["rawConnectorResponse", "typedConnectorResponse", "connectorFeatureData"],
   RefundServiceGetRequest: ["refundMetadata", "connectorFeatureData"],
