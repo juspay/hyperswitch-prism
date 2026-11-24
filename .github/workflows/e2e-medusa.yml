@@ -25,9 +25,9 @@ jobs:
       # too. Absolute path, so it resolves regardless of working-directory.
       CREDS_PATH: ${{ github.workspace }}/plugins/medusa/creds.json
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: '24.22.1'
           cache: npm
@@ -62,7 +62,7 @@ jobs:
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: playwright-report
           # Artifact paths are relative to the workspace root, not working-directory.

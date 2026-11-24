@@ -70,12 +70,12 @@ jobs:
       spec-modified-connectors: ${{ steps.spec-modified-connectors.outputs.list }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
         with:
           fetch-depth: 0
 
       - name: Detect changed paths
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v3.0.4
         id: filter
         with:
           list-files: json
@@ -362,7 +362,7 @@ jobs:
           'ubuntu-latest' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
 
       - name: Spell check
         uses: crate-ci/typos@master
@@ -379,7 +379,7 @@ jobs:
           'ubuntu-latest' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -388,7 +388,7 @@ jobs:
           components: clippy
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -430,13 +430,13 @@ jobs:
     steps:
       - name: Generate bot token
         id: generate_token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v1.12.0
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -462,23 +462,23 @@ jobs:
           cache-targets: true
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: '3.11'
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v4.9.1
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.4.0
         with:
           node-version: '24.22.1'
           cache: 'npm'
@@ -506,7 +506,7 @@ jobs:
       - name: Restore docs binaries cache
         id: field-probe-cache-restore
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v4.3.0
         with:
           path: |
             target/x86_64-unknown-linux-gnu/release-fast/field-probe
@@ -528,7 +528,7 @@ jobs:
         if: >-
           (needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true') &&
           steps.field-probe-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v4.3.0
         with:
           path: |
             target/x86_64-unknown-linux-gnu/release-fast/field-probe
@@ -603,7 +603,7 @@ jobs:
           'ubuntu-latest' || 'ubuntu-24.04' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -643,7 +643,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
 
       - name: Install Rust (stable)
         uses: dtolnay/rust-toolchain@master
@@ -651,7 +651,7 @@ jobs:
           toolchain: stable
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -715,7 +715,7 @@ jobs:
 
       - name: Checkout code
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -725,7 +725,7 @@ jobs:
 
       - name: Install Protoc
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -736,7 +736,7 @@ jobs:
 
       - name: Install nextest
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: nextest
           checksum: true
@@ -851,7 +851,7 @@ jobs:
 
       - name: Set up Node for browser worker checks
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.4.0
         with:
           node-version: '24.22.1'
 
@@ -917,7 +917,7 @@ jobs:
       # summary and in a PR comment. It certifies once that entry is removed.
       - name: Comment unproven connector declarations on the PR
         if: ${{ github.event_name == 'pull_request' && steps.verify-new-connectors.outputs.unproven == 'true' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v7.1.0
         env:
           UNPROVEN_FILE: ${{ runner.temp }}/unproven.txt
         with:
@@ -980,7 +980,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -988,12 +988,12 @@ jobs:
           toolchain: stable
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: '3.11'
 
@@ -1003,7 +1003,7 @@ jobs:
 
       - name: Restore SDK binaries cache
         id: sdk-cache-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v4.3.0
         with:
           path: |
             target/*/*/libconnector_service_ffi.so
@@ -1041,7 +1041,7 @@ jobs:
 
       - name: Save SDK binaries cache
         if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v4.3.0
         with:
           path: |
             target/*/*/libconnector_service_ffi.so
@@ -1106,7 +1106,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -1114,25 +1114,25 @@ jobs:
           toolchain: stable
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Java
         if: matrix.java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v4.9.1
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: '3.11'
 
       - name: Setup Node.js
         if: matrix.node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.4.0
         with:
           node-version: '24.22.1'
           cache: 'npm'
@@ -1141,7 +1141,7 @@ jobs:
             sdk/tests/package.json
 
       - name: Cache pip dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v4.3.0
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('sdk/python/requirements.txt') }}
@@ -1163,7 +1163,7 @@ jobs:
         run: python3 scripts/generators/code/generate.py --lang rust
 
       - name: Restore SDK binaries cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v4.3.0
         with:
           path: |
             target/*/*/libconnector_service_ffi.so

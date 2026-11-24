@@ -36,13 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout prism
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
         with:
           ref: ${{ inputs.source_branch || github.ref }}
           fetch-depth: 0
 
       - name: Checkout hyperswitch-docs
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
         with:
           repository: juspay/hyperswitch-docs
           token: ${{ secrets.CONNECTOR_SERVICE_DOCS_CI }}
