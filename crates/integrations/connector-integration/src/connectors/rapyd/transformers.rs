@@ -22,7 +22,10 @@ use domain_types::{
         Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
+        ErrorResponse,
+    },
     router_data_v2::RouterDataV2,
     router_request_types::{AuthenticationData, BrowserInformation},
     router_response_types::RedirectForm,
@@ -255,6 +258,46 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<RapydPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let mut connector_response = item
+            .router_data
+            .resource_common_data
+            .connector_response
+            .clone();
+        if let Some(avs_result) = item
+            .response
+            .data
+            .as_ref()
+            .and_then(|data| data.payment_method_data.as_ref())
+            .and_then(|data| data.avs_result.as_ref())
+        {
+            let response = connector_response
+                .get_or_insert_with(|| ConnectorResponseData::new(None, None, None));
+            let additional_data =
+                response
+                    .additional_payment_method_data
+                    .get_or_insert_with(|| AdditionalPaymentMethodConnectorResponse::Card {
+                        authentication_data: None,
+                        payment_checks: None,
+                        card_network: None,
+                        domestic_network: None,
+                        auth_code: None,
+                        processor_card_network: None,
+                        card_subtype: None,
+                        card_segment_type: None,
+                        funding_source: None,
+                        card_type: None,
+                        issuer_name: None,
+                        issuer_country: None,
+                    });
+            if let AdditionalPaymentMethodConnectorResponse::Card { payment_checks, .. } =
+                additional_data
+            {
+                let checks = payment_checks.get_or_insert_with(|| serde_json::json!({}));
+                if let Some(checks) = checks.as_object_mut() {
+                    checks.insert("avs_result".to_string(), serde_json::json!(avs_result));
+                }
+            }
+        }
         let (status, response) = match &item.response.data {
             Some(data) => {
                 let attempt_status =
@@ -370,6 +413,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -803,8 +847,16 @@ pub struct PaymentMethodOptions {
 ///
 /// Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
 #[derive(Debug, Serialize)]
+pub struct RapydPaymentMethodOptions {
+    #[serde(flatten)]
+    pub authentication: RapydAuthenticationOptions,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avs_required: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum RapydPaymentMethodOptions {
+pub enum RapydAuthenticationOptions {
     Hosted(PaymentMethodOptions),
     External(RapydExternal3DsOptions),
     NetworkToken(RapydNetworkTokenOptions),
@@ -1258,10 +1310,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payment_method_options = if is_card {
             Some(
                 match item.router_data.request.authentication_data.as_ref() {
-                    Some(authentication_data) => RapydPaymentMethodOptions::External(
+                    Some(authentication_data) => RapydAuthenticationOptions::External(
                         build_external_3ds_options(authentication_data)?,
                     ),
-                    None => RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+                    None => RapydAuthenticationOptions::Hosted(PaymentMethodOptions {
                         three_ds: matches!(
                             item.router_data.resource_common_data.auth_type,
                             common_enums::AuthenticationType::ThreeDs
@@ -1281,7 +1333,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             ),
                         }
                     })?;
-            Some(RapydPaymentMethodOptions::NetworkToken(
+            Some(RapydAuthenticationOptions::NetworkToken(
                 RapydNetworkTokenOptions {
                     tavv,
                     external_3ds: item
@@ -1296,6 +1348,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         } else {
             None
         };
+        let payment_method_options =
+            payment_method_options.map(|authentication| RapydPaymentMethodOptions {
+                authentication,
+                avs_required: item
+                    .router_data
+                    .request
+                    .enable_avs_check
+                    .filter(|enabled| *enabled),
+            });
         let mut initiation_type = None;
         let payment_method = match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {
@@ -1837,6 +1898,35 @@ pub struct ResponseData {
 pub struct RapydResponsePaymentMethodData {
     #[serde(default, deserialize_with = "deserialize_network_reference_id")]
     pub network_reference_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avs_result: Option<RapydAvsResult>,
+}
+
+/// https://docs.rapyd.net/en/address-verification-result-codes.html
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum RapydAvsResult {
+    #[serde(rename = "X")]
+    StreetAndNineDigitZipMatch,
+    #[serde(rename = "Y")]
+    StreetAndFiveDigitZipMatch,
+    #[serde(rename = "A")]
+    StreetMatchZipMismatch,
+    #[serde(rename = "W")]
+    StreetMismatchNineDigitZipMatch,
+    #[serde(rename = "Z")]
+    StreetMismatchFiveDigitZipMatch,
+    #[serde(rename = "N")]
+    StreetAndZipMismatch,
+    #[serde(rename = "U")]
+    AddressUnavailable,
+    #[serde(rename = "R")]
+    Retry,
+    #[serde(rename = "E")]
+    InvalidAddressData,
+    #[serde(rename = "S")]
+    NotSupportedByIssuer,
+    #[serde(untagged)]
+    Unknown(String),
 }
 
 fn deserialize_network_reference_id<'de, D>(
@@ -2497,13 +2587,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Completed external 3DS results take precedence and omit the hosted
         // `3d_required` flag, matching the Authorize flow.
         // Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
-        let payment_method_options = Some(match request.authentication_data.as_ref() {
-            Some(authentication_data) => RapydPaymentMethodOptions::External(
-                build_external_3ds_options(authentication_data)?,
-            ),
-            None => RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
-                three_ds: three_ds_enabled,
-            }),
+        let payment_method_options = Some(RapydPaymentMethodOptions {
+            authentication: match request.authentication_data.as_ref() {
+                Some(authentication_data) => RapydAuthenticationOptions::External(
+                    build_external_3ds_options(authentication_data)?,
+                ),
+                None => RapydAuthenticationOptions::Hosted(PaymentMethodOptions {
+                    three_ds: three_ds_enabled,
+                }),
+            },
+            avs_required: None,
         });
 
         // Rapyd REQUIRES a customer to save a payment method. We pass an
@@ -2708,10 +2801,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.resource_common_data.auth_type,
             common_enums::AuthenticationType::ThreeDs
         );
-        let payment_method_options =
-            Some(RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+        let payment_method_options = Some(RapydPaymentMethodOptions {
+            authentication: RapydAuthenticationOptions::Hosted(PaymentMethodOptions {
                 three_ds: three_ds_enabled,
-            }));
+            }),
+            avs_required: None,
+        });
 
         // On Charge, return_url arrives on `request.router_return_url`;
         // `PaymentFlowData.return_url` is hardcoded to None for this flow.
