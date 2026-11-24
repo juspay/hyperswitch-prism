@@ -1594,7 +1594,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "confirm=true&usage=off_session&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=%7B%7B%24card_number%7D%7D&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=%7B%7B%24card_cvc%7D%7D&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&payment_method_options%5Bcard%5D%5Bnetwork%5D=visa&metadata%5Border_id%5D=probe_proxy_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt&mandate_data%5Bcustomer_acceptance%5D%5Btype%5D=offline"
+          "body": "confirm=true&usage=off_session&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=%7B%7B%24card_number%7D%7D&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=%7B%7B%24card_cvc%7D%7D&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&payment_method_options%5Bcard%5D%5Bnetwork%5D=visa&metadata%5Border_id%5D=probe_proxy_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt"
         }
       }
     },
@@ -1740,7 +1740,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "confirm=true&usage=off_session&return_url=https%3A%2F%2Fexample.com%2Fmandate-return&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=4111111111111111&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=737&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&metadata%5Border_id%5D=probe_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt&mandate_data%5Bcustomer_acceptance%5D%5Btype%5D=offline"
+          "body": "confirm=true&usage=off_session&return_url=https%3A%2F%2Fexample.com%2Fmandate-return&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=4111111111111111&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=737&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&metadata%5Border_id%5D=probe_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt"
         }
       }
     },
@@ -1817,7 +1817,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "confirm=true&usage=off_session&payment_method=pm_1AbcXyzStripeTestToken&metadata%5Border_id%5D=probe_tokenized_mandate_001&expand%5B0%5D=latest_attempt&mandate_data%5Bcustomer_acceptance%5D%5Btype%5D=online&mandate_data%5Bcustomer_acceptance%5D%5Bonline%5D%5Bip_address%5D=127.0.0.1&mandate_data%5Bcustomer_acceptance%5D%5Bonline%5D%5Buser_agent%5D=Mozilla%2F5.0"
+          "body": "confirm=true&usage=off_session&payment_method=pm_1AbcXyzStripeTestToken&metadata%5Border_id%5D=probe_tokenized_mandate_001&expand%5B0%5D=latest_attempt"
         }
       }
     },
