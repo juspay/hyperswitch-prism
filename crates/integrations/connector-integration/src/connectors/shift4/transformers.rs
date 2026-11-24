@@ -2741,7 +2741,6 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             )),
             Shift4PaymentStatus::Successful => {
                 Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                    connector_metadata: None,
                     status: AuthorizationStatus::Success,
                     connector_authorization_id: Some(item.response.id.clone()),
                     status_code: item.http_code,
@@ -2749,7 +2748,6 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             }
             Shift4PaymentStatus::Pending => {
                 Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                    connector_metadata: None,
                     status: AuthorizationStatus::Processing,
                     connector_authorization_id: Some(item.response.id.clone()),
                     status_code: item.http_code,
@@ -2760,7 +2758,6 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             // `Failure` — surface it as requiring merchant action instead.
             Shift4PaymentStatus::Unknown => {
                 Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                    connector_metadata: None,
                     status: AuthorizationStatus::Unresolved,
                     connector_authorization_id: Some(item.response.id.clone()),
                     status_code: item.http_code,

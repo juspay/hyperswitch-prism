@@ -2154,7 +2154,6 @@ pub enum PaymentsResponseData {
     IncrementalAuthorizationResponse {
         status: AuthorizationStatus,
         connector_authorization_id: Option<String>,
-        connector_metadata: Option<serde_json::Value>,
         status_code: u16,
     },
     PostCaptureVoidResponse {

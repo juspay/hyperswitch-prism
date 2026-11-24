@@ -1674,7 +1674,6 @@ impl TryFrom<ResponseRouterData<TrustpaymentsIncrementalAuthResponse, Self>>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                connector_metadata: None,
                 status: authorization_status,
                 connector_authorization_id,
                 status_code: item.http_code,

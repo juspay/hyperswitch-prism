@@ -2403,7 +2403,6 @@ impl TryFrom<ResponseRouterData<FiservcommercehubAuthorizeResponse, Self>>
             | common_enums::AuthorizationStatus::Processing
             | common_enums::AuthorizationStatus::Unresolved => {
                 Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                    connector_metadata: None,
                     status: authorization_status,
                     connector_authorization_id: Some(txn.transaction_id.clone()),
                     status_code: item.http_code,

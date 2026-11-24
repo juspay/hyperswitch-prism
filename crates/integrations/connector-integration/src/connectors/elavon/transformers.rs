@@ -2610,7 +2610,6 @@ impl TryFrom<ResponseRouterData<ElavonIncrementalAuthorizationResponse, Self>>
             // ssl_txn_id here is a new ID for the increment; txnquery cannot read it.
             ElavonResult::Success(payment_response) => Ok(Self {
                 response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                    connector_metadata: None,
                     status: AuthorizationStatus::Success,
                     connector_authorization_id: Some(payment_response.ssl_txn_id),
                     status_code: http_code,

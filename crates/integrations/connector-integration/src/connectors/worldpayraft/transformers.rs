@@ -4540,7 +4540,6 @@ impl TryFrom<ResponseRouterData<WorldpayraftIncrementalAuthorizationResponse, Se
         let is_success = map_payment_status(&response.return_code, &response.response_code);
         let result = if is_success {
             Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                connector_metadata: None,
                 status: AuthorizationStatus::Success,
                 connector_authorization_id: response
                     .reference_trace_numbers

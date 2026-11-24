@@ -6133,7 +6133,6 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentResponse, Self>>
         let status = common_enums::AuthorizationStatus::from(item.response.status);
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
-                connector_metadata: None,
                 status,
                 connector_authorization_id: Some(item.response.id),
                 status_code: item.http_code,
