@@ -296,7 +296,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   ZiftConfig: ["userName", "password", "accountId"],
   FiservcommercehubConfig: ["apiKey", "secret", "merchantId", "terminalId"],
   AbsaSanlamConfig: ["apiKey", "merchantId"],
-  GotymeSanlamConfig: ["apiKey", "profileId"],
+  GotymeSanlamConfig: ["apiKey", "profileId", "merchantId", "connectorId"],
   ItaubankConfig: ["clientSecret", "clientId", "certificates", "privateKey"],
   SantanderConfig: ["clientId", "clientSecret", "certificates", "privateKey"],
   GigadatConfig: ["campaignId", "accessToken", "securityToken"],
