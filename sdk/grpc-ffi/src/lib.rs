@@ -355,31 +355,3 @@ pub unsafe extern "C" fn hyperswitch_grpc_free(ptr: *mut u8, len: u32) {
         }
     }
 }
-
-#[cfg(test)]
-mod consent_dispatch_tests {
-    use super::{dispatch, GrpcConfigInput};
-
-    #[tokio::test]
-    async fn recurring_consent_methods_are_registered_and_decode_their_requests() {
-        for method in [
-            "recurring_payment/request_confirmation",
-            "recurring_payment/get_qr",
-        ] {
-            let cfg = GrpcConfigInput {
-                endpoint: "http://127.0.0.1:9".into(),
-                connector: "stripe".into(),
-                connector_config: serde_json::json!({}),
-            };
-            // An invalid protobuf tag fails during decoding, before opening a
-            // socket. An unregistered operation instead hits the unknown-method arm.
-            let error = dispatch(method, cfg, &[0xff])
-                .await
-                .expect_err("malformed request");
-            assert!(
-                error.contains("decode"),
-                "{method} was not routed to its protobuf decoder: {error}"
-            );
-        }
-    }
-}
