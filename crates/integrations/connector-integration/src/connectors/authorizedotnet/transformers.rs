@@ -498,6 +498,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<&WalletData> for PaymentDetails<T> {
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::VenmoRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::WeChatPayQr(_)
@@ -614,6 +615,7 @@ fn get_decrypted_wallet_card(
         | WalletData::SamsungPay(_)
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
+        | WalletData::VenmoRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::WeChatPayRedirect(_)
         | WalletData::WeChatPayQr(_)

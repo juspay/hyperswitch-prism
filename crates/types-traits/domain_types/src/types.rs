@@ -2022,6 +2022,9 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::TwintRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::TwintRedirect {}),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::VenmoRedirect {}),
+                ),
                 grpc_api_types::payments::payment_method::PaymentMethod::VippsRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::VippsRedirect {}),
                 ),
@@ -8684,6 +8687,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::TwintRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -15556,6 +15563,7 @@ pub enum PaymentMethodDataType {
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
+    VenmoRedirect,
     TouchNGoRedirect,
     WeChatPayRedirect,
     WeChatPayQr,

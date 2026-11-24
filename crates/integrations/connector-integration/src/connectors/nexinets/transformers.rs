@@ -898,6 +898,7 @@ fn get_wallet_details<
         | WalletData::SamsungPay(_)
         | WalletData::TwintRedirect { .. }
         | WalletData::VippsRedirect { .. }
+        | WalletData::VenmoRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::WeChatPayRedirect(_)
         | WalletData::WeChatPayQr(_)

@@ -575,6 +575,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::VenmoRedirect {}
                 | WalletData::SwishQr(_)
                 | WalletData::PaypalRedirect(_)
                 | WalletData::AmazonPayRedirect(_)

@@ -674,6 +674,7 @@ fn wallet_to_juspay(
         | WalletData::MobilePayRedirect(_)
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
+        | WalletData::VenmoRedirect {}
         | WalletData::CashappQr(_)
         | WalletData::SwishQr(_)
         | WalletData::Mifinity(_)

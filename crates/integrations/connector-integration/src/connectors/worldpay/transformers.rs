@@ -221,6 +221,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::SamsungPay(_)
             | WalletDataPaymentMethod::TwintRedirect {}
             | WalletDataPaymentMethod::VippsRedirect {}
+            | WalletDataPaymentMethod::VenmoRedirect {}
             | WalletDataPaymentMethod::TouchNGoRedirect(_)
             | WalletDataPaymentMethod::WeChatPayRedirect(_)
             | WalletDataPaymentMethod::CashappQr(_)
