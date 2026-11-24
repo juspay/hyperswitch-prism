@@ -1344,14 +1344,11 @@ pub struct MonerisSetupMandateResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 enum MonerisValidationStatus {
-    #[serde(rename = "SUCCEEDED")]
     Succeeded,
-    #[serde(rename = "PROCESSING")]
     Processing,
-    #[serde(rename = "DECLINED")]
     Declined,
-    #[serde(rename = "DECLINED_RETRY")]
     DeclinedRetry,
 }
 
@@ -1997,24 +1994,25 @@ pub fn build_three_d_secure_data(
         return Ok(None);
     };
 
-    // Moneris Create Authentication returns its own resource ID in transaction_id, along with
-    // ECI and cryptogram fields. Only pass transaction_id as a Moneris authentication ID when it
-    // matches Moneris' resource ID format; otherwise it may be a HyperSwitch transaction ID.
-    if let Some(authentication_id) = auth
-        .transaction_id
-        .as_deref()
-        .filter(|id| is_moneris_resource_id(id))
-    {
-        return Ok(Some(MonerisThreeDSecureData::AuthenticationId(
-            MonerisThreeDSecureAuthenticationId {
-                three_d_secure_authentication_id: authentication_id.to_string(),
-            },
-        )));
+    let has_directory_server_transaction_id = auth.ds_trans_id.is_some();
+    if !has_directory_server_transaction_id {
+        if let Some(authentication_id) = auth
+            .transaction_id
+            .as_deref()
+            .filter(|id| is_moneris_resource_id(id))
+        {
+            return Ok(Some(MonerisThreeDSecureData::AuthenticationId(
+                MonerisThreeDSecureAuthenticationId {
+                    three_d_secure_authentication_id: authentication_id.to_string(),
+                },
+            )));
+        }
+
+        if !auth.has_external_authentication() {
+            return Ok(None);
+        }
     }
 
-    if !auth.has_external_authentication() {
-        return Ok(None);
-    }
     let directory_server_transaction_id = auth.ds_trans_id.clone().ok_or(
         IntegrationError::MissingRequiredField {
             field_name: "authentication_data.ds_trans_id",
