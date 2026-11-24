@@ -82,21 +82,30 @@ pub enum TamaraPaymentStatus {
     Authorised,
     FullyCaptured,
     PartiallyCaptured,
+    FullyRefunded,
+    PartiallyRefunded,
     Canceled,
     Updated,
     Expired,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<TamaraPaymentStatus> for AttemptStatus {
     fn from(status: TamaraPaymentStatus) -> Self {
         match status {
-            TamaraPaymentStatus::Authorised => Self::Authorized,
-            TamaraPaymentStatus::FullyCaptured | TamaraPaymentStatus::PartiallyCaptured => {
-                Self::Charged
-            }
-            TamaraPaymentStatus::Canceled | TamaraPaymentStatus::Updated => Self::Voided,
+            // `updated` is Tamara's partial cancellation before capture; the remainder
+            // stays authorized. Only a full cancellation voids the payment.
+            TamaraPaymentStatus::Authorised | TamaraPaymentStatus::Updated => Self::Authorized,
+            TamaraPaymentStatus::FullyCaptured
+            | TamaraPaymentStatus::PartiallyCaptured
+            | TamaraPaymentStatus::FullyRefunded
+            | TamaraPaymentStatus::PartiallyRefunded => Self::Charged,
+            TamaraPaymentStatus::Canceled => Self::Voided,
             TamaraPaymentStatus::Declined | TamaraPaymentStatus::Expired => Self::Failure,
-            TamaraPaymentStatus::New | TamaraPaymentStatus::Approved => Self::Pending,
+            TamaraPaymentStatus::New
+            | TamaraPaymentStatus::Approved
+            | TamaraPaymentStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -1074,8 +1083,15 @@ impl TryFrom<ResponseRouterData<TamaraPSyncResponse, Self>>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TamaraRSyncResponse {
     pub order_id: String,
-    pub status: TamaraRefundStatus,
+    pub status: TamaraPaymentStatus,
     pub order_reference_id: Option<String>,
+    pub refunds: Option<Vec<TamaraOrderRefund>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TamaraOrderRefund {
+    pub refund_id: String,
+    pub refund_status: Option<String>,
 }
 
 impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
@@ -1084,8 +1100,27 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TamaraRSyncResponse, Self>) -> Result<Self, Self::Error> {
-        let raw_connector_status = tamara_refund_raw_connector_status(&item.response.status);
-        let refund_status = RefundStatus::from(item.response.status);
+        // Order status is aggregate: only the requested refund can establish its outcome.
+        let matching_refund = item.response.refunds.as_ref().and_then(|refunds| {
+            refunds
+                .iter()
+                .find(|refund| refund.refund_id == item.router_data.request.connector_refund_id)
+        });
+        // Tamara documents `success` for an individual refund. Missing or unknown
+        // refund states must stay nonterminal, regardless of the parent order state.
+        let refund_status = match matching_refund.and_then(|refund| refund.refund_status.as_deref())
+        {
+            Some("success") => RefundStatus::Success,
+            _ => RefundStatus::Pending,
+        };
+        let raw_connector_status = matching_refund
+            .and_then(|refund| refund.refund_status.clone())
+            .map(|code| RawConnectorStatus {
+                code: Some(code),
+                message: None,
+                reason: None,
+            })
+            .unwrap_or_else(|| tamara_payment_raw_connector_status(&item.response.status));
 
         Ok(Self {
             resource_common_data: RefundFlowData {
@@ -1093,7 +1128,7 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
                 ..item.router_data.resource_common_data.clone()
             },
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.order_id.clone(),
+                connector_refund_id: item.router_data.request.connector_refund_id.clone(),
                 refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
@@ -1409,6 +1444,8 @@ pub enum TamaraWebhookEvent {
     OrderCaptured,
     OrderRefunded,
     OrderUpdated,
+    OrderDeclined,
+    OrderExpired,
     #[serde(other)]
     Unknown,
 }
@@ -1461,6 +1498,9 @@ impl From<TamaraWebhookEvent> for interfaces::webhooks::IncomingWebhookEvent {
             TamaraWebhookEvent::OrderCaptured => Self::PaymentIntentCaptureSuccess,
             TamaraWebhookEvent::OrderRefunded => Self::RefundSuccess,
             TamaraWebhookEvent::OrderUpdated => Self::PaymentIntentProcessing,
+            TamaraWebhookEvent::OrderDeclined | TamaraWebhookEvent::OrderExpired => {
+                Self::PaymentIntentFailure
+            }
             TamaraWebhookEvent::Unknown => Self::EventNotSupported,
         }
     }
@@ -1480,6 +1520,7 @@ impl From<TamaraWebhookEvent> for AttemptStatus {
             }
             TamaraWebhookEvent::OrderCaptured | TamaraWebhookEvent::OrderRefunded => Self::Charged,
             TamaraWebhookEvent::OrderCanceled => Self::Voided,
+            TamaraWebhookEvent::OrderDeclined | TamaraWebhookEvent::OrderExpired => Self::Failure,
             TamaraWebhookEvent::OrderUpdated | TamaraWebhookEvent::Unknown => Self::Pending,
         }
     }
@@ -1504,6 +1545,9 @@ impl From<TamaraWebhookEvent> for EventType {
             TamaraWebhookEvent::OrderCaptured => Self::PaymentIntentCaptureSuccess,
             TamaraWebhookEvent::OrderRefunded => Self::RefundSuccess,
             TamaraWebhookEvent::OrderUpdated => Self::PaymentIntentProcessing,
+            TamaraWebhookEvent::OrderDeclined | TamaraWebhookEvent::OrderExpired => {
+                Self::PaymentIntentFailure
+            }
             TamaraWebhookEvent::Unknown => Self::IncomingWebhookEventUnspecified,
         }
     }
