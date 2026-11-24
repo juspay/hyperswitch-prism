@@ -4405,6 +4405,9 @@ message PaymentServiceIncrementalAuthorizationResponse {
   optional SecretString typed_connector_request = 9;
   optional SecretString raw_connector_response = 8;
   optional SecretString typed_connector_response = 10;
+
+  // Connector feature data to persist for later Capture/Void/Get (e.g. a new authorization id)
+  optional SecretString connector_feature_data = 11;
 }
 
 

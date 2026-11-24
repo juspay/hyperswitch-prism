@@ -1194,6 +1194,7 @@ impl TryFrom<ResponseRouterData<MonerisIncrementalAuthorizationResponse, Self>>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                connector_metadata: None,
                 status: authorization_status,
                 connector_authorization_id: Some(item.response.payment_id),
                 status_code: item.http_code,

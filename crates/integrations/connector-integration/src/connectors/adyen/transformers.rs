@@ -9188,6 +9188,7 @@ impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                connector_metadata: None,
                 status: authorization_status,
                 connector_authorization_id: Some(item.response.psp_reference.clone()),
                 status_code: item.http_code,

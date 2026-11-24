@@ -4006,6 +4006,7 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                connector_metadata: None,
                 status: authorization_status,
                 connector_authorization_id: Some(response.id),
                 status_code: http_code,

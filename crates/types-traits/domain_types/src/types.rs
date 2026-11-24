@@ -13589,6 +13589,7 @@ pub fn generate_payment_incremental_authorization_response(
             PaymentsResponseData::IncrementalAuthorizationResponse {
                 status,
                 connector_authorization_id,
+                connector_metadata,
                 status_code,
             } => {
                 let grpc_status =
@@ -13607,6 +13608,9 @@ pub fn generate_payment_incremental_authorization_response(
                     typed_connector_request,
                     raw_connector_response,
                     typed_connector_response,
+                    connector_feature_data: convert_connector_metadata_to_secret_string(
+                        connector_metadata,
+                    ),
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -13641,6 +13645,7 @@ pub fn generate_payment_incremental_authorization_response(
             typed_connector_request,
             raw_connector_response,
             typed_connector_response,
+            connector_feature_data: None,
         }),
     }
 }

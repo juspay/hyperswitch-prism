@@ -1168,8 +1168,6 @@ pub struct PaypalSetupMandatesResponse {
     customer: Option<Customer>,
     // Set on setup tokens only; a payment token has no status.
     status: Option<PaypalVaultTokenStatus>,
-    // Card or PayPal details; nothing here is read.
-    payment_source: serde_json::Value,
     links: Vec<PaypalLinks>,
 }
 
@@ -2117,12 +2115,12 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalAuthUpdateResponse, Self>>
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalIncrementalStatus {
-    CREATED,
-    CAPTURED,
-    DENIED,
-    PARTIALLYCAPTURED,
-    VOIDED,
-    PENDING,
+    Created,
+    Captured,
+    Denied,
+    PartiallyCaptured,
+    Voided,
+    Pending,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2145,11 +2143,11 @@ pub enum PaypalStatusPendingReason {
 impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
     fn from(item: PaypalIncrementalStatus) -> Self {
         match item {
-            PaypalIncrementalStatus::CREATED
-            | PaypalIncrementalStatus::CAPTURED
-            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Success,
-            PaypalIncrementalStatus::PENDING => Self::Processing,
-            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+            PaypalIncrementalStatus::Created
+            | PaypalIncrementalStatus::Captured
+            | PaypalIncrementalStatus::PartiallyCaptured => Self::Success,
+            PaypalIncrementalStatus::Pending => Self::Processing,
+            PaypalIncrementalStatus::Denied | PaypalIncrementalStatus::Voided => Self::Failure,
         }
     }
 }
@@ -2157,11 +2155,11 @@ impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
 impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
     fn from(item: PaypalIncrementalStatus) -> Self {
         match item {
-            PaypalIncrementalStatus::CREATED
-            | PaypalIncrementalStatus::CAPTURED
-            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Authorized,
-            PaypalIncrementalStatus::PENDING => Self::Pending,
-            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+            PaypalIncrementalStatus::Created
+            | PaypalIncrementalStatus::Captured
+            | PaypalIncrementalStatus::PartiallyCaptured => Self::Authorized,
+            PaypalIncrementalStatus::Pending => Self::Pending,
+            PaypalIncrementalStatus::Denied | PaypalIncrementalStatus::Voided => Self::Failure,
         }
     }
 }
@@ -3200,7 +3198,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
         Ok(Self {
             amount: OrderAmount {
-                currency_code: item.router_data.request.currency,
+                currency_code: item.router_data.request.money.currency(),
                 value,
             },
         })
@@ -3225,11 +3223,31 @@ impl TryFrom<ResponseRouterData<PaypalIncrementalAuthResponse, Self>>
     fn try_from(
         item: ResponseRouterData<PaypalIncrementalAuthResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let paypal_meta: PaypalMeta = to_connector_meta(
+            item.router_data
+                .request
+                .connector_feature_data
+                .clone()
+                .map(|m| m.expose()),
+        )
+        .map_err(|_| {
+            Report::new(ConnectorError::response_handling_failed_with_context(
+                item.http_code,
+                Some("invalid or missing connector_meta_data on reauthorize response".to_string()),
+            ))
+        })?;
+        // Reauthorize returns a new authorization id, and PayPal says to capture against it,
+        // so later Capture/Void/PSync must read it from the feature data.
+        let connector_metadata = serde_json::json!(PaypalMeta {
+            authorize_id: Some(item.response.id.clone()),
+            incremental_authorization_id: Some(item.response.id.clone()),
+            ..paypal_meta
+        });
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                 status: item.response.status.into(),
-                // Reauthorize returns a new authorization id; capture accepts either id.
                 connector_authorization_id: Some(item.response.id),
+                connector_metadata: Some(connector_metadata),
                 status_code: item.http_code,
             }),
             ..item.router_data

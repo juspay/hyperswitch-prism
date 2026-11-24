@@ -3973,6 +3973,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 })
             } else {
                 let payments_response = PaymentsResponseData::IncrementalAuthorizationResponse {
+                    connector_metadata: None,
                     status: common_enums::AuthorizationStatus::Success,
                     connector_authorization_id: Some(auth_response.cnp_txn_id.clone()),
                     status_code: item.http_code,
