@@ -9,2415 +9,328 @@
     },
     "authorize": {
       "Ach": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ach": {
-              "account_number": "000123456789",
-              "routing_number": "110000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "AchBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ach_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Affirm": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "affirm": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Afterpay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "afterpay_clearpay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Alfamart": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "alfamart": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "AliPayRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ali_pay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "AmazonPayRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "amazon_pay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "ApplePay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "apple_pay_sdk": {
-              "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
-              },
-              "payment_method": {
-                "display_name": "Visa 1111",
-                "network": "Visa",
-                "type": "debit"
-              },
-              "transaction_identifier": "probe_txn_id"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "ApplePayDecrypted": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "apple_pay_sdk": {
-              "payment_data": {
-                "decrypted_data": {
-                  "application_primary_account_number": "4111111111111111",
-                  "application_expiration_month": "03",
-                  "application_expiration_year": "2030",
-                  "payment_data": {
-                    "online_payment_cryptogram": "AAAAAA==",
-                    "eci_indicator": "05"
-                  },
-                  "merchant_token_identifier": "probe_merchant_token_id",
-                  "device_manufacturer_identifier": "040010030273"
-                }
-              },
-              "payment_method": {
-                "display_name": "Visa 1111",
-                "network": "Visa",
-                "type": "debit"
-              },
-              "transaction_identifier": "probe_txn_id"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "ApplePayThirdPartySdk": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "apple_pay_third_party_sdk": {
-              "token": "probe_apple_pay_third_party_token"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Bacs": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bacs": {
-              "account_number": "55779911",
-              "sort_code": "200000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "BacsBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bacs_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "BancontactCard": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bancontact_card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "BcaBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bca_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Becs": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "becs": {
-              "account_number": "000123456",
-              "bsb_number": "000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "BillDeskRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "billdesk_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Bizum": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bizum": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Blik": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "blik": {
-              "blik_code": "777124"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Bluecode": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bluecode_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "BniVaBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bni_va_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Boleto": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "boleto": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "BriVaBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bri_va_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "CashappQr": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "cashapp_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "CashfreeRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "cashfree_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "CimbVaBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "cimb_va_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "ClassicReward": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "classic_reward": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "dana_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "DanamonVaBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "danamon_va_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "e_voucher": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "EaseBuzzRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "easebuzz_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Efecty": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "efecty": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Eft": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "eft_bank_redirect": {
-              "provider": "ozow"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Eps": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "eps": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "FamilyMart": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "family_mart": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "GCash": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "gcash_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Giropay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "giropay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "go_pay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "GooglePay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay_sdk": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "encrypted_data": {
-                  "token_type": "PAYMENT_GATEWAY",
-                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "GooglePayDecrypted": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay_sdk": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "decrypted_data": {
-                  "card_exp_month": "03",
-                  "card_exp_year": "2030",
-                  "application_primary_account_number": "4111111111111111",
-                  "cryptogram": "AAAAAA==",
-                  "eci_indicator": "05"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "GooglePayThirdPartySdk": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay_third_party_sdk": {
-              "token": "probe_google_pay_third_party_token"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Ideal": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ideal": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Indomaret": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "indomaret": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "IndonesianBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "indonesian_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "InstantBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "instant_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "InstantBankTransferFinland": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "instant_bank_transfer_finland": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "InstantBankTransferPoland": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "instant_bank_transfer_poland": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Interac": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "interac": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "KakaoPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "kakao_pay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Klarna": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "klarna": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Lawson": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "lawson": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "LazyPayRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "lazypay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "LocalBankRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "local_bank_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "LocalBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "local_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "MandiriVaBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "mandiri_va_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "MbWay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "mb_way": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Mifinity": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "mifinity_redirect": {
-              "date_of_birth": "1990-01-01",
-              "language_preference": "en"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "MiniStop": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "mini_stop": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "momo_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "MultibancoBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "multibanco_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Netbanking": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "netbanking": {
-              "issuer": "HdfcBank"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "OnlineBankingCzechRepublic": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "online_banking_czech_republic": {
-              "issuer": "CeskaSporitelna"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "OnlineBankingFinland": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "online_banking_finland": {
-              "email": "test@example.com"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "OnlineBankingFpx": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "online_banking_fpx": {
-              "issuer": "Maybank"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "OnlineBankingPoland": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "online_banking_poland": {
-              "issuer": "BankPekaoSa"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "OnlineBankingSlovakia": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "online_banking_slovakia": {
-              "issuer": "TatraPay"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "OnlineBankingThailand": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "online_banking_thailand": {
-              "issuer": "BangkokBank"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "OpenBanking": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "open_banking": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "open_banking_uk": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Oxxo": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "oxxo": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "PagoEfectivo": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "pago_efectivo": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "PayEasy": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "pay_easy": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "PaySafeCard": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "pay_safe_card": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "PayURedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "payu_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "PaypalRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "paypal_redirect": {
-              "email": "test@example.com"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "PaypalSdk": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "paypal_sdk": {
-              "token": "probe_paypal_sdk_token"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -2428,866 +341,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "permata_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "PhonePeRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "phonepe_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Pix": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "pix": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Przelewy24": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "przelewy24": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Pse": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "pse": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "RedCompra": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "red_compra": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "RedPagos": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "red_pagos": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "RevolutPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "revolut_pay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "SamsungPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "samsung_pay_sdk": {
-              "payment_credential": {
-                "method": "3DS",
-                "recurring_payment": false,
-                "card_brand": "VISA",
-                "card_last_four_digits": "1234",
-                "token_data": {
-                  "type": "S",
-                  "version": "100",
-                  "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Satispay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "satispay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Seicomart": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "seicomart": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Sepa": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "sepa": {
-              "iban": "DE89370400440532013000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "SepaBankTransfer": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "sepa_bank_transfer": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "SepaGuaranteedDebit": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "sepa_guaranteed_debit": {
-              "iban": "DE89370400440532013000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "SevenEleven": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "seven_eleven": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Skrill": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "skrill_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Sofort": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "sofort": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Swish": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "swish_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "TouchNGo": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "touch_n_go_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Trustly": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "trustly": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Twint": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "twint_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "UpiCollect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_collect": {
-              "vpa_id": "test@upi"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "UpiIntent": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_intent": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "UpiQr": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Vipps": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "vipps_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "WeChatPayQr": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "we_chat_pay_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Webpay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card_redirect": {
-              "type": "WEBPAY"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       },
       "Wero": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "wero": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       }
     },
     "capture": {
@@ -3448,39 +611,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       }
     },
     "proxy_setup_recurring": {
@@ -3565,31 +697,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_tokenized_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "connector_token": "pm_1AbcXyzStripeTestToken",
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data. — Missing required field: connector_feature_data.session_id. No checkout session ID was provided in connector_feature_data."
       }
     },
     "token_setup_recurring": {
