@@ -1328,7 +1328,7 @@ impl
             sender_details: request.sender_details.clone(),
             additional_connector_details: request.additional_connector_details.clone(),
             business_country: request.business_country.clone(),
-            merchant_details: None,
+            merchant_details: request.merchant_details.clone(),
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
         }

@@ -922,6 +922,9 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Details about the sender of funds for account-funded transactions.
   optional SenderDetails sender_details = 65;
+
+  // Merchant account details supplied by the caller for authorization after redirect verification.
+  optional MerchantDetails merchant_details = 66;
 }
 
 // Response message for composite verify redirect response flow.
