@@ -547,6 +547,25 @@ impl AddressDetails {
             })
             .transpose()
     }
+
+    /// Prefixes a short subdivision code with the address country when available.
+    pub fn get_optional_country_prefixed_state_code(&self) -> Option<Secret<String>> {
+        let state = self.to_state_code_as_optional().ok().flatten()?;
+        let code = state.peek();
+        match self.get_optional_country() {
+            Some(country)
+                if (1..=3).contains(&code.len())
+                    && code.bytes().all(|byte| byte.is_ascii_alphanumeric()) =>
+            {
+                Some(Secret::new(format!(
+                    "{country}-{}",
+                    code.to_ascii_uppercase()
+                )))
+            }
+            _ => Some(state),
+        }
+    }
+
     pub fn get_optional_zip(&self) -> Option<Secret<String>> {
         self.zip.clone()
     }
