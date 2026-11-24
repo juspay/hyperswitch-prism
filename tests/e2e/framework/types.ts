@@ -37,8 +37,10 @@ export type ScenarioOverrides = {
     createPayment?: Record<string, RequestOverride>;
     confirmPayment?: Record<string, RequestOverride>;
     capturePayment?: Record<string, RequestOverride>;
+    incrementalAuthorization?: Record<string, RequestOverride>;
     cancelPayment?: Record<string, RequestOverride>;
     createRefund?: Record<string, RequestOverride>;
+    reverseRefund?: Record<string, RequestOverride>;
   };
   expectations?: Record<string, ExpectationOverride>;
 };

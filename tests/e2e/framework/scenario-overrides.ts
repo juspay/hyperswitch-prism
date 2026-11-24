@@ -6,12 +6,7 @@ import type {
   ScenarioOverrides,
 } from "./types.js";
 
-type RequestOperation =
-  | "createPayment"
-  | "confirmPayment"
-  | "capturePayment"
-  | "cancelPayment"
-  | "createRefund";
+type RequestOperation = keyof NonNullable<ScenarioOverrides["requests"]>;
 
 export class ScenarioOverrideResolver {
   private readonly consumed = new Set<string>();

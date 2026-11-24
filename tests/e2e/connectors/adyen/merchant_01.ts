@@ -26,12 +26,73 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
     frameSelector: "iframe:visible",
   },
   exclude: {
+    "payments/create-confirm/card/one-time/external-three-ds/automatic-capture-create-confirm": {
+      reason: "External 3DS is certified with Stripe's documented sandbox data.",
+    },
+    "refunds/reverse/reverse-successful-refund-before-settlement": {
+      reason:
+        "Adyen does not expose the HS refund-reversal operation; TSYS Transit owns this connector-backed certification.",
+    },
     "payments/retrieve/force-sync-payment": {
       reason:
         "Adyen PSync requires customer-returned redirect encoded_data; an unfinished 3DS payment is rejected by UCS pre-flight without calling Adyen.",
     },
   },
   overrides: {
+    "payments/incremental-authorization/increase-authorized-amount": {
+      expectations: {
+        "incremental-authorization-capture-fields": {
+          reason:
+            "Adyen accepts capture asynchronously after the authorization adjustment",
+          patch: {
+            status: "processing",
+            amount_capturable: 8000,
+            amount_received: null,
+          },
+        },
+        "incremental-authorization-recorded-outcome": {
+          reason:
+            "The adjusted Adyen capture remains pending until asynchronous completion",
+          patch: { attemptStatus: "pending" },
+        },
+      },
+    },
+    "payments/capture/partial-capture-authorized-payment": {
+      expectations: {
+        "partial-capture-fields": {
+          reason:
+            "Adyen accepts a partial capture asynchronously and completes it after webhook delivery",
+          patch: {
+            status: "processing",
+            amount_capturable: 6000,
+            amount_received: null,
+          },
+        },
+        "partial-capture-recorded-outcome": {
+          reason:
+            "The active attempt remains pending until Adyen reports capture completion",
+          patch: { attemptStatus: "pending" },
+        },
+      },
+    },
+    "payments/capture/overcapture-authorized-payment": {
+      expectations: {
+        "overcapture-fields": {
+          reason:
+            "Adyen accepts overcapture asynchronously and completes it after webhook delivery",
+          patch: {
+            status: "processing",
+            amount_capturable: 6000,
+            amount_received: null,
+          },
+        },
+        "overcapture-recorded-outcome": {
+          reason:
+            "The active attempt remains pending until Adyen reports overcapture completion",
+          patch: { attemptStatus: "pending" },
+        },
+      },
+    },
     "payments/create-confirm/card/one-time/three-ds/automatic-capture-create-confirm":
       {
         requests: {
@@ -103,6 +164,20 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
         "refund-recorded-outcome": {
           reason:
             "The accepted Adyen refund remains pending until asynchronous webhook completion",
+          patch: { status: "pending" },
+        },
+      },
+    },
+    "refunds/create/partial-refund-after-capture": {
+      expectations: {
+        "partial-refund-submission-fields": {
+          reason:
+            "Adyen accepts partial refunds asynchronously before webhook completion",
+          patch: { status: "pending" },
+        },
+        "partial-refund-recorded-outcome": {
+          reason:
+            "The accepted Adyen partial refund remains pending until asynchronous completion",
           patch: { status: "pending" },
         },
       },

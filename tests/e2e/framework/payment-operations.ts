@@ -46,6 +46,14 @@ export class PaymentOperations {
     );
   }
 
+  async listCustomerPaymentMethods(customerId: string): Promise<Json> {
+    return this.hs.call(
+      "GET",
+      `/customers/${encodeURIComponent(customerId)}/payment_methods`,
+      this.merchant.apiKey,
+    );
+  }
+
   async confirmPayment(
     callId: string,
     paymentId: string,
@@ -72,6 +80,21 @@ export class PaymentOperations {
         `/payments/${encodeURIComponent(paymentId)}/capture`,
         this.merchant.apiKey,
         this.overrides.request("capturePayment", callId, request),
+      ),
+    );
+  }
+
+  async incrementalAuthorization(
+    callId: string,
+    paymentId: string,
+    request: JsonObject,
+  ): Promise<PaymentResponse> {
+    return paymentResponse(
+      await this.hs.call(
+        "POST",
+        `/payments/${encodeURIComponent(paymentId)}/incremental_authorization`,
+        this.merchant.apiKey,
+        this.overrides.request("incrementalAuthorization", callId, request),
       ),
     );
   }

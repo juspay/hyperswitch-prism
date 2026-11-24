@@ -118,9 +118,9 @@ Fourteen shared specs are implemented: six one-time No3DS payment journeys, a co
 
 ### Adyen coverage matrix
 
-`✅` means an executable scenario passed against the Adyen sandbox in this
-change. `🔵` means executable coverage has been added but not yet validated
-against the Adyen sandbox. `🟡` means the agreed scenario has a `.planned.ts`
+`✅` means an executable scenario passed against its owning sandbox connector in
+this change. `🔵` means executable coverage has been added but not yet validated
+against its owning sandbox connector. `🟡` means the agreed scenario has a `.planned.ts`
 placeholder but is not executable coverage. `❌` means the scenario is not yet
 represented; it does not mean that Adyen or HS cannot support it.
 
@@ -134,22 +134,22 @@ represented; it does not mean that Adyen or HS cannot support it.
 | Setup mandate, nonzero CIT, automatic capture | ✅ | Nonzero setup followed by an off-session recurring charge |
 | Setup mandate, zero CIT, manual capture | 🔵 | Executable zero-value setup → connector-mandate recurring journey; no separate capture is sent for a zero-value authorization |
 | Setup mandate, zero CIT, automatic capture | 🔵 | Executable zero-value setup → connector-mandate recurring journey |
-| Repeat CIT using a saved card | 🟡 | Planned saved-card journey |
+| Repeat CIT using a saved card | 🔵 | Executable Adyen initial CIT → customer payment-method listing → payment-token repeat CIT |
 | Recurring using connector mandate ID | ✅ | Reuses the mandate created by the nonzero setup payment without card data |
 | Recurring using network transaction ID | 🔵 | Executable initial CIT → recorded network reference → card-with-NTI MIT journey; sandbox validation pending |
 | Recurring using network-token NTI | 🟡 | Planned recurring-reference journey |
 | Webhook | 🟡 | Planned authenticated payment-status webhook verification |
-| Refund | ✅ | Full-refund submission after an automatically captured payment |
-| Refund reversal | 🟡 | Planned reversal before settlement |
+| Refund | 🔵 | Validated full refund plus executable Adyen partial-refund submission |
+| Refund reversal | 🔵 | Executable TSYS Transit refund → HS refund-reversal endpoint → recorded reversal metadata |
 | Full void | ✅ | Voids a manually authorized payment |
-| Incremental authorization | 🟡 | Planned authorized-amount increase |
-| Partial capture | 🟡 | Planned partial capture of an authorized payment |
-| Overcapture | 🟡 | Planned capture above the authorized amount |
-| External 3DS | ❌ | Not yet represented |
+| Incremental authorization | 🔵 | Executable Adyen 6000 authorization → 8000 adjustment → full capture |
+| Partial capture | 🔵 | Executable Adyen 6000 authorization → 2500 capture |
+| Overcapture | 🔵 | Executable Adyen 6000 authorization → 7000 capture |
+| External 3DS | 🔵 | Executable Stripe payment using synthetic merchant-supplied 3DS proof |
 | 3DS | ✅ | Completes the real processor-hosted browser challenge and verifies the final charged payment |
-| Wallet connector decryption | ❌ | Not yet represented |
-| Wallet Hyperswitch decryption | ❌ | Not yet represented |
-| Wallet merchant decryption | ❌ | Not yet represented |
+| Wallet connector decryption | 🟡 | Planned Google Pay TEST gateway-token journey; runtime token generation required |
+| Wallet Hyperswitch decryption | 🟡 | Planned Google Pay TEST direct-token journey; runtime test keys required |
+| Wallet merchant decryption | 🟡 | Planned harness decryption of a fresh Google Pay TEST token |
 | Partial void | 🟡 | Planned partial void of an authorized payment |
 
 ```text
@@ -174,8 +174,8 @@ scenarios/
 │   │   ├── full-void-authorized-payment.spec.ts
 │   │   └── partial-void-authorized-payment.planned.ts
 │   ├── capture/
-│   │   ├── overcapture-authorized-payment.planned.ts
-│   │   └── partial-capture-authorized-payment.planned.ts
+│   │   ├── overcapture-authorized-payment.spec.ts
+│   │   └── partial-capture-authorized-payment.spec.ts
 │   ├── create-confirm/
 │   │   ├── card/
 │   │   │   ├── one-time/
@@ -186,6 +186,8 @@ scenarios/
 │   │   │   │   │   ├── guest-manual-capture-create-confirm.spec.ts
 │   │   │   │   │   ├── manual-capture-create-confirm.spec.ts
 │   │   │   │   │   └── manual-capture-create-then-confirm.spec.ts
+│   │   │   │   ├── external-three-ds/
+│   │   │   │   │   └── automatic-capture-create-confirm.spec.ts
 │   │   │   │   └── three-ds/
 │   │   │   │       └── automatic-capture-create-confirm.spec.ts
 │   │   │   └── recurring/
@@ -199,15 +201,15 @@ scenarios/
 │   │   │               └── setup-mandate-then-recurring.spec.ts
 │   │   └── wallet/
 │   ├── incremental-authorization/
-│   │   └── increase-authorized-amount.planned.ts
+│   │   └── increase-authorized-amount.spec.ts
 │   └── retrieve/
 │       └── force-sync-payment.spec.ts
 └── refunds/
     ├── create/
     │   ├── full-refund-captured-payment.spec.ts
-    │   └── partial-refund-after-capture.planned.ts
+    │   └── partial-refund-after-capture.spec.ts
     ├── reverse/
-    │   └── reverse-successful-refund-before-settlement.planned.ts
+    │   └── reverse-successful-refund-before-settlement.spec.ts
     └── sync/
 ```
 
@@ -227,7 +229,10 @@ SDK-driven journeys can share these same payment groupings. Make SDK execution e
 
 Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it and add its canonical path to `scenarioIds` in `scenarios/catalog.ts`. The spec declares its own metadata and connector-account requirements using `scenarioFromFile(import.meta.url, { title, description, verifies, requirements })`. The framework derives its ID from the file path and fails discovery when the catalog entry is absent or different; blank metadata also fails registration.
 
-The planned inventory reserves saved-card repeat CIT, standalone mandate-setup CIT, partial capture, overcapture, incremental authorization, partial void, partial refund, refund reversal, recurring reference variants and webhook verification. Planned-file presence does not assert API or connector support.
+The remaining planned inventory reserves standalone mandate-setup CIT, partial
+void, network-token recurring and webhook verification. Wallet decryption modes
+require separate executable scenarios plus approved Google Pay TEST token and
+key material. Planned-file presence does not assert API or connector support.
 
 Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `refunds`, `expected`, `report`, and Playwright's `page` for actual browser journeys.
 

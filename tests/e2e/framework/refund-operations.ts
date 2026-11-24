@@ -1,7 +1,10 @@
 import { test } from "@playwright/test";
 import { HyperswitchClient, stringField } from "./hyperswitch-client.js";
 import type { TestMerchant } from "./merchant-setup.js";
-import { readRecordedRefund } from "./refund-records.js";
+import {
+  readRecordedRefund,
+  readRecordedRefundReversal,
+} from "./refund-records.js";
 import type { ScenarioOverrideResolver } from "./scenario-overrides.js";
 import type { Json, JsonObject } from "./types.js";
 
@@ -28,9 +31,33 @@ export class RefundOperations {
     );
   }
 
+  async reverseRefund(
+    callId: string,
+    refundId: string,
+    request: JsonObject,
+  ): Promise<RefundResponse> {
+    return refundResponse(
+      await this.hs.call(
+        "POST",
+        `/refunds/${encodeURIComponent(refundId)}/reverse`,
+        this.merchant.apiKey,
+        this.overrides.request("reverseRefund", callId, request),
+      ),
+    );
+  }
+
   async readRecordedRefund(refundId: string, paymentId: string) {
     return test.step("Read recorded refund from HS database", () =>
       readRecordedRefund(this.merchant.merchantId, refundId, paymentId));
+  }
+
+  async readRecordedRefundReversal(refundId: string, paymentId: string) {
+    return test.step("Read recorded refund-reversal metadata from HS database", () =>
+      readRecordedRefundReversal(
+        this.merchant.merchantId,
+        refundId,
+        paymentId,
+      ));
   }
 }
 

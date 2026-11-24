@@ -7,6 +7,11 @@ export type RecordedRefund = {
   paymentIdMatches: boolean;
 };
 
+export type RecordedRefundReversal = RecordedRefund & {
+  reversalStatus: string | null;
+  reversalConnectorRefundIdPresent: boolean;
+};
+
 export async function readRecordedRefund(
   merchantId: string,
   refundId: string,
@@ -31,6 +36,40 @@ export async function readRecordedRefund(
     );
     if (result.rows.length !== 1) {
       throw new Error("Expected exactly one recorded refund");
+    }
+    return result.rows[0];
+  } finally {
+    await client.end();
+  }
+}
+
+export async function readRecordedRefundReversal(
+  merchantId: string,
+  refundId: string,
+  paymentId: string,
+): Promise<RecordedRefundReversal> {
+  const client = new pg.Client({
+    connectionString: configuration.databaseUrl,
+    connectionTimeoutMillis: 10_000,
+    options: "-c default_transaction_read_only=on",
+  });
+  await client.connect();
+  try {
+    const result = await client.query<RecordedRefundReversal>(
+      `SELECT
+         refund_status::text AS status,
+         (connector_refund_id IS NOT NULL
+           AND connector_refund_id <> '') AS "connectorRefundIdPresent",
+         payment_id = $3 AS "paymentIdMatches",
+         metadata->'state_metadata'->>'status' AS "reversalStatus",
+         COALESCE(metadata->'state_metadata'->>'connector_refund_id', '') <> ''
+           AS "reversalConnectorRefundIdPresent"
+       FROM refund
+       WHERE merchant_id = $1 AND refund_id = $2`,
+      [merchantId, refundId, paymentId],
+    );
+    if (result.rows.length !== 1) {
+      throw new Error("Expected exactly one recorded refund reversal");
     }
     return result.rows[0];
   } finally {
