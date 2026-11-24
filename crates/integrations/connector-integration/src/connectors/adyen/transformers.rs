@@ -1889,6 +1889,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::PaypalSdk(_)
+            | WalletData::VenmoRedirect {}
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
             | WalletData::Mifinity(_)

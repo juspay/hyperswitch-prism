@@ -187,6 +187,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::SamsungPay(_) => "samsung_pay",
         WalletData::TwintRedirect {} => "twint_redirect",
         WalletData::VippsRedirect {} => "vipps_redirect",
+        WalletData::VenmoRedirect {} => "venmo_redirect",
         WalletData::TouchNGoRedirect(_) => "touch_n_go_redirect",
         WalletData::WeChatPayRedirect(_) => "wechat_pay_redirect",
         WalletData::WeChatPayQr(_) => "wechat_pay_qr",

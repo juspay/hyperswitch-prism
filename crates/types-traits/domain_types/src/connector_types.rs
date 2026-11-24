@@ -4534,6 +4534,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                 payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                 payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                payment_method_data::WalletData::VenmoRedirect {} => Self::VenmoRedirect,
                 payment_method_data::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
                 payment_method_data::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
                 payment_method_data::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,

@@ -109,6 +109,7 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::VenmoRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)
@@ -333,6 +334,7 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::VenmoRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)

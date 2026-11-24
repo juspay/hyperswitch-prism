@@ -986,6 +986,7 @@ pub enum WalletData {
     SamsungPay(Box<SamsungPayWalletData>),
     TwintRedirect {},
     VippsRedirect {},
+    VenmoRedirect {},
     TouchNGoRedirect(Box<TouchNGoRedirection>),
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     WeChatPayQr(Box<WeChatPayQr>),

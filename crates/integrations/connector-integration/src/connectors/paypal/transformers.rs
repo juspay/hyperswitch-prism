@@ -745,6 +745,58 @@ pub enum UsageType {
     Merchant,
 }
 
+/// `payment_source.venmo` on a PayPal order.
+///
+/// Venmo has no hosted PayPal checkout page: PayPal only returns a `payer-action`
+/// (Venmo approval) link when `experience_context.app_switch_context` is present.
+/// Without it the order is created with only a `self` link and the buyer has no way
+/// to approve it server-to-server.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum VenmoRequest {
+    VenmoRedirectionStruct(VenmoRedirectionStruct),
+    VenmoVaultStruct(VenmoVaultStruct),
+}
+
+#[derive(Debug, Serialize)]
+pub struct VenmoRedirectionStruct {
+    experience_context: VenmoContextStruct,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attributes: Option<Attributes>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VenmoContextStruct {
+    return_url: Option<String>,
+    cancel_url: Option<String>,
+    user_action: Option<UserAction>,
+    shipping_preference: ShippingPreference,
+    app_switch_context: VenmoAppSwitchContext,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VenmoAppSwitchContext {
+    source: VenmoAppSwitchSource,
+    /// Mandatory for `MOBILE_WEB`. PayPal derives the return flow from it:
+    /// a mobile user agent yields `return_flow=AUTO`, a desktop one `MANUAL`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    buyer_user_agent: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VenmoAppSwitchSource {
+    /// Buyer is in a browser (mobile or desktop); requires `buyer_user_agent`.
+    MobileWeb,
+    /// Buyer is in the merchant's native app.
+    NativeApp,
+}
+
+#[derive(Debug, Serialize)]
+pub struct VenmoVaultStruct {
+    vault_id: Secret<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaymentSourceItem<
@@ -752,6 +804,7 @@ pub enum PaymentSourceItem<
 > {
     Card(CardRequest<T>),
     Paypal(PaypalRedirectionRequest),
+    Venmo(VenmoRequest),
     #[serde(rename = "google_pay")]
     GooglePay(GooglePayRequest),
     #[serde(rename = "apple_pay")]
@@ -782,6 +835,8 @@ pub struct ApplePaySourceResponse {
 pub enum PaymentSourceItemResponse {
     Card(CardVaultResponse),
     Paypal(PaypalRedirectionResponse),
+    // Same shape as PayPal: `attributes.vault.{id,status,customer.id}` once vaulted.
+    Venmo(PaypalRedirectionResponse),
     Eps(EpsRedirectionResponse),
     Ideal(IdealRedirectionResponse),
     GooglePay(GooglePaySourceResponse),
@@ -1505,6 +1560,66 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 },
                             },
                         ),
+                    ));
+
+                    Ok(Self {
+                        intent,
+                        purchase_units,
+                        payment_source,
+                    })
+                }
+                WalletData::VenmoRedirect {} => {
+                    let return_url = item
+                        .router_data
+                        .request
+                        .complete_authorize_url
+                        .clone()
+                        .or_else(|| item.router_data.request.router_return_url.clone());
+                    let buyer_user_agent = item
+                        .router_data
+                        .request
+                        .browser_info
+                        .as_ref()
+                        .and_then(|browser_info| browser_info.user_agent.clone());
+                    let app_switch_context = match buyer_user_agent {
+                        Some(user_agent) => VenmoAppSwitchContext {
+                            source: VenmoAppSwitchSource::MobileWeb,
+                            buyer_user_agent: Some(user_agent),
+                        },
+                        None => VenmoAppSwitchContext {
+                            source: VenmoAppSwitchSource::NativeApp,
+                            buyer_user_agent: None,
+                        },
+                    };
+                    let payment_source = Some(PaymentSourceItem::Venmo(
+                        VenmoRequest::VenmoRedirectionStruct(VenmoRedirectionStruct {
+                            experience_context: VenmoContextStruct {
+                                return_url: return_url.clone(),
+                                cancel_url: return_url,
+                                user_action: Some(UserAction::PayNow),
+                                shipping_preference: if item
+                                    .router_data
+                                    .resource_common_data
+                                    .get_optional_shipping()
+                                    .is_some()
+                                {
+                                    ShippingPreference::SetProvidedAddress
+                                } else {
+                                    ShippingPreference::GetFromFile
+                                },
+                                app_switch_context,
+                            },
+                            attributes: match item.router_data.request.setup_future_usage {
+                                Some(common_enums::FutureUsage::OffSession) => Some(Attributes {
+                                    vault: PaypalVault {
+                                        store_in_vault: StoreInVault::OnSuccess,
+                                        usage_type: UsageType::Merchant,
+                                        permit_multiple_payment_tokens: Some(true),
+                                    },
+                                }),
+                                Some(common_enums::FutureUsage::OnSession) | None => None,
+                            },
+                        }),
                     ));
 
                     Ok(Self {
@@ -2486,7 +2601,8 @@ where
                     mandate_reference: Some(Box::new(MandateReference {
                         connector_mandate_id: match item.response.payment_source.clone() {
                             Some(paypal_source) => match paypal_source {
-                                PaymentSourceItemResponse::Paypal(paypal_source) => {
+                                PaymentSourceItemResponse::Paypal(paypal_source)
+                                | PaymentSourceItemResponse::Venmo(paypal_source) => {
                                     paypal_source.attributes.and_then(|attr| attr.vault.id)
                                 }
                                 PaymentSourceItemResponse::Card(card) => {
@@ -2501,16 +2617,19 @@ where
                         },
                         payment_method_id: None,
                         // Surface the PayPal vault customer id (returning-customer flow),
-                        // mirroring the reference. Only PayPal sources carry a vault customer;
+                        // mirroring the reference. Only PayPal / Venmo sources carry a vault customer;
                         // card/eps/ideal/wallet sources have none here.
                         connector_mandate_request_reference_id: match item
                             .response
                             .payment_source
                             .clone()
                         {
-                            Some(PaymentSourceItemResponse::Paypal(paypal_source)) => paypal_source
-                                .attributes
-                                .and_then(|attr| attr.vault.customer.map(|cus| cus.id)),
+                            Some(PaymentSourceItemResponse::Paypal(paypal_source))
+                            | Some(PaymentSourceItemResponse::Venmo(paypal_source)) => {
+                                paypal_source
+                                    .attributes
+                                    .and_then(|attr| attr.vault.customer.map(|cus| cus.id))
+                            }
                             Some(PaymentSourceItemResponse::Card(_))
                             | Some(PaymentSourceItemResponse::Eps(_))
                             | Some(PaymentSourceItemResponse::Ideal(_))
@@ -3673,6 +3792,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             user_action: Some(UserAction::PayNow),
                             shipping_preference: ShippingPreference::GetFromFile,
                         }),
+                }),
+            )),
+            common_enums::PaymentMethodType::Venmo => Some(PaymentSourceItem::Venmo(
+                VenmoRequest::VenmoVaultStruct(VenmoVaultStruct {
+                    vault_id: Secret::new(connector_mandate_id),
                 }),
             )),
             _ => {
