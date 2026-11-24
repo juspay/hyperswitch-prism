@@ -154,7 +154,14 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
 function _buildReverseRequest(connectorTransactionId: string): types.IPaymentServiceReverseRequest {
     return {
         "merchantReverseId": "probe_reverse_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId
+        "connectorTransactionId": connectorTransactionId,
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
     };
 }
 

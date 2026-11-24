@@ -508,3 +508,6 @@ grace/*.log
 /.connector_backup_*/
 docs/qwikcilver.postman_collection.json
 
+
+# Lean / Lake build output (tests/lean)
+.lake/

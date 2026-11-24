@@ -137,6 +137,11 @@ pub trait VerifySignature {
     ) -> CustomResult<bool, errors::CryptoError>;
 }
 
+/// Compares two byte slices without short-circuiting on the first mismatch.
+pub fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
+    constant_time_eq::constant_time_eq(left, right)
+}
+
 /// Trait for cryptographically encoding a message
 pub trait EncodeMessage {
     /// Takes in a secret and the message and encodes it, returning bytes

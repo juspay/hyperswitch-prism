@@ -12,7 +12,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get"]
+SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -22,6 +22,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             ssl_user_id=payment_methods_pb2.SecretString(value="YOUR_SSL_USER_ID"),
             ssl_pin=payment_methods_pb2.SecretString(value="YOUR_SSL_PIN"),
             base_url="YOUR_BASE_URL",
+            ssl_vendor_id=payment_methods_pb2.SecretString(value="YOUR_SSL_VENDOR_ID"),
         ),
     ),
 )
@@ -73,6 +74,21 @@ def _build_get_request(connector_transaction_id: str):
         ),
     )
 
+def _build_incremental_authorization_request():
+    return payment_pb2.PaymentServiceIncrementalAuthorizationRequest(
+        merchant_authorization_id="probe_auth_001",  # Identification.
+        connector_transaction_id="probe_connector_txn_001",
+        amount=common_types_pb2.Money(  # New total authorized amount, including this increase.
+            minor_amount=1100,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        reason="incremental_auth_probe",  # Optional Fields.
+        additional_amount=common_types_pb2.Money(  # Increase over the current authorized total. Must use the same currency as amount.
+            minor_amount=100,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+    )
+
 def _build_proxy_authorize_request():
     return payment_pb2.PaymentServiceProxyAuthorizeRequest(
         merchant_transaction_id="probe_proxy_txn_001",
@@ -94,6 +110,32 @@ def _build_proxy_authorize_request():
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
         return_url="https://example.com/return",
+    )
+
+def _build_proxy_setup_recurring_request():
+    return payment_pb2.PaymentServiceProxySetupRecurringRequest(
+        merchant_recurring_payment_id="probe_proxy_mandate_001",
+        amount=common_types_pb2.Money(
+            minor_amount=0,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
+            card_exp_month=payment_methods_pb2.SecretString(value="03"),
+            card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+            card_cvc=payment_methods_pb2.SecretString(value="123"),
+            card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
+        ),
+        address=payment_pb2.PaymentAddress(
+            billing_address=common_types_pb2.Address(),
+        ),
+        customer_acceptance=payment_pb2.CustomerAcceptance(
+            acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
+            accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        ),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
+        setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),
     )
 
 def _build_recurring_charge_request():
@@ -135,6 +177,48 @@ def _build_refund_get_request():
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
         refund_id="probe_refund_id_001",  # Deprecated.
+    )
+
+def _build_reverse_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceReverseRequest(
+        merchant_reverse_id="probe_reverse_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+    )
+
+def _build_setup_recurring_request():
+    return payment_pb2.PaymentServiceSetupRecurringRequest(
+        merchant_recurring_payment_id="probe_mandate_001",  # Identification.
+        amount=common_types_pb2.Money(  # Mandate Details.
+            minor_amount=0,
+            currency=common_types_pb2.Currency.Value("USD"),
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=common_types_pb2.Address(),
+        ),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Type of authentication to be used.
+        enrolled_for_3ds=False,  # Indicates if the customer is enrolled for 3D Secure.
+        return_url="https://example.com/mandate-return",  # URL to redirect after setup.
+        setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),  # Indicates future usage intention.
+        request_incremental_authorization=False,  # Indicates if incremental authorization is requested.
+        customer_acceptance=payment_pb2.CustomerAcceptance(  # Details of customer acceptance.
+            acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
+            accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        ),
+    )
+
+def _build_void_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceVoidRequest(
+        merchant_void_id="probe_void_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)
@@ -205,6 +289,28 @@ async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.Co
     return {"status": getattr(refund_response, "status", ""), "error": getattr(refund_response, "error", None)}
 
 
+async def process_void_payment(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Void Payment
+
+    Cancel an authorized but not-yet-captured payment.
+    """
+    payment_client = PaymentClient(config)
+
+    # Step 1: Authorize — reserve funds on the payment method
+    authorize_response = await payment_client.authorize(_build_authorize_request("MANUAL"))
+
+    if authorize_response.status == "FAILED":
+        raise RuntimeError(f"Payment failed: {authorize_response.error}")
+    if authorize_response.status == "PENDING":
+        # Awaiting async confirmation — handle via webhook
+        return {"status": "pending", "transaction_id": authorize_response.connector_transaction_id}
+
+    # Step 2: Void — release reserved funds (cancel authorization)
+    void_response = await payment_client.void(_build_void_request(authorize_response.connector_transaction_id))
+
+    return {"status": getattr(void_response, "status", ""), "transaction_id": getattr(authorize_response, "connector_transaction_id", ""), "error": getattr(void_response, "error", None)}
+
+
 async def process_get_payment(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Get Payment Status
 
@@ -254,11 +360,29 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     return {"status": get_response.status}
 
 
+async def process_incremental_authorization(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.IncrementalAuthorization"""
+    payment_client = PaymentClient(config)
+
+    incremental_response = await payment_client.incremental_authorization(_build_incremental_authorization_request())
+
+    return {"status": incremental_response.status}
+
+
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.ProxyAuthorize"""
     payment_client = PaymentClient(config)
 
     proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
+
+    return {"status": proxy_response.status}
+
+
+async def process_proxy_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.ProxySetupRecurring"""
+    payment_client = PaymentClient(config)
+
+    proxy_response = await payment_client.proxy_setup_recurring(_build_proxy_setup_recurring_request())
 
     return {"status": proxy_response.status}
 
@@ -279,6 +403,33 @@ async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def process_reverse(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Reverse"""
+    payment_client = PaymentClient(config)
+
+    reverse_response = await payment_client.reverse(_build_reverse_request("probe_connector_txn_001"))
+
+    return {"status": reverse_response.status}
+
+
+async def process_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.SetupRecurring"""
+    payment_client = PaymentClient(config)
+
+    setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
+
+    return {"status": setup_response.status, "mandate_id": setup_response.connector_recurring_payment_id}
+
+
+async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Void"""
+    payment_client = PaymentClient(config)
+
+    void_response = await payment_client.void(_build_void_request("probe_connector_txn_001"))
+
+    return {"status": void_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "checkout_autocapture"

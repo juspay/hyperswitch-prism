@@ -711,6 +711,32 @@
         "error": "This feature is not implemented: setup_mandate flow for truelayer"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by truelayer connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by truelayer connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by truelayer connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by truelayer connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by truelayer connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by truelayer connector"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

@@ -7,7 +7,7 @@
 
 import { PaymentClient, MerchantAuthenticationClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "reverse", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -258,6 +258,20 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     };
 }
 
+function _buildReverseRequest(connectorTransactionId: string): types.IPaymentServiceReverseRequest {
+    return {
+        "merchantReverseId": "probe_reverse_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
@@ -479,6 +493,15 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
     return refundResponse;
 }
 
+// Flow: PaymentService.Reverse
+async function reverse(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const reverseResponse = await paymentClient.reverse(_buildReverseRequest('probe_connector_txn_001'));
+
+    return reverseResponse;
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -491,7 +514,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, reverse, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildVoidRequest
 };
 
 // CLI runner

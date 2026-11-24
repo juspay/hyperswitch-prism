@@ -7,7 +7,7 @@ use base64::Engine;
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     consts,
-    crypto::{HmacSha256, SignMessage},
+    crypto::{HmacSha256, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -242,12 +242,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Failed to decode JWT signature from base64url")?;
 
         // Verify HMAC-SHA256
-        let computed = HmacSha256
-            .sign_message(&secret.secret, message.as_bytes())
+        HmacSha256
+            .verify_signature(&secret.secret, &signature, message.as_bytes())
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to sign JWT message with HMAC-SHA256")?;
-
-        Ok(computed == signature)
+            .attach_printable("Failed to verify JWT message with HMAC-SHA256")
     }
 
     fn get_event_type(
