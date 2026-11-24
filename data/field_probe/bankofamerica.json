@@ -1019,7 +1019,6 @@
         "proto_request": {
           "merchant_void_id": "probe_void_001",
           "connector_transaction_id": "probe_connector_txn_001",
-          "cancellation_reason": "requested_by_customer",
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
@@ -1038,7 +1037,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"clientReferenceInformation\":{\"code\":\"probe_void_001\"},\"reversalInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"reason\":\"requested_by_customer\"}}"
+          "body": "{\"clientReferenceInformation\":{\"code\":\"probe_void_001\"},\"reversalInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"}}}"
         }
       }
     }

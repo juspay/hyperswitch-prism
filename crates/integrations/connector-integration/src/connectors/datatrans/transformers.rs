@@ -2195,9 +2195,10 @@ fn sync_refund_status(
             | DatatransPaymentStatus::ChallengeRequired => RefundStatus::Pending,
             DatatransPaymentStatus::Initialized
             | DatatransPaymentStatus::Authenticated
-            | DatatransPaymentStatus::Authorized
-            | DatatransPaymentStatus::Canceled
-            | DatatransPaymentStatus::Failed => RefundStatus::Failure,
+            | DatatransPaymentStatus::Authorized => RefundStatus::Pending,
+            DatatransPaymentStatus::Canceled | DatatransPaymentStatus::Failed => {
+                RefundStatus::Failure
+            }
         },
         DatatransTransactionType::Payment | DatatransTransactionType::CardCheck => {
             RefundStatus::Failure
@@ -2452,7 +2453,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .return_url
                 .clone()
-                .unwrap_or_else(|| "https://example.com/return".to_string()),
+                .filter(|url| !url.trim().is_empty())
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "return_url",
+                    context: Default::default(),
+                })?,
         })
     }
 }

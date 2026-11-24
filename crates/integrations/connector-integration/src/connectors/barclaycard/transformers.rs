@@ -479,14 +479,16 @@ fn get_error_reason(
 /// Common response transformer for Authorize, Capture, and Void flows
 ///
 /// This helper consolidates the shared logic for processing Barclaycard payment responses
-/// across different payment flows. The only variation is the auto_capture flag which affects
-/// status mapping.
+/// across different payment flows. The auto_capture flag affects status mapping, and
+/// `error_status` is the status set when Barclaycard answers with error information only
+/// (`None` keeps the previous status).
 fn transform_payment_response<F, Req>(
     item: ResponseRouterData<
         responses::BarclaycardPaymentsResponse,
         RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>,
     >,
     auto_capture: bool,
+    error_status: Option<common_enums::AttemptStatus>,
 ) -> RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData> {
     match item.response {
         responses::BarclaycardPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -571,7 +573,7 @@ fn transform_payment_response<F, Req>(
                     typed_connector_request: None,
                 }),
                 resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: error_status.unwrap_or(item.router_data.resource_common_data.status),
                     ..item.router_data.resource_common_data
                 },
                 ..item.router_data
@@ -1102,7 +1104,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             item.router_data.request.capture_method,
             Some(common_enums::CaptureMethod::Automatic) | None
         );
-        Ok(transform_payment_response(item, auto_capture))
+        Ok(transform_payment_response(
+            item,
+            auto_capture,
+            Some(common_enums::AttemptStatus::Failure),
+        ))
     }
 }
 
@@ -1114,7 +1120,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<responses::BarclaycardPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Ok(transform_payment_response(item, true))
+        Ok(transform_payment_response(item, true, None))
     }
 }
 
@@ -1126,7 +1132,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<responses::BarclaycardPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Ok(transform_payment_response(item, false))
+        Ok(transform_payment_response(item, false, None))
     }
 }
 

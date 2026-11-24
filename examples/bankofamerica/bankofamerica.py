@@ -179,7 +179,6 @@ def _build_void_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceVoidRequest(
         merchant_void_id="probe_void_001",  # Identification.
         connector_transaction_id=connector_transaction_id,
-        cancellation_reason="requested_by_customer",  # Void Details.
         amount=common_types_pb2.Money(  # Amount Information.
             minor_amount=1000,
             currency=common_types_pb2.Currency.Value("USD"),

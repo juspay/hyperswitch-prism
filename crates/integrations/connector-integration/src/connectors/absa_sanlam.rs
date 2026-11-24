@@ -141,7 +141,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 absa_sanlam::AbsaSanlamWebhookEventType::PaymentFailed => {
                     EventType::PaymentIntentFailure
                 }
-                absa_sanlam::AbsaSanlamWebhookEventType::DisputeOpened => EventType::DisputeOpened,
+                // Dispute webhooks are not handled; the payload carries no dispute details.
+                absa_sanlam::AbsaSanlamWebhookEventType::DisputeOpened => {
+                    return Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound))
+                        .attach_printable("AbsaSanlam webhook: dispute.opened is not supported");
+                }
             },
         };
 

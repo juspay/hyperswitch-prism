@@ -1579,7 +1579,9 @@ pub struct BankofamericaVoidRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ReversalInformation {
     amount_details: Amount,
-    reason: String,
+    // Optional for the authorization reversal; only sent when the caller gives one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2667,23 +2669,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .map(|metadata| convert_metadata_to_merchant_defined_info(metadata.expose()));
 
-        let amount =
-            item.router_data
-                .request
-                .money
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "Amount",
-                    context: Default::default(),
-                })?;
+        // A full void by id may carry no amount: reverse the authorized (else payment) amount.
+        let amount = item
+            .router_data
+            .request
+            .money
+            .clone()
+            .or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .authorized_money
+                    .clone()
+            })
+            .or_else(|| item.router_data.resource_common_data.money.clone())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "Amount",
+                context: Default::default(),
+            })?;
 
-        let currency =
-            item.router_data
-                .request
-                .currency
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "Currency",
-                    context: Default::default(),
-                })?;
+        let currency = item
+            .router_data
+            .request
+            .currency
+            .unwrap_or(amount.currency());
 
         Ok(Self {
             client_reference_information: ClientReferenceInformation {
@@ -2706,12 +2714,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })?,
                     currency,
                 },
-                reason: item.router_data.request.cancellation_reason.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "Cancellation Reason",
-                        context: Default::default(),
-                    },
-                )?,
+                reason: item.router_data.request.cancellation_reason.clone(),
             },
             merchant_defined_information,
         })

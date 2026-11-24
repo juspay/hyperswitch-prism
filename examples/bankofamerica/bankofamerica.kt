@@ -105,7 +105,6 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        cancellationReason = "requested_by_customer"  // Void Details.
         amountBuilder.apply {  // Amount Information.
             minorAmount = 1000L
             currency = Currency.USD

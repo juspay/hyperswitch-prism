@@ -1,5 +1,6 @@
 pub mod requests;
 pub mod response;
+mod test;
 pub mod transformers;
 
 use self::requests::{

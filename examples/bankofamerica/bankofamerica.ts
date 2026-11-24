@@ -184,7 +184,6 @@ function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServic
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
-        "cancellationReason": "requested_by_customer",  // Void Details.
         "amount": {  // Amount Information.
             "minorAmount": 1000,
             "currency": Currency.USD
