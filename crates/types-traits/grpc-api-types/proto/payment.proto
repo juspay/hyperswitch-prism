@@ -1614,8 +1614,8 @@ message MerchantDetails {
   // Merchant Category Code (ISO 18245).
   optional uint32 merchant_category_code = 2;
 
-  // ISO 3166-1 alpha-2 country code of the merchant account.
-  optional string merchant_country_code = 3;
+  // ISO 3166-1 alpha-2 country code of the merchant account, supplied by the caller.
+  optional CountryAlpha2 merchant_country_code = 3;
 }
 
 // Unified FRM notification content.

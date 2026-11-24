@@ -782,66 +782,36 @@ pub struct NuveiBillingAddress {
 /// `(first_name, last_name)` as sent on the Nuvei billing address.
 type BillingNames = (Option<Secret<String>>, Option<Secret<String>>);
 
-/// Nuvei billing `firstName`/`lastName` (both REQUIRED): the billing address
-/// names when non-empty, else split from the card's Name_on_card on the last
-/// whitespace. Filling is per-field — each missing name is filled on its own.
-/// A Name_on_card without a last name (single token) supplies only the first
-/// name and is refused when the last name is the missing one. No Name_on_card
-/// leaves the names as sent (omitted when missing, as before).
+/// Fill each missing billing name from the cardholder name when available.
 pub(super) fn billing_names(
     billing_first_name: Option<Secret<String>>,
     billing_last_name: Option<Secret<String>>,
     card_holder_name: Option<Secret<String>>,
-) -> Result<BillingNames, Report<IntegrationError>> {
-    fn non_empty(name: Option<Secret<String>>) -> Option<Secret<String>> {
-        name.filter(|name| !name.peek().trim().is_empty())
-    }
-
-    let mut first_name = non_empty(billing_first_name);
-    let mut last_name = non_empty(billing_last_name);
-    let (name_first, name_last) = split_full_name(card_holder_name);
-    if name_first.is_some() || name_last.is_some() {
-        if first_name.is_none() {
-            first_name = name_first;
-        }
-        if last_name.is_none() {
-            last_name = Some(name_last.ok_or_else(|| {
-                nuvei_missing_field(
-                    "billing_address.last_name",
-                    "Send billing_address.last_name or a Name_on_card with both first and last name",
-                )
-            })?);
-        }
-    }
-    Ok((first_name, last_name))
+) -> BillingNames {
+    let (card_first_name, card_last_name) = split_full_name(card_holder_name);
+    (
+        billing_first_name
+            .filter(|name| !name.peek().trim().is_empty())
+            .or(card_first_name),
+        billing_last_name
+            .filter(|name| !name.peek().trim().is_empty())
+            .or(card_last_name),
+    )
 }
 
-/// Billing address for the Nuvei request: the REQUIRED first/last names come
-/// from the billing address, else from the card's Name_on_card (`billing_names`).
-impl
-    TryFrom<(
-        &PaymentFlowData,
-        pii::Email,
-        common_enums::CountryAlpha2,
-        Option<Secret<String>>,
-    )> for NuveiBillingAddress
-{
-    type Error = Report<IntegrationError>;
-
-    fn try_from(
-        (resource_data, email, country, card_holder_name): (
-            &PaymentFlowData,
-            pii::Email,
-            common_enums::CountryAlpha2,
-            Option<Secret<String>>,
-        ),
-    ) -> Result<Self, Self::Error> {
+impl NuveiBillingAddress {
+    fn new(
+        resource_data: &PaymentFlowData,
+        email: pii::Email,
+        country: common_enums::CountryAlpha2,
+        card_holder_name: Option<Secret<String>>,
+    ) -> Self {
         let (first_name, last_name) = billing_names(
             resource_data.get_optional_billing_first_name(),
             resource_data.get_optional_billing_last_name(),
             card_holder_name,
-        )?;
-        Ok(Self {
+        );
+        Self {
             email,
             country,
             first_name,
@@ -858,7 +828,7 @@ impl
                 .ok()
                 .and_then(|details| details.to_state_code_as_optional().ok().flatten())
                 .filter(|state| state.peek().chars().count() <= 5),
-        })
+        }
     }
 }
 
@@ -897,7 +867,7 @@ fn payment_method_name_on_card<
 /// request email) and billing country are mandatory, each with its own error.
 /// Use the merchant account country only when the customer billing country is absent.
 /// `card_holder_name` (Name_on_card) fills missing billing names, see `billing_names`.
-fn get_required_billing_address(
+pub(super) fn get_required_billing_address(
     resource_data: &PaymentFlowData,
     fallback_email: Option<pii::Email>,
     card_holder_name: Option<Secret<String>>,
@@ -921,7 +891,12 @@ fn get_required_billing_address(
                 "Send address.billing_address.country_alpha2_code",
             )
         })?;
-    NuveiBillingAddress::try_from((resource_data, email, country, card_holder_name))
+    Ok(NuveiBillingAddress::new(
+        resource_data,
+        email,
+        country,
+        card_holder_name,
+    ))
 }
 
 #[serde_with::skip_serializing_none]
@@ -1653,29 +1628,23 @@ struct NuveiFlightLegDetails {
     stop_over_code: String,
 }
 
-fn nuvei_airline_carrier_and_number<'a>(
-    segment: Option<&'a domain_types::connector_types::AirlineSegment>,
-    airline_code: Option<&'a str>,
-) -> (Option<&'a str>, Option<&'a str>) {
-    let fallback_carrier = airline_code.map(str::trim).filter(|code| !code.is_empty());
+pub(super) fn nuvei_airline_carrier_and_number(
+    segment: Option<&domain_types::connector_types::AirlineSegment>,
+) -> (Option<&str>, Option<&str>) {
     let Some(segment) = segment else {
-        return (fallback_carrier, None);
+        return (None, None);
     };
-
-    // Operating carrier only: Nuvei gets the carrier flying the leg, never the
-    // marketing carrier. The booking-level airline code is the last resort.
-    let operating_carrier = segment
-        .operating_carrier_code
-        .as_deref()
-        .map(str::trim)
-        .filter(|code| !code.is_empty());
-    let operating_number = segment
-        .operating_flight_number
-        .as_deref()
-        .filter(|number| !number.trim().is_empty());
     (
-        operating_carrier.or(fallback_carrier),
-        operating_number.or(segment.flight_number.as_deref()),
+        segment
+            .operating_carrier_code
+            .as_deref()
+            .map(str::trim)
+            .filter(|code| !code.is_empty()),
+        segment
+            .operating_flight_number
+            .as_deref()
+            .map(str::trim)
+            .filter(|number| !number.is_empty()),
     )
 }
 
@@ -1752,8 +1721,7 @@ pub(super) fn get_nuvei_airline_addendums(
                         "O".to_owned()
                     }
                 });
-                let (carrier, number) =
-                    nuvei_airline_carrier_and_number(Some(segment), data.airline_code.as_deref());
+                let (carrier, number) = nuvei_airline_carrier_and_number(Some(segment));
                 make_leg(
                     segment.departure.as_ref(),
                     segment.arrival.as_ref(),
@@ -1772,8 +1740,7 @@ pub(super) fn get_nuvei_airline_addendums(
                 });
                 let first_segment = segments.next();
                 let has_connection = segments.next().is_some();
-                let (carrier, number) =
-                    nuvei_airline_carrier_and_number(first_segment, data.airline_code.as_deref());
+                let (carrier, number) = nuvei_airline_carrier_and_number(first_segment);
                 make_leg(
                     journey.departure.as_ref(),
                     journey.arrival.as_ref(),
@@ -4461,14 +4428,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .or_else(|| request.email.clone())
             .zip(resource.get_optional_billing_country())
             .map(|(email, country)| {
-                NuveiBillingAddress::try_from((
+                NuveiBillingAddress::new(
                     resource,
                     email,
                     country,
                     payment_method_name_on_card(request.payment_method_data.as_ref()),
-                ))
-            })
-            .transpose()?;
+                )
+            });
 
         Ok(Self {
             session_token,
