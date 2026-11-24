@@ -301,15 +301,17 @@ fn airline_leg_uses_operating_fields_only() {
 }
 
 #[test]
-fn billing_state_preserves_the_supplied_iso_code_up_to_five_characters() {
+fn billing_state_formats_the_supplied_iso_code_up_to_five_characters() {
     let email = Email::try_from("test@example.com".to_owned()).expect("valid test email");
-    for (supplied, normalized, expected) in
-        [("US-AL", "AL", Some("US-AL")), ("US-ABC", "ABC", None)]
-    {
+    for (country, supplied, normalized, expected) in [
+        (CountryAlpha2::US, "US-AL", "AL", Some("US-AL")),
+        (CountryAlpha2::US, "US-ABC", "ABC", None),
+        (CountryAlpha2::IN, "IN-KA", "KA", Some("IN-KA")),
+    ] {
         let state = StateDetails::foreign_try_from((
             Some(Secret::new("California".to_owned())),
             Some(Secret::new(supplied.to_owned())),
-            Some(CountryAlpha2::US),
+            Some(country),
         ))
         .expect("valid supplied ISO code");
         assert_eq!(
@@ -317,7 +319,7 @@ fn billing_state_preserves_the_supplied_iso_code_up_to_five_characters() {
             Some(normalized)
         );
 
-        let resource = payment_with_billing(Some(CountryAlpha2::US), Some(state));
+        let resource = payment_with_billing(Some(country), Some(state));
         let address = get_required_billing_address(
             &resource,
             Some(email.clone()),
@@ -332,21 +334,29 @@ fn billing_state_preserves_the_supplied_iso_code_up_to_five_characters() {
 #[test]
 fn billing_state_normalizes_names_and_enforces_five_character_cap() {
     let email = Email::try_from("test@example.com".to_owned()).expect("valid test email");
-    for (state, expected) in [
+    for (country, state, expected) in [
         (
+            CountryAlpha2::US,
             StateDetails::from_name(Secret::new("California".to_owned())),
-            Some("CA"),
+            Some("US-CA"),
         ),
         (
+            CountryAlpha2::US,
             StateDetails::from_code(Secret::new("ABCDE".to_owned())),
             Some("ABCDE"),
         ),
         (
+            CountryAlpha2::US,
             StateDetails::from_code(Secret::new("ABCDEF".to_owned())),
             None,
         ),
+        (
+            CountryAlpha2::IN,
+            StateDetails::from_name(Secret::new("Karnataka".to_owned())),
+            Some("IN-KA"),
+        ),
     ] {
-        let resource = payment_with_billing(Some(CountryAlpha2::US), Some(state));
+        let resource = payment_with_billing(Some(country), Some(state));
         let address = get_required_billing_address(
             &resource,
             Some(email.clone()),

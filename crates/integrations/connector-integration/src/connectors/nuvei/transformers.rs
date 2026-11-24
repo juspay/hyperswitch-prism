@@ -826,11 +826,18 @@ impl NuveiBillingAddress {
                 .get_billing_address()
                 .ok()
                 .and_then(|details| {
-                    details
-                        .get_supplied_state_code_iso()
-                        .cloned()
-                        .or_else(|| details.to_state_code_as_optional().ok().flatten())
-                        .filter(|state| state.peek().chars().count() <= 5)
+                    let state = details.to_state_code_as_optional().ok().flatten()?;
+                    let code = state.peek();
+                    let state = match details.get_optional_country() {
+                        Some(country)
+                            if (1..=3).contains(&code.len())
+                                && code.bytes().all(|byte| byte.is_ascii_alphanumeric()) =>
+                        {
+                            Secret::new(format!("{country}-{}", code.to_ascii_uppercase()))
+                        }
+                        _ => state,
+                    };
+                    (state.peek().chars().count() <= 5).then_some(state)
                 }),
         }
     }

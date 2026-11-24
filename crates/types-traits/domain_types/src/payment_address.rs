@@ -191,9 +191,6 @@ impl Address {
 pub struct StateDetails {
     name: Option<Secret<String>>,
     code: Option<Secret<String>>,
-    // Retain the supplied ISO code for connectors that send it verbatim.
-    #[serde(skip)]
-    supplied_iso_code: Option<Secret<String>>,
 }
 
 fn invalid_state_code(context: &'static str) -> error_stack::Report<IntegrationError> {
@@ -284,11 +281,7 @@ impl
             }),
         };
 
-        Ok(Self {
-            name,
-            code,
-            supplied_iso_code,
-        })
+        Ok(Self { name, code })
     }
 }
 
@@ -297,7 +290,6 @@ impl StateDetails {
         Self {
             name: Some(name),
             code: None,
-            supplied_iso_code: None,
         }
     }
 
@@ -305,12 +297,7 @@ impl StateDetails {
         Self {
             name: None,
             code: Some(code),
-            supplied_iso_code: None,
         }
-    }
-
-    pub fn supplied_iso_code(&self) -> Option<&Secret<String>> {
-        self.supplied_iso_code.as_ref()
     }
 
     pub fn code(&self) -> Option<&Secret<String>> {
@@ -416,13 +403,6 @@ impl AddressDetails {
 }
 
 impl AddressDetails {
-    /// Returns the original ISO subdivision code supplied on the address.
-    pub fn get_supplied_state_code_iso(&self) -> Option<&Secret<String>> {
-        self.state
-            .as_ref()
-            .and_then(StateDetails::supplied_iso_code)
-    }
-
     pub fn get_first_name(&self) -> Result<&Secret<String>, Error> {
         self.first_name
             .as_ref()
