@@ -1,0 +1,136 @@
+{
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_incremental_auth": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            }
+          }
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            }
+          }
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            }
+          }
+        }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "recurring_charge": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        }
+      }
+    },
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        }
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        }
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "grpc_req": {
+        "amount": {
+          "currency": "CAD"
+        }
+      }
+    }
+  }
+}

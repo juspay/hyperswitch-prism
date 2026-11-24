@@ -14,5 +14,39 @@
     "PaymentService/Reverse",
     "RecurringPaymentService/Charge",
     "RefundService/Get"
-  ]
+  ],
+  "unsupported_scenarios": {
+    "PaymentMethodAuthenticationService/PostAuthenticate": {
+      "threeds_card_post_authenticate": "HARNESS_FIXTURE_UNSUPPORTED: Moneris challenge completion requires the CRes and authentication ID from a real completed 3DS challenge. The shared fixture supplies a synthetic transaction ID and payload, which Moneris rejects as UNAUTHORIZED_REQUEST."
+    },
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_ach_bank_transfer": "CONNECTOR_API_LACKS: Moneris payment authorization supports card and wallet payment methods; ACH bank transfer is not supported by this connector.",
+      "no3ds_auto_capture_affirm": "CONNECTOR_API_LACKS: Affirm is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_afterpay_clearpay": "CONNECTOR_API_LACKS: Afterpay/Clearpay is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_alipay": "CONNECTOR_API_LACKS: Alipay is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_apple_pay_decrypted": "SANDBOX_NOT_PROVISIONED: The shared Apple Pay fixture contains a synthetic decrypted wallet cryptogram, not a Moneris-provisioned sandbox token; the Moneris sandbox declines it.",
+      "no3ds_auto_capture_apple_pay_decrypted_cit": "SANDBOX_NOT_PROVISIONED: The shared Apple Pay fixture contains a synthetic decrypted wallet cryptogram, not a Moneris-provisioned sandbox token; the Moneris sandbox declines it.",
+      "no3ds_auto_capture_bacs_bank_transfer": "CONNECTOR_API_LACKS: BACS bank transfer is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_bancontact": "CONNECTOR_API_LACKS: Bancontact is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_crypto": "CONNECTOR_API_LACKS: Cryptocurrency is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_debit_card": "SANDBOX_NOT_PROVISIONED: Moneris supports card processing, but the shared scenario's debit card data is not a Moneris sandbox test debit card; no approved debit test PAN is provisioned for this CI connector account.",
+      "no3ds_auto_capture_duitnow_qr": "CONNECTOR_API_LACKS: DuitNow QR is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_eps": "CONNECTOR_API_LACKS: EPS is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_fpx_maybank": "CONNECTOR_API_LACKS: FPX Maybank is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_giropay": "CONNECTOR_API_LACKS: Giropay is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_google_pay_decrypted": "SANDBOX_NOT_PROVISIONED: The shared Google Pay fixture contains a synthetic decrypted wallet cryptogram, not a Moneris-provisioned sandbox token; the Moneris sandbox declines it.",
+      "no3ds_auto_capture_google_pay_decrypted_cit": "SANDBOX_NOT_PROVISIONED: The shared Google Pay fixture contains a synthetic decrypted wallet cryptogram, not a Moneris-provisioned sandbox token; the Moneris sandbox declines it.",
+      "no3ds_auto_capture_ideal": "CONNECTOR_API_LACKS: iDEAL is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_klarna": "CONNECTOR_API_LACKS: Klarna is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_przelewy24": "CONNECTOR_API_LACKS: Przelewy24 is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_sepa_bank_transfer": "CONNECTOR_API_LACKS: SEPA bank transfer is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_upi_collect": "CONNECTOR_API_LACKS: UPI Collect is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_upi_intent": "CONNECTOR_API_LACKS: UPI Intent is not a payment method supported by the Moneris API integration.",
+      "no3ds_auto_capture_upi_qr": "CONNECTOR_API_LACKS: UPI QR is not a payment method supported by the Moneris API integration.",
+      "no3ds_manual_capture_debit_card": "SANDBOX_NOT_PROVISIONED: Moneris supports card processing, but the shared scenario's debit card data is not a Moneris sandbox test debit card; no approved debit test PAN is provisioned for this CI connector account.",
+      "no3ds_manual_capture_incremental_auth": "SANDBOX_NOT_ENTITLED: This Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for incremental authorization, indicating the account is not provisioned for that feature.",
+      "threeds_manual_capture_credit_card": "HARNESS_FIXTURE_UNSUPPORTED: The shared 3DS authorize scenario has no real authentication result or completed challenge; Moneris requires a valid 3DS authentication session for this flow.",
+      "wero_auto_capture_without_billing": "CONNECTOR_API_LACKS: Wero is not a payment method supported by the Moneris API integration."
+    }
+  }
 }
