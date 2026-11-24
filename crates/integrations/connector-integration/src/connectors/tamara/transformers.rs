@@ -94,12 +94,14 @@ pub enum TamaraPaymentStatus {
 impl From<TamaraPaymentStatus> for AttemptStatus {
     fn from(status: TamaraPaymentStatus) -> Self {
         match status {
-            TamaraPaymentStatus::Authorised => Self::Authorized,
+            // `updated` is Tamara's partial cancellation before capture; the remainder
+            // stays authorized. Only a full cancellation voids the payment.
+            TamaraPaymentStatus::Authorised | TamaraPaymentStatus::Updated => Self::Authorized,
             TamaraPaymentStatus::FullyCaptured
             | TamaraPaymentStatus::PartiallyCaptured
             | TamaraPaymentStatus::FullyRefunded
             | TamaraPaymentStatus::PartiallyRefunded => Self::Charged,
-            TamaraPaymentStatus::Canceled | TamaraPaymentStatus::Updated => Self::Voided,
+            TamaraPaymentStatus::Canceled => Self::Voided,
             TamaraPaymentStatus::Declined | TamaraPaymentStatus::Expired => Self::Failure,
             TamaraPaymentStatus::New
             | TamaraPaymentStatus::Approved
@@ -1081,8 +1083,15 @@ impl TryFrom<ResponseRouterData<TamaraPSyncResponse, Self>>
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TamaraRSyncResponse {
     pub order_id: String,
-    pub status: TamaraRefundStatus,
+    pub status: TamaraPaymentStatus,
     pub order_reference_id: Option<String>,
+    pub refunds: Option<Vec<TamaraOrderRefund>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TamaraOrderRefund {
+    pub refund_id: String,
+    pub refund_status: Option<String>,
 }
 
 impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
@@ -1091,10 +1100,27 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<TamaraRSyncResponse, Self>) -> Result<Self, Self::Error> {
-        let raw_connector_status = tamara_refund_raw_connector_status(&item.response.status);
-        // The order-details endpoint reports aggregate order state. One order may have
-        // multiple refunds, so it cannot establish this refund's terminal outcome.
-        let refund_status = RefundStatus::Pending;
+        // Order status is aggregate: only the requested refund can establish its outcome.
+        let matching_refund = item.response.refunds.as_ref().and_then(|refunds| {
+            refunds
+                .iter()
+                .find(|refund| refund.refund_id == item.router_data.request.connector_refund_id)
+        });
+        // Tamara documents `success` for an individual refund. Missing or unknown
+        // refund states must stay nonterminal, regardless of the parent order state.
+        let refund_status = match matching_refund.and_then(|refund| refund.refund_status.as_deref())
+        {
+            Some("success") => RefundStatus::Success,
+            _ => RefundStatus::Pending,
+        };
+        let raw_connector_status = matching_refund
+            .and_then(|refund| refund.refund_status.clone())
+            .map(|code| RawConnectorStatus {
+                code: Some(code),
+                message: None,
+                reason: None,
+            })
+            .unwrap_or_else(|| tamara_payment_raw_connector_status(&item.response.status));
 
         Ok(Self {
             resource_common_data: RefundFlowData {
