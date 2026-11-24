@@ -127,7 +127,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E737%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E737%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_first_name%3EJohn%3C%2Fssl_first_name%3E%3Cssl_last_name%3EDoe%3C%2Fssl_last_name%3E%3Cssl_invoice_number%3Eprobe_txn_001%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
         }
       },
       "CashappQr": {
@@ -599,8 +599,29 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_supported",
-        "error": "incremental_authorization flow not supported by elavon connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe",
+          "additional_amount": {
+            "minor_amount": 100,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/VirtualMerchantDemo/processxml.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccauthonly%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_txn_id%3Eprobe_connector_txn_001%3C%2Fssl_txn_id%3E%3Cssl_amount%3E1.00%3C%2Fssl_amount%3E%3C%2Ftxn%3E"
+        }
       }
     },
     "parse_event": {
@@ -656,14 +677,46 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E%7B%7B%24card_number%7D%7D%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E%7B%7B%24card_cvc%7D%7D%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_invoice_number%3EIRRELEVANT_PAYMENT_ID%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_card_number%3E%7B%7B%24card_number%7D%7D%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E%7B%7B%24card_cvc%7D%7D%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_first_name%3EJohn%3C%2Fssl_first_name%3E%3Cssl_last_name%3EDoe%3C%2Fssl_last_name%3E%3Cssl_invoice_number%3Eprobe_proxy_txn_001%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for elavon"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/VirtualMerchantDemo/processxml.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccgettoken%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_card_number%3E%7B%7B%24card_number%7D%7D%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E%7B%7B%24card_cvc%7D%7D%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_first_name%3EJohn%3C%2Fssl_first_name%3E%3Cssl_last_name%3EDoe%3C%2Fssl_last_name%3E%3Cssl_verify%3EY%3C%2Fssl_verify%3E%3Cssl_add_token%3EY%3C%2Fssl_add_token%3E%3Cssl_invoice_number%3Eprobe_proxy_mandate_001%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+        }
       }
     },
     "recurring_charge": {
@@ -698,7 +751,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_token%3Eprobe-mandate-123%3C%2Fssl_token%3E%3C%2Ftxn%3E"
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_token%3Eprobe-mandate-123%3C%2Fssl_token%3E%3Cssl_cit_mit_cof_indicator%3EM01%3C%2Fssl_cit_mit_cof_indicator%3E%3Cssl_invoice_number%2F%3E%3C%2Ftxn%3E"
         }
       }
     },
@@ -758,14 +811,62 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void_post_capture flow for elavon"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/VirtualMerchantDemo/processxml.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccvoid%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_txn_id%3Eprobe_connector_txn_001%3C%2Fssl_txn_id%3E%3C%2Ftxn%3E"
+        }
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for elavon"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/VirtualMerchantDemo/processxml.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccgettoken%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_card_number%3E4111111111111111%3C%2Fssl_card_number%3E%3Cssl_exp_date%3E0330%3C%2Fssl_exp_date%3E%3Cssl_cvv2cvc2%3E737%3C%2Fssl_cvv2cvc2%3E%3Cssl_cvv2cvc2_indicator%3E1%3C%2Fssl_cvv2cvc2_indicator%3E%3Cssl_first_name%3EJohn%3C%2Fssl_first_name%3E%3Cssl_last_name%3EDoe%3C%2Fssl_last_name%3E%3Cssl_verify%3EY%3C%2Fssl_verify%3E%3Cssl_add_token%3EY%3C%2Fssl_add_token%3E%3Cssl_invoice_number%3Eprobe_mandate_001%3C%2Fssl_invoice_number%3E%3C%2Ftxn%3E"
+        }
       }
     },
     "token_authorize": {
@@ -777,7 +878,33 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for elavon"
+        "error": "This feature is not implemented: Only card payments are supported for Elavon SetupMandate. Elavon SetupMandate (ccgettoken) verifies and saves a raw card; other payment methods cannot be saved this way"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
       }
     },
     "verify_redirect": {
@@ -787,8 +914,20 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void flow for elavon"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/VirtualMerchantDemo/processxml.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccdelete%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_txn_id%3Eprobe_connector_txn_001%3C%2Fssl_txn_id%3E%3C%2Ftxn%3E"
+        }
       }
     }
   }

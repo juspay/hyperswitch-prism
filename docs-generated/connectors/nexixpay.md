@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L116) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L121) · [Rust](../../examples/nexixpay/nexixpay.rs#L161)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L129) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L122) · [Rust](../../examples/nexixpay/nexixpay.rs#L169)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +137,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L135) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L137) · [Rust](../../examples/nexixpay/nexixpay.rs#L177)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L148) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L138) · [Rust](../../examples/nexixpay/nexixpay.rs#L185)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L160) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L159) · [Rust](../../examples/nexixpay/nexixpay.rs#L200)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L173) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L160) · [Rust](../../examples/nexixpay/nexixpay.rs#L208)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L185) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L181) · [Rust](../../examples/nexixpay/nexixpay.rs#L223)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L198) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L182) · [Rust](../../examples/nexixpay/nexixpay.rs#L231)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L207) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L200) · [Rust](../../examples/nexixpay/nexixpay.rs#L242)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py#L220) · [JavaScript](../../examples/nexixpay/nexixpay.js) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L201) · [Rust](../../examples/nexixpay/nexixpay.rs#L250)
 
 ## API Reference
 
@@ -163,6 +163,7 @@ Retrieve current payment status from the connector.
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
@@ -303,7 +304,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L251) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L218) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L264) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L219) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
 #### PaymentService.Capture
 
@@ -314,7 +315,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L260) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L230) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L273) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L231) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
 #### PaymentService.Get
 
@@ -325,7 +326,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L269) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L240) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L291) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L258) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
 #### PaymentService.Refund
 
@@ -336,7 +337,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L296) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L279) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L318) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L297) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
 #### PaymentService.Void
 
@@ -347,7 +348,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L301) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L319) · [Rust](../../examples/nexixpay/nexixpay.rs)
 
 ### Refunds
 
@@ -360,4 +361,17 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L305) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L289) · [Rust](../../examples/nexixpay/nexixpay.rs)
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L327) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L307) · [Rust](../../examples/nexixpay/nexixpay.rs)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateClientAuthenticationToken
+
+Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/nexixpay/nexixpay.py) · [TypeScript](../../examples/nexixpay/nexixpay.ts#L282) · [Kotlin](../../examples/nexixpay/nexixpay.kt#L241) · [Rust](../../examples/nexixpay/nexixpay.rs)

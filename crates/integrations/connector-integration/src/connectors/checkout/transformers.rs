@@ -3764,10 +3764,18 @@ pub struct PaymentVoidResponse {
 /// `/voids` and stays `Pending` until PSync confirms — never `VoidFailed`, which would report a
 /// failure the connector did not state. Non-2xx responses go through `build_error_response`.
 fn http_code_to_attempt_status_for_void_flow(http_code: u16) -> common_enums::AttemptStatus {
-    if matches!(http_code, 200 | 202) {
+    if matches!(http_code, 200) {
         common_enums::AttemptStatus::Voided
     } else {
         common_enums::AttemptStatus::Pending
+    }
+}
+
+fn http_code_to_attempt_status_for_refund_flow(http_code: u16) -> common_enums::RefundStatus {
+    if matches!(http_code, 200) {
+        common_enums::RefundStatus::Success
+    } else {
+        common_enums::RefundStatus::Pending
     }
 }
 
@@ -4444,7 +4452,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
         // 202 = capture accepted; 200 = "Payment is already captured" (Checkout's idempotent
         // success for a repeated capture). Both mean the funds are captured. Any other 2xx is
         // undocumented for /captures and stays Pending until PSync confirms.
-        let (status, amount_captured) = if matches!(item.http_code, 200 | 202) {
+        let (status, amount_captured) = if matches!(item.http_code, 200) {
             (
                 common_enums::AttemptStatus::Charged,
                 Some(item.router_data.request.capture_money.clone()),
@@ -4538,7 +4546,8 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
         // `payment_refund_declined` webhooks. Mapping 202 to Success would report a refund the
         // issuer can still decline (sandbox amount 3738). Non-2xx answers take the error path.
         // This intentionally diverges from Hyperswitch, which maps 202 to Success.
-        let refund_status = common_enums::RefundStatus::Pending;
+        let refund_status: common_enums::RefundStatus =
+            http_code_to_attempt_status_for_refund_flow(item.http_code);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),

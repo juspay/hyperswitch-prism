@@ -579,7 +579,8 @@
               "amount": {
                 "minor_amount": 1000,
                 "currency": "USD"
-              }
+              },
+              "return_url": "https://example.com/return"
             }
           }
         },
@@ -1060,6 +1061,32 @@
       "default": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for payload"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for payload"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for payload"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for payload"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for payload"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for payload"
       }
     },
     "verify_redirect": {
