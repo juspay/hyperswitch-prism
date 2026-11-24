@@ -902,6 +902,9 @@ impl Connectors {
             ConnectorEnum::Revpay => {
                 patched.revpay.apply(params_patch);
             }
+            ConnectorEnum::Amex => {
+                patched.amex.apply(params_patch);
+            }
             ConnectorEnum::Airwallex => {
                 patched.airwallex.apply(params_patch);
             }
