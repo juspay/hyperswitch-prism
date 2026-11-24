@@ -646,15 +646,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck> {
-        // BCPG's callback payload carries no signature/HMAC of any kind (see
-        // verify_webhook_source below), so this webhook can never be
-        // cryptographically verified. Require the platform to corroborate the
-        // claimed connector_transaction_id and amount against an authenticated
-        // PSync call (GET /v1/payments/refs/{referenceId}) before acting on
-        // it. NOT declaring Currency here: WebhookDetailsResponse has no
-        // currency field to expose (only amount_captured),
-        // so there is nothing for a caller to actually compare — declaring the
-        // check without backing data would be misleading.
+        // These fields can be compared by callers during authenticated PSync.
+        // Declaring integrity checks does not perform PSync or authenticate callbacks.
         vec![
             WebhookIntegrityCheck::ConnectorTransactionId,
             WebhookIntegrityCheck::Amount,
@@ -667,14 +660,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
-        // BCPG's integration guideline (section 4.1, Message Level Security)
-        // only documents outgoing merchant->BCPG request signing (HMAC-SHA256
-        // over method+path+body, see BoostAuthType::build_signed_auth_header).
-        // There is no documented inbound signature header, shared secret, or
-        // verification mechanism for callbackUrl POSTs. Hardcode to false
-        // (unverified) so callers fall back to the authenticated-PSync
-        // corroboration required by get_webhook_integrity_checks above,
-        // rather than fabricating a verification scheme BCPG never specified.
+        // No inbound signature verification mechanism is documented for BCPG
+        // callbacks. Keep parsing available for payment lookup, but reject
+        // payment outcome processing below; callers must confirm via PSync.
         Ok(false)
     }
 
@@ -706,17 +694,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn process_payment_webhook(
         &self,
-        request: RequestDetails,
+        _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        let payload: BoostWebhookBody = request
-            .body
-            .parse_struct("BoostWebhookBody")
-            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
-            .attach_printable("Failed to parse Boost webhook body")?;
-        Ok(payload.into_webhook_details_response(200, &request.body))
+        // Unsigned callback contents cannot establish a payment outcome.
+        // Reference parsing remains available so callers can initiate authenticated PSync.
+        Err(error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable(
+                "Boost callbacks cannot be authenticated; confirm payment status via authenticated PSync",
+            ))
     }
 
     fn get_webhook_resource_object(
