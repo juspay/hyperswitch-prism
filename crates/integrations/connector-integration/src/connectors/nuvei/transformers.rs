@@ -827,9 +827,7 @@ impl NuveiBillingAddress {
                 .ok()
                 .and_then(|details| {
                     details
-                        .state
-                        .as_ref()
-                        .and_then(|state| state.supplied_iso_code())
+                        .get_supplied_state_code_iso()
                         .cloned()
                         .or_else(|| details.to_state_code_as_optional().ok().flatten())
                         .filter(|state| state.peek().chars().count() <= 5)

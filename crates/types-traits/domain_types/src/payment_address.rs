@@ -416,6 +416,11 @@ impl AddressDetails {
 }
 
 impl AddressDetails {
+    /// Returns the original ISO subdivision code supplied on the address.
+    pub fn get_supplied_state_code_iso(&self) -> Option<&Secret<String>> {
+        self.state.as_ref().and_then(StateDetails::supplied_iso_code)
+    }
+
     pub fn get_first_name(&self) -> Result<&Secret<String>, Error> {
         self.first_name
             .as_ref()
