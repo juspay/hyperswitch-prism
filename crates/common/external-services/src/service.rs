@@ -834,6 +834,7 @@ where
         + SetIntegrityFailureStatus,
 {
     let start = tokio::time::Instant::now();
+    let mut external_call_attempted = false;
     tracing::Span::current().record(
         "api_tag",
         api_tag
@@ -1052,17 +1053,34 @@ where
                         );
 
                         // Extract template and combine headers
-                        let template = request
-                            .body
-                            .as_ref()
-                            .ok_or(ConnectorFlowError::from(
-                                IntegrationError::RequestEncodingFailed {
-                                    context: Default::default(),
-                                },
-                            ))?
-                            .get_inner_value()
-                            .expose()
-                            .to_string();
+                        let body = request.body.as_ref().ok_or(ConnectorFlowError::from(
+                            IntegrationError::RequestEncodingFailed {
+                                context: Default::default(),
+                            },
+                        ))?;
+                        // XML connectors serialize to the complete XML string, which
+                        // `get_inner_value` (quick-xml, no root tag) cannot serialize; take the
+                        // string as the direct HTTP path does.
+                        let template = match body {
+                            RequestContent::Xml(payload) => match serde_json::to_value(payload) {
+                                Ok(serde_json::Value::String(xml)) => xml,
+                                other => other
+                                    .change_context(ConnectorFlowError::from(
+                                        IntegrationError::RequestEncodingFailed {
+                                            context: Default::default(),
+                                        },
+                                    ))?
+                                    .to_string(),
+                            },
+                            _ => body.get_inner_value().expose().to_string(),
+                        };
+
+                        // The direct HTTP path sends XML bodies as `text/xml`; the vault needs the
+                        // same Content-Type to treat the template as XML.
+                        let default_xml_content_type = matches!(body, RequestContent::Xml(_))
+                            && !request.headers.iter().any(|(key, _)| {
+                                key.eq_ignore_ascii_case(reqwest::header::CONTENT_TYPE.as_str())
+                            });
 
                         // Collect connector request headers (excluding vault metadata)
                         let headers: HashMap<String, Secret<String>> = request
@@ -1077,6 +1095,12 @@ where
                                     }),
                                 )
                             })
+                            .chain(default_xml_content_type.then(|| {
+                                (
+                                    reqwest::header::CONTENT_TYPE.to_string(),
+                                    Secret::new(mime::TEXT_XML.to_string()),
+                                )
+                            }))
                             .collect();
 
                         // Parse vault metadata and build injector request
@@ -1099,7 +1123,13 @@ where
                             vault_headers,
                         );
 
+                        // The Hyperswitch vault proxy wraps the connector response in an envelope
+                        let wrapped = injector_request
+                            .connection_config
+                            .uses_hyperswitch_vault_proxy();
+
                         // New injector handles HTTP request internally and returns enhanced response
+                        external_call_attempted = true;
                         let injector_response =
                             call_injector_core(injector_request).await.change_context(
                                 ConnectorFlowError::from(IntegrationError::RequestEncodingFailed {
@@ -1107,31 +1137,17 @@ where
                                 }),
                             )?;
 
-                        // Convert injector response to connector service Response format
-                        let actual_response = injector_response
-                            .response
-                            .get("response")
-                            .cloned()
-                            .unwrap_or(injector_response.response.clone());
-
-                        let response_bytes =
-                            serde_json::to_vec(&actual_response).map_err(|_| {
+                        // The actual connector response: a text body (such as XML) is kept as is
+                        let connector_response = injector_response
+                            .into_connector_response(wrapped)
+                            .map_err(|_| {
                                 ConnectorFlowError::from(
                                     ConnectorError::response_handling_failed_http_status_unknown(),
                                 )
                             })?;
 
-                        // Extract the actual connector status_code from the wrapper if present,
-                        // otherwise fall back to the injector-level status_code
-                        let actual_status_code = injector_response
-                            .response
-                            .get("status_code")
-                            .and_then(|v| v.as_u64())
-                            .and_then(|v| u16::try_from(v).ok())
-                            .unwrap_or(injector_response.status_code);
-
-                        // Convert headers from HashMap<String, String> to reqwest::HeaderMap if present
-                        let headers = injector_response.headers.map(|h| {
+                        // Convert headers to reqwest::HeaderMap if present
+                        let headers = connector_response.headers.map(|h| {
                             let mut header_map = reqwest::header::HeaderMap::new();
                             for (key, value) in h {
                                 if let (Ok(header_name), Ok(header_value)) = (
@@ -1146,11 +1162,12 @@ where
 
                         Ok(Ok(Response {
                             headers,
-                            response: response_bytes.into(),
-                            status_code: actual_status_code, // Use actual status code from connector
+                            response: connector_response.body.into(),
+                            status_code: connector_response.status_code, // Use actual status code from connector
                         }))
                     } else {
                         let test_mode = test_context.is_some();
+                        external_call_attempted = true;
                         call_connector_api(
                             proxy,
                             request,
@@ -1280,6 +1297,7 @@ where
                     let masked_request = mask_connector_request(&record.payload);
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
+                    external_call_attempted = true;
                     let response = publish_connector_record(record)
                         .await
                         .map_err(report_kafka_client_to_flow)
@@ -1408,9 +1426,17 @@ where
     let elapsed_millis = u64::try_from(elapsed).unwrap_or(u64::MAX);
     tracing::Span::current().record("latency_ms", elapsed_millis);
     #[cfg(feature = "log-transformations")]
-    if event_params.log_fields_enabled || event_params.masking_keys.enabled {
+    if external_call_attempted
+        && (event_params.log_fields_enabled || event_params.masking_keys.enabled)
+    {
+        let empty_fields = CompiledLogFields::default();
         apply_log_fields(
-            event_params.log_fields,
+            // Response masking must not enable transformations disabled by config.
+            if event_params.log_fields_enabled {
+                event_params.log_fields
+            } else {
+                &empty_fields
+            },
             connector_reply
                 .as_ref()
                 .map(|(body, content_type)| ConnectorResponseForLogging {
@@ -1421,7 +1447,11 @@ where
                 }),
         );
     }
-    tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
+    if external_call_attempted {
+        tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
+    } else {
+        tracing::debug!("Connector processing completed without an external call");
+    }
     result_with_integrity_check
 }
 

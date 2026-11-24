@@ -451,7 +451,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             merchant_ref_num,
-            amount: item.request.amount,
+            amount: item.request.money.amount(),
             currency_code: item.request.destination_currency,
             payment_handle_token: handle_meta.payment_handle_token,
             description: item.resource_common_data.description.clone(),

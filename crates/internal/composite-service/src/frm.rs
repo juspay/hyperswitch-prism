@@ -240,17 +240,67 @@ where
         + Sync
         + 'static,
 {
+    #[tracing::instrument(name = "composite_frm_pre_risk_check", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn pre_risk_check(
         &self,
         request: tonic::Request<CompositeFrmPreRiskCheckRequest>,
     ) -> Result<tonic::Response<CompositeFrmPreRiskCheckResponse>, tonic::Status> {
-        self.process_pre_risk_check(request).await
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositeFraudAndRiskManagementService",
+            common_utils::events::FlowName::PreRiskCheck,
+            |request| async move {
+                self.process_pre_risk_check(request).await
+            },
+        )).await
     }
 
+    #[tracing::instrument(name = "composite_frm_post_risk_check", skip_all, fields(
+        name = common_utils::consts::NAME,
+        service_name = tracing::field::Empty,
+        service_method = tracing::field::Empty,
+        request_body = tracing::field::Empty,
+        response_body = tracing::field::Empty,
+        error_message = tracing::field::Empty,
+        merchant_id = tracing::field::Empty,
+        gateway = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+        tenant_id = tracing::field::Empty,
+        status_code = tracing::field::Empty,
+        res_code = tracing::field::Empty,
+        message_ = "Golden Log Line (incoming)",
+        response_time = tracing::field::Empty,
+        latency_ms = tracing::field::Empty,
+        flow = tracing::field::Empty,
+    ))]
     async fn post_risk_check(
         &self,
         request: tonic::Request<CompositeFrmPostRiskCheckRequest>,
     ) -> Result<tonic::Response<CompositeFrmPostRiskCheckResponse>, tonic::Status> {
-        self.process_post_risk_check(request).await
+        Box::pin(crate::utils::composite_grpc_logging_wrapper(
+            request,
+            "CompositeFraudAndRiskManagementService",
+            common_utils::events::FlowName::PostRiskCheck,
+            |request| async move {
+                self.process_post_risk_check(request).await
+            },
+        )).await
     }
 }

@@ -271,7 +271,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
             PayoutTransferResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let minor_amount = item.request.amount;
+        let minor_amount = item.request.money.amount();
         if minor_amount <= common_utils::types::MinorUnit::zero() {
             return Err(IntegrationError::InvalidDataFormat {
                 field_name: "amount",
@@ -290,13 +290,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         }
 
         let amount = PayoutAmount {
-            value: domain_utils::convert_amount(
-                &StringMajorUnitForConnector,
-                &common_utils::types::Money {
-                    amount: minor_amount,
-                    currency: item.request.destination_currency,
-                },
-            )?,
+            value: domain_utils::convert_amount(&StringMajorUnitForConnector, &{
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "Temporary payout currency contract: paypal-transfer; see PR #2642"
+                )]
+                let legacy_money = common_utils::types::Money::from_minor_unit(
+                    minor_amount,
+                    item.request.destination_currency,
+                );
+                legacy_money
+            })?,
             currency: item.request.destination_currency,
         };
 
@@ -365,6 +369,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
                     context: IntegrationErrorContext {
                         additional_context: Some(
                             "PayPal Payout Transfer - Apple Pay Decrypt is not supported for payouts"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Use PayPal or Venmo wallet for payouts".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?,
+                PayoutWallet::GooglePayDecrypt(_) => Err(IntegrationError::NotSupported {
+                    message: "GooglePayDecrypt PayoutMethodType is not supported".to_string(),
+                    connector: "Paypal",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "PayPal Payout Transfer - Google Pay Decrypt is not supported for payouts"
                                 .to_string(),
                         ),
                         suggested_action: Some(

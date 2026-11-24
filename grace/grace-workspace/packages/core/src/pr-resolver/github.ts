@@ -1,4 +1,6 @@
 import { execa } from "execa";
+import { getConfig } from "../config.js";
+import { credNeedles, describeLeaks, findLeaks } from "../scrub.js";
 import type {
   PRInfo,
   ReviewComment,
@@ -297,6 +299,15 @@ export class GitHubClient {
 
   /** Post a reply to a review thread. Returns true on success. */
   async postThreadReply(threadId: string, body: string): Promise<boolean> {
+    // Every bot reply goes through here and lands on a public PR.
+    const leaks = findLeaks(body, credNeedles(getConfig().credsPath));
+    if (leaks.length > 0) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[pr-resolver:github] Refusing to post reply to thread ${threadId}: scrub gate hit (${describeLeaks(leaks)})`
+      );
+      return false;
+    }
     try {
       await runGraphQL(POST_REPLY_MUTATION, { threadId, body });
       return true;

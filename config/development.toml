@@ -62,6 +62,7 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+revpay.base_url = "https://stg-mpg.revpay-sandbox.com.my"
 betterpayment.base_url = "https://testapi.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"
 travelhub.base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
@@ -79,6 +80,7 @@ paydotcom.base_url = "https://api.sandbox.pay.com"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
 globalpayments_heartland.base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
+payhound.base_url = "https://sandbox-api.payhound.com"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 maya.base_url = "https://pg-sandbox.paymaya.com"
 boost.base_url = "https://stage-api.boostconnect.biz/gateway"
@@ -147,7 +149,7 @@ razorpayv2.base_url = "https://api.razorpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 xendit.base_url = "https://api.xendit.co/"
-checkout.base_url = "https://api.sandbox.checkout.com/"
+checkout.base_url = "https://{{optional_client_id}}api.sandbox.checkout.com"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 phonepe.base_url = "https://api-preprod.phonepe.com/apis/hermes/"
 cashfree.base_url = "https://sandbox.cashfree.com/"
@@ -281,7 +283,7 @@ enabled = false
 # --- Superposition: where policy comes from ---------------------------------
 # source = "file" (default): the baked config/superposition.toml, watched for
 # changes. source = "remote": the same provider over a remote workspace, polled
-# every polling_interval seconds, with the baked file as the provider's init-time
+# every polling_interval_milliseconds, with the baked file as the provider's init-time
 # fallback. Boot never fails because of Superposition: a remote source without
 # endpoint/token/org/workspace, or an unreachable workspace, is reported and the
 # baked file serves policy.
@@ -292,8 +294,8 @@ endpoint = ""                   # e.g. http://superposition.<ns>.svc.cluster.loc
 token = ""                      # secret: CS__SUPERPOSITION__TOKEN from the k8s secret
 org_id = "hyperswitch"
 workspace_id = ""               # the prism workspace
-polling_interval = 15           # seconds
-# request_timeout = 60          # parity with hyperswitch; the provider only logs it today
+polling_interval_milliseconds = 15000   # milliseconds
+# request_timeout_milliseconds = 60000  # milliseconds; bounds each poll (default: no timeout)
 # backup_file_path = ""         # default: the baked config/superposition.toml
 
 # --- Déjà record/replay ---------------------------------------------------------

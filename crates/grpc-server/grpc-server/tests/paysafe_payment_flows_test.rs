@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Paysafe Connector Integration Tests
 //!
 //! This test suite validates the Paysafe connector implementation for UCS v2.
@@ -229,6 +230,7 @@ fn create_payment_authorize_request(
                 line3: None,
                 city: Some(Secret::new("New York".to_string())),
                 state: Some(Secret::new("NY".to_string())),
+                state_code_iso: None,
                 zip_code: Some(Secret::new("10001".to_string())),
                 country_alpha2_code: Some(grpc_api_types::payments::CountryAlpha2::Us.into()),
                 email: None,
@@ -459,8 +461,7 @@ async fn test_payment_authorization_manual_capture() {
             "Failed to add credentials"
         );
 
-        let capture_response = client
-            .capture(grpc_capture_request)
+        let capture_response = Box::pin(client.capture(grpc_capture_request))
             .await
             .expect("Payment capture failed");
 

@@ -47,6 +47,7 @@ Edit target repo: prism | hyperswitch-bridge | none (escalate)
 ### Understanding Confidence: HIGH | MEDIUM | LOW
 
 Hard rules:
+- Your output and any code comment you write are published in a PUBLIC repository. Never write merchant, org or profile names/IDs, payment/request/connector-transaction IDs, occurrence counts, fingerprints, environment names (prod) or links/numbers of the tracker issue. Say "a merchant" and describe the diff by field path only.
 - Confidence MUST be HIGH to proceed. If MEDIUM/LOW, output "## Need Info" instead.
 - Exactly one locus checkbox must be [x]. Two ticked or zero ticked → output "## Need Info".
 - Cite real file paths with line ranges. Never invent.

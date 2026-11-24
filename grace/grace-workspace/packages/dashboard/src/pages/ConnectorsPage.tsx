@@ -7,9 +7,8 @@ import { T } from "../theme";
 import type { Connector, MethodGap } from "../types/connector";
 import connectorsData from "../data/connectors.json";
 import { Link } from "react-router-dom";
-import { CONTROL_WS_PORT } from "../lib/ws-port";
+import { CONTROL_WS_URL } from "../lib/ws-port";
 
-const CONTROL_WS_URL = `ws://${location.hostname}:${CONTROL_WS_PORT}`;
 
 function generateDefaultDescription(connector: Connector, notImplemented: MethodGap[]): string {
   const lines = [

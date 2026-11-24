@@ -439,7 +439,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let converted_amount = converter
-            .convert(&wrapper.router_data.request.amount)
+            .convert(&wrapper.router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -475,7 +475,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let converter = common_utils::types::FloatMajorUnitForConnector;
-        let converted_amount = converter.convert(&item.request.amount).change_context(
+        let converted_amount = converter.convert(&item.request.money).change_context(
             IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -944,7 +944,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &wrapper.router_data;
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&router_data.request.amount_to_capture)
+            .convert(&router_data.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -1299,7 +1299,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &wrapper.router_data;
         let converter = common_utils::types::FloatMajorUnitForConnector;
         let amount = converter
-            .convert(&router_data.request.refund_amount)
+            .convert(&router_data.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(

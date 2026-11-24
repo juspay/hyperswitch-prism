@@ -137,6 +137,11 @@ pub trait VerifySignature {
     ) -> CustomResult<bool, errors::CryptoError>;
 }
 
+/// Compares two byte slices without short-circuiting on the first mismatch.
+pub fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
+    constant_time_eq::constant_time_eq(left, right)
+}
+
 /// Trait for cryptographically encoding a message
 pub trait EncodeMessage {
     /// Takes in a secret and the message and encodes it, returning bytes
@@ -158,7 +163,7 @@ pub trait DecodeMessage {
 }
 
 /// Represents no cryptographic algorithm.
-/// Implements all crypto traits and acts like a Nop
+/// Passes messages through during encoding and decoding, but never verifies signatures.
 #[derive(Debug)]
 pub struct NoAlgorithm;
 
@@ -179,7 +184,7 @@ impl VerifySignature for NoAlgorithm {
         _signature: &[u8],
         _msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
-        Ok(true)
+        Ok(false)
     }
 }
 
@@ -319,7 +324,10 @@ impl VerifySignature for Blake3 {
     ) -> CustomResult<bool, errors::CryptoError> {
         let key = blake3::derive_key(&self.0, secret);
         let output = blake3::keyed_hash(&key, msg);
-        Ok(output.as_bytes() == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            output.as_bytes(),
+            signature,
+        ))
     }
 }
 
@@ -492,7 +500,10 @@ impl VerifySignature for Sha512 {
                 .change_context(errors::CryptoError::SignatureVerificationFailed)?,
         );
         let hashed_digest_into_bytes = hashed_digest.into_bytes();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            &hashed_digest_into_bytes,
+            signature,
+        ))
     }
 }
 /// MD5 hash function
@@ -516,7 +527,10 @@ impl VerifySignature for Md5 {
         let hashed_digest = Self
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        Ok(hashed_digest == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            &hashed_digest,
+            signature,
+        ))
     }
 }
 
@@ -538,7 +552,10 @@ impl VerifySignature for Sha256 {
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
         let hashed_digest_into_bytes = hashed_digest.as_slice();
-        Ok(hashed_digest_into_bytes == signature)
+        Ok(constant_time_eq::constant_time_eq(
+            hashed_digest_into_bytes,
+            signature,
+        ))
     }
 }
 
@@ -827,12 +844,48 @@ impl RsaOaepSha256 {
     }
 }
 
+/// Supplies exact wire bytes to a signature without exposing a raw-value getter.
+pub trait SignatureValue {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8]));
+}
+
+impl<T: AsRef<str>> SignatureValue for T {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(self.as_ref().as_bytes());
+    }
+}
+
+/// Feeds ordered fields into a caller-selected signature algorithm, without separators.
+pub fn update_signature(fields: &[&dyn SignatureValue], mut update: impl FnMut(&[u8])) {
+    for field in fields {
+        field.update_signature(&mut update);
+    }
+}
+
+/// Compares two signature byte strings without leaking the first differing position.
+pub fn signatures_match(expected: &[u8], received: &[u8]) -> bool {
+    constant_time_eq::constant_time_eq(expected, received)
+}
+
 #[cfg(test)]
 mod crypto_tests {
     #![allow(clippy::expect_used)]
     use super::{DecodeMessage, EncodeMessage, SignMessage, VerifySignature};
     use crate::{crypto::GenerateDigest, errors::CryptoError};
     use openssl::{ec::EcGroup, nid::Nid, pkey::PKey, rsa::Rsa};
+
+    #[test]
+    fn no_algorithm_never_verifies_signatures() {
+        let algorithm: Box<dyn VerifySignature> = Box::new(super::NoAlgorithm);
+        for (secret, signature, message) in [
+            (&b""[..], &b""[..], &b""[..]),
+            (&b"secret"[..], &b"signature"[..], &b"message"[..]),
+        ] {
+            assert!(!algorithm
+                .verify_signature(secret, signature, message)
+                .expect("unsupported verification should return false"));
+        }
+    }
 
     #[test]
     fn rsa_oaep_sha256_reports_plaintext_length_overflow() {

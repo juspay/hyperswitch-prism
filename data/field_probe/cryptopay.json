@@ -675,6 +675,32 @@
         "error": "This feature is not implemented: setup_mandate flow for cryptopay"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by cryptopay connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by cryptopay connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by cryptopay connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by cryptopay connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by cryptopay connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by cryptopay connector"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

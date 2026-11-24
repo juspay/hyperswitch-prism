@@ -11,7 +11,7 @@ import type {
   ConnectorStatus,
 } from "../types/connector";
 import connectorsData from "../data/connectors.json";
-import { CONTROL_WS_PORT } from "../lib/ws-port";
+import { CONTROL_WS_URL } from "../lib/ws-port";
 
 type ViewAxis = "methods" | "flows";
 
@@ -19,7 +19,6 @@ type Row =
   | { kind: "method"; data: ConnectorPaymentMethod }
   | { kind: "flow"; data: ConnectorFlow };
 
-const CONTROL_WS_URL = `ws://${location.hostname}:${CONTROL_WS_PORT}`;
 
 type TabType = "supported" | "not-implemented" | "not-supported";
 

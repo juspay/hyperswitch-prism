@@ -219,3 +219,11 @@ class SurchargeClient(_ConnectorClientBase):
     def surcharge_calculate(self, request, options=None):
         """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
         return self._execute_flow("surcharge_calculate", request, surcharge_pb2.SurchargeServiceCalculateResponse, options)
+
+    def surcharge_refund_complete(self, request, options=None):
+        """SurchargeService.SurchargeRefundComplete — Complete a previously initiated surcharge refund."""
+        return self._execute_flow("surcharge_refund_complete", request, surcharge_pb2.SurchargeServiceSurchargeRefundCompleteResponse, options)
+
+    def surcharge_refund_init(self, request, options=None):
+        """SurchargeService.SurchargeRefundInit — Initiate a full or partial surcharge refund."""
+        return self._execute_flow("surcharge_refund_init", request, surcharge_pb2.SurchargeServiceSurchargeRefundInitResponse, options)

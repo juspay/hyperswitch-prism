@@ -62,7 +62,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Cashtocode<T>
+    interfaces::webhooks::IncomingWebhook for Cashtocode<T>
 {
     fn verify_webhook_source(
         &self,
@@ -80,15 +80,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .get("authorization")
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
 
-        let signature = base64_signature.as_bytes();
-
-        let secret_auth = String::from_utf8(webhook_secret.secret.to_vec())
-            .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Could not convert secret to UTF-8")?;
-        let signature_auth = String::from_utf8(signature.to_vec())
-            .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Could not convert secret to UTF-8")?;
-        Ok(signature_auth == secret_auth)
+        Ok(common_utils::crypto::constant_time_equal(
+            base64_signature.as_bytes(),
+            &webhook_secret.secret,
+        ))
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -118,6 +113,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(
                 domain_types::connector_types::ResponseId::ConnectorTransactionId(
@@ -133,7 +130,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,

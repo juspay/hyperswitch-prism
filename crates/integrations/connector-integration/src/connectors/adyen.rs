@@ -7,12 +7,10 @@ use std::{
 };
 
 use base64::Engine;
-use common_enums::{
-    AttemptStatus, CaptureMethod, CardNetwork, EventClass, PaymentMethod, PaymentMethodType,
-};
+use common_enums::{CaptureMethod, CardNetwork, EventClass, PaymentMethod, PaymentMethodType};
 use common_utils::{
     consts,
-    crypto::{self, SignMessage},
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -443,9 +441,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-const ADYEN_API_VERSION: &str = "v68";
+const ADYEN_API_VERSION: &str = "v72";
 const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
-    "https://docs.adyen.com/api-explorer/Checkout/68/post/payments/-paymentPspReference-/amountUpdates";
+    "https://docs.adyen.com/api-explorer/Checkout/72/post/payments/_paymentPspReference_/amountUpdates";
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -792,7 +790,7 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Adyen<T>
+    interfaces::webhooks::IncomingWebhook for Adyen<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -865,21 +863,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
             .attach_printable("Failed to decode hex webhook secret for Adyen")?;
 
-        // Compute HMAC-SHA256 signature
-        let computed_signature = algorithm
-            .sign_message(&raw_key, &message)
+        // Adyen sends the HMAC-SHA256 signature as Base64. Decode it and use the
+        // shared constant-time verifier rather than comparing encoded strings.
+        let received_signature = consts::BASE64_ENGINE
+            .decode(signature)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to compute HMAC signature for Adyen")?;
+            .attach_printable("Failed to decode Adyen webhook signature")?;
 
-        // Base64 encode the computed signature
-        let computed_signature_b64 = consts::BASE64_ENGINE.encode(&computed_signature);
-
-        // Adyen sends base64-encoded signature as string, compare base64 strings
-        let received_signature_str = std::str::from_utf8(&signature)
+        algorithm
+            .verify_signature(&raw_key, &received_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to parse received signature as UTF-8")?;
-
-        Ok(computed_signature_b64 == received_signature_str)
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -1007,20 +1000,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .attach_printable(format!("error while decoding webhook body {err}"))
             })?;
 
-        let (error_code, error_message, error_reason) =
-            if transformers::get_adyen_payment_webhook_event(
-                notif.event_code.clone(),
-                notif.success.clone(),
-            )? == AttemptStatus::Failure
-            {
-                (
-                    notif.reason.clone(),
-                    notif.reason.clone(),
-                    notif.reason.clone(),
-                )
-            } else {
-                (None, None, None)
-            };
+        let status = transformers::get_adyen_payment_webhook_event(
+            notif.event_code.clone(),
+            notif.success.clone(),
+        )?;
+        let references = transformers::get_adyen_payment_webhook_references(&notif);
+
+        let (error_code, error_message, error_reason) = if utils::is_payment_failure(status) {
+            (
+                notif.reason.clone(),
+                notif.reason.clone(),
+                notif.reason.clone(),
+            )
+        } else {
+            (None, None, None)
+        };
 
         let mandate_reference = transformers::get_adyen_mandate_reference_from_webhook(&notif);
         let network_txn_id = transformers::get_adyen_network_txn_id_from_webhook(&notif);
@@ -1028,20 +1022,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transformers::get_adyen_payment_method_update_from_webhook(&notif);
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
-            resource_id: Some(ResponseId::ConnectorTransactionId(
-                notif.psp_reference.clone(),
-            )),
-            status: transformers::get_adyen_payment_webhook_event(notif.event_code, notif.success)?,
-            connector_response_reference_id: Some(notif.psp_reference.clone()),
-            connector_request_reference_id: Some(notif.psp_reference),
+            resource_id: Some(ResponseId::ConnectorTransactionId(references.resource_id)),
+            status,
+            connector_response_reference_id: Some(references.connector_response_reference_id),
+            connector_request_reference_id: Some(references.connector_request_reference_id),
             error_code,
             mandate_reference,
             error_message,
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             error_reason,
             network_txn_id,
             payment_method_update,
@@ -1073,6 +1067,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(notif.psp_reference.clone()),
             merchant_transaction_id: None,
             status: transformers::get_adyen_refund_webhook_event(notif.event_code, notif.success)?,
@@ -1107,10 +1102,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount = utils::convert_amount_for_webhook(
             self.amount_converter_webhooks,
-            &common_utils::types::Money {
-                amount: notif.amount.value,
-                currency: notif.amount.currency,
-            },
+            &utils::convert_back_amount_to_money_for_webhook(
+                &common_utils::types::MinorUnitForConnector,
+                notif.amount.value,
+                notif.amount.currency,
+            )?,
         )?;
 
         Ok(
@@ -1136,7 +1132,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_api_response(
         &self,
         _request: RequestDetails,
-        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _error_kind: Option<interfaces::webhooks::IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<WebhookError>> {
         Ok(interfaces::api::EventAckResponse {

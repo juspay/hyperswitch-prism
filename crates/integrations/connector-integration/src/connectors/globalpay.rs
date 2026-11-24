@@ -4,7 +4,8 @@ use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMinorUnit,
+    crypto::VerifySignature, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -36,7 +37,6 @@ use interfaces::{
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
-use sha2::{Digest, Sha512};
 use transformers as globalpay;
 use transformers::{
     GlobalpayAccessTokenErrorResponse, GlobalpayAccessTokenRequest, GlobalpayAccessTokenResponse,
@@ -290,7 +290,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Globalpay<T>
+    interfaces::webhooks::IncomingWebhook for Globalpay<T>
 {
     fn get_webhook_source_verification_signature(
         &self,
@@ -349,13 +349,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             self.get_webhook_source_verification_signature(&request, &secrets)?;
         let message = self.get_webhook_source_verification_message(&request, &secrets)?;
 
-        let computed_hex = hex::encode(Sha512::digest(&message));
-
-        let received_signature_str = std::str::from_utf8(&received_signature)
+        common_utils::crypto::Sha512
+            .verify_signature(&[], &received_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("GlobalPay x-gp-signature header value is not valid UTF-8")?;
-
-        Ok(computed_hex == received_signature_str)
+            .attach_printable("Failed to verify the GlobalPay webhook signature")
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
@@ -453,6 +450,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let status = AttemptStatus::from(&body.status);
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
             status,
             connector_response_reference_id: body.reference.clone(),
@@ -464,7 +463,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(raw_body),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -489,6 +488,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let refund_status = RefundStatus::from(&body.status);
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(body.id),
             merchant_transaction_id: body.reference.clone(),
             status: refund_status,

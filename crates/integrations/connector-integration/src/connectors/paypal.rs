@@ -36,7 +36,9 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Mask, Maskable, Secret};
+use hyperswitch_masking::{
+    ExposeInterface, ExposeOptionInterface, Mask, Maskable, PeekInterface, Secret,
+};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -132,7 +134,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Paypal<T>
+    interfaces::webhooks::IncomingWebhook for Paypal<T>
 {
     fn verify_webhook_source(
         &self,
@@ -209,6 +211,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id,
             status,
@@ -221,7 +225,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -257,6 +261,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
+                raw_connector_status: None,
                 connector_refund_id,
                 merchant_transaction_id: None,
                 status: refund_status,
@@ -729,7 +734,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &req.request.payment_method_data
         {
             // Case 1: PaypalSdk wallet - complete order using SDK token
-            format!("v2/checkout/orders/{}/{}", paypal_wallet_data.token, action)
+            format!(
+                "v2/checkout/orders/{}/{}",
+                paypal_wallet_data.token.peek(),
+                action
+            )
         } else if let Some(order_id) = &req.resource_common_data.connector_order_id {
             // Case 2: Completing an existing/redirect-approved order (order_id set on the order)
             format!("v2/checkout/orders/{order_id}/{action}")

@@ -70,7 +70,7 @@ export class PipelineEventBus {
       ws = new WebSocket(url);
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`[events] failed to construct WS to ${url}:`, err);
+      console.error("[events] failed to construct WS to %s:", url.split("?")[0], err);
       return;
     }
     this.ws = ws;

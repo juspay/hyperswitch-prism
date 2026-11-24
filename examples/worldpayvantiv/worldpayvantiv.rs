@@ -20,6 +20,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "get",
     "incremental_authorization",
     "proxy_authorize",
+    "recurring_charge",
     "refund",
     "refund_get",
     "reverse",
@@ -40,6 +41,12 @@ fn build_client() -> ConnectorClient {
                     merchant_id: Some(hyperswitch_masking::Secret::new(
                         "YOUR_MERCHANT_ID".to_string(),
                     )), // Authentication credential
+                    merchant_id_by_currency: std::collections::HashMap::from([(
+                        "USD".to_string(),
+                        hyperswitch_masking::Secret::new(
+                            "YOUR_USD_MERCHANT_ID_BY_CURRENCY".to_string(),
+                        ),
+                    )]),
                     base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                     report_group: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                     merchant_config_currency: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
@@ -159,6 +166,42 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
         capture_method: Some(CaptureMethod::Automatic.into()),
         auth_type: AuthenticationType::NoThreeDs.into(),
         return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
+pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest {
+    RecurringPaymentServiceChargeRequest {
+        merchant_charge_id: Some("probe_recurring_charge_001".to_string()), // Reference ID for tracking.
+        connector_recurring_payment_id: Some(MandateReference {
+            // Reference to existing mandate.
+            // mandate_id_type: {"connector_mandate_id": {"connector_mandate_id": "probe-mandate-123"}}
+            ..Default::default()
+        }),
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000,
+            currency: Currency::Usd.into(),
+        }),
+        payment_method: Some(PaymentMethod {
+            // Optional payment Method Information (for network transaction flows).
+            payment_method: Some(payment_method::PaymentMethod::Token(
+                TokenPaymentMethodType {
+                    token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
+                },
+            )),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/recurring-return".to_string()),
+        connector_customer_id: Some("cust_probe_123".to_string()),
+        payment_method_type: Some(PaymentMethodType::Credit.into()),
+        off_session: Some(true), // Behavioral Flags and Preferences.
+        additional_payment_data: Some(AdditionalPaymentData {
+            // Additional payment data for various payment methods.
+            // payment_method_data: {"card": {"card_exp_month": "03", "card_exp_year": "2030"}}
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }
@@ -475,6 +518,18 @@ pub async fn process_proxy_authorize(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: RecurringPaymentService.Charge
+#[allow(dead_code)]
+pub async fn process_recurring_charge(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .recurring_charge(build_recurring_charge_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: RefundService.Get
 #[allow(dead_code)]
 pub async fn process_refund_get(
@@ -539,11 +594,12 @@ async fn main() {
             process_incremental_authorization(&client, "txn_001").await
         }
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
+        "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_reverse" => process_reverse(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_incremental_authorization, process_proxy_authorize, process_refund_get, process_reverse, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_incremental_authorization, process_proxy_authorize, process_recurring_charge, process_refund_get, process_reverse, process_void", flow);
             return;
         }
     };

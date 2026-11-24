@@ -343,15 +343,7 @@ impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
                     .online_payment_cryptogram
                     .clone(),
             ),
-            device_manufacturer_identifier: Some(
-                decrypted_data
-                    .get_device_manufacturer_identifier()
-                    .change_context(IntegrationError::MissingRequiredField {
-                        field_name:
-                            "payment_method_data.wallet.apple_pay.device_manufacturer_identifier",
-                        context: Default::default(),
-                    })?,
-            ),
+            device_manufacturer_identifier: decrypted_data.device_manufacturer_identifier.clone(),
             card_brand: Revolv3CardBrand::from_wallet_network(
                 &apple_pay_data.payment_method.network,
             ),
@@ -678,7 +670,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             value: item
                 .connector
                 .amount_converter
-                .convert(&item.router_data.request.amount)
+                .convert(&item.router_data.request.money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1120,7 +1112,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount: item
                 .connector
                 .amount_converter
-                .convert(&item.router_data.request.refund_amount)
+                .convert(&item.router_data.request.refund_money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1320,7 +1312,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 value: item
                     .connector
                     .amount_converter
-                    .convert(&item.router_data.request.amount_to_capture)
+                    .convert(&item.router_data.request.capture_money)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?,
@@ -1382,16 +1374,9 @@ where
         let amount = item
             .router_data
             .request
-            .amount
+            .money
             .zip(item.router_data.request.currency)
-            .map(|(minor_amount, currency)| {
-                item.connector
-                    .amount_converter
-                    .convert(&common_utils::types::Money {
-                        amount: minor_amount.amount,
-                        currency,
-                    })
-            })
+            .map(|(money, _)| item.connector.amount_converter.convert(&money))
             .transpose()
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
@@ -1585,7 +1570,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             value: item
                 .connector
                 .amount_converter
-                .convert(&item.router_data.request.amount)
+                .convert(&item.router_data.request.money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

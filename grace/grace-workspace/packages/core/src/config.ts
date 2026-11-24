@@ -275,7 +275,8 @@ const DEFAULTS: CsddConfig = {
     design_match: { enabled: true, screenshotRoute: "/" },
     pr_review: { requireHumanApproval: true, humanApprovalTimeoutMs: 300_000 },
     l2_review: {
-      createGraceIssue: true,
+      // Off by default: juspay/grace is a public repo. Opt in per run.
+      createGraceIssue: false,
       graceIssueRepo: "juspay/grace",
       // `connector-integration` exists on juspay/grace (verified via
       // `gh label list`). gh issue create --label NAME errors if NAME

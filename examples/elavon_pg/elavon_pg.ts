@@ -5,9 +5,9 @@
 // Elavon_Pg — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx elavon_pg.ts checkout_autocapture
 
-import { PaymentClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "get", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
+import { PaymentClient, CustomerClient, EventClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "customer_create", "get", "parse_event", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -70,6 +70,15 @@ function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
     };
 }
 
+function _buildCustomerCreateRequest(): types.ICustomerServiceCreateRequest {
+    return {
+        "merchantCustomerId": "cust_probe_123",  // Identification.
+        "customerName": "John Doe",  // Name of the customer.
+        "email": {"value": "test@example.com"},  // Email address of the customer.
+        "phoneNumber": {"value": "4155552671"}  // Phone number of the customer.
+    };
+}
+
 function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
@@ -77,6 +86,31 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,
             "currency": Currency.USD
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"href\":\"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw\",\"id\":\"j8t32fd7p29twgyj2fcb6dd4fdpw\",\"merchant\":\"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh\",\"createdAt\":\"2023-10-31T20:59:45.210Z\",\"eventType\":\"saleDeclined\",\"resourceType\":\"transaction\",\"resource\":\"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -131,6 +165,37 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
     };
 }
 
+function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecurringRequest {
+    return {
+        "merchantRecurringPaymentId": "probe_proxy_mandate_001",
+        "amount": {
+            "minorAmount": 0,
+            "currency": Currency.USD
+        },
+        "cardProxy": {  // Card proxy for vault-aliased payments.
+            "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+            "cardExpMonth": {"value": "03"},
+            "cardExpYear": {"value": "2030"},
+            "cardCvc": {"value": "123"},
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
+        },
+        "customer": {
+            "connectorCustomerId": "probe_customer_001"
+        },
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "customerAcceptance": {
+            "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        },
+        "authType": AuthenticationType.NO_THREE_DS,
+        "setupFutureUsage": FutureUsage.OFF_SESSION
+    };
+}
+
 function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
@@ -149,6 +214,41 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": "probe_connector_txn_001",
         "refundId": "probe_refund_id_001"  // Deprecated.
+    };
+}
+
+function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringRequest {
+    return {
+        "merchantRecurringPaymentId": "probe_mandate_001",  // Identification.
+        "amount": {  // Mandate Details.
+            "minorAmount": 0,
+            "currency": Currency.USD
+        },
+        "paymentMethod": {
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "customer": {
+            "connectorCustomerId": "cust_probe_123"
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "authType": AuthenticationType.NO_THREE_DS,  // Type of authentication to be used.
+        "enrolledFor_3ds": false,  // Indicates if the customer is enrolled for 3D Secure.
+        "returnUrl": "https://example.com/mandate-return",  // URL to redirect after setup.
+        "setupFutureUsage": FutureUsage.OFF_SESSION,  // Indicates future usage intention.
+        "requestIncrementalAuthorization": false,  // Indicates if incremental authorization is requested.
+        "customerAcceptance": {  // Details of customer acceptance.
+            "acceptanceType": AcceptanceType.OFFLINE,  // Type of acceptance (e.g., online, offline).
+            "acceptedAt": 0  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
     };
 }
 
@@ -303,6 +403,15 @@ async function createOrder(merchantTransactionId: string, config: types.IConnect
     return createResponse;
 }
 
+// Flow: CustomerService.Create
+async function customerCreate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const customerClient = new CustomerClient(config);
+
+    const customerResponse = await customerClient.customerCreate(_buildCustomerCreateRequest());
+
+    return customerResponse;
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -310,6 +419,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
+}
+
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
 }
 
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
@@ -326,6 +453,15 @@ async function proxyAuthorize(merchantTransactionId: string, config: types.IConn
     const paymentClient = new PaymentClient(config);
 
     const proxyResponse = await paymentClient.proxyAuthorize(_buildProxyAuthorizeRequest());
+
+    return proxyResponse;
+}
+
+// Flow: PaymentService.ProxySetupRecurring
+async function proxySetupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const proxyResponse = await paymentClient.proxySetupRecurring(_buildProxySetupRecurringRequest());
 
     return proxyResponse;
 }
@@ -348,6 +484,15 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
     return refundResponse;
 }
 
+// Flow: PaymentService.SetupRecurring
+async function setupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const setupResponse = await paymentClient.setupRecurring(_buildSetupRecurringRequest());
+
+    return setupResponse;
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -360,7 +505,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, get, preAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, customerCreate, get, handleEvent, parseEvent, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

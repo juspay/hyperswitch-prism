@@ -328,6 +328,7 @@ async fn test_payment_sync() {
 // Helper function to create a payment capture request
 fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        domain_data: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),

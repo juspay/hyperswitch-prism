@@ -581,14 +581,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order = NexixpayOrderData {
             order_id: order_id.clone(),
             amount: StringMinorUnitForConnector
-                .convert(&item.request.amount)
+                .convert(&item.request.money)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: nexi_ctx(
                         "Send a minor-unit amount representable in the request currency.",
                         "Nexi order.amount is a string of minor units.",
                     ),
                 })?,
-            currency: item.request.amount.currency,
+            currency: item.request.money.currency(),
             description: item.resource_common_data.description.clone(),
             customer_info: build_customer_info(&item.resource_common_data)?,
         };
@@ -612,7 +612,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             };
 
         // A zero-amount payment is a card verification.
-        let action_type = (item.request.amount.amount == common_utils::types::MinorUnit::zero())
+        let action_type = (item.request.money.amount() == common_utils::types::MinorUnit::zero())
             .then_some(NexixpayPaymentRequestActionType::Verify);
 
         Ok(Self {
@@ -795,7 +795,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // G-ThreeDS-11: this Nexi flow is not recurring, and VERIFY on /orders/googlepay is
         // undocumented, so stored-credential setup and zero-amount verification fail closed.
-        let is_zero_amount = item.request.amount.amount == common_utils::types::MinorUnit::zero();
+        let is_zero_amount = item.request.money.amount() == common_utils::types::MinorUnit::zero();
         if item.request.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
             || is_zero_amount
         {
@@ -810,7 +810,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let amount = StringMinorUnitForConnector
-            .convert(&item.request.amount)
+            .convert(&item.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: nexi_ctx(
                     "Send a minor-unit amount representable in the request currency.",
@@ -839,7 +839,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     &item.resource_common_data.connector_request_reference_id,
                 )?,
                 amount: amount.clone(),
-                currency: item.request.amount.currency,
+                currency: item.request.money.currency(),
                 description: item.resource_common_data.description.clone(),
             },
             payment_session: NexixpayGooglePaySession {
@@ -1062,7 +1062,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayPaymentsRespo
 
         // A zero-amount verification answers AUTHORIZED; nothing remains to capture, so
         // it is terminal (Hyperswitch CompleteAuthorize special case).
-        let status = if item.router_data.request.amount.amount
+        let status = if item.router_data.request.money.amount()
             == common_utils::types::MinorUnit::zero()
             && operation.operation_result == NexixpayPaymentStatus::Authorized
         {
@@ -1490,7 +1490,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Convert amount - handle partial vs full capture
         let capture_amount = StringMinorUnitForConnector
-            .convert(&item.request.amount_to_capture)
+            .convert(&item.request.capture_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: nexi_ctx(
                     "Send an amount_to_capture in minor units representable in the request currency.",
@@ -1500,7 +1500,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             amount: capture_amount,
-            currency: item.request.amount_to_capture.currency,
+            currency: item.request.capture_money.currency(),
         })
     }
 }
@@ -1600,7 +1600,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // The refund amount may be lower than the captured amount (partial refund); Nexi
         // rejects an amount above it with PS0168.
         let refund_amount = StringMinorUnitForConnector
-            .convert(&item.request.refund_amount)
+            .convert(&item.request.refund_money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: nexi_ctx(
                     "Send refund_amount in minor units of a currency Nexixpay supports.",
@@ -1610,7 +1610,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             amount: refund_amount,
-            currency: item.request.refund_amount.currency,
+            currency: item.request.refund_money.currency(),
             description: item.request.reason.clone(),
         })
     }
@@ -1685,7 +1685,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // no default (Hyperswitch MissingRequiredField parity).
         let void_amount =
             item.request
-                .amount
+                .money
                 .as_ref()
                 .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name: "amount",
@@ -1707,10 +1707,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let void_amount_string = StringMinorUnitForConnector
-            .convert(&common_utils::types::Money {
-                amount: void_amount.amount,
-                currency,
-            })
+            .convert(void_amount)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: nexi_ctx(
                     "Send a void amount representable in minor units of the given currency.",
@@ -2204,10 +2201,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order = NexixpayPreAuthOrder {
             order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
             amount: StringMinorUnitForConnector
-                .convert(&common_utils::types::Money {
-                    amount: item.request.amount.amount,
-                    currency,
-                })
+                .convert(&item.request.money)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: nexi_ctx(
                         "Send a minor-unit amount representable in the request currency.",
@@ -2228,7 +2222,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         // A zero-amount init is a card verification.
-        let action_type = (item.request.amount.amount == common_utils::types::MinorUnit::zero())
+        let action_type = (item.request.money.amount() == common_utils::types::MinorUnit::zero())
             .then_some(NexixpayPaymentRequestActionType::Verify);
 
         Ok(Self {
@@ -2670,7 +2664,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
 
         let amount = StringMinorUnitForConnector
-            .convert(&router_data.request.amount)
+            .convert(&router_data.request.money)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
@@ -2685,7 +2679,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "Failed to encode amount={:?} currency={:?} as a Nexi \
                          `paymentSession.amount` (string minor-units) for the /orders/hpp \
                          ClientAuthenticationToken flow.",
-                        router_data.request.amount.amount, router_data.request.amount.currency,
+                        router_data.request.money.amount(),
+                        router_data.request.money.currency(),
                     )),
                 },
             })?;
@@ -2718,7 +2713,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             order: NexixpayClientAuthOrder {
                 order_id,
                 amount: amount.clone(),
-                currency: router_data.request.amount.currency,
+                currency: router_data.request.money.currency(),
                 description: None,
             },
             payment_session: NexixpayPaymentSession {
@@ -2884,26 +2879,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // The amount and its currency come from the same `Money` when one is sent, so the
         // pair cannot drift. `request.currency` is the fallback only for the zero-amount
         // case, where there is no `Money` to read a currency from.
-        let (minor_amount, currency) = match item.request.amount.as_ref() {
-            Some(money) => (money.amount, money.currency),
-            None => (
-                common_utils::types::MinorUnit::zero(),
-                item.request.currency,
-            ),
-        };
+        let money = item
+            .request
+            .money
+            .clone()
+            .unwrap_or_else(|| common_utils::types::Money::zero(item.request.currency));
+        let currency = money.currency();
         let order = NexixpayPreAuthOrder {
             order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
-            amount: StringMinorUnitForConnector
-                .convert(&common_utils::types::Money {
-                    amount: minor_amount,
-                    currency,
-                })
-                .change_context(IntegrationError::RequestEncodingFailed {
+            amount: StringMinorUnitForConnector.convert(&money).change_context(
+                IntegrationError::RequestEncodingFailed {
                     context: nexi_ctx(
                         "Send a minor-unit amount representable in the request currency.",
                         "Nexi order.amount is a string of minor units.",
                     ),
-                })?,
+                },
+            )?,
             currency,
             customer_info,
             description: item.resource_common_data.description.clone(),
@@ -2929,7 +2920,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // VERIFY only on a zero-amount setup (card verification, no funds move);
         // Nexi rejects PAY with amount 0 (spec ### SetupMandate, UD-04).
-        let action_type = (minor_amount == common_utils::types::MinorUnit::zero())
+        let action_type = (money.amount() == common_utils::types::MinorUnit::zero())
             .then_some(NexixpayPaymentRequestActionType::Verify);
 
         Ok(Self {
@@ -3164,14 +3155,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order = NexixpayOrderData {
             order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
             amount: StringMinorUnitForConnector
-                .convert(&item.request.amount)
+                .convert(&item.request.money)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: nexi_ctx(
                         "Send a valid minor-unit amount and ISO currency.",
                         "Nexi order.amount is a string in minor units; the MIT amount could not be converted.",
                     ),
                 })?,
-            currency: item.request.amount.currency,
+            currency: item.request.money.currency(),
             description: item.resource_common_data.description.clone(),
             customer_info,
         };

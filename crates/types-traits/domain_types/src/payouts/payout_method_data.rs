@@ -269,6 +269,7 @@ pub struct PayshapProxyBankTransfer {
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Wallet {
     ApplePayDecrypt(ApplePayDecrypt),
+    GooglePayDecrypt(GooglePayDecrypt),
     Paypal(Paypal),
     Venmo(Venmo),
     Mifinity(Mifinity),
@@ -343,6 +344,24 @@ pub struct Mifinity {
 pub struct ApplePayDecrypt {
     /// The dpan number associated with card number
     pub dpan: CardNumber,
+
+    /// The card's expiry month
+    pub expiry_month: Secret<String>,
+
+    /// The card's expiry year
+    pub expiry_year: Secret<String>,
+
+    /// The card holder's name
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    pub card_network: Option<common_enums::CardNetwork>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct GooglePayDecrypt {
+    /// The application primary account number associated with the card
+    pub application_primary_account_number: CardNumber,
 
     /// The card's expiry month
     pub expiry_month: Secret<String>,

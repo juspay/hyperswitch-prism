@@ -5,9 +5,9 @@
 // Worldpayvantiv — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx worldpayvantiv.ts checkout_autocapture
 
-import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "refund", "refund_get", "reverse", "void"];
+import { PaymentClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "recurring_charge", "refund", "refund_get", "reverse", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -18,6 +18,7 @@ const _defaultConfig: types.IConnectorConfig = {
             user: { value: 'YOUR_USER' },
             password: { value: 'YOUR_PASSWORD' },
             merchantId: { value: 'YOUR_MERCHANT_ID' },
+            merchantIdByCurrency: { USD: { value: 'YOUR_USD_MERCHANT_ID_BY_CURRENCY' } },
             baseUrl: 'YOUR_BASE_URL',
             reportGroup: 'YOUR_REPORT_GROUP',
             merchantConfigCurrency: 'YOUR_MERCHANT_CONFIG_CURRENCY',
@@ -109,6 +110,29 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
         "captureMethod": CaptureMethod.AUTOMATIC,
         "authType": AuthenticationType.NO_THREE_DS,
         "returnUrl": "https://example.com/return"
+    };
+}
+
+function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
+    return {
+        "merchantChargeId": "probe_recurring_charge_001",  // Reference ID for tracking.
+        "connectorRecurringPaymentId": {  // Reference to existing mandate.
+        },
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,
+            "currency": Currency.USD
+        },
+        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
+            "token": {  // Payment tokens.
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+            }
+        },
+        "returnUrl": "https://example.com/recurring-return",
+        "connectorCustomerId": "cust_probe_123",
+        "paymentMethodType": PaymentMethodType.CREDIT,
+        "offSession": true,  // Behavioral Flags and Preferences.
+        "additionalPaymentData": {  // Additional payment data for various payment methods.
+        }
     };
 }
 
@@ -309,6 +333,15 @@ async function proxyAuthorize(merchantTransactionId: string, config: types.IConn
     return proxyResponse;
 }
 
+// Flow: RecurringPaymentService.Charge
+async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
+
+    return recurringResponse;
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -348,7 +381,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, incrementalAuthorization, proxyAuthorize, refund, refundGet, reverse, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, incrementalAuthorization, proxyAuthorize, recurringCharge, refund, refundGet, reverse, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildIncrementalAuthorizationRequest, _buildProxyAuthorizeRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildReverseRequest, _buildVoidRequest
 };
 
 // CLI runner

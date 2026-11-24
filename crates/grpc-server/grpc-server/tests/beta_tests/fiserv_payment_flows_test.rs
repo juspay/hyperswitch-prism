@@ -254,6 +254,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
     connector_metadata.insert("connector_metadata".to_string(), connector_metadata_json);
 
     PaymentServiceCaptureRequest {
+        domain_data: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),

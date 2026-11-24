@@ -22,7 +22,7 @@ message DisputeServiceSubmitEvidenceRequest {
   // Identification
   optional string merchant_dispute_id = 1;
   optional string connector_transaction_id = 2;
-  string dispute_id = 3;
+  string connector_dispute_id = 3;
 
   // Dates
   optional int64 service_date = 4;
@@ -52,7 +52,7 @@ message DisputeServiceSubmitEvidenceRequest {
 // Response message for a submit evidence operation
 message DisputeServiceSubmitEvidenceResponse {
   // Identification
-  optional string dispute_id = 1;
+  optional string connector_dispute_id = 1;
   repeated string submitted_evidence_ids = 2;
 
   // Status Information
@@ -68,14 +68,15 @@ message DisputeServiceSubmitEvidenceResponse {
   // Raw Request for debugging
   optional SecretString raw_connector_request = 9;
   optional SecretString typed_connector_request = 10;
+  optional SecretString raw_connector_response = 11;
+  optional SecretString typed_connector_response = 12;
 }
 
 // Request message for retrieving dispute information
 message DisputeServiceGetRequest {
   // Identification
   optional string merchant_dispute_id = 1;
-  optional string dispute_id = 2;
-  string connector_dispute_id = 3;
+  string connector_dispute_id = 2;
 }
 
 // Request message for defending a dispute
@@ -83,7 +84,7 @@ message DisputeServiceDefendRequest {
   // Identification
   optional string merchant_dispute_id = 1;
   string connector_transaction_id = 2;
-  string dispute_id = 3;
+  string connector_dispute_id = 3;
 
   // Defend Details
   optional string reason_code = 4;
@@ -92,7 +93,7 @@ message DisputeServiceDefendRequest {
 // Response message for defending a dispute
 message DisputeServiceDefendResponse {
   // Identification
-  string dispute_id = 1;
+  string connector_dispute_id = 1;
 
   // Status Information
   DisputeStatus dispute_status = 2;
@@ -107,6 +108,8 @@ message DisputeServiceDefendResponse {
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
   optional SecretString typed_connector_request = 9;
+  optional SecretString raw_connector_response = 10;
+  optional SecretString typed_connector_response = 11;
 }
 
 // Request message for accepting a dispute
@@ -114,13 +117,13 @@ message DisputeServiceAcceptRequest {
   // Identification
   optional string merchant_dispute_id = 1;
   string connector_transaction_id = 2;
-  string dispute_id = 3;
+  string connector_dispute_id = 3;
 }
 
 // Response message for accepting a dispute
 message DisputeServiceAcceptResponse {
   // Identification
-  string dispute_id = 1;
+  string connector_dispute_id = 1;
 
   // Status Information
   DisputeStatus dispute_status = 2;
@@ -135,4 +138,6 @@ message DisputeServiceAcceptResponse {
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
   optional SecretString typed_connector_request = 9;
+  optional SecretString raw_connector_response = 10;
+  optional SecretString typed_connector_response = 11;
 }

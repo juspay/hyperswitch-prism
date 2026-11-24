@@ -1,5 +1,86 @@
 use std::str::FromStr;
 
+/// Log a composite request at the same service-method boundary used by granular services.
+/// Extensions are forwarded unchanged except for the marker identifying nested internal calls.
+pub async fn composite_grpc_logging_wrapper<T, F, Fut, R>(
+    mut request: tonic::Request<T>,
+    service_name: &str,
+    flow_name: common_utils::events::FlowName,
+    handler: F,
+) -> Result<tonic::Response<R>, tonic::Status>
+where
+    T: serde::Serialize,
+    F: FnOnce(tonic::Request<T>) -> Fut,
+    Fut: std::future::Future<Output = Result<tonic::Response<R>, tonic::Status>>,
+    R: serde::Serialize,
+{
+    use common_utils::events::record_json_fields_on_span;
+    use ucs_interface_common::metadata::{
+        connector_variant_from_metadata, merchant_id_from_metadata, request_id_from_metadata,
+        tenant_id_from_metadata,
+    };
+
+    let span = tracing::Span::current();
+    let start = std::time::Instant::now();
+    let config = request
+        .extensions()
+        .get::<std::sync::Arc<ucs_env::configs::Config>>()
+        .cloned();
+    span.record("service_name", service_name);
+    span.record("service_method", flow_name.as_str());
+    span.record("flow", flow_name.as_str());
+    if let Ok(body) = hyperswitch_masking::masked_serialize(request.get_ref()) {
+        record_json_fields_on_span(vec![("request_body", body)]);
+    }
+    let metadata = request.metadata();
+    if let Ok(value) = request_id_from_metadata(metadata) {
+        span.record("request_id", value);
+    }
+    if let Ok(value) = merchant_id_from_metadata(metadata) {
+        span.record("merchant_id", value);
+    }
+    if let Ok(value) = tenant_id_from_metadata(metadata) {
+        span.record("tenant_id", value);
+    }
+    if let Ok(connector) = connector_variant_from_metadata(metadata) {
+        span.record("gateway", connector.get_connector_name());
+    }
+    tracing::info!("Golden Log Line (incoming - request)");
+
+    request
+        .extensions_mut()
+        .insert(common_utils::request_metrics::InternalCompositeCall);
+    let result = handler(request).await;
+    let duration = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
+    span.record("response_time", duration);
+    record_json_fields_on_span(vec![("latency_ms", serde_json::json!(duration))]);
+    let status_code = match &result {
+        Ok(response) => {
+            if let Ok(body) = hyperswitch_masking::masked_serialize(response.get_ref()) {
+                record_json_fields_on_span(vec![("response_body", body)]);
+            }
+            200
+        }
+        Err(status) => {
+            span.record("error_message", status.message());
+            span.record("status_code", status.code().to_string());
+            ucs_env::error::http_status_for_tonic_status(status)
+        }
+    };
+    record_json_fields_on_span(vec![("res_code", serde_json::json!(status_code))]);
+
+    // Apply transformations after orchestration so nested logs never inherit INCOMING_API.
+    #[cfg(feature = "log-transformations")]
+    if let Some(config) = config.filter(|config| config.log_fields.enabled) {
+        common_utils::events::apply_log_fields(&config.log_fields.incoming, None);
+    }
+    #[cfg(not(feature = "log-transformations"))]
+    let _ = config;
+
+    tracing::info!("Golden Log Line (incoming - response)");
+    result
+}
+
 use common_utils::consts::{
     X_AUTHENTICATOR_CONNECTOR_NAME, X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME,
     X_SURCHARGE_CONNECTOR_NAME,

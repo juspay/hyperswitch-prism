@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 #![allow(clippy::expect_used)]
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::panic)]
@@ -181,6 +182,7 @@ fn create_payment_authorize_request(
             line3: None,
             city: Some(Secret::new("Pecan Springs".to_string())),
             state: Some(Secret::new("TX".to_string())),
+            state_code_iso: None,
             zip_code: Some(Secret::new("44628".to_string())),
             country_alpha2_code: Some(i32::from(CountryAlpha2::Us)),
             phone_number: None,
@@ -191,6 +193,7 @@ fn create_payment_authorize_request(
     });
 
     let browser_info = BrowserInformation {
+        challenge_window_size: None,
         color_depth: None,
         java_enabled: Some(false),
         screen_height: Some(1080),

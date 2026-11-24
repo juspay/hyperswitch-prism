@@ -248,6 +248,7 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
                 minorAmount = 1000L
                 currency = Currency.USD
             }
+            returnUrl = "https://example.com/return"
         }
     }.build()
     val response = client.create_client_authentication_token(request)
@@ -273,7 +274,7 @@ fun disputeAccept(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = DisputeServiceAcceptRequest.newBuilder().apply {
         merchantDisputeId = "probe_dispute_001"  // Identification.
         connectorTransactionId = "probe_txn_001"
-        disputeId = "probe_dispute_id_001"
+        connectorDisputeId = "probe_dispute_id_001"
     }.build()
     val response = client.accept(request)
     println("Dispute status: ${response.disputeStatus.name}")
@@ -285,7 +286,7 @@ fun disputeSubmitEvidence(txnId: String, config: ConnectorConfig = _defaultConfi
     val request = DisputeServiceSubmitEvidenceRequest.newBuilder().apply {
         merchantDisputeId = "probe_dispute_001"  // Identification.
         connectorTransactionId = "probe_txn_001"
-        disputeId = "probe_dispute_id_001"
+        connectorDisputeId = "probe_dispute_id_001"
         // evidenceDocuments: [{"evidence_type": "SERVICE_DOCUMENTATION", "file_content": "probe evidence content", "file_mime_type": "application/pdf"}]  // Collection of evidence documents.
     }.build()
     val response = client.submit_evidence(request)

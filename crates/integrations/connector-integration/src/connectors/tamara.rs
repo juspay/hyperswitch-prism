@@ -6,7 +6,7 @@ use base64::Engine;
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     consts,
-    crypto::{HmacSha256, SignMessage},
+    crypto::{HmacSha256, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -191,7 +191,7 @@ macros::macro_connector_payout_implementation!(
 
 // ===== EMPTY TRAIT IMPLEMENTATIONS / STUBBED FLOWS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Tamara<T>
+    interfaces::webhooks::IncomingWebhook for Tamara<T>
 {
     fn verify_webhook_source(
         &self,
@@ -241,12 +241,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Failed to decode JWT signature from base64url")?;
 
         // Verify HMAC-SHA256
-        let computed = HmacSha256
-            .sign_message(&secret.secret, message.as_bytes())
+        HmacSha256
+            .verify_signature(&secret.secret, &signature, message.as_bytes())
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to sign JWT message with HMAC-SHA256")?;
-
-        Ok(computed == signature)
+            .attach_printable("Failed to verify JWT message with HMAC-SHA256")
     }
 
     fn get_event_type(
@@ -307,6 +305,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(event.order_id.clone())),
             status: AttemptStatus::from(event.event_type),
@@ -319,7 +319,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -344,6 +344,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
+                raw_connector_status: None,
                 connector_refund_id: refund_id,
                 merchant_transaction_id: event.order_reference_id,
                 status: RefundStatus::from(event.event_type),
@@ -383,7 +384,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            response_amount: None,
+            response_money: None,
             raw_connector_response: None,
             connector_feature_data: None,
         })

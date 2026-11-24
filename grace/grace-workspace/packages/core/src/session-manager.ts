@@ -11,7 +11,7 @@ import {
   type SessionRecord,
 } from "./state.js";
 import { getConfig } from "./config.js";
-import { tenxgraceHome } from "./utils.js";
+import { assertSafeTaskIdentifiers, tenxgraceHome } from "./utils.js";
 
 export interface CreateSessionInput {
   name: string;
@@ -53,6 +53,7 @@ export class SessionManager {
     if (!input.name?.trim()) {
       throw new Error("Session name is required");
     }
+    if (input.initialTask) assertSafeTaskIdentifiers(input.initialTask);
     const sourcePath = path.resolve(input.sourcePath);
     if (!fs.existsSync(sourcePath)) {
       throw new Error(`Source path does not exist: ${sourcePath}`);

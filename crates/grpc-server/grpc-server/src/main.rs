@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 source = %sp_config.source(),
                 experiments_supported = sp_config.experiments_supported(),
                 workspace = %config.superposition.workspace_id,
-                polling_interval_secs = config.superposition.polling_interval,
+                polling_interval_ms = config.superposition.polling_interval_milliseconds,
                 path = %superposition_config_path,
                 "superposition initialised"
             );

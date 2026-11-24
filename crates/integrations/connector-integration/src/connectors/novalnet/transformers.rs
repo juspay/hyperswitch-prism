@@ -470,7 +470,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -655,6 +655,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::AliPayPlusRedirect {}
+                | WalletDataPaymentMethod::BoostRedirect {}
                 | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_)
@@ -1365,7 +1367,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount_to_capture)
+            .convert(&item.router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1424,7 +1426,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2564,6 +2566,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::AliPayPlusRedirect {}
+                | WalletDataPaymentMethod::BoostRedirect {}
                 | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_)
@@ -2687,7 +2691,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2952,6 +2956,8 @@ pub fn webhook_payment_details(
                     );
 
                     Ok(WebhookDetailsResponse {
+                        raw_connector_status: None,
+                        amount: None,
                         connector_returned_payment_method_details: None,
                         status,
                         resource_id: Some(
@@ -2976,7 +2982,7 @@ pub fn webhook_payment_details(
                         error_message: None,
                         raw_connector_response: None,
                         response_headers: None,
-                        amount_captured: None,
+                        captured_money: None,
                         error_reason: None,
                         network_txn_id: response.payment_data.and_then(|payment_data| {
                             match payment_data {
@@ -2998,6 +3004,8 @@ pub fn webhook_payment_details(
                 // Void response mappers, which return CaptureFailed / VoidFailed. The event
                 // type is inside the signed checksum preimage, so it is safe to branch on.
                 NovalnetAPIStatus::Failure => Ok(WebhookDetailsResponse {
+                    raw_connector_status: None,
+                    amount: None,
                     connector_returned_payment_method_details: None,
                     status: match notif.event.event_type {
                         WebhookEventType::TransactionCapture => {
@@ -3022,7 +3030,7 @@ pub fn webhook_payment_details(
                     error_message: Some(notif.result.status_text),
                     raw_connector_response: None,
                     response_headers: None,
-                    amount_captured: None,
+                    captured_money: None,
                     error_reason: None,
                     network_txn_id: None,
                     payment_method_update: None,
@@ -3031,6 +3039,8 @@ pub fn webhook_payment_details(
                 // Undocumented result.status: never terminal (o-themes-r3); flow mappers keep
                 // the current status for an unknown value.
                 NovalnetAPIStatus::Unknown => Ok(WebhookDetailsResponse {
+                    raw_connector_status: None,
+                    amount: None,
                     connector_returned_payment_method_details: None,
                     status: common_enums::AttemptStatus::Pending,
                     resource_id: Some(
@@ -3047,7 +3057,7 @@ pub fn webhook_payment_details(
                     error_message: None,
                     raw_connector_response: None,
                     response_headers: None,
-                    amount_captured: None,
+                    captured_money: None,
                     error_reason: None,
                     network_txn_id: None,
                     payment_method_update: None,
@@ -3089,6 +3099,8 @@ pub fn webhook_payment_details(
             };
             let error = matches!(notif.result.status, NovalnetAPIStatus::Failure);
             Ok(WebhookDetailsResponse {
+                raw_connector_status: None,
+                amount: None,
                 connector_returned_payment_method_details: None,
                 status,
                 resource_id: Some(ResponseId::ConnectorTransactionId(payment_tid.clone())),
@@ -3100,7 +3112,7 @@ pub fn webhook_payment_details(
                 error_message: error.then_some(notif.result.status_text),
                 raw_connector_response: None,
                 response_headers: None,
-                amount_captured: None,
+                captured_money: None,
                 error_reason: None,
                 network_txn_id: None,
                 payment_method_update: None,
@@ -3151,6 +3163,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
                 };
 
                 Ok(Self {
+                    raw_connector_status: None,
                     connector_refund_id: Some(refund_id),
                     merchant_transaction_id: None,
                     status,
@@ -3164,6 +3177,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
             }
             // Undocumented result.status: never terminal (o-themes-r3).
             NovalnetAPIStatus::Unknown => Ok(Self {
+                raw_connector_status: None,
                 status: common_enums::RefundStatus::Pending,
                 connector_refund_id: Some(refund_id),
                 merchant_transaction_id: None,
@@ -3176,6 +3190,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
             }),
             // spec: ## Webhook Events (result FAILURE -> refund failed)
             NovalnetAPIStatus::Failure => Ok(Self {
+                raw_connector_status: None,
                 status: common_enums::RefundStatus::Failure,
                 connector_refund_id: Some(refund_id),
                 merchant_transaction_id: None,
@@ -3251,7 +3266,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;

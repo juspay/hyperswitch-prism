@@ -8,10 +8,11 @@
 //! gateway 3DS, which it runs inside a Hosted Payment Page: CreateOrder
 //! (`POST /orders`) and PreAuthenticate (`POST /payment-sessions`) set the page up,
 //! the shopper enters the card there, and Authorize settles it with
-//! `POST /transactions {"paymentSession": …, "total": …}`. Also: recurring cards (an Authorize
-//! with `setup_future_usage` opens the agreement; RepeatPayment replays `credentialOnFileData`
-//! as a merchant-initiated sale, via connector mandate id or card + NTID) and pre-decrypted
-//! Apple Pay / Google Pay one-time payments. Plus the
+//! `POST /transactions {"paymentSession": …, "total": …}`. Also: recurring cards and pre-decrypted
+//! Apple Pay / Google Pay as one-time sales. A recurring agreement is always a stored card:
+//! CreateConnectorCustomer (`POST /shoppers`), then PaymentMethodToken or a zero-amount
+//! SetupMandate (`POST /stored-cards`). The stored card's href then replaces the card on the sale
+//! and is the connector mandate id RepeatPayment charges. Plus the
 //! companion PSync / Capture / Void / Refund / RSync flows so that a manual-capture
 //! authorization always has a settle and a release path.
 
@@ -27,27 +28,33 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateOrder, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, Void,
+        Authorize, Capture, CreateConnectorCustomer, CreateOrder, PSync, PaymentMethodToken,
+        PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData,
+        ConnectorCustomerData, ConnectorCustomerResponse, ConnectorWebhookSecrets, EventContext,
+        EventType, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
 };
+use ring::digest;
 use serde::Serialize;
 use transformers as elavon_pg;
 use transformers::{
@@ -55,8 +62,10 @@ use transformers::{
     ElavonPgCreateOrderRequest, ElavonPgCreateOrderResponse, ElavonPgPreAuthenticateRequest,
     ElavonPgPreAuthenticateResponse, ElavonPgPsyncResponse, ElavonPgRefundRequest,
     ElavonPgRefundResponse, ElavonPgRepeatPaymentRequest, ElavonPgRepeatPaymentResponse,
-    ElavonPgRsyncResponse, ElavonPgTransactionResponse, ElavonPgVoidRequest, ElavonPgVoidResponse,
-    ELAVON_PG_ACCEPT_VERSION, ELAVON_PG_CONNECTOR_ID, ELAVON_PG_MEDIA_TYPE,
+    ElavonPgRsyncResponse, ElavonPgSetupMandateRequest, ElavonPgSetupMandateResponse,
+    ElavonPgShopperRequest, ElavonPgShopperResponse, ElavonPgStoredCardRequest,
+    ElavonPgStoredCardResponse, ElavonPgTransactionResponse, ElavonPgVoidRequest,
+    ElavonPgVoidResponse, ELAVON_PG_ACCEPT_VERSION, ELAVON_PG_CONNECTOR_ID, ELAVON_PG_MEDIA_TYPE,
 };
 
 use super::macros;
@@ -83,6 +92,10 @@ pub(crate) mod paths {
     pub(crate) const ORDERS: &str = "orders";
     /// Payment-session collection — step 2 of the hosted-payment-page 3DS flow.
     pub(crate) const PAYMENT_SESSIONS: &str = "payment-sessions";
+    /// Shopper collection; a stored card has to belong to a shopper.
+    pub(crate) const SHOPPERS: &str = "shoppers";
+    /// Stored-card collection. Creating one verifies the card.
+    pub(crate) const STORED_CARDS: &str = "stored-cards";
 }
 
 // ===== MACRO-BASED STRUCT AND BRIDGE SETUP =====
@@ -107,6 +120,24 @@ macros::create_all_prerequisites!(
             request_body: ElavonPgAuthorizeRequest<T>,
             response_body: ElavonPgTransactionResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: CreateConnectorCustomer,
+            request_body: ElavonPgShopperRequest,
+            response_body: ElavonPgShopperResponse,
+            router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ),
+        (
+            flow: PaymentMethodToken,
+            request_body: ElavonPgStoredCardRequest<T>,
+            response_body: ElavonPgStoredCardResponse,
+            router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: ElavonPgSetupMandateRequest<T>,
+            response_body: ElavonPgSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
@@ -307,6 +338,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: common_enums::PaymentMethod,
         redirect_state: connector_types::RedirectState,
         _completed_step: Option<connector_types::AuthenticationStep>,
+        _payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        _authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
 
@@ -326,8 +363,151 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for ElavonPg<T>
+    interfaces::webhooks::IncomingWebhook for ElavonPg<T>
 {
+    /// EPG signs a notification with each signer Elavon support set up for the webhook:
+    /// header `signature-{signerId}` = Base64(SHA-512(Base64-decoded shared secret || raw
+    /// body)). The secret is the shared secret; `additional_secret`, when set, is the signer
+    /// id and only that signer's header is accepted. No secret or no signature header is
+    /// `Ok(false)`, so the payment is synced rather than trusted from the body.
+    /// https://developer.elavon.com/products/elavon-payment-gateway/v1/webhook-notifications
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        let Some(secrets) = connector_webhook_secret else {
+            return Ok(false);
+        };
+        let key = BASE64_ENGINE
+            .decode(&secrets.secret)
+            .change_context(WebhookError::WebhookVerificationSecretInvalid)
+            .attach_printable("elavon_pg webhook: the shared secret is not valid Base64")?;
+        // An empty secret would make the digest computable by anyone.
+        if key.is_empty() {
+            return Ok(false);
+        }
+        let expected = digest::digest(&digest::SHA512, &[key, request.body.clone()].concat());
+
+        let header_name = secrets
+            .additional_secret
+            .as_ref()
+            .map(|signer_id| format!("signature-{}", signer_id.peek()).to_ascii_lowercase());
+        Ok(request
+            .headers
+            .iter()
+            .filter(|(name, _)| {
+                let name = name.to_ascii_lowercase();
+                header_name
+                    .as_ref()
+                    .map_or(name.starts_with("signature-"), |header_name| {
+                        &name == header_name
+                    })
+            })
+            .filter_map(|(_, value)| BASE64_ENGINE.decode(value.trim()).ok())
+            .any(|signature| {
+                // Same constant-time compare as PhonePe; ring 0.17 only renamed the module.
+                #[allow(deprecated)]
+                ring::constant_time::verify_slices_are_equal(expected.as_ref(), &signature).is_ok()
+            }))
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        Ok(parse_elavon_pg_notification(&request)?.event_type())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let notification = parse_elavon_pg_notification(&request)?;
+        Ok(match notification.event_type() {
+            EventType::IncomingWebhookEventUnspecified => None,
+            _ if notification.is_refund_event() => {
+                Some(WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(notification.transaction_id()?),
+                    merchant_refund_id: None,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: None,
+                }))
+            }
+            _ => Some(WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id: Some(notification.transaction_id()?),
+                merchant_transaction_id: None,
+                connector_preprocessing_id: None,
+            })),
+        })
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let notification = parse_elavon_pg_notification(&request)?;
+        let status = notification.payment_status(event_context.as_ref())?;
+
+        Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                notification.transaction_id()?,
+            )),
+            status,
+            connector_response_reference_id: None,
+            connector_request_reference_id: None,
+            mandate_reference: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            status_code: 200,
+            response_headers: None,
+            captured_money: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let notification = parse_elavon_pg_notification(&request)?;
+
+        Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
+            connector_refund_id: Some(notification.transaction_id()?),
+            merchant_transaction_id: None,
+            status: notification.refund_status()?,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).into_owned()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"href":"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw","id":"j8t32fd7p29twgyj2fcb6dd4fdpw","merchant":"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh","createdAt":"2023-10-31T20:59:45.210Z","eventType":"saleDeclined","resourceType":"transaction","resource":"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy"}"#
+    }
+}
+
+fn parse_elavon_pg_notification(
+    request: &RequestDetails,
+) -> Result<elavon_pg::ElavonPgNotification, Report<WebhookError>> {
+    request
+        .body
+        .parse_struct("ElavonPgNotification")
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -335,10 +515,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// EPG webhook signature verification is optional and per-merchant: the signer id
-// and key are handed out by Elavon support and there is no universal signing secret
-// or documented algorithm in the API reference. Fabricating an HMAC here would be
-// worse than the default no-op.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for ElavonPg<T>
 {
@@ -471,9 +647,126 @@ macros::macro_connector_implementation!(
     }
 );
 
+// ===== SETUP MANDATE =====
+// A zero-amount recurring agreement: `POST /stored-cards` verifies the card and stores it.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for ElavonPg<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: ElavonPg,
+    curl_request: Json(ElavonPgSetupMandateRequest<T>),
+    curl_response: ElavonPgSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/{}",
+                self.connector_base_url_payments(req),
+                paths::STORED_CARDS
+            ))
+        }
+    }
+);
+
+// ===== CREATE CONNECTOR CUSTOMER =====
+// A shopper, which a stored card has to belong to.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CreateConnectorCustomer for ElavonPg<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: ElavonPg,
+    curl_request: Json(ElavonPgShopperRequest),
+    curl_response: ElavonPgShopperResponse,
+    flow_name: CreateConnectorCustomer,
+    resource_common_data: PaymentFlowData,
+    flow_request: ConnectorCustomerData,
+    flow_response: ConnectorCustomerResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/{}",
+                self.connector_base_url_payments(req),
+                paths::SHOPPERS
+            ))
+        }
+    }
+);
+
+// ===== PAYMENT METHOD TOKEN =====
+// A stored card, whose href the sale then takes in place of the card.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentTokenV2<T> for ElavonPg<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: ElavonPg,
+    curl_request: Json(ElavonPgStoredCardRequest<T>),
+    curl_response: ElavonPgStoredCardResponse,
+    flow_name: PaymentMethodToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentMethodTokenizationData<T>,
+    flow_response: PaymentMethodTokenResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/{}",
+                self.connector_base_url_payments(req),
+                paths::STORED_CARDS
+            ))
+        }
+    }
+);
+
 // ===== REPEAT PAYMENT =====
-// A merchant-initiated sale on the stored credential minted by the initial recurring
-// Authorize: same `POST /transactions` as a card sale, with `credentialOnFileData`.
+// A merchant-initiated sale on a stored card: same `POST /transactions` as a card sale, with
+// `storedCard` in place of the card.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for ElavonPg<T>
 {
@@ -605,7 +898,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let requested_total = self
                 .amount_converter
-                .convert(&req.request.amount_to_capture)
+                .convert(&req.request.capture_money)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: IntegrationErrorContext {
                         additional_context: Some(
@@ -758,18 +1051,15 @@ macros::macro_connector_implementation!(
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
 // not_implemented: EPG exposes the capability but it is out of scope for this
-//                  integration (cards, one-time payments only).
+//                  integration.
 // not_supported:   EPG's v1 API has no such resource at all.
 macros::macro_connector_flow_status_impls!(
     connector: ElavonPg,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        SetupMandate,
         MandateRevoke,
-        CreateConnectorCustomer,
         GetConnectorCustomer,
-        PaymentMethodToken,
         ClientAuthenticationToken,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,

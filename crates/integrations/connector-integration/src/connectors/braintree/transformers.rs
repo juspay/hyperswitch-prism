@@ -370,7 +370,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -484,7 +484,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let amount = item
                     .connector
                     .amount_converter
-                    .convert(&item.router_data.request.amount)
+                    .convert(&item.router_data.request.money)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: Default::default(),
                     })?;
@@ -590,7 +590,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             query,
                             variables: GenericVariableInput {
                                 input: WalletPaymentInput {
-                                    payment_method_id: payment_method_id.into(),
+                                    payment_method_id,
                                     transaction: WalletTransactionBody {
                                         amount: amount.clone(),
                                         merchant_account_id: merchant_account_id.clone(),
@@ -1247,7 +1247,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.refund_amount)
+            .convert(&item.router_data.request.refund_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1783,7 +1783,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount_to_capture)
+            .convert(&item.router_data.request.capture_money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2093,7 +2093,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                     total: AmountInfo {
                                         label: payment_request_data.label,
                                         total_type: None,
-                                        amount: item.router_data.request.amount.amount,
+                                        amount: item.router_data.request.money.amount(),
                                     },
                                     merchant_capabilities: Some(
                                         payment_request_data.merchant_capabilities,
@@ -2160,7 +2160,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                         ))?,
                                         currency_code: item.router_data.request.currency,
                                         total_price_status: GooglePayPriceStatus::Final.to_string(),
-                                        total_price: item.router_data.request.amount.amount,
+                                        total_price: item.router_data.request.money.amount(),
                                     },
                                     secrets: Some(SecretInfoToInitiateSdk {
                                         display: res.data.create_client_token.client_token.clone(),
@@ -2204,7 +2204,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                 transaction_info: Some(PaypalTransactionInfo {
                                     flow: PaypalFlow::Checkout.into(),
                                     currency_code: item.router_data.request.currency,
-                                    total_price: item.router_data.request.amount.amount,
+                                    total_price: item.router_data.request.money.amount(),
                                 }),
                             },
                         ))
@@ -2564,7 +2564,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2642,12 +2642,8 @@ fn get_braintree_redirect_form<
     complete_authorize_url: String,
 ) -> Result<RedirectForm, Report<ConnectorError>> {
     Ok(RedirectForm::Braintree {
-        client_token: client_token_data
-            .data
-            .create_client_token
-            .client_token
-            .expose(),
-        card_token: payment_method_token.expose(),
+        client_token: client_token_data.data.create_client_token.client_token,
+        card_token: payment_method_token,
         bin: match card_details {
             PaymentMethodData::Card(_) => {
                 match get_card_isin_from_payment_method_data(&card_details) {
@@ -2884,10 +2880,11 @@ pub(super) fn build_webhook_dispute_response(
         Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
             amount: domain_types::utils::convert_amount_for_webhook(
                 &common_utils::types::StringMinorUnitForConnector,
-                &common_utils::types::Money {
-                    amount: dispute_data.amount_disputed,
-                    currency: dispute_data.currency_iso_code,
-                },
+                &domain_types::utils::convert_back_amount_to_money_for_webhook(
+                    &common_utils::types::MinorUnitForConnector,
+                    dispute_data.amount_disputed,
+                    dispute_data.currency_iso_code,
+                )?,
             )?,
             currency: dispute_data.currency_iso_code,
             dispute_id: dispute_data.id.clone(),

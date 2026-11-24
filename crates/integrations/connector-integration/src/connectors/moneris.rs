@@ -6,15 +6,15 @@ use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, Void,
+        Authorize, Capture, IncrementalAuthorization, PSync, PostAuthenticate, PreAuthenticate,
+        RSync, Refund, RepeatPayment, ServerAuthenticationToken, Void, VoidPC,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -36,21 +36,27 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as moneris, MonerisAuthRequest, MonerisAuthResponse, MonerisAuthorizeResponse,
-    MonerisCancelRequest, MonerisCaptureResponse, MonerisPaymentsCaptureRequest,
-    MonerisPaymentsRequest, MonerisPaymentsResponse as MonerisRepeatPaymentResponse,
+    MonerisCancelRequest, MonerisCancelRequest as MonerisVoidPCRequest, MonerisCaptureResponse,
+    MonerisIncrementalAuthorizationRequest, MonerisIncrementalAuthorizationResponse,
+    MonerisPaymentsCaptureRequest, MonerisPaymentsRequest,
+    MonerisPaymentsResponse as MonerisRepeatPaymentResponse,
     MonerisPaymentsResponse as MonerisPaymentSyncResponse,
     MonerisPaymentsResponse as MonerisPaymentVoidResponse, MonerisPostAuthenticateRequest,
     MonerisPostAuthenticateResponse, MonerisPreAuthenticateRequest, MonerisPreAuthenticateResponse,
     MonerisRefundRequest, MonerisRefundResponse,
     MonerisRefundResponse as MonerisRefundSyncResponse, MonerisRepeatPaymentRequest,
+    MonerisVoidPCResponse,
 };
 
 use super::macros;
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 
 pub(crate) mod headers {
+    pub(crate) const ACCEPT: &str = "Accept";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
+    pub(crate) const X_CORRELATION_ID: &str = "X-Correlation-Id";
+    pub(crate) const USER_AGENT: &str = "User-Agent";
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -77,6 +83,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentIncrementalAuthorization for Moneris<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Moneris<T>
 {
 }
@@ -86,6 +96,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Moneris<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidPostCaptureV2 for Moneris<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -111,17 +125,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         true
     }
 
+    fn requires_authentication_data(&self) -> bool {
+        true
+    }
+
     fn next_authentication_step(
         &self,
         auth_type: common_enums::AuthenticationType,
         payment_method: common_enums::PaymentMethod,
         redirect_state: RedirectState,
         completed_step: Option<AuthenticationStep>,
+        _payment_method_data: Option<
+            &domain_types::payment_method_data::PaymentMethodData<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >,
+        >,
+        authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
     ) -> AuthenticationStep {
         if auth_type == common_enums::AuthenticationType::ThreeDs
             && matches!(payment_method, common_enums::PaymentMethod::Card)
+            && !authentication_data.is_some_and(|data| data.has_external_authentication())
         {
             match (redirect_state, completed_step) {
+                // PostAuthenticate completed after the ACS callback → authorize only
+                // after the connector has accepted the Authentication Value Lookup result.
+                (_, Some(AuthenticationStep::PostAuthenticate)) => AuthenticationStep::Authorize,
                 (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
                 // Frictionless: PreAuthenticate completed with no redirect → go straight to Authorize
                 (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
@@ -131,8 +159,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 (RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams, _) => {
                     AuthenticationStep::PostAuthenticate
                 }
-                // After PostAuthenticate → Authorize
-                (_, Some(AuthenticationStep::PostAuthenticate)) => AuthenticationStep::Authorize,
                 _ => AuthenticationStep::Authorize,
             }
         } else {
@@ -141,7 +167,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Moneris<T>
+    interfaces::webhooks::IncomingWebhook for Moneris<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -282,10 +308,22 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
+            flow: IncrementalAuthorization,
+            request_body: MonerisIncrementalAuthorizationRequest,
+            response_body: MonerisIncrementalAuthorizationResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ),
+        (
             flow: Void,
             request_body: MonerisCancelRequest,
             response_body: MonerisPaymentVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: VoidPC,
+            request_body: MonerisVoidPCRequest,
+            response_body: MonerisVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -307,12 +345,21 @@ macros::create_all_prerequisites!(
             &self,
             access_token: &str,
             connector_config: &ConnectorSpecificConfig,
+            correlation_id: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = moneris::MonerisAuthType::try_from(connector_config)?;
             let mut header = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
                     self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::ACCEPT.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::X_CORRELATION_ID.to_string(),
+                    correlation_id.to_string().into(),
                 ),
                 (
                     moneris::auth_headers::API_VERSION.to_string(),
@@ -323,6 +370,10 @@ macros::create_all_prerequisites!(
                 (
                     moneris::auth_headers::X_MERCHANT_ID.to_string(),
                     auth.merchant_id.expose().into_masked(),
+                ),
+                (
+                    headers::USER_AGENT.to_string(),
+                    "hyperswitch-prism".to_string().into(),
                 ),
             ];
             let auth_header = (
@@ -337,6 +388,7 @@ macros::create_all_prerequisites!(
             &self,
             access_token: Option<ServerAuthenticationTokenResponseData>,
             connector_config: &ConnectorSpecificConfig,
+            correlation_id: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = access_token.ok_or_else(|| IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
@@ -353,7 +405,7 @@ macros::create_all_prerequisites!(
                     ),
                 },
             })?;
-            self.build_headers(&token.access_token.expose(), connector_config)
+            self.build_headers(&token.access_token.expose(), connector_config, correlation_id)
         }
 
         pub fn connector_base_url_payments<'a, F, Req, Res>(
@@ -459,6 +511,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -490,6 +543,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
 
@@ -521,6 +575,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -556,6 +611,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -565,6 +621,58 @@ macros::macro_connector_implementation!(
             let connector_payment_id = req.request.get_connector_transaction_id()?;
             Ok(format!(
                 "{}/payments/{connector_payment_id}/complete",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Moneris,
+    curl_request: Json(MonerisIncrementalAuthorizationRequest),
+    curl_response: MonerisIncrementalAuthorizationResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
+                &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
+            )
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_payment_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Pass the connector_transaction_id returned by the original Moneris authorization."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Moneris requires the original payment ID as the payment-id path parameter for Increment Payment."
+                                .to_string(),
+                        ),
+                    },
+                })?;
+            Ok(format!(
+                "{}/payments/{connector_payment_id}/increment",
                 self.connector_base_url_payments(req)
             ))
         }
@@ -591,6 +699,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -598,6 +707,59 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_payment_id = req.request.connector_transaction_id.clone();
+            Ok(format!(
+                "{}/payments/{connector_payment_id}/cancel",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
+// Cancel Payment also reverses a captured payment while Moneris still permits cancellation.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Moneris,
+    curl_request: Json(MonerisVoidPCRequest),
+    curl_response: MonerisVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
+                &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
+            )
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_payment_id = &req.request.connector_transaction_id;
+            if connector_payment_id.trim().is_empty() {
+                return Err(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Pass the Moneris payment ID of the captured payment to cancel.".to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.moneris.com/moneris-api/reference/cancelpayment-1".to_string(),
+                        ),
+                        additional_context: Some(
+                            "Moneris Cancel Payment requires a non-empty connector_transaction_id as the payment-id path parameter. The supplied ID is empty or contains only whitespace."
+                                .to_string(),
+                        ),
+                    },
+                }.into());
+            }
             Ok(format!(
                 "{}/payments/{connector_payment_id}/cancel",
                 self.connector_base_url_payments(req)
@@ -626,6 +788,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -656,6 +819,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -688,6 +852,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -722,6 +887,7 @@ macros::macro_connector_implementation!(
             self.get_headers_from_access_token(
                 req.resource_common_data.access_token.clone(),
                 &req.connector_config,
+                &req.resource_common_data.connector_request_reference_id,
             )
         }
         fn get_url(
@@ -746,7 +912,6 @@ macros::macro_connector_flow_status_impls!(
     not_supported: [
         ServerSessionAuthenticationToken,
         VoidPostRefund,
-        IncrementalAuthorization,
         Accept,
         SubmitEvidence,
         DefendDispute,
@@ -757,6 +922,5 @@ macros::macro_connector_flow_status_impls!(
         Authenticate,
         ClientAuthenticationToken,
         MandateRevoke,
-        VoidPC,
     ],
 );

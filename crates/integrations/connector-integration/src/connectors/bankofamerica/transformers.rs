@@ -282,13 +282,16 @@ fn build_bill_to(
                         ?err,
                         "Failed to convert state to code, using raw state value"
                     );
-                    addr.state.clone().map(|state| {
-                        Secret::new(format!(
-                            "{:.width$}",
-                            state.expose(),
-                            width = MAX_STATE_LENGTH
-                        ))
-                    })
+                    addr.state
+                        .as_ref()
+                        .and_then(|state| state.code_or_name())
+                        .map(|state| {
+                            Secret::new(format!(
+                                "{:.width$}",
+                                state.clone().expose(),
+                                width = MAX_STATE_LENGTH
+                            ))
+                        })
                 });
 
                 BillTo {
@@ -743,6 +746,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::AliPayPlusRedirect {}
+                | WalletData::BoostRedirect {}
                 | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
@@ -993,7 +998,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     total_amount: item
                         .connector
                         .amount_converter
-                        .convert(&item.router_data.request.refund_amount)
+                        .convert(&item.router_data.request.refund_money)
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -1676,6 +1681,7 @@ fn get_boa_card_type(card_network: common_enums::CardNetwork) -> Option<&'static
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
         | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::MyDebit
         | common_enums::CardNetwork::AirPlus
         | common_enums::CardNetwork::Aurore
         | common_enums::CardNetwork::EftposAustralia
@@ -2046,6 +2052,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::AliPayPlusRedirect {}
+                | WalletData::BoostRedirect {}
                 | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_)
@@ -2180,7 +2188,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = item
             .connector
             .amount_converter
-            .convert(&item.router_data.request.amount)
+            .convert(&item.router_data.request.money)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2616,7 +2624,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     total_amount: item
                         .connector
                         .amount_converter
-                        .convert(&item.router_data.request.amount_to_capture)
+                        .convert(&item.router_data.request.capture_money)
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -2662,7 +2670,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount =
             item.router_data
                 .request
-                .amount
+                .money
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "Amount",
                     context: Default::default(),
@@ -2692,10 +2700,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     total_amount: item
                         .connector
                         .amount_converter
-                        .convert(&common_utils::types::Money {
-                            amount: amount.amount,
-                            currency,
-                        })
+                        .convert(&amount)
                         .change_context(IntegrationError::AmountConversionFailed {
                             context: Default::default(),
                         })?,
@@ -2754,7 +2759,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_information = item
             .router_data
             .request
-            .amount
+            .money
             .as_ref()
             .map(|amount| {
                 let total_amount = item
@@ -2767,7 +2772,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok::<_, Self::Error>(OrderInformation {
                     amount_details: Amount {
                         total_amount,
-                        currency: amount.currency,
+                        currency: amount.currency(),
                     },
                 })
             })

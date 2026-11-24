@@ -16,6 +16,11 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
 serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = "0.21.2"
+tracing = { workspace = true }
+ucs_interface_common = { path = "../../types-traits/ucs_interface_common" }
+
+[features]
+log-transformations = ["common_utils/log-transformations"]
 
 [dev-dependencies]
 prost = { workspace = true }

@@ -118,7 +118,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Nmi<T>
+    interfaces::webhooks::IncomingWebhook for Nmi<T>
 {
     /// HMAC-SHA256 over `"{nonce}.{raw_body}"` with the merchant webhook secret,
     /// where nonce + signature come from the `webhook-signature` header
@@ -138,12 +138,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let message =
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
-        use common_utils::crypto::SignMessage;
+        use common_utils::crypto::VerifySignature;
         common_utils::crypto::HmacSha256
-            .sign_message(&connector_webhook_secrets.secret, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to sign the NMI webhook message with HMAC-SHA256")
-            .map(|expected_signature| expected_signature == signature)
+            .attach_printable("Failed to verify the NMI webhook message with HMAC-SHA256")
     }
 
     fn get_webhook_source_verification_signature(
@@ -250,6 +249,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ));
 
         Ok(WebhookDetailsResponse {
+            raw_connector_status: None,
+            amount: None,
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 webhook_body.event_body.transaction_id.clone(),
@@ -264,7 +265,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            amount_captured: None,
+            captured_money: None,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
@@ -288,6 +289,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ));
 
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(webhook_body.event_body.transaction_id.clone()),
             // NMI refund webhooks carry no reference to the original payment;
             // `order_id` here is the merchant refund id (used for the reference).

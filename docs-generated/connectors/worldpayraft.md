@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L241) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L140) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L301)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L240) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L140) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L300)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,19 +141,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L260) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L156) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L317)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L259) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L156) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L316)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L285) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L178) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L340)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L284) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L178) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L339)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L310) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L200) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L363)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L309) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L200) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L362)
 
 ## API Reference
 
@@ -303,7 +303,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L345) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L218) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L344) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L218) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.Capture
 
@@ -314,7 +314,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L354) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L230) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L353) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L230) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.IncrementalAuthorization
 
@@ -325,7 +325,7 @@ Increase the authorized amount for an existing payment. Enables you to capture a
 | **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
 | **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L363) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L240) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L362) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L240) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -336,7 +336,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L372) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L270) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L371) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L269) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -347,7 +347,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L381) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L299) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L380) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L298) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.Refund
 
@@ -358,7 +358,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L399) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L362) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L398) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L361) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.Reverse
 
@@ -369,7 +369,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L408) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L372) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L407) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L371) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -380,7 +380,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L417) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L380) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L416) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L379) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.Void
 
@@ -391,7 +391,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L419) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L418) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 ### Mandates
 
@@ -404,4 +404,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L390) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L331) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L389) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L330) · [Rust](../../examples/worldpayraft/worldpayraft.rs)

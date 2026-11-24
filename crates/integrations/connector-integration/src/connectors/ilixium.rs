@@ -622,7 +622,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::IncomingWebhook for Ilixium<T>
+    interfaces::webhooks::IncomingWebhook for Ilixium<T>
 {
 }
 
