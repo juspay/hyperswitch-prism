@@ -10,6 +10,9 @@ use prost_types::{
 // Fields intentionally present in granular requests but excluded from composite request.
 const DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] = &["connector"];
 const AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] = &["connector", "domain_context", "payment"];
+// Redirect-return callers supply the billing country in the payment address.
+const VERIFY_REDIRECT_IGNORE_GRANULAR_ONLY_FIELDS: &[&str] =
+    &["connector", "domain_context", "payment", "merchant_details"];
 
 // Fields intentionally present only in the composite request.
 const DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS: &[&str] = &[];
@@ -48,7 +51,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
             "PaymentServiceAuthorizeRequest",
             "PaymentServiceVerifyRedirectResponseRequest",
         ],
-        ignore_granular_only_fields: AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_granular_only_fields: VERIFY_REDIRECT_IGNORE_GRANULAR_ONLY_FIELDS,
         ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
     CompositeFlowSpec {
