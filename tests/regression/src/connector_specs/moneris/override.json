@@ -8,8 +8,11 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4242424242424242"
-            }
+              "value": "4000000000002701"
+            },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "2029" },
+            "card_cvc": { "value": "123" }
           }
         }
       }
@@ -24,8 +27,11 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4242424242424242"
-            }
+              "value": "4000000000002701"
+            },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "2029" },
+            "card_cvc": { "value": "123" }
           }
         }
       }
@@ -38,8 +44,11 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4242424242424242"
-            }
+              "value": "4000000000002701"
+            },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "2029" },
+            "card_cvc": { "value": "123" }
           }
         }
       }
@@ -52,8 +61,11 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4242424242424242"
-            }
+              "value": "4000000000002701"
+            },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "2029" },
+            "card_cvc": { "value": "123" }
           }
         }
       }
@@ -68,8 +80,11 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4242424242424242"
-            }
+              "value": "4000000000002701"
+            },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "2029" },
+            "card_cvc": { "value": "123" }
           }
         }
       }
@@ -82,8 +97,11 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4242424242424242"
-            }
+              "value": "4000000000002701"
+            },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "2029" },
+            "card_cvc": { "value": "123" }
           }
         }
       }
@@ -96,8 +114,11 @@
         "payment_method": {
           "card": {
             "card_number": {
-              "value": "4242424242424242"
-            }
+              "value": "4000000000002701"
+            },
+            "card_exp_month": { "value": "01" },
+            "card_exp_year": { "value": "2029" },
+            "card_cvc": { "value": "123" }
           }
         }
       }
