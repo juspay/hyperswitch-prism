@@ -603,7 +603,7 @@ pub enum PaypalStoredCredentialUsage {
 /// MISSING_REQUIRED_PARAMETER error.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalPreviousNetworkTransactionReference {
-    id: String,
+    id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     network: Option<PaypalCardBrand>,
 }
@@ -4059,7 +4059,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateReferenceId::NetworkMandateId(nti) => match &request.payment_method_data {
                 PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
                     let previous_reference = PaypalPreviousNetworkTransactionReference {
-                        id: nti.network_transaction_id.clone(),
+                        id: Secret::new(nti.network_transaction_id.clone()),
                         network: PaypalCardBrand::resolve(
                             card.card_network.as_ref(),
                             card.get_card_issuer().ok(),
@@ -4104,7 +4104,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateReferenceId::NetworkTokenWithNTI(nti) => match &request.payment_method_data {
                 PaymentMethodData::NetworkToken(token) => {
                     let previous_reference = PaypalPreviousNetworkTransactionReference {
-                        id: nti.network_transaction_id.clone(),
+                        id: Secret::new(nti.network_transaction_id.clone()),
                         network: PaypalCardBrand::resolve(
                             token.card_network.as_ref(),
                             token.get_card_issuer().ok(),
