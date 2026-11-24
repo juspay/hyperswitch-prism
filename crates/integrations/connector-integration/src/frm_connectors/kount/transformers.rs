@@ -2226,7 +2226,7 @@ pub enum KountPaymentStatus {
 impl KountPaymentStatus {
     /// Map the internal attempt status to a Kount payment status. Unmapped
     /// statuses are omitted rather than sent as an unrecognized value.
-    fn from_attempt_status(status: AttemptStatus) -> Option<Self> {
+    pub(super) fn from_attempt_status(status: AttemptStatus) -> Option<Self> {
         match status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
@@ -2238,8 +2238,8 @@ impl KountPaymentStatus {
             AttemptStatus::AutoRefunded => Some(Self::Refunded),
             AttemptStatus::Failure
             | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::CaptureFailed
             | AttemptStatus::RouterDeclined => Some(Self::Declined),
+            // A failed capture leaves an approved authorization: not a decline.
             _ => None,
         }
     }
@@ -2343,13 +2343,12 @@ pub enum KountAuthResult {
 }
 
 impl KountAuthResult {
-    /// Map the internal attempt status to Kount's authResult. Reuses the same
-    /// success/decline categorization as `KountPaymentStatus::from_attempt_status`
-    /// (Charged/Authorized/Voided/Refunded-family => APPROVED, explicit
-    /// failure/decline-family => DECLINED). Every other status falls outside
-    /// both buckets and is reported as `Error`; `Unknown` is intentionally
-    /// not used.
-    fn from_attempt_status(status: AttemptStatus) -> Self {
+    /// Map the internal attempt status to Kount's authResult: whether the
+    /// authorization itself was approved. Charged/Authorized/Voided/Refunded-family,
+    /// and a failed capture or void (the authorization still stands), => APPROVED;
+    /// explicit authorization failure/decline-family => DECLINED. Every other status
+    /// is reported as `Error`; `Unknown` is intentionally not used.
+    pub(super) fn from_attempt_status(status: AttemptStatus) -> Self {
         match status {
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
@@ -2358,13 +2357,13 @@ impl KountAuthResult {
             | AttemptStatus::PartiallyAuthorized
             | AttemptStatus::Voided
             | AttemptStatus::VoidedPostCapture
-            | AttemptStatus::AutoRefunded => Self::Approved,
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed => Self::Approved,
             AttemptStatus::Failure
             | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::CaptureFailed
             | AttemptStatus::RouterDeclined
-            | AttemptStatus::AuthenticationFailed
-            | AttemptStatus::VoidFailed => Self::Declined,
+            | AttemptStatus::AuthenticationFailed => Self::Declined,
             _ => Self::Error,
         }
     }
