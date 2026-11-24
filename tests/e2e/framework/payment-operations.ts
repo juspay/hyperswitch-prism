@@ -2,7 +2,11 @@ import { test } from "@playwright/test";
 import { HyperswitchClient, stringField } from "./hyperswitch-client.js";
 import type { TestMerchant } from "./merchant-setup.js";
 import type { Json, JsonObject } from "./types.js";
-import { readRecordedMandate, readRecordedPayment } from "./payment-records.js";
+import {
+  readRecordedMandate,
+  readRecordedNetworkTransactionReference,
+  readRecordedPayment,
+} from "./payment-records.js";
 import type { ScenarioOverrideResolver } from "./scenario-overrides.js";
 
 export type PaymentResponse = Json & { payment_id: string; status: string };
@@ -95,6 +99,17 @@ export class PaymentOperations {
   async readRecordedMandate(mandateId: string) {
     return test.step("Read recorded mandate from HS database", () =>
       readRecordedMandate(this.merchant.merchantId, mandateId));
+  }
+
+  async readRecordedNetworkTransactionReference(paymentId: string) {
+    return test.step(
+      "Read the recorded network transaction reference from HS database",
+      () =>
+        readRecordedNetworkTransactionReference(
+          this.merchant.merchantId,
+          paymentId,
+        ),
+    );
   }
 }
 
