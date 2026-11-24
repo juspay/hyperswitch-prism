@@ -56,6 +56,11 @@
       "incremental_auth_fail_invalid_transaction_id": "SANDBOX_NOT_ENTITLED: The Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for the mandatory no3ds_manual_capture_incremental_auth prerequisite. The suite cannot be exercised until incremental authorization is enabled for this merchant.",
       "incremental_auth_multiple_increase": "SANDBOX_NOT_ENTITLED: The Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for the mandatory no3ds_manual_capture_incremental_auth prerequisite. The suite cannot be exercised until incremental authorization is enabled for this merchant.",
       "incremental_auth_with_tip": "SANDBOX_NOT_ENTITLED: The Moneris sandbox merchant returns UNAUTHORIZED_REQUEST for the mandatory no3ds_manual_capture_incremental_auth prerequisite. The suite cannot be exercised until incremental authorization is enabled for this merchant."
+    },
+    "PaymentService/Reverse": {
+      "reverse_full_payment": "SANDBOX_NOT_PROVISIONED: The Moneris CI sandbox returns UNAUTHORIZED_REQUEST for the manual-capture authorization prerequisite when this reverse scenario runs, so there is no valid transaction to reverse. Temporarily skip until the CI sandbox behavior is reconciled with the connector team.",
+      "reverse_with_reason": "SANDBOX_NOT_PROVISIONED: The Moneris CI sandbox returns UNAUTHORIZED_REQUEST for the manual-capture authorization prerequisite when this reverse scenario runs, so there is no valid transaction to reverse. Temporarily skip until the CI sandbox behavior is reconciled with the connector team.",
+      "reverse_fail_invalid_transaction_id": "SANDBOX_NOT_PROVISIONED: The Moneris CI sandbox returns UNAUTHORIZED_REQUEST for the manual-capture authorization prerequisite when this reverse scenario runs, so there is no valid transaction to reverse. Temporarily skip until the CI sandbox behavior is reconciled with the connector team."
     }
   }
 }
