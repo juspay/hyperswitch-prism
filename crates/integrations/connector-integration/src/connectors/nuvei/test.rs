@@ -400,24 +400,22 @@ fn billing_country_prefers_customer_country_and_falls_back_to_merchant_country()
 }
 
 #[test]
-fn payment_billing_rejects_missing_names_after_cardholder_fallback() {
+fn payment_billing_allows_missing_names_after_cardholder_fallback() {
     let resource = payment_with_billing(Some(CountryAlpha2::US), None);
     let email = Email::try_from("test@example.com".to_owned()).expect("valid test email");
-    for (holder, expected_field) in [
-        (None, "billing_address.first_name"),
-        (Some("Cher"), "billing_address.last_name"),
-    ] {
-        let error = get_required_billing_address(
+    for holder in [None, Some("Cher")] {
+        let address = get_required_billing_address(
             &resource,
             Some(email.clone()),
             holder.map(|name| Secret::new(name.to_owned())),
             None,
         )
-        .expect_err("both billing names are required for payment");
-        assert!(matches!(
-            error.current_context(),
-            IntegrationError::MissingRequiredField { field_name, .. } if *field_name == expected_field
-        ));
+        .expect("billing names are optional for payment");
+        assert_eq!(
+            address.first_name.map(|name| name.expose()).as_deref(),
+            holder
+        );
+        assert!(address.last_name.is_none());
     }
 }
 
