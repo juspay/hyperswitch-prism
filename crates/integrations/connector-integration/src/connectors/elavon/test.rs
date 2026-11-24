@@ -1,7 +1,10 @@
 #![allow(clippy::expect_used, clippy::panic)]
 
 use common_enums::MitCategory;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use std::str::FromStr;
+
+use domain_types::payment_method_data::{DefaultPCIHolder, RawCardNumber};
+use hyperswitch_masking::Secret;
 
 use super::transformers::*;
 
@@ -53,10 +56,21 @@ fn mit_category_maps_to_cof_indicator() {
             "{category:?}"
         );
     }
-    assert_eq!(
-        serde_json::to_value(CofIndicator::ConsumerAdHoc).expect("serialize indicator"),
-        serde_json::json!("C01")
-    );
+    for (category, expected) in [
+        (None, "C01"),
+        (Some(MitCategory::Unscheduled), "C01"),
+        (Some(MitCategory::Resubmission), "C01"),
+        (Some(MitCategory::Recurring), "C02"),
+        (Some(MitCategory::Subscription), "C03"),
+        (Some(MitCategory::Installment), "C04"),
+    ] {
+        assert_eq!(
+            serde_json::to_value(CofIndicator::for_cit(category.as_ref()))
+                .expect("serialize indicator"),
+            serde_json::json!(expected),
+            "CIT {category:?}"
+        );
+    }
 }
 
 #[test]
@@ -89,34 +103,53 @@ fn approved(token_response: Option<&str>, token: Option<&str>) -> PaymentRespons
 }
 
 #[test]
-fn saved_card_token_requires_a_stored_token() {
+fn cit_returns_ps2000_and_approval_code_for_mit() {
     assert_eq!(
-        get_saved_card_token(&approved(Some("SUCCESS"), Some("4421912014039990"))).as_deref(),
-        Some("4421912014039990")
+        get_cof_reference(&approved(Some("SUCCESS"), None)),
+        Some(("A7540760482850875100A".to_string(), "CVI877".to_string()))
     );
-    // SetupMandate and Authorize report no mandate in these cases.
-    assert_eq!(
-        get_saved_card_token(&approved(Some("FAILURE"), Some("4421912014039990"))),
-        None
-    );
-    assert_eq!(get_saved_card_token(&approved(Some("SUCCESS"), None)), None);
-    assert_eq!(get_saved_card_token(&approved(None, None)), None);
+    let mut no_ps2000 = approved(None, None);
+    no_ps2000.ssl_ps2000_data = None;
+    assert_eq!(get_cof_reference(&no_ps2000), None);
 }
 
 #[test]
-fn saved_card_mandate_keeps_cit_data_for_mit() {
-    let mandate = get_saved_card_mandate(&approved(Some("SUCCESS"), Some("4421912014039990")))
-        .expect("mandate");
-    let metadata: ElavonMandateMetadata =
-        serde_json::from_value(mandate.mandate_metadata.expect("metadata").expose())
-            .expect("metadata shape");
-    assert_eq!(
-        metadata.ssl_ps2000_data.as_deref(),
-        Some("A7540760482850875100A")
-    );
-    assert_eq!(
-        metadata.ssl_oar_data.as_deref(),
-        Some("010012345600000000001")
-    );
-    assert_eq!(metadata.ssl_approval_code.as_deref(), Some("CVI877"));
+fn mit_by_card_sends_card_and_cit_data_without_token() {
+    let request = MandatePaymentRequest::<DefaultPCIHolder> {
+        ssl_transaction_type: TransactionType::CcSale,
+        ssl_account_id: Secret::new("acct".to_string()),
+        ssl_user_id: Secret::new("user".to_string()),
+        ssl_pin: Secret::new("pin".to_string()),
+        ssl_vendor_id: None,
+        ssl_amount: common_utils::types::StringMajorUnit::zero(),
+        ssl_email: None,
+        ssl_token: None,
+        ssl_card_number: Some(RawCardNumber(
+            cards::CardNumber::from_str("4000000000000002").expect("card number"),
+        )),
+        ssl_exp_date: Some(Secret::new("1230".to_string())),
+        ssl_entry_mode: "12",
+        ssl_avs_address: None,
+        ssl_avs_zip: Some(Secret::new("12345".to_string())),
+        ssl_cit_mit_cof_indicator: CofIndicator::MerchantStandingOrder,
+        ssl_recurring_flag: Some(1),
+        ssl_invoice_number: None,
+        ssl_ps2000_data: Some("A7563282508072134235A".to_string()),
+        ssl_oar_data: None,
+        ssl_approval_code: Some("291146".to_string()),
+    };
+    let xml = quick_xml::se::to_string_with_root("txn", &request).expect("serialize");
+    for field in [
+        "<ssl_card_number>4000000000000002</ssl_card_number>",
+        "<ssl_exp_date>1230</ssl_exp_date>",
+        "<ssl_entry_mode>12</ssl_entry_mode>",
+        "<ssl_cit_mit_cof_indicator>M02</ssl_cit_mit_cof_indicator>",
+        "<ssl_recurring_flag>1</ssl_recurring_flag>",
+        "<ssl_ps2000_data>A7563282508072134235A</ssl_ps2000_data>",
+        "<ssl_approval_code>291146</ssl_approval_code>",
+    ] {
+        assert!(xml.contains(field), "{field} missing from {xml}");
+    }
+    assert!(!xml.contains("ssl_token"), "{xml}");
+    assert!(!xml.contains("ssl_cvv2cvc2"), "{xml}");
 }
