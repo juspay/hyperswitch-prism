@@ -1233,7 +1233,7 @@ impl Currency {
     pub fn is_three_decimal_currency(self) -> bool {
         matches!(
             self,
-            Self::BHD | Self::JOD | Self::KWD | Self::OMR | Self::TND
+            Self::BHD | Self::IQD | Self::JOD | Self::KWD | Self::LYD | Self::OMR | Self::TND
         )
     }
 
@@ -1324,7 +1324,6 @@ impl Currency {
                 | Self::IDR
                 | Self::ILS
                 | Self::INR
-                | Self::IQD
                 | Self::IRR
                 | Self::ISK
                 | Self::JMD
@@ -1339,7 +1338,6 @@ impl Currency {
                 | Self::LKR
                 | Self::LRD
                 | Self::LSL
-                | Self::LYD
                 | Self::MAD
                 | Self::MDL
                 | Self::MKD
@@ -2342,6 +2340,7 @@ pub enum EventClass {
     Payments,
     Refunds,
     Disputes,
+    Payouts,
 }
 
 #[derive(

@@ -601,3 +601,30 @@ mod tests {
         // }
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod webhook_additional_data_tests {
+    use crate::connectors::adyen::transformers::get_webhook_object_from_body;
+
+    #[test]
+    fn notification_without_additional_data_decodes() {
+        let body = serde_json::json!({
+            "live": "false",
+            "notificationItems": [{
+                "NotificationRequestItem": {
+                    "pspReference": "PSP1",
+                    "originalReference": "PSP0",
+                    "amount": { "value": 1000, "currency": "EUR" },
+                    "eventCode": "REFUND_FAILED",
+                    "merchantAccountCode": "Merchant",
+                    "merchantReference": "ref-1",
+                    "success": "true"
+                }
+            }]
+        });
+        let item = get_webhook_object_from_body(body.to_string().into_bytes()).unwrap();
+        assert_eq!(item.psp_reference, "PSP1");
+        assert!(item.additional_data.hmac_signature.is_none());
+    }
+}

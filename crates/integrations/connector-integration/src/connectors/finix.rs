@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{
-    crypto::{self, SignMessage},
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -214,12 +214,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )
         .into_bytes();
 
-        let signed_message = crypto::HmacSha256
-            .sign_message(&connector_webhook_secrets.secret, &message)
+        crypto::HmacSha256
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("failed to compute the HMAC-SHA256 over the Finix webhook message")?;
-
-        Ok(signed_message.eq(&signature))
+            .attach_printable("failed to verify the HMAC-SHA256 over the Finix webhook message")
     }
 
     fn get_event_type(

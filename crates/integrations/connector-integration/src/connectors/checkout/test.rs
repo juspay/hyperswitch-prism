@@ -10,9 +10,17 @@ use domain_types::{
     types::Connectors,
 };
 use hyperswitch_masking::Secret;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use super::transformers::{build_checkout_sender, build_checkout_sender_address};
+use super::Checkout;
+use common_enums::PayoutStatus;
+use domain_types::{
+    connector_types::{EventType, HttpMethod, RequestDetails, WebhookResourceReference},
+    payment_method_data::DefaultPCIHolder,
+};
+use interfaces::webhooks::IncomingWebhook;
+use std::collections::HashMap;
 
 fn secret(value: &str) -> Secret<String> {
     Secret::new(value.to_string())
@@ -125,7 +133,7 @@ fn individual(date_of_birth: Option<time::Date>) -> SenderDetails {
 fn build(
     sender_details: Option<&SenderDetails>,
     customer: Option<&CustomerInfo>,
-) -> Result<serde_json::Value, error_stack::Report<IntegrationError>> {
+) -> Result<Value, error_stack::Report<IntegrationError>> {
     build_checkout_sender(
         &payment_flow_data(Some(billing_address())),
         sender_details,
@@ -320,4 +328,119 @@ fn individual_details(date_of_birth: Option<time::Date>) -> IndividualSenderDeta
         phone_number: None,
         phone_country_code: None,
     }
+}
+
+fn webhook_request(body: Value) -> RequestDetails {
+    RequestDetails {
+        method: HttpMethod::Post,
+        uri: None,
+        headers: HashMap::from([("content-type".to_owned(), "application/json".to_owned())]),
+        body: serde_json::to_vec(&body).expect("serialize"),
+        query_params: None,
+    }
+}
+
+fn payout_body(event_type: &str, destination: bool, declined: bool) -> Value {
+    let mut data = serde_json::Map::from_iter([
+        ("id".to_owned(), json!("pay_test_payout")),
+        ("amount".to_owned(), json!(200)),
+    ]);
+    if destination {
+        data.insert("destination".to_owned(), json!({"type": "card"}));
+    }
+    if declined {
+        data.insert("response_code".to_owned(), json!("70000"));
+        data.insert("response_summary".to_owned(), json!("Declined"));
+    }
+    json!({
+        "id": "evt_test_payout",
+        "type": event_type,
+        "version": "1.0.0",
+        "data": data,
+    })
+}
+
+#[test]
+fn card_payout_approved_webhook_routes_to_payout_success() {
+    let connector = Checkout::<DefaultPCIHolder>::new();
+    let request = webhook_request(payout_body("payment_approved", true, false));
+    assert_eq!(
+        connector.get_event_type(request.clone()).expect("event"),
+        EventType::PayoutSuccess
+    );
+    match connector
+        .get_webhook_event_reference(request.clone())
+        .expect("reference")
+        .expect("present")
+    {
+        WebhookResourceReference::Payout(reference) => {
+            assert_eq!(
+                reference.connector_payout_id.as_deref(),
+                Some("pay_test_payout")
+            );
+        }
+        _ => panic!("expected payout reference"),
+    }
+    let response = connector
+        .process_payout_webhook(request, None, None)
+        .expect("payout webhook");
+    assert_eq!(response.status, PayoutStatus::Success);
+    assert_eq!(
+        response.connector_payout_id.as_deref(),
+        Some("pay_test_payout")
+    );
+    assert_eq!(response.status_code, 200);
+}
+
+#[test]
+fn card_payout_declined_webhook_maps_to_payout_failure() {
+    let connector = Checkout::<DefaultPCIHolder>::new();
+    let request = webhook_request(payout_body("payment_declined", true, true));
+    assert_eq!(
+        connector.get_event_type(request.clone()).expect("event"),
+        EventType::PayoutFailure
+    );
+    let response = connector
+        .process_payout_webhook(request, None, None)
+        .expect("payout webhook");
+    assert_eq!(response.status, PayoutStatus::Failure);
+    assert_eq!(response.error_code.as_deref(), Some("70000"));
+    assert_eq!(response.error_message.as_deref(), Some("Declined"));
+}
+
+#[test]
+fn payment_approved_without_destination_is_not_a_payout() {
+    let connector = Checkout::<DefaultPCIHolder>::new();
+    let request = webhook_request(payout_body("payment_approved", false, false));
+    assert_eq!(
+        connector.get_event_type(request.clone()).expect("event"),
+        EventType::PaymentIntentAuthorizationSuccess
+    );
+    assert!(connector
+        .process_payout_webhook(request, None, None)
+        .is_err());
+}
+
+#[test]
+fn payment_paid_event_routes_to_payout_success() {
+    let connector = Checkout::<DefaultPCIHolder>::new();
+    let request = webhook_request(payout_body("payment_paid", false, false));
+    assert_eq!(
+        connector.get_event_type(request.clone()).expect("event"),
+        EventType::PayoutSuccess
+    );
+    let response = connector
+        .process_payout_webhook(request, None, None)
+        .expect("payout webhook");
+    assert_eq!(response.status, PayoutStatus::Success);
+}
+
+#[test]
+fn non_payment_event_does_not_require_full_body_amount() {
+    let connector = Checkout::<DefaultPCIHolder>::new();
+    let request = webhook_request(json!({"type": "dispute_received", "data": {"id": "dsp_test"}}));
+    assert_eq!(
+        connector.get_event_type(request).expect("event"),
+        EventType::DisputeOpened
+    );
 }

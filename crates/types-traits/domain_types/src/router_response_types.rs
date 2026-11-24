@@ -15,15 +15,15 @@ pub enum RedirectForm {
         html_data: String,
     },
     BlueSnap {
-        payment_fields_token: String, // payment-field-token
+        payment_fields_token: hyperswitch_masking::Secret<String>, // payment-field-token
     },
     CybersourceAuthSetup {
-        access_token: String,
+        access_token: hyperswitch_masking::Secret<String>,
         ddc_url: String,
         reference_id: String,
     },
     CybersourceConsumerAuth {
-        access_token: String,
+        access_token: hyperswitch_masking::Secret<String>,
         step_up_url: String,
     },
     DeutschebankThreeDSChallengeFlow {
@@ -32,8 +32,8 @@ pub enum RedirectForm {
     },
     Payme,
     Braintree {
-        client_token: String,
-        card_token: String,
+        client_token: hyperswitch_masking::Secret<String>,
+        card_token: hyperswitch_masking::Secret<String>,
         bin: String,
         acs_url: String,
     },
@@ -45,7 +45,7 @@ pub enum RedirectForm {
         continue_redirection_url: String,
     },
     Mifinity {
-        initialization_token: String,
+        initialization_token: hyperswitch_masking::Secret<String>,
     },
     HostedIframe {
         endpoint: String,

@@ -1429,8 +1429,14 @@ where
     if external_call_attempted
         && (event_params.log_fields_enabled || event_params.masking_keys.enabled)
     {
+        let empty_fields = CompiledLogFields::default();
         apply_log_fields(
-            event_params.log_fields,
+            // Response masking must not enable transformations disabled by config.
+            if event_params.log_fields_enabled {
+                event_params.log_fields
+            } else {
+                &empty_fields
+            },
             connector_reply
                 .as_ref()
                 .map(|(body, content_type)| ConnectorResponseForLogging {
