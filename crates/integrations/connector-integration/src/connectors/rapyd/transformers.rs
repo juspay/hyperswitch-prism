@@ -471,6 +471,7 @@ pub struct RapydIncomingWebhook {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RapydWebhookEventType {
     PaymentSucceeded,
+    PaymentUpdated,
     PaymentCompleted,
     PaymentCaptured,
     PaymentFailed,
@@ -490,7 +491,7 @@ impl TryFrom<RapydIncomingWebhook> for domain_types::connector_types::EventType 
 
     fn try_from(event: RapydIncomingWebhook) -> Result<Self, Self::Error> {
         Ok(match event.webhook_type {
-            RapydWebhookEventType::PaymentSucceeded => {
+            RapydWebhookEventType::PaymentSucceeded | RapydWebhookEventType::PaymentUpdated => {
                 let data = event.payment_data()?;
                 match (data.status, data.next_action) {
                     (RapydPaymentStatus::Closed, _) => Self::PaymentIntentSuccess,
@@ -633,6 +634,7 @@ impl RapydIncomingWebhook {
         use domain_types::errors::WebhookError;
         match self.webhook_type {
             RapydWebhookEventType::PaymentSucceeded
+            | RapydWebhookEventType::PaymentUpdated
             | RapydWebhookEventType::PaymentCompleted
             | RapydWebhookEventType::PaymentCaptured
             | RapydWebhookEventType::PaymentCanceled
