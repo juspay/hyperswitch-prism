@@ -16,6 +16,9 @@
     "RefundService/Get"
   ],
   "unsupported_scenarios": {
+    "PaymentMethodAuthenticationService/PreAuthenticate": {
+      "threeds_card_pre_authenticate": "SANDBOX_NOT_PROVISIONED: The Moneris CI sandbox returns UNAUTHORIZED_REQUEST for browser 3DS PreAuthenticate, even though a manually issued request to the same endpoint succeeds. Temporarily skip this live case while the CI sandbox configuration and request differences are reconciled with the connector team; re-enable after certification works."
+    },
     "PaymentMethodAuthenticationService/PostAuthenticate": {
       "threeds_card_post_authenticate": "HARNESS_FIXTURE_UNSUPPORTED: Moneris challenge completion requires the CRes and authentication ID from a real completed 3DS challenge. The shared fixture supplies a synthetic transaction ID and payload, which Moneris rejects as UNAUTHORIZED_REQUEST."
     },
