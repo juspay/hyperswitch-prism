@@ -9,7 +9,7 @@ use crate::utils::{
 };
 use common_utils::metadata::MaskedMetadata;
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use payouts::payouts_types::PayoutFlowData;
 
 const PROXY_CARD_NUMBER_TEMPLATE: &str = "{{$card_number}}";
@@ -1464,6 +1464,30 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     payouts::payout_method_data::Passthrough::foreign_try_from(passthrough)?,
                 ))
             }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::GiftCard(gift_card) => {
+                let gift_card_type = gift_card.gift_card_type.ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "gift_card_type",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Gift card payout brand is required".to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    })
+                })?;
+                match gift_card_type {
+                    grpc_api_types::payouts::gift_card_payout_data::GiftCardType::PaysafeCard(
+                        paysafe_card,
+                    ) => Ok(Self::GiftCard(
+                        payouts::payout_method_data::GiftCardPayout::PaySafeCard(
+                            payouts::payout_method_data::PaysafeCardPayout {
+                                paysafecard_account_id: paysafe_card.paysafecard_account_id,
+                            },
+                        ),
+                    )),
+                }
+            }
         }
     }
 }
@@ -1822,6 +1846,16 @@ impl ForeignTryFrom<grpc_api_types::payments::Customer> for payouts::payouts_typ
             })
             .transpose()?;
 
+        let date_of_birth = customer
+            .date_of_birth
+            .map(|date_of_birth| {
+                Secret::<time::Date>::foreign_try_from((
+                    date_of_birth.expose(),
+                    "customer.date_of_birth",
+                ))
+            })
+            .transpose()?;
+
         Ok(Self {
             name: customer.name,
             email,
@@ -1829,6 +1863,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Customer> for payouts::payouts_typ
             connector_customer_id: customer.connector_customer_id,
             phone_number: customer.phone_number,
             phone_country_code: customer.phone_country_code,
+            date_of_birth,
         })
     }
 }
@@ -2276,6 +2311,11 @@ where
             .map(payouts::payouts_types::PayoutVendorAccountDetails::foreign_try_from)
             .transpose()?;
 
+        let sender_details = value
+            .sender_details
+            .map(crate::connector_types::SenderDetails::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
@@ -2287,6 +2327,7 @@ where
             customer,
             address,
             vendor_account_details,
+            sender_details,
         })
     }
 }

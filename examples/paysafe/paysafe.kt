@@ -13,9 +13,11 @@ import types.PaymentMethods.*
 import payments.PaymentMethodAuthenticationClient
 import payments.PaymentClient
 import payments.CustomerClient
+import payments.EventClient
 import payments.RefundClient
 import payments.CaptureMethod
 import payments.Currency
+import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -23,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PaysafeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authenticate", "capture", "customer_create", "get", "pre_authenticate", "refund", "refund_get", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "capture", "customer_create", "get", "parse_event", "pre_authenticate", "refund", "refund_get", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -145,6 +147,37 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+        merchantEventId = "probe_event_001"
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"payload\":{\"id\":\"sa_credit_probe_001\",\"merchantRefNum\":\"payout_probe_001\",\"status\":\"COMPLETED\"},\"attemptNumber\":\"1\",\"type\":\"STANDALONE_CREDIT\",\"resourceId\":\"sa_credit_probe_001\",\"links\":[{\"rel\":\"standalone_credit\"}],\"eventDate\":\"2026-01-01T00:00:00Z\",\"eventName\":\"SA_CREDIT_COMPLETED\"}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
+}
+
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
 fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentMethodAuthenticationClient(config)
@@ -235,11 +268,13 @@ fun main(args: Array<String>) {
         "capture" -> capture(txnId)
         "customerCreate" -> customerCreate(txnId)
         "get" -> get(txnId)
+        "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "preAuthenticate" -> preAuthenticate(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: authenticate, capture, customerCreate, get, preAuthenticate, refund, refundGet, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: authenticate, capture, customerCreate, get, handleEvent, parseEvent, preAuthenticate, refund, refundGet, tokenAuthorize, void")
     }
 }

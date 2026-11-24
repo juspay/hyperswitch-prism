@@ -699,7 +699,7 @@ connector_id: paysafe
 doc: docs/connectors/paysafe.md
 scenarios: none
 payment_methods: Card, GooglePay, GooglePayDecrypted, PaySafeCard
-flows: authenticate, authorize, capture, customer_create, get, pre_authenticate, refund, refund_get, token_authorize, tokenize, void
+flows: authenticate, authorize, capture, customer_create, get, handle_event, parse_event, pre_authenticate, refund, refund_get, token_authorize, tokenize, void
 examples_python: none
 
 ## Paytm
