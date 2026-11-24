@@ -27,7 +27,7 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
   },
   exclude: {
     "payments/create-confirm/card/one-time/external-three-ds/automatic-capture-create-confirm": {
-      reason: "External 3DS is certified with Stripe's documented sandbox data.",
+      reason: "External 3DS validation is owned by Stripe using documented sandbox data.",
     },
     "refunds/reverse/reverse-successful-refund-before-settlement": {
       reason:

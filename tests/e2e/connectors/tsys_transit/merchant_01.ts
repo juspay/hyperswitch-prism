@@ -4,19 +4,19 @@ import type { ScenarioId } from "../../scenarios/catalog.js";
 export default connectorFromFile<ScenarioId>(import.meta.url, {
   exclude: {
     "payments/create-confirm/card/one-time/external-three-ds/automatic-capture-create-confirm": {
-      reason: "External 3DS is certified with Stripe's documented sandbox data.",
+      reason: "External 3DS validation is owned by Stripe using documented sandbox data.",
     },
     "payments/create-confirm/card/repeat-cit/no3ds/saved-card-create-confirm": {
-      reason: "Saved-card repeat CIT is certified with Adyen in this coverage change.",
+      reason: "Saved-card repeat CIT validation is owned by Adyen in this coverage change.",
     },
     "refunds/create/partial-refund-after-capture": {
-      reason: "Partial refund is certified with Adyen in this coverage change.",
+      reason: "Partial-refund validation is owned by Adyen in this coverage change.",
     },
     "payments/incremental-authorization/increase-authorized-amount": {
-      reason: "Incremental authorization is certified with Adyen in this coverage change.",
+      reason: "Incremental-authorization validation is owned by Adyen in this coverage change.",
     },
-    "payments/capture/overcapture-authorized-payment": { reason: "Adyen owns the certified overcapture scenario in this coverage change." },
-    "payments/capture/partial-capture-authorized-payment": { reason: "Adyen owns the certified partial-capture scenario in this coverage change." },
+    "payments/capture/overcapture-authorized-payment": { reason: "Overcapture validation is owned by Adyen in this coverage change." },
+    "payments/capture/partial-capture-authorized-payment": { reason: "Partial-capture validation is owned by Adyen in this coverage change." },
     "payments/cancel/full-void-authorized-payment": {
       reason:
         "Sandbox certification for this connector is deferred to its follow-up coverage change.",

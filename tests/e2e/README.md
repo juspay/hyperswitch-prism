@@ -114,9 +114,20 @@ Use native Playwright `expect` for equality, partial nested objects, arrays, ran
 
 Choose `toMatchObject` for partial nested objects and `toEqual` for exact object/array equality. A range can use `report.check("Amount received > 0", { actual: response.amount_received, expected: 0 }, ({ actual, expected }) => expect(actual).toBeGreaterThan(expected))`. Expected/actual values are explicitly selected for the report: do not attach entire payment responses, credentials or card data. Use boolean presence checks for sensitive references. The scenario still owns all matching logic.
 
-Fourteen shared specs are implemented: six one-time No3DS payment journeys, a completed browser 3DS payment, three connector-mandate setup-and-recurring variants, a card-with-network-transaction-ID recurring journey, full void of an authorized payment, forced payment synchronization, and full-refund submission. Manual-capture journeys submit a full capture and assert its response; Adyen reports manual capture asynchronously, so this suite does not claim settlement before its completion webhook. Adyen explicitly excludes PSync because its redirect-completion sync requires customer-returned encoded data. Other connector exclusions document unsupported or not-yet-certified behavior. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The comprehensive automatic inline-confirmation sequence is:
+Twenty-one shared specs are implemented: six one-time No3DS journeys, browser
+3DS and external 3DS, three connector-mandate variants, card-with-NTI recurring,
+saved-card repeat CIT, full void, partial capture, overcapture, incremental
+authorization, forced payment synchronization, full and partial refund, and
+refund reversal. Manual-capture journeys submit a full capture and assert its
+response; Adyen reports manual capture asynchronously, so this suite does not
+claim settlement before its completion webhook. Adyen explicitly excludes
+PSync because its redirect-completion sync requires customer-returned encoded
+data. Other connector exclusions document unsupported or not-yet-validated
+behavior. Files ending in `.planned.ts` reserve agreed scenario names and
+locations but are not executable tests or catalog entries. The comprehensive
+automatic inline-confirmation sequence is:
 
-### Adyen coverage matrix
+### Coverage matrix
 
 `✅` means an executable scenario passed against its owning sandbox connector in
 this change. `🔵` means executable coverage has been added but not yet validated
