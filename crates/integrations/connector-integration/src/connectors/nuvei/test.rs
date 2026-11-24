@@ -9,6 +9,7 @@ use domain_types::{
     },
     errors::IntegrationError,
     payment_address::{Address, AddressDetails, PaymentAddress, StateDetails},
+    utils::ForeignTryFrom,
 };
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde_json::{json, Value};
@@ -297,6 +298,35 @@ fn airline_leg_uses_operating_fields_only() {
         (Some("AI"), None)
     );
     assert_eq!(nuvei_airline_carrier_and_number(None), (None, None));
+}
+
+#[test]
+fn billing_state_preserves_the_supplied_iso_code_up_to_five_characters() {
+    let email = Email::try_from("test@example.com".to_owned()).expect("valid test email");
+    for (supplied, normalized, expected) in
+        [("US-AL", "AL", Some("US-AL")), ("US-ABC", "ABC", None)]
+    {
+        let state = StateDetails::foreign_try_from((
+            Some(Secret::new("California".to_owned())),
+            Some(Secret::new(supplied.to_owned())),
+            Some(CountryAlpha2::US),
+        ))
+        .expect("valid supplied ISO code");
+        assert_eq!(
+            state.code().cloned().map(|code| code.expose()).as_deref(),
+            Some(normalized)
+        );
+
+        let resource = payment_with_billing(Some(CountryAlpha2::US), Some(state));
+        let address = get_required_billing_address(
+            &resource,
+            Some(email.clone()),
+            Some(Secret::new("Jane Doe".to_owned())),
+            None,
+        )
+        .expect("complete billing address");
+        assert_eq!(address.state.map(|code| code.expose()).as_deref(), expected);
+    }
 }
 
 #[test]

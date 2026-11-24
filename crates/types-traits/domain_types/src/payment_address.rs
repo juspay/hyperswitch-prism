@@ -191,6 +191,9 @@ impl Address {
 pub struct StateDetails {
     name: Option<Secret<String>>,
     code: Option<Secret<String>>,
+    // Retain the supplied ISO code for connectors that send it verbatim.
+    #[serde(skip)]
+    supplied_iso_code: Option<Secret<String>>,
 }
 
 fn invalid_state_code(context: &'static str) -> error_stack::Report<IntegrationError> {
@@ -254,14 +257,14 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (name, code, country): (
+        (name, supplied_iso_code, country): (
             Option<Secret<String>>,
             Option<Secret<String>>,
             Option<common_enums::CountryAlpha2>,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let code = match code {
-            Some(code) => Some(normalize_state_code_iso(code, country)?),
+        let code = match supplied_iso_code.as_ref() {
+            Some(code) => Some(normalize_state_code_iso(code.clone(), country)?),
             None => name.as_ref().and_then(|name| {
                 country.and_then(|country| {
                     let state_name = name.peek();
@@ -281,7 +284,11 @@ impl
             }),
         };
 
-        Ok(Self { name, code })
+        Ok(Self {
+            name,
+            code,
+            supplied_iso_code,
+        })
     }
 }
 
@@ -290,6 +297,7 @@ impl StateDetails {
         Self {
             name: Some(name),
             code: None,
+            supplied_iso_code: None,
         }
     }
 
@@ -297,7 +305,12 @@ impl StateDetails {
         Self {
             name: None,
             code: Some(code),
+            supplied_iso_code: None,
         }
+    }
+
+    pub fn supplied_iso_code(&self) -> Option<&Secret<String>> {
+        self.supplied_iso_code.as_ref()
     }
 
     pub fn code(&self) -> Option<&Secret<String>> {

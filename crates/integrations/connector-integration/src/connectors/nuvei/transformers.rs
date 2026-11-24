@@ -822,12 +822,15 @@ impl NuveiBillingAddress {
             address_line2: resource_data.get_optional_billing_line2(),
             address_line3: resource_data.get_optional_billing_line3(),
             zip: resource_data.get_optional_billing_zip(),
-            // Normalize known state names before applying Nuvei's five-character limit.
-            state: resource_data
-                .get_billing_address()
-                .ok()
-                .and_then(|details| details.to_state_code_as_optional().ok().flatten())
-                .filter(|state| state.peek().chars().count() <= 5),
+            state: resource_data.get_billing_address().ok().and_then(|details| {
+                details
+                    .state
+                    .as_ref()
+                    .and_then(|state| state.supplied_iso_code())
+                    .cloned()
+                    .or_else(|| details.to_state_code_as_optional().ok().flatten())
+                    .filter(|state| state.peek().chars().count() <= 5)
+            }),
         }
     }
 }
