@@ -64,6 +64,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
         with:
+          persist-credentials: false
           token: ${{ steps.generate_app_token.outputs.token }}
 
       - name: Setup git user
@@ -84,9 +85,10 @@ jobs:
           git tag "medusa-custom-payments-v${NEW_VERSION}"
 
       - name: Push version bump and tag
-        id: push
+        env:
+          PUSH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
-          git push --follow-tags
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" --follow-tags
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Version bump summary
@@ -102,6 +104,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ needs.bump-version.outputs.sha || github.sha }}
 
       - name: Setup Node.js
@@ -137,6 +140,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ needs.bump-version.outputs.sha || github.sha }}
 
       - name: Setup Node.js

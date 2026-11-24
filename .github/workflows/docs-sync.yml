@@ -38,12 +38,14 @@ jobs:
       - name: Checkout prism
         uses: actions/checkout@v4.4.0
         with:
+          persist-credentials: false
           ref: ${{ inputs.source_branch || github.ref }}
           fetch-depth: 0
 
       - name: Checkout hyperswitch-docs
         uses: actions/checkout@v4.4.0
         with:
+          persist-credentials: false
           repository: juspay/hyperswitch-docs
           token: ${{ secrets.CONNECTOR_SERVICE_DOCS_CI }}
           path: hyperswitch-docs
@@ -134,6 +136,10 @@ jobs:
       - name: Commit and push changes
         if: ${{ !inputs.dry_run }}
         working-directory: hyperswitch-docs
+        env:
+          # checkout no longer persists credentials, so push re-auths
+          # explicitly with the docs CI token; it never reaches .git/config.
+          PUSH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_DOCS_CI }}
         run: |
           echo "=== Committing and pushing changes ==="
 
@@ -159,7 +165,7 @@ jobs:
           Changes:
           $(git diff --cached --stat | tail -1)"
 
-          git push origin HEAD:main
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/juspay/hyperswitch-docs.git" HEAD:main
           echo "✓ Successfully pushed changes to hyperswitch-docs"
 
       - name: Dry run summary

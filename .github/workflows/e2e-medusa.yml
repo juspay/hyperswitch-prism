@@ -26,6 +26,8 @@ jobs:
       CREDS_PATH: ${{ github.workspace }}/plugins/medusa/creds.json
     steps:
       - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4.4.0
         with:
