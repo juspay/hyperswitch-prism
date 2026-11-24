@@ -179,8 +179,6 @@ def _build_recurring_charge_request():
         return_url="https://example.com/recurring-return",
         address=payment_pb2.PaymentAddress(  # Address Information.
             billing_address=common_types_pb2.Address(
-                first_name=payment_methods_pb2.SecretString(value="John"),
-                last_name=payment_methods_pb2.SecretString(value="Doe"),
                 country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
                 email=payment_methods_pb2.SecretString(value="test@example.com"),
             ),

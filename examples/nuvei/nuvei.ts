@@ -191,8 +191,6 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         "returnUrl": "https://example.com/recurring-return",
         "address": {  // Address Information.
             "billingAddress": {
-                "firstName": {"value": "John"},
-                "lastName": {"value": "Doe"},
                 "countryAlpha2Code": CountryAlpha2.US,
                 "email": {"value": "test@example.com"}
             }

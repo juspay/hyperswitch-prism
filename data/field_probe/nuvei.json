@@ -26,8 +26,6 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -46,7 +44,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"userTokenId\":\"test@example.com\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_ACH\",\"AccountNumber\":\"000123456789\",\"RoutingNumber\":\"110000000\",\"SECCode\":\"WEB\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"userTokenId\":\"test@example.com\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_ACH\",\"AccountNumber\":\"000123456789\",\"RoutingNumber\":\"110000000\",\"SECCode\":\"WEB\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "AchBankTransfer": {
@@ -111,8 +109,6 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -131,7 +127,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"brand\":\"VISA\",\"last4Digits\":\"1111\",\"externalToken\":{\"externalTokenProvider\":\"ApplePay\",\"cryptogram\":\"AAAAAA==\",\"eciProvider\":\"05\"}}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"brand\":\"VISA\",\"last4Digits\":\"1111\",\"externalToken\":{\"externalTokenProvider\":\"ApplePay\",\"cryptogram\":\"AAAAAA==\",\"eciProvider\":\"05\"}}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -289,8 +285,6 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -309,7 +303,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_EPS\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_EPS\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "FamilyMart": {
@@ -334,8 +328,6 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -354,7 +346,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Giropay\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Giropay\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "Givex": {
@@ -399,8 +391,6 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -419,7 +409,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"brand\":\"VISA\",\"last4Digits\":\"1111\",\"externalToken\":{\"externalTokenProvider\":\"GooglePay\",\"cryptogram\":\"AAAAAA==\",\"eciProvider\":\"05\"}}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"brand\":\"VISA\",\"last4Digits\":\"1111\",\"externalToken\":{\"externalTokenProvider\":\"GooglePay\",\"cryptogram\":\"AAAAAA==\",\"eciProvider\":\"05\"}}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -440,8 +430,6 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -460,7 +448,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_iDeal\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_iDeal\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "Indomaret": {
@@ -693,8 +681,6 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -713,7 +699,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Sofort\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Sofort\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
       "Swish": {
@@ -1062,8 +1048,6 @@
           "return_url": "https://example.com/recurring-return",
           "address": {
             "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
             }
@@ -1093,7 +1077,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"\",\"userTokenId\":\"cust_probe_123\",\"paymentOption\":{\"userPaymentOptionId\":\"probe-mandate-123\"},\"isRebilling\":\"1\",\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"\",\"userTokenId\":\"cust_probe_123\",\"paymentOption\":{\"userPaymentOptionId\":\"probe-mandate-123\"},\"isRebilling\":\"1\",\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       }
     },

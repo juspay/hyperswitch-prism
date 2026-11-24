@@ -397,8 +397,6 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
         returnUrl = "https://example.com/recurring-return"
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
-                firstNameBuilder.value = "John"
-                lastNameBuilder.value = "Doe"
                 countryAlpha2Code = CountryAlpha2.US
                 emailBuilder.value = "test@example.com"
             }
