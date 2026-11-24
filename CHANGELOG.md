@@ -19,6 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.24.0
+
+### Features
+
+- **connector:**
+  - [Elavon] saved cards, void, reversal, $0 setup, incremental auth and external 3DS for Converge ([#2749](https://github.com/juspay/connector-service/pull/2749)) ([`f240cd0`](https://github.com/juspay/connector-service/commit/f240cd0cb0c291980482a11367f01aff724f8c6d))
+  - Add moneris void post capture flow ([#2930](https://github.com/juspay/connector-service/pull/2930)) ([`97ee8d5`](https://github.com/juspay/connector-service/commit/97ee8d55e1eaa9da81d80010976aa094251b9bb7))
+
+### Bug Fixes
+
+- **connector:**
+  - [Worldpayxml] use request reference fallback for sync ([#2917](https://github.com/juspay/connector-service/pull/2917)) ([`7de4ef3`](https://github.com/juspay/connector-service/commit/7de4ef30b6546f2b6f46e1f05d5620de15a3b7d1))
+  - [Boost] sign the exact refund request body ([#2919](https://github.com/juspay/connector-service/pull/2919)) ([`5b809ea`](https://github.com/juspay/connector-service/commit/5b809ea04d65d51ee0b77e80da5d6f0b8f5145ef))
+  - [Boost] reject unsigned webhook payment outcomes ([#2921](https://github.com/juspay/connector-service/pull/2921)) ([`4a914fb`](https://github.com/juspay/connector-service/commit/4a914fb00a418ad04cd225d60469e3d67827891b))
+  - [Boost] report captured money only for charged webhooks ([#2920](https://github.com/juspay/connector-service/pull/2920)) ([`a4d829b`](https://github.com/juspay/connector-service/commit/a4d829b5186f23479e9600e234835297b310d478))
+
+**Full Changelog:** [`2026.11.23.0...2026.11.24.0`](https://github.com/juspay/connector-service/compare/2026.11.23.0...2026.11.24.0)
+
+- - -
+
 ## 2026.11.23.0
 
 ### Bug Fixes
