@@ -92,8 +92,11 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Version bump summary
+        env:
+          OLD_VERSION: ${{ steps.bump.outputs.old_version }}
+          NEW_VERSION: ${{ steps.bump.outputs.new_version }}
         run: |
-          echo "✅ Version bumped from ${{ steps.bump.outputs.old_version }} to ${{ steps.bump.outputs.new_version }}"
+          echo "✅ Version bumped from ${OLD_VERSION} to ${NEW_VERSION}"
 
   build:
     name: Build Package

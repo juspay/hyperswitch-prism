@@ -140,6 +140,8 @@ jobs:
           # checkout no longer persists credentials, so push re-auths
           # explicitly with the docs CI token; it never reaches .git/config.
           PUSH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_DOCS_CI }}
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_BRANCH: ${{ github.ref_name }}
         run: |
           echo "=== Committing and pushing changes ==="
 
@@ -157,10 +159,10 @@ jobs:
           echo "Changes detected:"
           git diff --cached --stat
 
-          git commit -m "docs(prism): sync integration-space from hyperswitch-prism@${{ github.sha }}
+          git commit -m "docs(prism): sync integration-space from hyperswitch-prism@${SOURCE_SHA}
 
-          Sync integration-space documentation from juspay/hyperswitch-prism@${{ github.sha }}
-          Branch: ${{ github.ref_name }}
+          Sync integration-space documentation from juspay/hyperswitch-prism@${SOURCE_SHA}
+          Branch: ${SOURCE_BRANCH}
 
           Changes:
           $(git diff --cached --stat | tail -1)"

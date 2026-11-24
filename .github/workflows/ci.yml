@@ -814,21 +814,20 @@ jobs:
         env:
           # Debug test binaries overflow the 2 MiB default thread stack.
           RUST_MIN_STACK: "8388608"
-        run: |
           # Includes non-payment connector types too — this only scopes a
           # Rust test-name filter, not certification.
-          CONNECTOR_NAMES="${{ needs.changes.outputs.all-connector-names }}"
-          CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"
-          PROTO_CHANGED="${{ needs.changes.outputs.proto }}"
-          CI_CHANGED="${{ needs.changes.outputs.ci }}"
-
+          CONNECTOR_NAMES: ${{ needs.changes.outputs.all-connector-names }}
+          CORE_CHANGED: ${{ needs.changes.outputs.rust-core }}
+          PROTO_CHANGED: ${{ needs.changes.outputs.proto }}
+          CI_CHANGED: ${{ needs.changes.outputs.ci }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
           SCHEMA_EXCLUDE='not test(=all_supported_scenarios_match_proto_schema_for_all_connectors)'
 
           # Scoped tests only on pull_request for connector-only changes.
           # push (main) and merge_group always run the full suite as a safety net.
-          EVENT="${{ github.event_name }}"
 
-          if [[ "$EVENT" == "pull_request" && -n "$CONNECTOR_NAMES" && "$CORE_CHANGED" != "true" && "$PROTO_CHANGED" != "true" && "$CI_CHANGED" != "true" ]]; then
+          if [[ "$EVENT_NAME" == "pull_request" && -n "$CONNECTOR_NAMES" && "$CORE_CHANGED" != "true" && "$PROTO_CHANGED" != "true" && "$CI_CHANGED" != "true" ]]; then
             FILTER=""
             IFS=',' read -ra CONNECTORS <<< "$CONNECTOR_NAMES"
             for c in "${CONNECTORS[@]}"; do
@@ -1224,35 +1223,45 @@ jobs:
           'ubuntu-latest' || 'ubuntu-24.04' }}
     steps:
       - name: Evaluate CI results
+        env:
+          TYPOS: ${{ needs.typos.result }}
+          CLIPPY: ${{ needs.clippy.result }}
+          FORMATTING: ${{ needs.formatting.result }}
+          AUTO_FIX: ${{ needs.auto-fix.result }}
+          CHECK: ${{ needs.check.result }}
+          TEST: ${{ needs.test.result }}
+          SDK_BUILD: ${{ needs.sdk-build.result }}
+          SDK_TEST: ${{ needs.sdk-test.result }}
+          AUTO_FIX_PUSHED: ${{ needs.auto-fix.outputs.pushed }}
         run: |
           echo "Job results:"
-          echo "  typos:         ${{ needs.typos.result }}"
-          echo "  clippy:        ${{ needs.clippy.result }}"
-          echo "  formatting:    ${{ needs.formatting.result }}"
-          echo "  auto-fix:      ${{ needs.auto-fix.result }}"
-          echo "  check:         ${{ needs.check.result }}"
-          echo "  test:          ${{ needs.test.result }}"
-          echo "  sdk-build:     ${{ needs.sdk-build.result }}"
-          echo "  sdk-test:      ${{ needs.sdk-test.result }}"
-          echo "  auto-fix pushed: ${{ needs.auto-fix.outputs.pushed }}"
+          echo "  typos:         ${TYPOS}"
+          echo "  clippy:        ${CLIPPY}"
+          echo "  formatting:    ${FORMATTING}"
+          echo "  auto-fix:      ${AUTO_FIX}"
+          echo "  check:         ${CHECK}"
+          echo "  test:          ${TEST}"
+          echo "  sdk-build:     ${SDK_BUILD}"
+          echo "  sdk-test:      ${SDK_TEST}"
+          echo "  auto-fix pushed: ${AUTO_FIX_PUSHED}"
           echo ""
 
           # If auto-fix pushed a commit, this run is stale — pass unconditionally.
           # The new CI run on the bot commit will validate everything.
-          if [[ "${{ needs.auto-fix.outputs.pushed }}" == "true" ]]; then
+          if [[ "${AUTO_FIX_PUSHED}" == "true" ]]; then
             echo "✅ Auto-fix committed changes — new CI run will validate clean code"
             exit 0
           fi
 
           results=(
-            "${{ needs.typos.result }}"
-            "${{ needs.clippy.result }}"
-            "${{ needs.formatting.result }}"
-            "${{ needs.auto-fix.result }}"
-            "${{ needs.check.result }}"
-            "${{ needs.test.result }}"
-            "${{ needs.sdk-build.result }}"
-            "${{ needs.sdk-test.result }}"
+            "${TYPOS}"
+            "${CLIPPY}"
+            "${FORMATTING}"
+            "${AUTO_FIX}"
+            "${CHECK}"
+            "${TEST}"
+            "${SDK_BUILD}"
+            "${SDK_TEST}"
           )
           for result in "${results[@]}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then

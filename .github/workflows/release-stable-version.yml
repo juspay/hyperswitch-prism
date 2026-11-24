@@ -124,9 +124,10 @@ jobs:
 
       - name: Generate release notes
         shell: bash
+        env:
+          PREVIOUS_TAG: ${{ steps.version.outputs.previous_tag }}
+          NEXT_TAG: ${{ steps.version.outputs.next_tag }}
         run: |
-          PREVIOUS_TAG="${{ steps.version.outputs.previous_tag }}"
-          NEXT_TAG="${{ steps.version.outputs.next_tag }}"
 
           export GIT_CLIFF__GIT__TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
 
@@ -160,8 +161,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          TAG: ${{ steps.version.outputs.next_tag }}
         run: |
-          TAG="${{ steps.version.outputs.next_tag }}"
           CALVER_SHA="$(git rev-parse HEAD)"
           # Idempotent so a partial-failure re-run works: reuse the tag if it
           # already points at this SHA; fail only if it points elsewhere.
@@ -188,8 +189,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          TAG: ${{ steps.version.outputs.next_tag }}
         run: |
-          TAG="${{ steps.version.outputs.next_tag }}"
           if [ "$(wc -c < release-notes.md)" -gt 124000 ]; then
             truncate -s 124000 release-notes.md
             printf '\n\n_Full changelog available in the release artifact._\n' >> release-notes.md
