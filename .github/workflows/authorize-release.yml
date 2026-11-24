@@ -29,6 +29,8 @@ jobs:
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-members: read
+          repositories: ${{ github.event.repository.name }}
 
       - name: Check if user is authorized to trigger workflow
         shell: bash

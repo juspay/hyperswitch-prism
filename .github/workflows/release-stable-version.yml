@@ -48,6 +48,8 @@ jobs:
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          repositories: ${{ github.event.repository.name }}
 
       - name: Validate CalVer tag
         shell: bash
@@ -229,6 +231,9 @@ jobs:
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-actions: write
+          permission-contents: read
+          repositories: ${{ github.event.repository.name }}
 
       - name: Dispatch SDK release
         env:

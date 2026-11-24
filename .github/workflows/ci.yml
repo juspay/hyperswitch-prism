@@ -438,6 +438,8 @@ jobs:
         uses: actions/create-github-app-token@v1.12.0
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          permission-contents: write
+          repositories: ${{ github.event.repository.name }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout PR branch
