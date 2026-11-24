@@ -15,6 +15,43 @@ CONNECTOR_AUTH_FILE_PATH=/path/to/connector-auth.json npm test
 
 Open the HTML report with `npx playwright show-report`. Stop the isolated stack with `npm run stack:down`; database volumes are retained.
 
+### Use locally built HS and UCS
+
+Connector developers can run the same scenarios against services built from
+their local source without changing the framework or building test-specific
+images:
+
+1. Start UCS locally.
+2. Configure the local HS process to use that UCS endpoint, then start HS and
+   its database.
+3. From `tests/e2e`, run:
+
+```sh
+CONNECTOR_AUTH_FILE_PATH=/absolute/path/to/sandbox-credentials.json \
+  npm run test:local -- --project adyen/merchant_01
+```
+
+The default targets are HS at `127.0.0.1:8080` and PostgreSQL at
+`127.0.0.1:15432`. Override ports without changing source:
+
+```sh
+HS_PORT=9090 HS_DB_PORT=5433 \
+CONNECTOR_AUTH_FILE_PATH=/absolute/path/to/sandbox-credentials.json \
+  npm run test:local -- --project adyen/merchant_01
+```
+
+For non-default local database credentials, set `HS_BASE_URL`,
+`HS_DATABASE_URL`, and, when required, `HS_ADMIN_API_KEY`. The tests
+intentionally accept no UCS URL: payment calls must enter through HS, and the
+developer's HS configuration owns the HS-to-UCS connection. Pointing the test
+runner directly at UCS would bypass the integration being tested.
+
+`test:local` is a guard around the normal Playwright command. It accepts only
+loopback HS and database addresses, requires an absolute credential-file path,
+rejects `UCS_ENVIRONMENT=production`, and refuses to run when `CI` is enabled.
+It does not start or stop either server, read or copy credential contents, or
+alter the existing `npm test`, `test:s3`, and Compose/Jenkins paths.
+
 `HS_IMAGE` and `UCS_IMAGE` select container images. Defaults are pinned to tested immutable digests in `stack/stack.mjs`; supporting service images and the gRPC health probe are also pinned. Update pins deliberately and rerun the sandbox scenario. The versioned Diesel installer is checked against its recorded SHA-256 before execution; that installer also verifies the platform binary checksum. Configuration and migrations come from the matching Hyperswitch source revision, cached after the first run. `HS_SOURCE_DIR` can supply an existing matching checkout; `HS_REF` can explicitly select its revision. Use reviewed versions or digests for image overrides in Jenkins.
 
 HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`).
