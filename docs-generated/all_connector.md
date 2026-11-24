@@ -163,7 +163,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Adyen](connectors/adyen.md) | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | x | x | x | ⚠ | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ✓ | ✓ | ✓ | x |
 | [Affirm](connectors/affirm.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Airwallex](connectors/airwallex.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ? | ⚠ | x | ✓ | ? | ? | ⚠ | ✓ | x | ? | ⚠ | ⚠ | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [Amex](connectors/amex.md) | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
+| [Amex](connectors/amex.md) | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Authipay](connectors/authipay.md) | ✓ | ✓ | ✓ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | x | x | ⚠ | x | x | x | x | x | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Authorize.net](connectors/authorizedotnet.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | ? | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ✓ | ⚠ | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Axisbank](connectors/axisbank.md) | ? | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
