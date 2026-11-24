@@ -38,7 +38,8 @@ use grpc_api_types::payments::{
     PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest,
-    RecurringPaymentServiceChargeRequest,
+    RecurringPaymentServiceChargeRequest, RecurringPaymentServiceGetQrRequest,
+    RecurringPaymentServiceRequestConfirmationRequest,
 };
 use prost::Message;
 use serde::Deserialize;
@@ -228,6 +229,16 @@ async fn dispatch(method: &str, cfg: GrpcConfigInput, req_bytes: &[u8]) -> Resul
             MerchantAuthenticationServiceClient,
             create_client_authentication_token,
             MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
+        ),
+        "recurring_payment/request_confirmation" => call!(
+            RecurringPaymentServiceClient,
+            request_confirmation,
+            RecurringPaymentServiceRequestConfirmationRequest
+        ),
+        "recurring_payment/get_qr" => call!(
+            RecurringPaymentServiceClient,
+            get_qr,
+            RecurringPaymentServiceGetQrRequest
         ),
         "recurring_payment/charge" => call!(
             RecurringPaymentServiceClient,

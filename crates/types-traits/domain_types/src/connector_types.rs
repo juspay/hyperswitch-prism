@@ -2648,6 +2648,9 @@ pub struct ContinueRedirectionResponse {
 
 #[derive(Debug, Clone)]
 pub struct ServerSessionAuthenticationTokenRequestData {
+    /// State carried from server authentication for authenticated session creation.
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
+    pub connector_customer_id: Option<String>,
     pub money: Money,
     pub currency: Currency,
     pub browser_info: Option<BrowserInformation>,
@@ -2842,6 +2845,19 @@ impl ConnectorCustomerData {
 pub struct ConnectorCustomerResponse {
     pub connector_customer_id: String,
     pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct GenerateQrRequestData {
+    pub connector_mandate_id: String,
+    pub initial_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PushNotificationRequestData {
+    pub connector_mandate_id: String,
+    pub payer: crate::pix_automatico::PixAutomaticoPayerAccount,
+    pub expires_at: String,
 }
 
 #[derive(Debug, Clone)]
@@ -3914,6 +3930,7 @@ impl PaymentsCaptureData {
 
 #[derive(Debug, Clone)]
 pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
+    pub pix_automatico: Option<crate::pix_automatico::PixAutomaticoMandateDetails>,
     pub currency: Currency,
     pub payment_method_data: PaymentMethodData<T>,
     pub confirm: bool,
@@ -4042,6 +4059,7 @@ impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
 
 #[derive(Debug, Clone)]
 pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
+    pub pix_automatico: Option<crate::pix_automatico::PixAutomaticoChargeDetails>,
     pub mandate_reference: MandateReferenceId,
     pub money: Money,
     pub currency: Currency,
@@ -4665,6 +4683,10 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::MandiriVaBankTransfer
                 }
                 payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
+                payment_method_data::BankTransferData::PixAutomaticoPush {} => {
+                    Self::PixAutomaticoPush
+                }
+                payment_method_data::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr,
                 payment_method_data::BankTransferData::Pse {} => Self::Pse,
                 payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
                     Self::LocalBankTransfer

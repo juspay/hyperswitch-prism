@@ -73,6 +73,14 @@ pub fn create_router(state: AppState) -> Router {
             "/composite/frm/post_risk_check",
             post(handlers::composite::frm::post_risk_check),
         )
+        .route(
+            "/recurring_payments/request_confirmation",
+            post(handlers::payments::request_recurring_confirmation),
+        )
+        .route(
+            "/recurring_payments/qr",
+            post(handlers::payments::get_recurring_qr),
+        )
         .route("/payments/authorize", post(handlers::payments::authorize))
         // .route(
         //     "/payments/authorize_only",

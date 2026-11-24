@@ -72,6 +72,9 @@ from payments.generated.payment_pb2 import (
     PaymentServiceVoidResponse,
     RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse,
+    RecurringPaymentServiceConsentResponse,
+    RecurringPaymentServiceGetQrRequest,
+    RecurringPaymentServiceRequestConfirmationRequest,
     RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse,
     RefundResponse,
@@ -294,6 +297,14 @@ class PayoutClient(_ConnectorClientBase):
 class RecurringPaymentClient(_ConnectorClientBase):
     def charge(self, request: RecurringPaymentServiceChargeRequest, options: RequestConfig | None = ...) -> RecurringPaymentServiceChargeResponse:
         """RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details."""
+        ...
+
+    def recurring_get_qr(self, request: RecurringPaymentServiceGetQrRequest, options: RequestConfig | None = ...) -> RecurringPaymentServiceConsentResponse:
+        """RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement."""
+        ...
+
+    def recurring_request_confirmation(self, request: RecurringPaymentServiceRequestConfirmationRequest, options: RequestConfig | None = ...) -> RecurringPaymentServiceConsentResponse:
+        """RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement."""
         ...
 
     def recurring_revoke(self, request: RecurringPaymentServiceRevokeRequest, options: RequestConfig | None = ...) -> RecurringPaymentServiceRevokeResponse:

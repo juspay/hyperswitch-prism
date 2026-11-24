@@ -442,6 +442,8 @@ _FLOW_NAME_OVERRIDES: dict[tuple[str, str], str] = {
     ("CustomerService", "Get"): "customer_get",
     ("RecurringPaymentService", "Charge"): "recurring_charge",
     ("RecurringPaymentService", "Revoke"): "recurring_revoke",
+    ("RecurringPaymentService", "RequestConfirmation"): "recurring_request_confirmation",
+    ("RecurringPaymentService", "GetQr"): "recurring_get_qr",
     ("RefundService", "Get"): "refund_get",
     ("PayoutService", "Get"): "payout_get",
     ("PayoutService", "Create"): "payout_create",

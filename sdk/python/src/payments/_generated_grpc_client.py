@@ -502,6 +502,20 @@ class GrpcRecurringPaymentClient:
         self._ffi    = ffi
         self._config = config
 
+    def get_qr(self, req: payment_pb2.RecurringPaymentServiceGetQrRequest) -> payment_pb2.RecurringPaymentServiceConsentResponse:
+        """RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "recurring_payment/get_qr",
+            req, payment_pb2.RecurringPaymentServiceConsentResponse,
+        )
+    def request_confirmation(self, req: payment_pb2.RecurringPaymentServiceRequestConfirmationRequest) -> payment_pb2.RecurringPaymentServiceConsentResponse:
+        """RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "recurring_payment/request_confirmation",
+            req, payment_pb2.RecurringPaymentServiceConsentResponse,
+        )
     def charge(self, req: payment_pb2.RecurringPaymentServiceChargeRequest) -> payment_pb2.RecurringPaymentServiceChargeResponse:
         """RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details."""
         return _call_grpc(

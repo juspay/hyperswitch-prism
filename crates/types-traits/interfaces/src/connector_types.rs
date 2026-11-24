@@ -119,6 +119,8 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + RefundVoidPostRefundV2
     + PaymentCapture
     + SetupMandateV2<T>
+    + PushNotificationV2
+    + GenerateQrV2
     + RepeatPaymentV2<T>
     + AcceptDispute
     + RefundSyncV2
@@ -984,6 +986,28 @@ pub trait FrmChargebackReceivedV2:
     FrmFlowData,
     FrmChargebackReceivedRequest,
     FrmChargebackReceivedResponse,
+>
+{
+}
+
+/// Obtain payer consent for an existing recurring agreement.
+pub trait PushNotificationV2:
+    ConnectorIntegrationV2<
+    connector_flow::PushNotification,
+    PaymentFlowData,
+    domain_types::connector_types::PushNotificationRequestData,
+    PaymentsResponseData,
+>
+{
+}
+
+/// Retrieve customer-facing QR data for an existing recurring agreement.
+pub trait GenerateQrV2:
+    ConnectorIntegrationV2<
+    connector_flow::GenerateQr,
+    PaymentFlowData,
+    domain_types::connector_types::GenerateQrRequestData,
+    PaymentsResponseData,
 >
 {
 }

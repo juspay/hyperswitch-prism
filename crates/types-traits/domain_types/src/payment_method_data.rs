@@ -785,6 +785,8 @@ impl CryptoData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
+    PixAutomaticoPush {},
+    PixAutomaticoQr {},
     AchBankTransfer {},
     SepaBankTransfer {},
     BacsBankTransfer {},

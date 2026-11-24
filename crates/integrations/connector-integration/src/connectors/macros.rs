@@ -2297,6 +2297,28 @@ pub(crate) use macro_connector_flow_status_impls;
 ///      to [`flow_status_emit!`] which produces the `ConnectorIntegrationV2`
 ///      stub. The error name is the snake_case literal passed by the arm.
 macro_rules! expand_flow_status_impl {
+    (connector: $c:ident, flow: GenerateQr, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::GenerateQrV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::GenerateQr,
+            flow_name: "get_recurring_qr",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::GenerateQrRequestData,
+            response: ::domain_types::connector_types::PaymentsResponseData,
+        );
+    };
+    (connector: $c:ident, flow: PushNotification, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::PushNotificationV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::PushNotification,
+            flow_name: "request_recurring_confirmation",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::PushNotificationRequestData,
+            response: ::domain_types::connector_types::PaymentsResponseData,
+        );
+    };
     // ---- PaymentFlowData family, non-generic markers ----
     (connector: $c:ident, flow: CreateOrder, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::PaymentOrderCreate for $c<$g> {}

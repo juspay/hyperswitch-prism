@@ -50,8 +50,10 @@ use grpc_api_types::payments::{
     PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
-    RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
-    RecurringPaymentServiceRevokeResponse, RefundResponse, RefundServiceGetRequest,
+    RecurringPaymentServiceChargeResponse, RecurringPaymentServiceConsentResponse,
+    RecurringPaymentServiceGetQrRequest, RecurringPaymentServiceRequestConfirmationRequest,
+    RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, RefundResponse,
+    RefundServiceGetRequest,
 };
 use grpc_api_types::payouts::{
     PayoutMethodEligibilityRequest, PayoutMethodEligibilityResponse,
@@ -620,6 +622,20 @@ impl ConnectorClient {
         RecurringPaymentServiceChargeResponse,
         charge_req_handler,
         charge_res_handler
+    );
+    impl_flow_method!(
+        recurring_get_qr,
+        RecurringPaymentServiceGetQrRequest,
+        RecurringPaymentServiceConsentResponse,
+        recurring_get_qr_req_handler,
+        recurring_get_qr_res_handler
+    );
+    impl_flow_method!(
+        recurring_request_confirmation,
+        RecurringPaymentServiceRequestConfirmationRequest,
+        RecurringPaymentServiceConsentResponse,
+        recurring_request_confirmation_req_handler,
+        recurring_request_confirmation_res_handler
     );
     impl_flow_method!(
         recurring_revoke,

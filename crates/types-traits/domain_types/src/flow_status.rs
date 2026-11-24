@@ -521,3 +521,41 @@ pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
         ctx: Self::MappingContext,
     ) -> AttemptStatus;
 }
+
+impl FlowStatusRules for connector_flow::PushNotification {
+    const NAME: &'static str = "PushNotification";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[AttemptStatus::Authorized];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Failure,
+        AttemptStatus::Voided,
+    ];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::Pending,
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::Authorized,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Failure,
+        AttemptStatus::Voided,
+        AttemptStatus::Unresolved,
+    ];
+}
+
+impl FlowStatusRules for connector_flow::GenerateQr {
+    const NAME: &'static str = "GenerateQr";
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[AttemptStatus::Authorized];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] = &[
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Failure,
+        AttemptStatus::Voided,
+    ];
+    const ALLOWED: &'static [AttemptStatus] = &[
+        AttemptStatus::Pending,
+        AttemptStatus::AuthenticationPending,
+        AttemptStatus::Authorized,
+        AttemptStatus::AuthenticationFailed,
+        AttemptStatus::Failure,
+        AttemptStatus::Voided,
+        AttemptStatus::Unresolved,
+    ];
+}

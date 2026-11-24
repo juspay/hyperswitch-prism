@@ -107,6 +107,9 @@ use grpc_api_types::payments::{
     PayoutServiceVoidResponse,
     RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse,
+    RecurringPaymentServiceConsentResponse,
+    RecurringPaymentServiceGetQrRequest,
+    RecurringPaymentServiceRequestConfirmationRequest,
     RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse,
     RefundResponse,
@@ -497,6 +500,18 @@ impl_grpc_client!(
 impl_grpc_client!(
     GrpcRecurringPaymentClient,
     RecurringPaymentServiceClient,
+    (
+        get_qr,
+        get_qr,
+        RecurringPaymentServiceGetQrRequest,
+        RecurringPaymentServiceConsentResponse
+    ),
+    (
+        request_confirmation,
+        request_confirmation,
+        RecurringPaymentServiceRequestConfirmationRequest,
+        RecurringPaymentServiceConsentResponse
+    ),
     (
         charge,
         charge,

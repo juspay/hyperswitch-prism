@@ -48,6 +48,10 @@ SERVICE_FLOWS = {
     "RecurringPaymentClient": {
         # charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
         "charge": "RecurringPaymentServiceChargeResponse",
+        # recurring_get_qr: RecurringPaymentService.GetQr — Retrieve the customer-facing QR data for an existing recurring agreement.
+        "recurring_get_qr": "RecurringPaymentServiceConsentResponse",
+        # recurring_request_confirmation: RecurringPaymentService.RequestConfirmation — Ask the payer's bank to obtain consent for an existing recurring agreement.
+        "recurring_request_confirmation": "RecurringPaymentServiceConsentResponse",
         # recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
         "recurring_revoke": "RecurringPaymentServiceRevokeResponse",
     },

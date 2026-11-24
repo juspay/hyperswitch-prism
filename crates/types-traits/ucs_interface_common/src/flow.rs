@@ -23,7 +23,11 @@ where
 {
     let type_id = std::any::TypeId::of::<F>();
 
-    if type_id == std::any::TypeId::of::<Authorize>() {
+    if type_id == std::any::TypeId::of::<domain_types::connector_flow::GenerateQr>() {
+        FlowName::GenerateQr
+    } else if type_id == std::any::TypeId::of::<domain_types::connector_flow::PushNotification>() {
+        FlowName::PushNotification
+    } else if type_id == std::any::TypeId::of::<Authorize>() {
         FlowName::Authorize
     } else if type_id == std::any::TypeId::of::<PSync>() {
         FlowName::Psync

@@ -4046,6 +4046,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // TsysTransitCardAuthenticationResponse carries no amount, so the
             // integrity object echoes the request's own amount/currency.
             request: SetupMandateRequestData {
+                pix_automatico: None,
                 integrity_object: Some(SetupMandateIntegrityObject {
                     amount: router_data
                         .request
@@ -4335,6 +4336,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // approval; fall back to the request's own amount otherwise, same
             // rationale as Authorize above.
             request: RepeatPaymentData {
+                pix_automatico: None,
                 integrity_object: Some(RepeatPaymentIntegrityObject {
                     amount: integrity_amount,
                     currency: router_data.request.currency, // Not echoed in RepeatPaymentResponse TSYS responses

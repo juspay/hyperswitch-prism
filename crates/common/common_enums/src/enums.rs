@@ -1594,6 +1594,8 @@ pub enum PaymentMethodType {
     Paze,
     PhonePe,
     Pix,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     PaySafeCard,
     Przelewy24,
     PromptPay,

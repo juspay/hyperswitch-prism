@@ -3680,6 +3680,101 @@ message RapidDisputeResolution {
 }
 
 // Request message for setting up a mandate
+// Receiver-side recurring agreement configuration for Pix Automático.
+message PixAutomaticoMandateDetails {
+  enum Frequency {
+    FREQUENCY_UNSPECIFIED = 0;
+    WEEKLY = 1;
+    MONTHLY = 2;
+    QUARTERLY = 3;
+    SEMIANNUALLY = 4;
+    ANNUALLY = 5;
+  }
+  enum RetryPolicy {
+    RETRY_POLICY_UNSPECIFIED = 0;
+    NO_RETRY = 1;
+    THREE_RETRIES_IN_SEVEN_DAYS = 2;
+  }
+  string start_date = 1; // ISO 8601 date, YYYY-MM-DD.
+  optional string end_date = 2;
+  Frequency frequency = 3;
+  RetryPolicy retry_policy = 4;
+  oneof amount_rule {
+    Money fixed_amount = 5;
+    Money minimum_amount = 6;
+  }
+  optional string description = 7; // Contract description, at most 35 characters.
+  optional string receiver_agreement = 8;
+  optional string initial_transaction_id = 9; // Journey 3's initial Pix txid.
+}
+
+message PixAutomaticoReceiverAccount {
+  enum AccountType {
+    ACCOUNT_TYPE_UNSPECIFIED = 0;
+    CHECKING = 1;
+    SAVINGS = 2;
+    PAYMENT = 3;
+  }
+  SecretString account_number = 1;
+  optional SecretString branch = 2;
+  AccountType account_type = 3;
+}
+
+message PixAutomaticoChargeDetails {
+  string due_date = 1; // ISO 8601 date, YYYY-MM-DD.
+  optional bool adjust_to_business_day = 2; // Defaults to true when omitted.
+  PixAutomaticoReceiverAccount receiver = 3;
+}
+
+message PixAutomaticoPayerAccount {
+  enum DocumentType {
+    DOCUMENT_TYPE_UNSPECIFIED = 0;
+    CPF = 1;
+    CNPJ = 2;
+  }
+  SecretString document_number = 1;
+  DocumentType document_type = 2;
+  SecretString account_number = 3;
+  string bank_ispb = 4;
+  optional SecretString branch = 5;
+}
+
+message RecurringPaymentServiceRequestConfirmationRequest {
+  optional string merchant_request_id = 1;
+  string connector_recurring_payment_id = 2;
+  PixAutomaticoPayerAccount payer = 3;
+  string expires_at = 4; // RFC 3339 timestamp for the bank-app approval request.
+  optional ConnectorState state = 5;
+  optional bool test_mode = 6;
+  optional SecretString connector_feature_data = 7;
+}
+
+// Both consent operations return mandate state, not a successful financial charge.
+message RecurringPaymentServiceGetQrRequest {
+  optional string merchant_request_id = 1;
+  string connector_recurring_payment_id = 2;
+  optional string initial_transaction_id = 3;
+  optional ConnectorState state = 4;
+  optional bool test_mode = 5;
+  optional SecretString connector_feature_data = 6;
+}
+
+message RecurringPaymentServiceConsentResponse {
+  optional string connector_recurring_payment_id = 1;
+  optional string connector_confirmation_id = 2;
+  PaymentStatus status = 3;
+  optional ErrorInfo error = 4;
+  uint32 status_code = 5;
+  map<string, string> response_headers = 6;
+  optional ConnectorState state = 7;
+  optional RedirectForm redirection_data = 8;
+  optional SecretString connector_feature_data = 9;
+  optional SecretString raw_connector_request = 10;
+  optional SecretString raw_connector_response = 11;
+  optional SecretString typed_connector_request = 12;
+  optional SecretString typed_connector_response = 13;
+}
+
 message PaymentServiceSetupRecurringRequest {
   // Identification
   string merchant_recurring_payment_id = 1;
@@ -3809,6 +3904,8 @@ message PaymentServiceSetupRecurringRequest {
 
   // Details about the sender of funds for account funding transactions.
   optional SenderDetails sender_details = 46;
+
+  optional PixAutomaticoMandateDetails pix_automatico = 47;
 }
 
 // Response message for a mandate setup operation
@@ -4002,6 +4099,8 @@ message RecurringPaymentServiceChargeRequest {
 
   // Details about the sender of funds for account funding transactions.
   optional SenderDetails sender_details = 46;
+
+  optional PixAutomaticoChargeDetails pix_automatico = 47;
 }
 
 // Response message for repeat payment operation

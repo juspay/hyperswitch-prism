@@ -1,5 +1,10 @@
 use crate::macros::{req_transformer, res_transformer};
+use domain_types::{connector_flow::GenerateQr, connector_types::GenerateQrRequestData};
+use domain_types::{
+    connector_flow::PushNotification, connector_types::PushNotificationRequestData,
+};
 use external_services;
+use grpc_api_types::payments::RecurringPaymentServiceGetQrRequest;
 use grpc_api_types::payments::{ConnectorError, IntegrationError};
 use grpc_api_types::payments::{
     CustomerServiceCreateRequest, CustomerServiceCreateResponse, CustomerServiceGetRequest,
@@ -33,6 +38,9 @@ use grpc_api_types::payments::{
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse, RefundServiceGetRequest,
+};
+use grpc_api_types::payments::{
+    RecurringPaymentServiceConsentResponse, RecurringPaymentServiceRequestConfirmationRequest,
 };
 
 use domain_types::{
@@ -1224,6 +1232,60 @@ res_transformer!(
     generate_response_fn: generate_setup_mandate_response,
     connector_data_type: domain_types::payment_method_data::VaultTokenHolder,
     request_data_fn: |p: &PaymentServiceProxySetupRecurringRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+req_transformer!(
+    fn_name: recurring_request_confirmation_req_transformer,
+    request_type: RecurringPaymentServiceRequestConfirmationRequest,
+    flow_marker: PushNotification,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PushNotificationRequestData,
+    response_data_type: PaymentsResponseData,
+    connector_data_type: T,
+    request_data_fn: |p: &RecurringPaymentServiceRequestConfirmationRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+res_transformer!(
+    fn_name: recurring_request_confirmation_res_transformer,
+    request_type: RecurringPaymentServiceRequestConfirmationRequest,
+    response_type: RecurringPaymentServiceConsentResponse,
+    flow_marker: PushNotification,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PushNotificationRequestData,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_recurring_confirmation_response,
+    connector_data_type: T,
+    request_data_fn: |p: &RecurringPaymentServiceRequestConfirmationRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+req_transformer!(
+    fn_name: recurring_get_qr_req_transformer,
+    request_type: RecurringPaymentServiceGetQrRequest,
+    flow_marker: GenerateQr,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: GenerateQrRequestData,
+    response_data_type: PaymentsResponseData,
+    connector_data_type: T,
+    request_data_fn: |p: &RecurringPaymentServiceGetQrRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+res_transformer!(
+    fn_name: recurring_get_qr_res_transformer,
+    request_type: RecurringPaymentServiceGetQrRequest,
+    response_type: RecurringPaymentServiceConsentResponse,
+    flow_marker: GenerateQr,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: GenerateQrRequestData,
+    response_data_type: PaymentsResponseData,
+    generate_response_fn: generate_recurring_qr_response,
+    connector_data_type: T,
+    request_data_fn: |p: &RecurringPaymentServiceGetQrRequest| {
         domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
     },
 );

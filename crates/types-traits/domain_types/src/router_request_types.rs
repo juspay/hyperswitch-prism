@@ -528,6 +528,12 @@ pub struct ClientAuthenticationTokenIntegrityObject {}
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct IncrementalAuthorizationIntegrityObject {}
 
+/// Identity-only integrity contract for amountless recurring consent operations.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RecurringConsentIntegrityObject {
+    pub connector_mandate_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct MandateRevokeIntegrityObject {
     pub mandate_id: Secret<String>,

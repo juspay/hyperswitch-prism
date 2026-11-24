@@ -14,6 +14,14 @@ use connector_integration::types::{
 };
 use domain_types::payment_method_data;
 use domain_types::{
+    connector_flow::GenerateQr, connector_types::GenerateQrRequestData,
+    pix_automatico::generate_recurring_qr_response,
+};
+use domain_types::{
+    connector_flow::PushNotification, connector_types::PushNotificationRequestData,
+    pix_automatico::generate_recurring_confirmation_response,
+};
+use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
         CreateOrder, CreatePaymentMethod, GetConnectorCustomer, GetPaymentMethod,
@@ -62,6 +70,7 @@ use domain_types::{
     utils::{ForeignFrom, ForeignTryFrom},
 };
 use external_services::service::EventProcessingParams;
+use grpc_api_types::payments::RecurringPaymentServiceGetQrRequest;
 use grpc_api_types::payments::{
     customer_service_server::CustomerService,
     merchant_authentication_service_server::MerchantAuthenticationService,
@@ -98,6 +107,9 @@ use grpc_api_types::payments::{
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse,
+};
+use grpc_api_types::payments::{
+    RecurringPaymentServiceConsentResponse, RecurringPaymentServiceRequestConfirmationRequest,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use injector::TokenData;
@@ -281,6 +293,22 @@ trait PaymentMethodAuthOperational {
 }
 
 trait RecurringPaymentOperational {
+    async fn internal_get_recurring_qr(
+        &self,
+        request: RequestData<RecurringPaymentServiceGetQrRequest>,
+    ) -> Result<
+        tonic::Response<RecurringPaymentServiceConsentResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
+
+    async fn internal_request_confirmation(
+        &self,
+        request: RequestData<RecurringPaymentServiceRequestConfirmationRequest>,
+    ) -> Result<
+        tonic::Response<RecurringPaymentServiceConsentResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
+
     async fn internal_mandate_revoke(
         &self,
         request: RequestData<RecurringPaymentServiceRevokeRequest>,
@@ -3418,6 +3446,38 @@ impl MerchantAuthenticationService for MerchantAuthentication {
 
 impl RecurringPaymentOperational for RecurringPayments {
     implement_connector_operation!(
+        fn_name: internal_get_recurring_qr,
+        log_prefix: "GET_RECURRING_QR",
+        request_type: RecurringPaymentServiceGetQrRequest,
+        response_type: RecurringPaymentServiceConsentResponse,
+        flow_marker: GenerateQr,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: GenerateQrRequestData,
+        response_data_type: PaymentsResponseData,
+        request_data_constructor: GenerateQrRequestData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_recurring_qr_response,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
+        all_keys_required: None
+    );
+
+    implement_connector_operation!(
+        fn_name: internal_request_confirmation,
+        log_prefix: "REQUEST_RECURRING_CONFIRMATION",
+        request_type: RecurringPaymentServiceRequestConfirmationRequest,
+        response_type: RecurringPaymentServiceConsentResponse,
+        flow_marker: PushNotification,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: PushNotificationRequestData,
+        response_data_type: PaymentsResponseData,
+        request_data_constructor: PushNotificationRequestData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_recurring_confirmation_response,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
+        all_keys_required: None
+    );
+
+    implement_connector_operation!(
         fn_name: internal_mandate_revoke,
         log_prefix: "MANDATE_REVOKE",
         request_type: RecurringPaymentServiceRevokeRequest,
@@ -3543,6 +3603,46 @@ async fn run_repeat_payment_holder_flow<
 
 #[tonic::async_trait]
 impl RecurringPaymentService for RecurringPayments {
+    async fn get_qr(
+        &self,
+        request: tonic::Request<RecurringPaymentServiceGetQrRequest>,
+    ) -> Result<tonic::Response<RecurringPaymentServiceConsentResponse>, tonic::Status> {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "RecurringPaymentService".to_owned());
+        let config = get_config_from_request(&request).into_grpc_status()?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config,
+            FlowName::GenerateQr,
+            |request_data| async move { self.internal_get_recurring_qr(request_data).await },
+        )
+        .await
+    }
+
+    async fn request_confirmation(
+        &self,
+        request: tonic::Request<RecurringPaymentServiceRequestConfirmationRequest>,
+    ) -> Result<tonic::Response<RecurringPaymentServiceConsentResponse>, tonic::Status> {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "RecurringPaymentService".to_owned());
+        let config = get_config_from_request(&request).into_grpc_status()?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config,
+            FlowName::PushNotification,
+            |request_data| async move { self.internal_request_confirmation(request_data).await },
+        )
+        .await
+    }
+
     #[tracing::instrument(
         name = "charge",
         fields(

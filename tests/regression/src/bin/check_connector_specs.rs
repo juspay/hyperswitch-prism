@@ -72,6 +72,8 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
         "RSync" => Some(&["RefundService/Get"]),
         // Recurring/mandate flows
         "SetupMandate" => Some(&["PaymentService/SetupRecurring"]),
+        "PushNotification" => Some(&["RecurringPaymentService/RequestConfirmation"]),
+        "GenerateQr" => Some(&["RecurringPaymentService/GetQr"]),
         "RepeatPayment" => Some(&["RecurringPaymentService/Charge"]),
         "MandateRevoke" => Some(&["RecurringPaymentService/Revoke"]),
         // Customer/token flows
