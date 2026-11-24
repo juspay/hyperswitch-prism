@@ -237,8 +237,6 @@ Set up the foundation for the {ConnectorName} connector.
             patched.{connector_name}.apply(params_patch);
         }
 
-      - "{connector_name}" is in the "Supported connectors:" list in the `_ =>` error message.
-
 9. VERIFY the CI spec file landed:
    tests/regression/src/connector_specs/{connector_name}/specs.json exists and its
    supported_suites list is non-empty. Without it, CI's check_connector_specs job fails.

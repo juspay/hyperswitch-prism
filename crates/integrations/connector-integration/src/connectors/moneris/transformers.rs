@@ -4,14 +4,14 @@ use common_utils::{types::Money, Email};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, PostAuthenticate, PreAuthenticate, RSync,
-        Refund, RepeatPayment, ServerAuthenticationToken, Void,
+        Refund, RepeatPayment, ServerAuthenticationToken, Void, VoidPC,
     },
     connector_types::{
         MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        ServerAuthenticationTokenResponseData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, ServerAuthenticationTokenResponseData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
@@ -1384,6 +1384,81 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             idempotency_key,
             reason,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MonerisRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MonerisCancelRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: MonerisRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let idempotency_key = format!(
+            "void_pc_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
+        Ok(Self {
+            idempotency_key,
+            reason: item.router_data.request.cancellation_reason.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisVoidPCResponse {
+    payment_status: MonerisPaymentStatus,
+    payment_id: String,
+}
+
+impl TryFrom<ResponseRouterData<MonerisVoidPCResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MonerisVoidPCResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let post_capture_void_status = match item.response.payment_status {
+            MonerisPaymentStatus::Canceled => common_enums::PostCaptureVoidStatus::Succeeded,
+            MonerisPaymentStatus::Processing => common_enums::PostCaptureVoidStatus::Pending,
+            MonerisPaymentStatus::Succeeded
+            | MonerisPaymentStatus::Authorized
+            | MonerisPaymentStatus::Incremented
+            | MonerisPaymentStatus::Declined
+            | MonerisPaymentStatus::DeclinedRetry => common_enums::PostCaptureVoidStatus::Failed,
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.payment_id),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }

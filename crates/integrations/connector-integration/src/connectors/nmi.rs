@@ -138,12 +138,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let message =
             self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
 
-        use common_utils::crypto::SignMessage;
+        use common_utils::crypto::VerifySignature;
         common_utils::crypto::HmacSha256
-            .sign_message(&connector_webhook_secrets.secret, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
-            .attach_printable("Failed to sign the NMI webhook message with HMAC-SHA256")
-            .map(|expected_signature| expected_signature == signature)
+            .attach_printable("Failed to verify the NMI webhook message with HMAC-SHA256")
     }
 
     fn get_webhook_source_verification_signature(

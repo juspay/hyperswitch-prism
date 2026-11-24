@@ -553,7 +553,7 @@ pub enum OpenBankingData {
 pub enum MobilePaymentData {
     DirectCarrierBilling {
         /// The phone number of the user
-        msisdn: String,
+        msisdn: Secret<String>,
         /// Unique user identifier
         client_uid: Option<String>,
     },
@@ -881,7 +881,8 @@ pub enum BankRedirectData {
     BancontactQr {},
     Bizum {},
     Blik {
-        blik_code: Option<String>,
+        /// One-time payment code (sensitive)
+        blik_code: Option<Secret<String>>,
     },
     Eps {
         bank_name: Option<common_enums::BankNames>,
@@ -956,7 +957,7 @@ pub enum BankRedirectData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub enum PayLaterData {
     KlarnaRedirect {},
-    KlarnaSdk { token: String },
+    KlarnaSdk { token: Secret<String> },
     AffirmRedirect {},
     AfterpayClearpayRedirect {},
     PayBrightRedirect {},
@@ -1047,7 +1048,7 @@ impl WalletData {
         match self {
             Self::GooglePay(data) => Ok(data.get_googlepay_encrypted_payment_data()?),
             Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
-            Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
+            Self::PaypalSdk(data) => Ok(data.token.clone()),
             _ => Err(IntegrationError::InvalidWallet {
                 context: Default::default(),
             }
@@ -1194,8 +1195,8 @@ pub enum PazeWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PayPalWalletData {
-    /// Token generated for the Apple pay
-    pub token: String,
+    /// PayPal SDK token generated for the wallet
+    pub token: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

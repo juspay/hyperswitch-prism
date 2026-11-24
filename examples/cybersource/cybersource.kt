@@ -12,6 +12,7 @@ import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.PaymentMethodAuthenticationClient
+import payments.MerchantAuthenticationClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
@@ -31,7 +32,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.CybersourceConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "capture", "get", "incremental_authorization", "parse_event", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "capture", "create_client_authentication_token", "get", "incremental_authorization", "parse_event", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -327,6 +328,23 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
     println("Done: ${response.status.name}")
+}
+
+// Flow: MerchantAuthenticationService.CreateClientAuthenticationToken
+fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
+    val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
+        merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
+        paymentBuilder.apply {
+            amountBuilder.apply {
+                minorAmount = 1000L
+                currency = Currency.USD
+            }
+            returnUrl = "https://example.com/return"
+        }
+    }.build()
+    val response = client.create_client_authentication_token(request)
+    println("StatusCode: ${response.statusCode}")
 }
 
 // Flow: PaymentService.Get
@@ -671,6 +689,7 @@ fun main(args: Array<String>) {
         "authenticate" -> authenticate(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
+        "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "incrementalAuthorization" -> incrementalAuthorization(txnId)
@@ -687,6 +706,6 @@ fun main(args: Array<String>) {
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, handleEvent, incrementalAuthorization, parseEvent, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, reverse, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, createClientAuthenticationToken, get, handleEvent, incrementalAuthorization, parseEvent, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, reverse, setupRecurring, tokenAuthorize, void")
     }
 }

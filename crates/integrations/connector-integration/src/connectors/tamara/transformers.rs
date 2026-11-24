@@ -94,7 +94,8 @@ impl From<TamaraPaymentStatus> for AttemptStatus {
             TamaraPaymentStatus::FullyCaptured | TamaraPaymentStatus::PartiallyCaptured => {
                 Self::Charged
             }
-            TamaraPaymentStatus::Canceled | TamaraPaymentStatus::Updated => Self::Voided,
+            TamaraPaymentStatus::Canceled => Self::Voided,
+            TamaraPaymentStatus::Updated => Self::Pending,
             TamaraPaymentStatus::Declined | TamaraPaymentStatus::Expired => Self::Failure,
             TamaraPaymentStatus::New | TamaraPaymentStatus::Approved => Self::Pending,
         }
@@ -1475,9 +1476,8 @@ impl From<TamaraWebhookEventType> for interfaces::webhooks::IncomingWebhookEvent
 impl From<TamaraWebhookEvent> for AttemptStatus {
     fn from(event: TamaraWebhookEvent) -> Self {
         match event {
-            TamaraWebhookEvent::OrderApproved | TamaraWebhookEvent::OrderAuthorised => {
-                Self::Authorized
-            }
+            TamaraWebhookEvent::OrderApproved => Self::Pending,
+            TamaraWebhookEvent::OrderAuthorised => Self::Authorized,
             TamaraWebhookEvent::OrderCaptured | TamaraWebhookEvent::OrderRefunded => Self::Charged,
             TamaraWebhookEvent::OrderCanceled => Self::Voided,
             TamaraWebhookEvent::OrderUpdated | TamaraWebhookEvent::Unknown => Self::Pending,

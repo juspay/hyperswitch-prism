@@ -499,6 +499,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             ssl_user_id: u(),
             ssl_pin: Secret::new("probe_pin".to_string()),
             base_url: None,
+            ssl_vendor_id: None,
         },
         ConnectorEnum::Fiserv => ConnectorSpecificConfig::Fiserv {
             api_key: k(),

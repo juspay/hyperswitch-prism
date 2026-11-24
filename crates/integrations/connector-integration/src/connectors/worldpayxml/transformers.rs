@@ -2256,21 +2256,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        let connector_transaction_id = router_data
+        // Order inquiries can use the original order code when no transaction ID is stored.
+        let order_code = router_data
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
-            })?;
+            .unwrap_or_else(|_| {
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone()
+            });
 
         Ok(Self {
             version: API_VERSION.to_string(),
             merchant_code: auth.merchant_code,
             inquiry: requests::WorldpayxmlInquiry {
-                order_inquiry: requests::WorldpayxmlOrderInquiry {
-                    order_code: connector_transaction_id,
-                },
+                order_inquiry: requests::WorldpayxmlOrderInquiry { order_code },
             },
         })
     }
