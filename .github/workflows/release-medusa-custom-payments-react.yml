@@ -33,7 +33,7 @@ permissions:
 
 jobs:
   authorize:
-    uses: ./.github/workflows/authorize-release.yml
+    uses: $/.github/workflows/authorize-release.yml
     # The membership check authenticates with a GitHub app token minted
     # from the secrets below and never uses GITHUB_TOKEN.
     permissions: {}
