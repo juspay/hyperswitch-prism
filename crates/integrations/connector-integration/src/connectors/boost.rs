@@ -305,6 +305,18 @@ macros::create_all_prerequisites!(
                     .map(|content| content.content.get_inner_value().peek().to_owned())
                     .unwrap_or_default(),
             };
+            self.build_headers_refund_with_body(req, &body)
+        }
+
+        pub fn build_headers_refund_with_body<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, RefundFlowData, Req, Res>,
+            body: &str,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
+        where
+            Self: ConnectorIntegrationV2<F, RefundFlowData, Req, Res>,
+        {
+            let method = self.get_http_method();
             let path = (self.get_url(req)?).replace(self.connector_base_url_refunds(req), "");
             let auth = boost::BoostAuthType::try_from(&req.connector_config).change_context(
                 errors::IntegrationError::FailedToObtainAuthType {
@@ -323,7 +335,7 @@ macros::create_all_prerequisites!(
                 },
             )?;
             let authorization = auth
-                .build_signed_auth_header(&method.to_string(), &path, &body)
+                .build_signed_auth_header(&method.to_string(), &path, body)
                 .change_context(errors::IntegrationError::FailedToObtainAuthType {
                     context: errors::IntegrationErrorContext {
                         suggested_action: None,
@@ -497,6 +509,39 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             Ok(format!("{}/v1/reversals", self.connector_base_url_refunds(req)))
+        }
+
+        // Generate `created` once and sign the exact serialized body being sent.
+        fn build_request_v2(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
+            let request_data = self.get_request_body(req)?;
+            let body_str = request_data
+                .as_ref()
+                .map(|content| content.content.get_inner_value().peek().to_owned())
+                .unwrap_or_default();
+            let headers = self.build_headers_refund_with_body(req, &body_str)?;
+            let (body, typed_request_value) = match request_data {
+                Some(data) => (
+                    Some(data.content),
+                    data.typed_request.map(|msv| msv.inner().clone()),
+                ),
+                None => (None, None),
+            };
+            Ok(Some(
+                common_utils::request::RequestBuilder::new()
+                    .method(Method::Post)
+                    .url(self.get_url(req)?.as_str())
+                    .attach_default_headers()
+                    .headers(headers)
+                    .set_optional_body(body)
+                    .set_typed_connector_request(typed_request_value)
+                    .add_certificate(self.get_certificate(req)?)
+                    .add_certificate_key(self.get_certificate_key(req)?)
+                    .add_ca_certificate_pem(self.get_ca_certificate(req)?)
+                    .build(),
+            ))
         }
     }
 );
