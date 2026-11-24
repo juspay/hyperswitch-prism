@@ -1,0 +1,5 @@
+name = "prism_spec"
+defaultTargets = ["PrismSpec"]
+
+[[lean_lib]]
+name = "PrismSpec"

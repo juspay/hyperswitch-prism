@@ -12,6 +12,7 @@
     "RefundService/Get",
     "PaymentMethodAuthenticationService/PreAuthenticate",
     "CustomerService/Create",
-    "PaymentMethodService/Tokenize"
+    "PaymentMethodService/Tokenize",
+    "EventService/HandleEvent"
   ]
 }

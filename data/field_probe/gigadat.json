@@ -711,6 +711,32 @@
         "error": "setup_mandate flow not supported by gigadat connector"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by gigadat connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by gigadat connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by gigadat connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by gigadat connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by gigadat connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by gigadat connector"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"
