@@ -644,7 +644,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PayoutServiceVoidResponse: { "error": "ErrorInfo" },
   PayoutServiceCreateLinkRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
   PayoutServiceCreateLinkResponse: { "error": "ErrorInfo" },
-  PayoutServiceCreateRecipientRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "vendorAccountDetails": "PayoutVendorAccountDetails" },
+  PayoutServiceCreateRecipientRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "vendorAccountDetails": "PayoutVendorAccountDetails", "senderDetails": "SenderDetails" },
   PayoutVendorAccountDetails: { "vendorDetails": "VendorDetails", "individualDetails": "IndividualDetails" },
   VendorDetails: { "address": "Address" },
   IndividualDetails: { "address": "Address" },

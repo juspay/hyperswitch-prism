@@ -12,7 +12,7 @@ from payments import PaymentClient
 from payments import CustomerClient
 from payments import EventClient
 from payments import RefundClient
-from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
+from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
 SUPPORTED_FLOWS = ["authenticate", "capture", "customer_create", "get", "parse_event", "pre_authenticate", "refund", "refund_get", "token_authorize", "void"]
 
