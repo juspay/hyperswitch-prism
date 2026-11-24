@@ -2786,7 +2786,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_d_secure_device_channel: device_channel,
             three_d_secure_request_type,
             three_d_secure_notification_url,
-            three_d_secure_completion_indicator: ThreeDSecureCompletionIndicator::Unavailable,
+            three_d_secure_completion_indicator: if is_browser_channel {
+                ThreeDSecureCompletionIndicator::Success
+            } else {
+                ThreeDSecureCompletionIndicator::Unavailable
+            },
             three_d_secure_challenge_requested: ThreeDSecureChallengeRequested::NoPreference,
             three_d_secure_challenge_window_size,
             browser_ip_address,

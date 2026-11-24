@@ -55,7 +55,8 @@
           "screen_width": 1920,
           "java_enabled": true,
           "java_script_enabled": true
-        }
+        },
+        "continue_redirection_url": "https://webhook.site/f7ea159c-febf-481a-990a-7aded1833431"
       }
     }
   },
