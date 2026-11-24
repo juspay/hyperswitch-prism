@@ -13,8 +13,48 @@
             },
             "card_exp_month": { "value": "01" },
             "card_exp_year": { "value": "2029" },
-            "card_cvc": { "value": "123" }
+            "card_cvc": { "value": "123" },
+            "card_holder_name": { "value": "John Doe" }
           }
+        },
+        "customer": {
+          "name": "John Doe",
+          "email": { "value": "moneris@moneris.com" },
+          "phone_number": { "value": "8663197450" }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": { "value": "John" },
+            "last_name": { "value": "Doe" },
+            "line1": { "value": "3300 Bloor Street West" },
+            "line2": { "value": "123A" },
+            "city": { "value": "Toronto" },
+            "state": { "value": "ON" },
+            "zip_code": { "value": "M8X 2X2" },
+            "country_alpha2_code": "CA",
+            "phone_number": { "value": "8663197450" },
+            "phone_country_code": "1"
+          },
+          "shipping_address": {
+            "first_name": { "value": "John" },
+            "last_name": { "value": "Doe" },
+            "line1": { "value": "3300 Bloor Street West" },
+            "line2": { "value": "123A" },
+            "city": { "value": "Toronto" },
+            "state": { "value": "ON" },
+            "zip_code": { "value": "M8X 2X2" },
+            "country_alpha2_code": "CA"
+          }
+        },
+        "browser_info": {
+          "ip_address": "104.75.173.179",
+          "user_agent": "Mozilla/5.0 (Linux; {Android Version}; {Build Tag etc.})",
+          "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "language": "en",
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": true,
+          "java_script_enabled": true
         }
       }
     }
