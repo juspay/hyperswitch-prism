@@ -14,6 +14,25 @@
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "PaymentMethodAuthenticationService/PostAuthenticate"
-  ]
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "PaymentService/IncrementalAuthorization"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/IncrementalAuthorization": {
+      "incremental_auth_basic": "PayPal reauthorize is only allowed once from day 4 to day 29 of the authorization (REAUTHORIZATION_TOO_SOON before that), so a same-run sandbox increase cannot succeed; see paypal_incremental_auth_too_soon.",
+      "incremental_auth_with_tip": "PayPal reauthorize is only allowed once from day 4 to day 29 of the authorization (REAUTHORIZATION_TOO_SOON before that), so a same-run sandbox increase cannot succeed; see paypal_incremental_auth_too_soon.",
+      "incremental_auth_multiple_increase": "PayPal reauthorize is only allowed once from day 4 to day 29 of the authorization (REAUTHORIZATION_TOO_SOON before that), so a same-run sandbox increase cannot succeed; see paypal_incremental_auth_too_soon."
+    }
+  },
+  "suite_dependencies": {
+    "PaymentService/IncrementalAuthorization": {
+      "replace": [
+        "MerchantAuthenticationService/CreateServerAuthenticationToken",
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_manual_capture_incremental_auth"
+        }
+      ]
+    }
+  }
 }

@@ -376,6 +376,7 @@ impl
             business_country: item.business_country.clone(),
             enable_avs_check: item.enable_avs_check,
             enable_account_name_verification: item.enable_account_name_verification,
+            purpose_of_payment: item.purpose_of_payment.clone(),
         }
     }
 }
@@ -1328,6 +1329,7 @@ impl
             business_country: request.business_country.clone(),
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
+            purpose_of_payment: request.purpose_of_payment.clone(),
         }
     }
 }

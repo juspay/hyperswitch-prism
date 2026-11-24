@@ -265,11 +265,20 @@ pub enum JpmorganWalletProvider {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganAuthentication {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub sca_exemption_reason: Option<JpmorganScaExemptionReason>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token_authentication_value: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub electronic_commerce_indicator: Option<String>,
     #[serde(rename = "threeDS", skip_serializing_if = "Option::is_none")]
     pub three_ds: Option<JpmorganThreeDs>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JpmorganScaExemptionReason {
+    MerchantInitiatedTransaction,
+    RecurringPayment,
 }
 
 #[derive(Debug, Serialize)]
@@ -460,6 +469,8 @@ pub enum JpmorganMitAccountNumber<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganMitCard<T: PaymentMethodDataTypes> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication: Option<JpmorganAuthentication>,
     pub account_number: JpmorganMitAccountNumber<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub account_number_type: Option<JpmorganAccountNumberType>,
