@@ -258,6 +258,8 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
+                first_name: Some(Secret::new("John".to_string())),
+                last_name: Some(Secret::new("Doe".to_string())),
                 country_alpha2_code: Some(CountryAlpha2::Us.into()),
                 email: Some(Secret::new("test@example.com".to_string())),
                 ..Default::default()

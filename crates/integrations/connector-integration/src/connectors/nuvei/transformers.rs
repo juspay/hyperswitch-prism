@@ -891,8 +891,7 @@ pub(super) fn get_required_billing_address(
                 "Send address.billing_address.country_alpha2_code",
             )
         })?;
-    let billing_address =
-        NuveiBillingAddress::new(resource_data, email, country, card_holder_name);
+    let billing_address = NuveiBillingAddress::new(resource_data, email, country, card_holder_name);
     for (field, name) in [
         ("billing_address.first_name", &billing_address.first_name),
         ("billing_address.last_name", &billing_address.last_name),
