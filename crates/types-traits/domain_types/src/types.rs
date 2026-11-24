@@ -16034,6 +16034,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SenderDetails> for connector_types
     }
 }
 
+#[allow(deprecated)]
 impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
     for connector_types::AdditionalConnectorDetails
 {
