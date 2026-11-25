@@ -1800,6 +1800,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub customer: Option<CustomerInfo>,
     /// Merchant business country, used for country-specific connector rules.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    pub merchant_details: Option<crate::frm::frm_types::MerchantDetails>,
     /// Opt in to address verification when billing details are available.
     /// Only `Some(true)` requests AVS; connectors decide how to send it.
     pub enable_avs_check: Option<bool>,
@@ -2498,6 +2499,7 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub enable_partial_authorization: Option<bool>,
     pub payment_channel: Option<PaymentChannel>,
     pub billing_descriptor: Option<BillingDescriptor>,
+    pub merchant_details: Option<crate::frm::frm_types::MerchantDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {

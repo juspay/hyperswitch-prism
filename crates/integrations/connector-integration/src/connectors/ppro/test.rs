@@ -1652,6 +1652,7 @@ mod satispay_request_tests {
                 additional_connector_details: None,
                 customer: None,
                 business_country: None,
+                merchant_details: None,
                 enable_avs_check: None,
                 enable_account_name_verification: None,
             },

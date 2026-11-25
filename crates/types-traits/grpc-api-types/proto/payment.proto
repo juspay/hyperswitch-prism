@@ -1613,6 +1613,9 @@ message MerchantDetails {
 
   // Merchant Category Code (ISO 18245).
   optional uint32 merchant_category_code = 2;
+
+  // ISO 3166-1 alpha-2 country code of the merchant account, supplied by the caller.
+  optional CountryAlpha2 merchant_country_code = 3;
 }
 
 // Unified FRM notification content.
@@ -2654,6 +2657,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Purpose of payment
   optional string purpose_of_payment = 63;
+
+  // Merchant account context supplied by the caller.
+  optional MerchantDetails merchant_details = 64;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -4254,6 +4260,9 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // Level 2 / Level 3 data
   optional L2L3Data l2_l3_data = 23;
+
+  // Merchant account context supplied by the caller.
+  optional MerchantDetails merchant_details = 25;
 }
 
 // Response message for authentication step
