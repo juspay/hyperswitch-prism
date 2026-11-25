@@ -482,6 +482,7 @@ pub struct Connectors {
     pub ecommpay: ConnectorParams,
     pub payhound: ConnectorParams,
     pub revpay: ConnectorParams,
+    pub amex: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -900,6 +901,9 @@ impl Connectors {
             }
             ConnectorEnum::Revpay => {
                 patched.revpay.apply(params_patch);
+            }
+            ConnectorEnum::Amex => {
+                patched.amex.apply(params_patch);
             }
             ConnectorEnum::Airwallex => {
                 patched.airwallex.apply(params_patch);

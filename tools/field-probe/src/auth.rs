@@ -942,5 +942,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             secret_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Amex => ConnectorSpecificConfig::Amex {
+            merchant_id: k(),
+            shared_secret: k(),
+            base_url: None,
+        },
+
     }
 }

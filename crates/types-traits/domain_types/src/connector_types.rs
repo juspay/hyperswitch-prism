@@ -183,6 +183,7 @@ pub enum ConnectorEnum {
     Ecommpay,
     Payhound,
     Revpay,
+    Amex,
 }
 
 // snake case for enum variants
@@ -6663,6 +6664,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Payhound(_) => Ok(Self::Payment(ConnectorEnum::Payhound)),
             AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
+            AuthType::Amex(_) => Ok(Self::Payment(ConnectorEnum::Amex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {
