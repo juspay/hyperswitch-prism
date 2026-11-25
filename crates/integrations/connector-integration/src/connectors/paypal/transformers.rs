@@ -1805,6 +1805,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
+            | VoucherData::Dragonpay
             | VoucherData::PayEasy(_) => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
                 Default::default(),

@@ -95,6 +95,9 @@
     },
     "payload": {},
     "payme": {},
+    "paynamics": {
+      "reason": "Paynamics REST implements automatic-sale Authorize, PSync, Refund and post-capture reversal (VoidPC) for the selected non-card Workflow scope, but no full declared-suite live sandbox certification or paid lifecycle-operation proof has been completed and this integration has not provisioned CI credentials. Provider-confirmed RCBC rcbc_digital_ph is unavailable in staging; other selected-channel lifecycle eligibility remains unproven. The coverage checker excludes VoidPC, while the generic PaymentService/Reverse suite requires manual Capture and a session-token dependency that do not apply to these automatic non-card sales; that suite is not declared or certified. Lifecycle callbacks are unsupported until an operation discriminator is supplied; no real paid-payment webhook has been captured and webhook certification is not declared. Remove this entry after channel eligibility and CI credentials are configured, applicable non-card Authorize/Get/Refund and automatic-sale Reverse scenarios exist, and all declared live sandbox scenarios pass."
+    },
     "paynearme": {
       "reason": "No PayNearMe sandbox credentials exist; the integration was verified against a local spec-shaped mock server (outbound request + response parsing) rather than the live sandbox."
     },

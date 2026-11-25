@@ -181,6 +181,7 @@ pub enum ConnectorEnum {
     Payhere,
     Betterpayment,
     Ecommpay,
+    Paynamics,
 }
 
 // snake case for enum variants
@@ -588,6 +589,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
             grpc_api_types::payments::Connector::Betterpayment => Ok(Self::Betterpayment),
             grpc_api_types::payments::Connector::Ecommpay => Ok(Self::Ecommpay),
+            grpc_api_types::payments::Connector::Paynamics => Ok(Self::Paynamics),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -4826,6 +4828,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::VoucherData::FamilyMart(_) => Self::FamilyMart,
                 payment_method_data::VoucherData::Seicomart(_) => Self::Seicomart,
                 payment_method_data::VoucherData::PayEasy(_) => Self::PayEasy,
+                payment_method_data::VoucherData::Dragonpay => Self::Dragonpay,
             },
             PaymentMethodData::RealTimePayment(real_time_payment_data) => {
                 match *real_time_payment_data {
@@ -6768,6 +6771,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
+            AuthType::Paynamics(_) => Ok(Self::Payment(ConnectorEnum::Paynamics)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {

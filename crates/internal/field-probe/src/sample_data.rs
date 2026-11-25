@@ -964,6 +964,12 @@ pub(crate) fn seicomart_method() -> PaymentMethod {
     }
 }
 
+pub(crate) fn dragonpay_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Dragonpay(proto::Dragonpay::default())),
+    }
+}
+
 pub(crate) fn pay_easy_method() -> PaymentMethod {
     PaymentMethod {
         payment_method: Some(PmVariant::PayEasy(proto::PayEasy::default())),

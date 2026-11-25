@@ -479,6 +479,7 @@ pub struct Connectors {
     pub betterpayment: ConnectorParams,
     pub reddot: ConnectorParams,
     pub ecommpay: ConnectorParams,
+    pub paynamics: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -893,6 +894,9 @@ impl Connectors {
             ConnectorEnum::Ecommpay => {
                 patched.ecommpay.apply(params_patch);
             }
+            ConnectorEnum::Paynamics => {
+                patched.paynamics.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -900,7 +904,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay, betterpayment",
+                             Supported connectors: stripe, ppro, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere, elavon_pg, globalpayments_realex, ecommpay, betterpayment, paynamics",
                             connector
                         )),
                         ..Default::default()
@@ -2891,6 +2895,9 @@ impl<
                         payment_method_data::JCSVoucherData {},
                     ))))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::Dragonpay(_) => {
+                    Ok(Self::Voucher(payment_method_data::VoucherData::Dragonpay))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::PayEasy(_) => {
                     Ok(Self::Voucher(payment_method_data::VoucherData::PayEasy(Box::new(
                         payment_method_data::JCSVoucherData {},
@@ -3298,6 +3305,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::Seicomart)
             }
             grpc_api_types::payments::PaymentMethodType::PayEasy => Ok(PaymentMethodType::PayEasy),
+            grpc_api_types::payments::PaymentMethodType::Dragonpay => {
+                Ok(PaymentMethodType::Dragonpay)
+            }
             grpc_api_types::payments::PaymentMethodType::LocalBankTransfer => {
                 Ok(PaymentMethodType::LocalBankTransfer)
             }
@@ -3592,6 +3602,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Seicomart(_) => {
                     Ok(Some(PaymentMethodType::Seicomart))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::Dragonpay(_) => {
+                    Ok(Some(PaymentMethodType::Dragonpay))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::PayEasy(_) => {
                     Ok(Some(PaymentMethodType::PayEasy))
@@ -8818,6 +8831,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::PayEasy(_)),
             } => Ok(Self::Voucher),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Dragonpay(_)),
+            } => Ok(Self::Voucher),
             // DIRECT DEBIT
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -10478,6 +10495,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
 
             grpc_api_types::payments::PaymentMethodType::Boleto => Ok(Self::Voucher),
             grpc_api_types::payments::PaymentMethodType::Oxxo => Ok(Self::Voucher),
+            grpc_api_types::payments::PaymentMethodType::Dragonpay => Ok(Self::Voucher),
             grpc_api_types::payments::PaymentMethodType::CardRedirect => Ok(Self::CardRedirect),
             grpc_api_types::payments::PaymentMethodType::Knet => Ok(Self::CardRedirect),
             grpc_api_types::payments::PaymentMethodType::Benefit => Ok(Self::CardRedirect),
@@ -15528,6 +15546,7 @@ pub enum PaymentMethodDataType {
     FamilyMart,
     Seicomart,
     PayEasy,
+    Dragonpay,
     Givex,
     PaySafeCar,
     PaymentMethodToken,

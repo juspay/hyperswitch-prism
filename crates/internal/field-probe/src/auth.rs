@@ -930,5 +930,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             secret_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Paynamics => ConnectorSpecificConfig::Paynamics {
+            merchant_id: k(),
+            merchant_key: k(),
+            username: k(),
+            password: k(),
+            base_url: None,
+        },
+
     }
 }
