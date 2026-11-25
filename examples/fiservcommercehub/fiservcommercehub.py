@@ -9,11 +9,12 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
+from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments.generated import common_types_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
+from payments.generated import common_types_pb2, events_pb2, payment_methods_pb2, payment_pb2, sdk_config_pb2
 
-SUPPORTED_FLOWS = ["capture", "create_server_authentication_token", "get", "incremental_authorization", "recurring_charge", "refund", "refund_get", "reverse", "void"]
+SUPPORTED_FLOWS = ["capture", "create_server_authentication_token", "get", "incremental_authorization", "parse_event", "recurring_charge", "refund", "refund_get", "reverse", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -88,6 +89,16 @@ def _build_incremental_authorization_request():
         additional_amount=common_types_pb2.Money(  # Increase over the current authorized total. Must use the same currency as amount.
             minor_amount=100,
             currency=common_types_pb2.Currency.Value("USD"),
+        ),
+    )
+
+def _build_parse_event_request():
+    return events_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers={},  # Headers of the HTTP request.
+            body="{}".encode(),  # Body of the HTTP request.
         ),
     )
 
@@ -212,6 +223,15 @@ async def process_incremental_authorization(merchant_transaction_id: str, config
     incremental_response = await payment_client.incremental_authorization(_build_incremental_authorization_request())
 
     return {"status": incremental_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = event_client.parse_event(_build_parse_event_request())
+
+    return {"event_type": parse_response.event_type}
 
 
 async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
