@@ -4062,7 +4062,9 @@ pub struct AuthorizationRequest {
     pub is_account_funding_transaction: Option<bool>,
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
     pub sender_details: Option<grpc_payment_types::SenderDetails>,
-    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    /// Transaction purpose
+    pub purpose_of_payment: Option<String>,
+    /// Additional details required by the connectors
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
     /// Merchant business country (ISO 3166-1 alpha-2) for country-specific connector rules.
     pub business_country: Option<String>,
@@ -4116,7 +4118,8 @@ pub struct SetupRecurringRequest {
     pub is_account_funding_transaction: Option<bool>,
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
     pub sender_details: Option<grpc_payment_types::SenderDetails>,
-    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    /// Transaction purpose
+    pub purpose_of_payment: Option<String>,
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
     /// Sandbox/test mode flag (true for test environment). Connectors that branch
     /// endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
@@ -4200,6 +4203,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
             sender_details: req.sender_details,
+            purpose_of_payment: req.purpose_of_payment,
             additional_connector_details: req.additional_connector_details,
             business_country: req.business_country,
             merchant_details: req.merchant_details.map(ForeignFrom::foreign_from),
@@ -4282,6 +4286,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             is_account_funding_transaction: None,
             recipient_details: None,
             sender_details: None,
+            purpose_of_payment: None,
             additional_connector_details: None,
             business_country: None,
             merchant_details: None,
@@ -4338,6 +4343,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
             sender_details: req.sender_details,
+            purpose_of_payment: req.purpose_of_payment,
             additional_connector_details: req.additional_connector_details,
             test_mode: req.test_mode,
             capture_method: req
@@ -4361,6 +4367,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
                 });
 
         Self {
+            purpose_of_payment: None,
             auth_type: req.auth_type(),
             setup_future_usage: req.setup_future_usage(),
             merchant_recurring_payment_id: req.merchant_recurring_payment_id,
@@ -6006,6 +6013,7 @@ impl<
                 .sender_details
                 .map(connector_types::SenderDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: value.purpose_of_payment.clone(),
             additional_connector_details: value
                 .additional_connector_details
                 .map(connector_types::AdditionalConnectorDetails::foreign_from),
@@ -6180,6 +6188,7 @@ impl<
                 .sender_details
                 .map(connector_types::SenderDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: value.purpose_of_payment.clone(),
             additional_connector_details: value
                 .additional_connector_details
                 .map(connector_types::AdditionalConnectorDetails::foreign_from),
@@ -11828,32 +11837,17 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
-        // PaymentServiceReverseRequest has no `state` field. Connectors that require an
-        // OAuth Bearer token for post-capture reversal (e.g. JPMorgan) can pass the token
-        // via `connector_feature_data` as a JSON object:
-        //   {"access_token": "<token>", "token_type": "Bearer", "expires_in": 3600}
         let connector_feature_data = value
             .connector_feature_data
             .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_feature_data")))
             .transpose()?;
 
-        let access_token =
-            connector_feature_data
-                .as_ref()
-                .and_then(|serde_val: &SecretSerdeValue| {
-                    let obj = serde_val.peek();
-                    let token_str = obj.get("access_token").and_then(|v| v.as_str())?;
-                    let token_type = obj
-                        .get("token_type")
-                        .and_then(|v| v.as_str())
-                        .map(str::to_string);
-                    let expires_in = obj.get("expires_in").and_then(|v| v.as_i64());
-                    Some(ServerAuthenticationTokenResponseData {
-                        access_token: Secret::new(token_str.to_string()),
-                        token_type,
-                        expires_in,
-                    })
-                });
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             raw_connector_status: None,
@@ -14296,6 +14290,7 @@ impl<
                 .sender_details
                 .map(connector_types::SenderDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: value.purpose_of_payment.clone(),
             additional_connector_details: value
                 .additional_connector_details
                 .map(connector_types::AdditionalConnectorDetails::foreign_from),
@@ -16075,30 +16070,45 @@ impl ForeignTryFrom<grpc_api_types::payments::SenderDetails> for connector_types
     }
 }
 
+#[allow(deprecated)]
 impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
     for connector_types::AdditionalConnectorDetails
 {
     fn foreign_from(value: grpc_api_types::payments::AdditionalConnectorDetails) -> Self {
         Self {
-            checkout: value
-                .checkout
-                .map(|c| connector_types::CheckoutAdditionalInformation {
-                    purpose_of_payment: c.purpose_of_payment,
-                }),
-            worldpayxml: value.worldpayxml.map(|w| {
+            funding_transaction_type: value.funding_transaction_type.or_else(|| {
+                value
+                    .worldpayxml
+                    .as_ref()
+                    .and_then(|w| w.funding_transaction_type.clone())
+            }),
+            error_on_requires_action: value.error_on_requires_action.or_else(|| {
+                value
+                    .stripe
+                    .as_ref()
+                    .and_then(|s| s.error_on_requires_action)
+            }),
+            checkout: value.checkout.map(|checkout| {
+                connector_types::CheckoutAdditionalInformation {
+                    purpose_of_payment: checkout.purpose_of_payment,
+                }
+            }),
+            worldpayxml: value.worldpayxml.map(|worldpayxml| {
                 connector_types::WorldpayxmlAdditionalInformation {
-                    funding_transaction_type: w.funding_transaction_type,
-                    payment_purpose: w.payment_purpose,
+                    funding_transaction_type: worldpayxml.funding_transaction_type,
+                    payment_purpose: worldpayxml.payment_purpose,
                 }
             }),
             stripe: value
                 .stripe
-                .map(|s| connector_types::StripeAdditionalInformation {
-                    error_on_requires_action: s.error_on_requires_action,
+                .map(|stripe| connector_types::StripeAdditionalInformation {
+                    error_on_requires_action: stripe.error_on_requires_action,
                 }),
+            request_sca_exemption: value.request_sca_exemption,
             user_data1: value.user_data1,
             user_data2: value.user_data2,
             user_data3: value.user_data3,
+            ewallet: value.ewallet,
         }
     }
 }
@@ -17680,6 +17690,7 @@ impl<
                 .sender_details
                 .map(connector_types::SenderDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: value.purpose_of_payment.clone(),
             additional_connector_details: value
                 .additional_connector_details
                 .map(connector_types::AdditionalConnectorDetails::foreign_from),
@@ -22237,6 +22248,7 @@ pub fn tokenized_authorize_to_base(
     v: grpc_payment_types::PaymentServiceTokenAuthorizeRequest,
 ) -> PaymentServiceAuthorizeRequest {
     PaymentServiceAuthorizeRequest {
+        purpose_of_payment: None,
         split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
@@ -22399,6 +22411,7 @@ pub fn tokenized_setup_recurring_to_base(
         // TokenSetupRecurringRequest has no test_mode or capture_method field
         test_mode: None,
         capture_method: None,
+        purpose_of_payment: None,
     }
 }
 
@@ -22512,6 +22525,7 @@ pub fn proxied_authorize_to_base(
         enable_avs_check: v.enable_avs_check,
         enable_account_name_verification: None,
         risk_assessment_data: None,
+        purpose_of_payment: None,
     })
 }
 
@@ -22638,6 +22652,7 @@ pub fn proxied_setup_recurring_to_base(
         enable_account_name_verification: None,
         test_mode: v.test_mode,
         capture_method: None,
+        purpose_of_payment: None,
     })
 }
 

@@ -324,7 +324,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let telephone = if is_us_billing {
-            Some(common.get_billing_phone_number()?)
+            // Only the number is mandatory; requiring `phone.country_code` here
+            // rejected checkouts that collect the number alone.
+            Some(common.get_billing_phone()?.get_number()?)
         } else {
             common.get_optional_billing_phone_number()
         };

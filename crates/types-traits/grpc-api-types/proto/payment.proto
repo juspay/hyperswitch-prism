@@ -2655,6 +2655,9 @@ message PaymentServiceAuthorizeRequest {
   // Details about the sender of funds for account funding transactions.
   optional SenderDetails sender_details = 62;
 
+  // Purpose of payment
+  optional string purpose_of_payment = 63;
+
   // Merchant account context supplied by the caller.
   optional MerchantDetails merchant_details = 64;
 }
@@ -3072,6 +3075,9 @@ message PaymentServiceReverseRequest {
   // Worldpay RAFT reverses MANUAL completions and AUTOMATIC purchases at
   // different endpoints.
   optional CaptureMethod capture_method = 12;
+
+  // State Information
+  optional ConnectorState state = 13;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
@@ -3812,6 +3818,9 @@ message PaymentServiceSetupRecurringRequest {
 
   // Details about the sender of funds for account funding transactions.
   optional SenderDetails sender_details = 46;
+
+  // Purpose of payment for the selected connector (Checkout.com).
+  optional string purpose_of_payment = 47;
 }
 
 // Response message for a mandate setup operation
@@ -4005,6 +4014,9 @@ message RecurringPaymentServiceChargeRequest {
 
   // Details about the sender of funds for account funding transactions.
   optional SenderDetails sender_details = 46;
+
+  // Purpose of payment for the selected connector (Checkout.com).
+  optional string purpose_of_payment = 47;
 }
 
 // Response message for repeat payment operation
@@ -7044,11 +7056,20 @@ message AdditionalConnectorDetails {
   optional string user_data2 = 5;
   // Connector-specific merchant-supplied user-defined data, e.g. Worldpay RAFT UserData3.
   optional string user_data3 = 6;
+  // Destination wallet to include in the connector payment request.
+  optional SecretString ewallet = 8;
+  // Request an SCA exemption in MIT when the initial CIT completed 3D Secure.
+  optional bool request_sca_exemption = 7;
+  // Funding transaction type (Worldpayxml uses this for AFT payments).
+  optional string funding_transaction_type = 9;
+  // Fail MIT instead of requesting additional customer authentication.
+  optional bool error_on_requires_action = 10;
 }
 
 message WorldpayxmlAdditionalInformation {
   optional string funding_transaction_type = 1;
-  optional string payment_purpose = 2;
+  // Deprecated: use purpose_of_payment on the flow request.
+  optional string payment_purpose = 2 [deprecated = true];
 }
 
 // Stripe-specific additional information to be included in the payment request.
@@ -7063,5 +7084,6 @@ message StripeAdditionalInformation {
 message CheckoutAdditionalInformation {
   // Free-text description of the reason or intent behind the payment (e.g. "Invoice payment",
   // "Goods purchase"). Forwarded verbatim to Checkout.com as the purpose of the transaction.
-  optional string purpose_of_payment = 1;
+  // Deprecated: use purpose_of_payment on the flow request.
+  optional string purpose_of_payment = 1 [deprecated = true];
 }

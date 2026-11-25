@@ -165,6 +165,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -389,6 +390,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -563,6 +565,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -759,6 +762,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -1158,6 +1162,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                purpose_of_payment: None,
                 risk_assessment_data: None,
                 split_settlement: None,
                 customer_document_details: None,
@@ -1389,6 +1394,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                purpose_of_payment: None,
                 risk_assessment_data: None,
                 split_settlement: None,
                 customer_document_details: None,
@@ -1894,6 +1900,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
