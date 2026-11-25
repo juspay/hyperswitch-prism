@@ -2889,6 +2889,16 @@ pub enum RoutableConnectors {
     Zsl,
 }
 
+/// Server-selected stage of a connector-managed authentication flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuthenticationStage {
+    DeviceDataCollectionPending,
+    ChallengePending,
+    ReadyToAuthorize,
+    Failed,
+}
+
 /// Indicates the transaction status
 #[derive(
     Clone,

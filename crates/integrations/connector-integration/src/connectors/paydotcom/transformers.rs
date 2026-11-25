@@ -661,6 +661,7 @@ pub fn resource_id_authentication_data(resource_id: &str) -> AuthenticationData 
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        authentication_stage: None,
     }
 }
 

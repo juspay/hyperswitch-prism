@@ -635,6 +635,7 @@ fn get_authentication_data_for_validation_response(
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        authentication_stage: None,
     }
 }
 
@@ -822,6 +823,7 @@ fn get_authentication_data_for_authenticate_response(
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        authentication_stage: None,
     }
 }
 

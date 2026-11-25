@@ -586,6 +586,7 @@ fn get_preauthenticate_response(
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        authentication_stage: None,
     });
 
     match &emv3ds.three_d_s_method_u_r_l {
@@ -714,6 +715,7 @@ fn get_payments_response(
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        authentication_stage: None,
     });
 
     let ds_order = redsys_payments_response.ds_order.clone();

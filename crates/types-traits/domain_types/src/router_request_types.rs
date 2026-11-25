@@ -140,6 +140,8 @@ pub struct CartesBancairesParams {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AuthenticationData {
+    /// Forwarded from the previous connector response by the calling server.
+    pub authentication_stage: Option<common_enums::AuthenticationStage>,
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub eci: Option<String>,
     pub cavv: Option<Secret<String>>,
@@ -188,6 +190,7 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
     type Error = error_stack::Report<errors::IntegrationError>;
     fn try_from(value: payments::AuthenticationData) -> Result<Self, Self::Error> {
         let payments::AuthenticationData {
+            authentication_stage,
             eci,
             cavv,
             threeds_server_transaction_id,
@@ -206,6 +209,20 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
             message_extension,
             authentication_type,
         } = value;
+        let authentication_stage = authentication_stage
+            .map(|stage| {
+                payments::AuthenticationStage::try_from(stage)
+                    .change_context(errors::IntegrationError::InvalidDataFormat {
+                        field_name: "authentication_data.authentication_stage",
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some("Unknown authentication stage.".to_string()),
+                            ..Default::default()
+                        },
+                    })
+                    .map(Option::<common_enums::AuthenticationStage>::foreign_from)
+            })
+            .transpose()?
+            .flatten();
         let created_at = created_at
             .and_then(|ts| time::OffsetDateTime::from_unix_timestamp(ts).ok())
             .map(|odt| time::PrimitiveDateTime::new(odt.date(), odt.time()));
@@ -257,6 +274,7 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
 
         Ok(Self {
             ucaf_collection_indicator,
+            authentication_stage,
             trans_status,
             eci,
             cavv: cavv.map(Secret::new),
@@ -322,6 +340,10 @@ impl ForeignFrom<AuthenticationData> for payments::AuthenticationData {
     fn foreign_from(value: AuthenticationData) -> Self {
         use hyperswitch_masking::ExposeInterface;
         Self {
+            authentication_stage: value
+                .authentication_stage
+                .map(payments::AuthenticationStage::foreign_from)
+                .map(i32::from),
             ucaf_collection_indicator: value.ucaf_collection_indicator,
             eci: value.eci,
             cavv: value.cavv.map(|cavv| cavv.expose()),

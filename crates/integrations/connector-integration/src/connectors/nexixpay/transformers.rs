@@ -2570,6 +2570,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayPostAuthentic
                 challenge_code_reason: None,
                 message_extension: None,
                 authentication_type: None,
+                authentication_stage: None,
             }
         });
 

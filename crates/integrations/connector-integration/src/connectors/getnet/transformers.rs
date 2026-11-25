@@ -1989,6 +1989,7 @@ fn build_threeds_authentication_data(response: &GetnetThreeDsResponse) -> Authen
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        authentication_stage: None,
     }
 }
 

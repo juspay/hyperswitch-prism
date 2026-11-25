@@ -2176,6 +2176,7 @@ fn paysafe_handle_token_authentication_data(
         challenge_code_reason: None,
         message_extension: None,
         authentication_type: None,
+        authentication_stage: None,
     }
 }
 

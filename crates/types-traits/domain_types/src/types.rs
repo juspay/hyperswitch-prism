@@ -7490,6 +7490,10 @@ impl ForeignTryFrom<router_request_types::AuthenticationData>
             .exemption_indicator
             .map(|ei| grpc_api_types::payments::ExemptionIndicator::foreign_from(ei).into());
         Ok(Self {
+            authentication_stage: value
+                .authentication_stage
+                .map(grpc_api_types::payments::AuthenticationStage::foreign_from)
+                .map(i32::from),
             ucaf_collection_indicator: value.ucaf_collection_indicator,
             eci: value.eci,
             cavv: value.cavv.map(|cavv| cavv.expose()),
@@ -7519,6 +7523,43 @@ impl ForeignTryFrom<router_request_types::AuthenticationData>
                 .into()
             }),
         })
+    }
+}
+
+impl ForeignFrom<common_enums::AuthenticationStage>
+    for grpc_api_types::payments::AuthenticationStage
+{
+    fn foreign_from(stage: common_enums::AuthenticationStage) -> Self {
+        match stage {
+            common_enums::AuthenticationStage::DeviceDataCollectionPending => {
+                Self::DeviceDataCollectionPending
+            }
+            common_enums::AuthenticationStage::ChallengePending => Self::ChallengePending,
+            common_enums::AuthenticationStage::ReadyToAuthorize => Self::ReadyToAuthorize,
+            common_enums::AuthenticationStage::Failed => Self::Failed,
+        }
+    }
+}
+
+impl ForeignFrom<grpc_api_types::payments::AuthenticationStage>
+    for Option<common_enums::AuthenticationStage>
+{
+    fn foreign_from(stage: grpc_api_types::payments::AuthenticationStage) -> Self {
+        match stage {
+            grpc_api_types::payments::AuthenticationStage::Unspecified => None,
+            grpc_api_types::payments::AuthenticationStage::DeviceDataCollectionPending => {
+                Some(common_enums::AuthenticationStage::DeviceDataCollectionPending)
+            }
+            grpc_api_types::payments::AuthenticationStage::ChallengePending => {
+                Some(common_enums::AuthenticationStage::ChallengePending)
+            }
+            grpc_api_types::payments::AuthenticationStage::ReadyToAuthorize => {
+                Some(common_enums::AuthenticationStage::ReadyToAuthorize)
+            }
+            grpc_api_types::payments::AuthenticationStage::Failed => {
+                Some(common_enums::AuthenticationStage::Failed)
+            }
+        }
     }
 }
 
@@ -21096,6 +21137,10 @@ impl<
                         grpc_api_types::payments::CaptureMethod::try_from(cm).unwrap_or_default(),
                     )
                 })
+                .transpose()?,
+            authentication_data: value
+                .authentication_data
+                .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?,
             connector_order_reference_id: value.connector_order_reference_id,
         })
