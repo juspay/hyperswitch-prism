@@ -205,7 +205,6 @@ jobs:
               --draft
           fi
 
-
   # Dispatched rather than invoked with `uses:`. npm trusted publishing
   # validates the OIDC token's workflow_ref, which for a reusable workflow
   # resolves to *this* file rather than the one running `npm publish` — and a

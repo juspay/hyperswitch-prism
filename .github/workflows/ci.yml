@@ -42,7 +42,6 @@ permissions:
 # ─────────────────────────────────────────────────────────────────────────────
 
 jobs:
-
   # ── Change Detection ──────────────────────────────────────────────────────
   changes:
     name: Detect Changes
@@ -351,7 +350,6 @@ jobs:
           echo "list=$modified_list" >> $GITHUB_OUTPUT
           echo "Connectors with a modified specs.json/override.json, promoted off alpha, or newly live: $modified_list"
 
-
   # ── Fast Checks ───────────────────────────────────────────────────────────
 
   typos:
@@ -477,19 +475,19 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Setup Java
         uses: actions/setup-java@v4.9.1
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
-          cache: 'npm'
+          node-version: "24.22.1"
+          cache: "npm"
           cache-dependency-path: sdk/javascript/package.json
 
       - name: Install Python dependencies
@@ -867,7 +865,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
         uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
+          node-version: "24.22.1"
 
       - name: Build and verify isolated browser worker
         if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
@@ -1011,7 +1009,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Compute SDK binaries cache key
         id: cache-key
@@ -1140,20 +1138,20 @@ jobs:
         if: matrix.java
         uses: actions/setup-java@v4.9.1
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Setup Python
         uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Setup Node.js
         if: matrix.node
         uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
-          cache: 'npm'
+          node-version: "24.22.1"
+          cache: "npm"
           cache-dependency-path: |
             sdk/javascript/package.json
             sdk/tests/package.json

@@ -31,7 +31,7 @@ jobs:
 
       - uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
+          node-version: "24.22.1"
           cache: npm
           # setup-node ignores working-directory, and the workspace has no lockfile,
           # so key the cache on the workspace manifest.

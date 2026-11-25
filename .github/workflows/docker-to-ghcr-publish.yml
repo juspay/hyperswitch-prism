@@ -2,7 +2,7 @@ name: Docker Build and Push to GHCR
 
 on:
   workflow_dispatch:
-  
+
   # Automatically run when nightly (CalVer), hotfix, or stable (SemVer) tags
   # are created, e.g. 2025.12.03.0, 2025.12.03.0-hotfix1, v1.2.3. In GitHub
   # filter patterns `+` means "one or more of the preceding character", so
@@ -134,7 +134,7 @@ jobs:
         env:
           CARGO_INCREMENTAL: "0"
           SCCACHE_ENABLE: "true"
-      
+
       - name: Set job outputs
         id: set-outputs
         run: echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
@@ -153,7 +153,6 @@ jobs:
       VERSION: ${{ needs.build-and-push-dockerfile.outputs.version }}
       REPO: ${{ github.repository }}
     steps:
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3.7.0
         with:

@@ -4,34 +4,34 @@ on:
   workflow_dispatch:
     inputs:
       preview_only:
-        description: 'Preview only (do not actually publish)'
+        description: "Preview only (do not actually publish)"
         required: false
         default: false
         type: boolean
       publish_java:
-        description: 'Publish Java SDK to Maven Central'
+        description: "Publish Java SDK to Maven Central"
         required: false
         default: false
         type: boolean
       publish_python:
-        description: 'Publish Python SDK to PyPI'
+        description: "Publish Python SDK to PyPI"
         required: false
         default: false
         type: boolean
       publish_javascript:
-        description: 'Publish JavaScript SDK to npm'
+        description: "Publish JavaScript SDK to npm"
         required: false
         default: false
         type: boolean
       ref:
-        description: 'Optional confirmation of the branch or tag selected for this workflow run'
+        description: "Optional confirmation of the branch or tag selected for this workflow run"
         required: false
-        default: ''
+        default: ""
         type: string
       version:
-        description: 'Version to publish (e.g. 0.1.0) — overrides version in manifest files'
+        description: "Version to publish (e.g. 0.1.0) — overrides version in manifest files"
         required: false
-        default: ''
+        default: ""
         type: string
 
   workflow_call:
@@ -54,11 +54,11 @@ on:
         type: boolean
       ref:
         required: false
-        default: ''
+        default: ""
         type: string
       version:
         required: false
-        default: ''
+        default: ""
         type: string
     secrets:
       CONNECTOR_SERVICE_CI_PAT:
@@ -239,7 +239,7 @@ jobs:
         if: matrix.target == 'aarch64-apple-darwin'
         uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Generate Java SDK (UniFFI Kotlin bindings + Java proto stubs)
         if: matrix.target == 'aarch64-apple-darwin'
@@ -294,8 +294,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-java@v4.9.1
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
       - name: Download binaries
         uses: actions/download-artifact@v4.3.0
         with:
@@ -341,7 +341,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
       - name: Download binaries
         uses: actions/download-artifact@v4.3.0
         with:
@@ -382,7 +382,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
+          node-version: "24.22.1"
       - name: Install Protoc
         uses: arduino/setup-protoc@v3.0.0
         with:
@@ -508,18 +508,18 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       # Kept in step with the publish job so the dry-run exercises the same npm.
       - uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24.22.1"
+          registry-url: "https://registry.npmjs.org"
 
       - uses: actions/setup-java@v4.9.1
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3.0.0
@@ -756,8 +756,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-java@v4.9.1
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
       - name: Download SDK artifacts
         uses: actions/download-artifact@v4.3.0
         with:
@@ -831,7 +831,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
       - name: Install twine
         run: pip install twine
       # Publish the wheel exactly as built by the `package-sdk-python` job
@@ -887,8 +887,8 @@ jobs:
       # Node 24 ships npm >= 11.x; OIDC trusted publishing requires npm >= 11.5.1.
       - uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24.22.1"
+          registry-url: "https://registry.npmjs.org"
       - name: Verify npm supports trusted publishing
         run: |
           echo "npm $(npm --version) / node $(node --version)"

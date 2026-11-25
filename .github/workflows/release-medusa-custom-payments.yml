@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version_bump:
-        description: 'Version bump type'
+        description: "Version bump type"
         required: true
-        default: 'none'
+        default: "none"
         type: choice
         options:
           - none
@@ -14,12 +14,12 @@ on:
           - minor
           - major
       preview_only:
-        description: 'Preview only (do not actually publish)'
+        description: "Preview only (do not actually publish)"
         required: false
         default: false
         type: boolean
       publish_npm:
-        description: 'Publish to npm'
+        description: "Publish to npm"
         required: false
         default: false
         type: boolean
@@ -115,7 +115,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24.22.1'
+          node-version: "24.22.1"
 
       - name: Install and build
         run: |
@@ -151,7 +151,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24.22.1'
+          node-version: "24.22.1"
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8.0.2
@@ -170,7 +170,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.2
         with:
           name: package-tarball
-          path: 'plugins/medusa/medusa-custom-payments/*.tgz'
+          path: "plugins/medusa/medusa-custom-payments/*.tgz"
 
   preview:
     name: Preview What Will Be Published
@@ -223,8 +223,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24.22.1'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24.22.1"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Download package tarball
         uses: actions/download-artifact@v8.0.2
@@ -328,8 +328,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24.22.1'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24.22.1"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Verify npm supports trusted publishing
         run: |

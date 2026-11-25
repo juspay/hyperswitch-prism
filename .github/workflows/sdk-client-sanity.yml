@@ -9,32 +9,32 @@ name: SDK Client Sanity
 on:
   pull_request:
     paths:
-      - 'sdk/javascript/src/http_client.ts'
-      - 'sdk/javascript/tests/client_sanity_runner.ts'
-      - 'sdk/python/src/payments/http_client.py'
-      - 'sdk/python/tests/client_sanity_runner.py'
-      - 'sdk/rust/src/http_client.rs'
-      - 'sdk/rust/src/bin/client_sanity_runner.rs'
-      - 'sdk/java/src/main/kotlin/HttpClient.kt'
-      - 'sdk/java/tests/ClientSanityRunner.kt'
-      - 'sdk/tests/client_sanity/**'
-      - 'sdk/tests/package.json'
-      - 'Makefile'
+      - "sdk/javascript/src/http_client.ts"
+      - "sdk/javascript/tests/client_sanity_runner.ts"
+      - "sdk/python/src/payments/http_client.py"
+      - "sdk/python/tests/client_sanity_runner.py"
+      - "sdk/rust/src/http_client.rs"
+      - "sdk/rust/src/bin/client_sanity_runner.rs"
+      - "sdk/java/src/main/kotlin/HttpClient.kt"
+      - "sdk/java/tests/ClientSanityRunner.kt"
+      - "sdk/tests/client_sanity/**"
+      - "sdk/tests/package.json"
+      - "Makefile"
   push:
     branches:
       - main
     paths:
-      - 'sdk/javascript/src/http_client.ts'
-      - 'sdk/javascript/tests/client_sanity_runner.ts'
-      - 'sdk/python/src/payments/http_client.py'
-      - 'sdk/python/tests/client_sanity_runner.py'
-      - 'sdk/rust/src/http_client.rs'
-      - 'sdk/rust/src/bin/client_sanity_runner.rs'
-      - 'sdk/java/src/main/kotlin/HttpClient.kt'
-      - 'sdk/java/tests/ClientSanityRunner.kt'
-      - 'sdk/tests/client_sanity/**'
-      - 'sdk/tests/package.json'
-      - 'Makefile'
+      - "sdk/javascript/src/http_client.ts"
+      - "sdk/javascript/tests/client_sanity_runner.ts"
+      - "sdk/python/src/payments/http_client.py"
+      - "sdk/python/tests/client_sanity_runner.py"
+      - "sdk/rust/src/http_client.rs"
+      - "sdk/rust/src/bin/client_sanity_runner.rs"
+      - "sdk/java/src/main/kotlin/HttpClient.kt"
+      - "sdk/java/tests/ClientSanityRunner.kt"
+      - "sdk/tests/client_sanity/**"
+      - "sdk/tests/package.json"
+      - "Makefile"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -42,7 +42,7 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write  # for posting/updating PR comment
+  pull-requests: write # for posting/updating PR comment
 
 jobs:
   certify:
@@ -57,12 +57,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
+          node-version: "24.22.1"
 
       - name: Set up Python
         uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -70,8 +70,8 @@ jobs:
       - name: Set up Java (OpenJDK 17)
         uses: actions/setup-java@v4.9.1
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - name: Install protobuf compiler (protoc)
         run: |

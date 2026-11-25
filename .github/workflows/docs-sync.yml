@@ -6,21 +6,21 @@ on:
       - main
       - docs-summary-update-v2
     paths:
-      - 'docs/**'
-      - 'docs-generated/**'
-      - '.github/workflows/docs-sync.yml'
+      - "docs/**"
+      - "docs-generated/**"
+      - ".github/workflows/docs-sync.yml"
 
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (do not push changes)'
+        description: "Dry run (do not push changes)"
         required: false
         default: false
         type: boolean
       source_branch:
-        description: 'Source branch to sync from'
+        description: "Source branch to sync from"
         required: false
-        default: ''
+        default: ""
         type: string
 
 concurrency:
