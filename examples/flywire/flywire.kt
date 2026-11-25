@@ -66,7 +66,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
-        connectorOrderId = "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
+        connectorFeatureDataBuilder.value = "{\"session_id\":\"probe_session_001\"}"  // Connector-specific feature data for the transaction.
     }.build()
 }
 
@@ -226,7 +226,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         captureMethod = CaptureMethod.AUTOMATIC
         authType = AuthenticationType.NO_THREE_DS
         returnUrl = "https://example.com/return"
-        connectorOrderId = "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
+        connectorFeatureDataBuilder.value = "{\"session_id\":\"probe_session_001\"}"
     }.build()
     val response = client.proxy_authorize(request)
     println("Status: ${response.status.name}")
@@ -270,7 +270,7 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         }
         captureMethod = CaptureMethod.AUTOMATIC
         returnUrl = "https://example.com/return"
-        connectorOrderId = "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
+        connectorFeatureDataBuilder.value = "{\"session_id\":\"probe_session_001\"}"
     }.build()
     val response = client.token_authorize(request)
     println("Status: ${response.status.name}")

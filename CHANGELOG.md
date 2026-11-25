@@ -19,6 +19,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.25.1
+
+### Features
+
+- **connector:** Add moneris zero auth mandate flow ([#2934](https://github.com/juspay/connector-service/pull/2934)) ([`493ff3c`](https://github.com/juspay/connector-service/commit/493ff3c406175ca74534857f32c9d91ca4fd965a))
+
+### Bug Fixes
+
+- **nuvei:** Improve billing and airline request mapping ([#2932](https://github.com/juspay/connector-service/pull/2932)) ([`701b606`](https://github.com/juspay/connector-service/commit/701b606d815832f60fbd2e764befda72d7fc29b6))
+
+**Full Changelog:** [`2026.11.25.0...2026.11.25.1`](https://github.com/juspay/connector-service/compare/2026.11.25.0...2026.11.25.1)
+
+- - -
+
+## 2026.11.25.0
+
+### Features
+
+- **connector:**
+  - [PayPal] NTI and network-token MITs, stored-credential CIT, multi-capture, incremental auth, zero-amount wallet setup ([#2754](https://github.com/juspay/connector-service/pull/2754)) ([`e1849bd`](https://github.com/juspay/connector-service/commit/e1849bd99f84107813d65a863adae7e8f150a318))
+  - [JPMorgan] support SCA exemptions for MIT payments ([#2836](https://github.com/juspay/connector-service/pull/2836)) ([`82f62e9`](https://github.com/juspay/connector-service/commit/82f62e9fdf9351994abd3b2c3f4589794ca83bbf))
+
+**Full Changelog:** [`2026.11.24.2...2026.11.25.0`](https://github.com/juspay/connector-service/compare/2026.11.24.2...2026.11.25.0)
+
+- - -
+
 ## 2026.11.24.2
 
 ### Bug Fixes
