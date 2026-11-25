@@ -32,6 +32,7 @@ bypass_urls = ["localhost", "local"]
 
 [connectors]
 paynamics.base_url = ""
+revpay.base_url = "https://mpg.revpay.com.my"
 betterpayment.base_url = "https://api.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"
 payhere.base_url = "https://www.payhere.lk"
@@ -48,6 +49,7 @@ worldpayraft.base_url = "https://ws.vantiv.com/merchant/servicing/apitransaction
 reddot.base_url = "https://secure.reddotpayment.com"
 # Merchant API family (refund + merchant enquiry)
 reddot.secondary_base_url = "https://connect.reddotpayment.com"
+payhound.base_url = "https://api.payhound.com"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 maya.base_url = "https://pg.maya.ph"
 boost.base_url = "https://api.boostconnect.biz/gateway"

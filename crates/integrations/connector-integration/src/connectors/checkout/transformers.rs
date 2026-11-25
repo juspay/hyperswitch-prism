@@ -10,13 +10,13 @@ use domain_types::{
         SubmitEvidence, Void,
     },
     connector_types::{
-        AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
+        AcceptDisputeData, CustomerInfo, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RecipientAccount, RecipientBankAccount, RecipientDetails, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
-        SubmitEvidenceData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SenderAddress,
+        SenderDetails, SetupMandateRequestData, SubmitEvidenceData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
@@ -382,15 +382,19 @@ pub enum CheckoutSenderType {
     Individual,
 }
 
-#[skip_serializing_none]
 #[derive(Debug, Serialize)]
-pub struct CheckoutSender {
-    #[serde(rename = "type")]
-    pub sender_type: CheckoutSenderType,
-    pub first_name: Secret<String>,
-    pub last_name: Secret<String>,
-    pub address: CheckoutAddress,
-    pub date_of_birth: Secret<time::Date>,
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CheckoutSender {
+    Individual {
+        first_name: Secret<String>,
+        last_name: Secret<String>,
+        date_of_birth: Secret<time::Date>,
+        address: CheckoutAddress,
+    },
+    Corporate {
+        company_name: Secret<String>,
+        address: CheckoutAddress,
+    },
 }
 
 #[skip_serializing_none]
@@ -513,13 +517,53 @@ fn build_checkout_recipient(
     })
 }
 
-fn build_checkout_sender(
+pub(super) fn build_checkout_sender_address(
+    address: &SenderAddress,
+) -> Result<CheckoutAddress, error_stack::Report<IntegrationError>> {
+    let country = address
+        .country
+        .ok_or_else(utils::missing_field_err("sender_details.address.country"))?;
+    Ok(CheckoutAddress {
+        address_line1: Some(
+            address
+                .line1
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.line1"))?,
+        ),
+        address_line2: address.line2.clone(),
+        city: Some(
+            address
+                .city
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.city"))?,
+        ),
+        state: CheckoutAftStateParams {
+            state: address.state.clone(),
+            country,
+            field_name: "sender_details.address.state",
+        }
+        .try_into()?,
+        zip: Some(
+            address
+                .zip
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.address.zip"))?,
+        ),
+        country: Some(country),
+    })
+}
+
+/// Pre-`sender_details` behaviour, kept verbatim for backward compatibility: the sender is the
+/// individual named on the billing address, with the date of birth taken from the customer.
+fn build_checkout_sender_from_billing(
     resource_common_data: &PaymentFlowData,
-    date_of_birth: Secret<time::Date>,
+    customer: Option<&CustomerInfo>,
 ) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
+    let date_of_birth = customer
+        .and_then(|customer| customer.date_of_birth.clone())
+        .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
     let country = resource_common_data.get_billing_country()?;
-    Ok(CheckoutSender {
-        sender_type: CheckoutSenderType::Individual,
+    Ok(CheckoutSender::Individual {
         first_name: resource_common_data.get_billing_first_name()?,
         last_name: resource_common_data.get_billing_last_name()?,
         date_of_birth,
@@ -537,6 +581,59 @@ fn build_checkout_sender(
             country: Some(country),
         },
     })
+}
+
+pub(super) fn build_checkout_sender(
+    resource_common_data: &PaymentFlowData,
+    sender_details: Option<&SenderDetails>,
+    customer: Option<&CustomerInfo>,
+) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
+    match sender_details {
+        // for backwards compatibility, if sender_details is not provided, we will use the billing address to build the sender party
+        None => build_checkout_sender_from_billing(resource_common_data, customer),
+        Some(sender_details) => build_checkout_sender_from_sender_details(sender_details, customer),
+    }
+}
+
+fn build_checkout_sender_from_sender_details(
+    sender_details: &SenderDetails,
+    customer: Option<&CustomerInfo>,
+) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
+    let address = sender_details
+        .get_address()
+        .ok_or_else(utils::missing_field_err("sender_details.address"))
+        .and_then(build_checkout_sender_address)?;
+
+    match sender_details {
+        SenderDetails::Individual(individual) => Ok(CheckoutSender::Individual {
+            first_name: individual
+                .first_name
+                .clone()
+                .ok_or_else(utils::missing_field_err(
+                    "sender_details.individual.first_name",
+                ))?,
+            last_name: individual
+                .last_name
+                .clone()
+                .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
+            // The customer's date of birth was the only source of the sender's date of birth
+            // before sender details were added, so it still fills in when the sender omits it.
+            date_of_birth: individual
+                .date_of_birth
+                .clone()
+                .or_else(|| customer.and_then(|customer| customer.date_of_birth.clone()))
+                .ok_or_else(utils::missing_field_err("sender_details.date_of_birth"))?,
+            address,
+        }),
+        SenderDetails::Corporate(corporate) => {
+            Ok(CheckoutSender::Corporate {
+                company_name: corporate.company_name.clone().ok_or_else(
+                    utils::missing_field_err("sender_details.corporate.company_name"),
+                )?,
+                address,
+            })
+        }
+    }
 }
 
 #[skip_serializing_none]
@@ -650,7 +747,7 @@ fn build_shipping(common: &PaymentFlowData) -> Option<CheckoutShipping> {
 /// Customer name and tax number come from Level 2/3 data. Email and phone are
 /// independent of Level 2/3 processing.
 fn build_customer(
-    customer: Option<&domain_types::connector_types::CustomerInfo>,
+    customer: Option<&CustomerInfo>,
     l2l3_data: Option<&domain_types::connector_types::L2L3Data>,
     email: Option<common_utils::pii::Email>,
 ) -> Option<CheckoutCustomer> {
@@ -1933,21 +2030,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let purpose = item
                 .router_data
                 .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|details| details.checkout.as_ref())
-                .and_then(|checkout| checkout.purpose_of_payment.clone())
-                .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.checkout.purpose_of_payment",
-                ))?;
-
-            let sender_date_of_birth = item
-                .router_data
-                .request
-                .customer
-                .as_ref()
-                .and_then(|customer| customer.date_of_birth.clone())
-                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
+                .purpose_of_payment
+                .clone()
+                .or_else(|| {
+                    item.router_data
+                        .request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| {
+                            details
+                                .checkout
+                                .as_ref()
+                                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                        })
+                })
+                .ok_or_else(utils::missing_field_err("purpose_of_payment"))?;
 
             (
                 Some(build_checkout_recipient(
@@ -1955,7 +2052,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?),
                 Some(build_checkout_sender(
                     &item.router_data.resource_common_data,
-                    sender_date_of_birth,
+                    item.router_data.request.sender_details.as_ref(),
+                    item.router_data.request.customer.as_ref(),
                 )?),
                 Some(CheckoutInstruction { purpose }),
             )
@@ -2379,21 +2477,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let purpose = item
                 .router_data
                 .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|details| details.checkout.as_ref())
-                .and_then(|checkout| checkout.purpose_of_payment.clone())
-                .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.checkout.purpose_of_payment",
-                ))?;
-
-            let sender_date_of_birth = item
-                .router_data
-                .request
-                .customer
-                .as_ref()
-                .and_then(|customer| customer.date_of_birth.clone())
-                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
+                .purpose_of_payment
+                .clone()
+                .or_else(|| {
+                    item.router_data
+                        .request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| {
+                            details
+                                .checkout
+                                .as_ref()
+                                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                        })
+                })
+                .ok_or_else(utils::missing_field_err("purpose_of_payment"))?;
 
             (
                 Some(build_checkout_recipient(
@@ -2401,7 +2499,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?),
                 Some(build_checkout_sender(
                     &item.router_data.resource_common_data,
-                    sender_date_of_birth,
+                    item.router_data.request.sender_details.as_ref(),
+                    item.router_data.request.customer.as_ref(),
                 )?),
                 Some(CheckoutInstruction { purpose }),
             )
@@ -2750,21 +2849,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let purpose = item
                 .router_data
                 .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|details| details.checkout.as_ref())
-                .and_then(|checkout| checkout.purpose_of_payment.clone())
-                .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.checkout.purpose_of_payment",
-                ))?;
-
-            let sender_date_of_birth = item
-                .router_data
-                .request
-                .customer
-                .as_ref()
-                .and_then(|customer| customer.date_of_birth.clone())
-                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
+                .purpose_of_payment
+                .clone()
+                .or_else(|| {
+                    item.router_data
+                        .request
+                        .additional_connector_details
+                        .as_ref()
+                        .and_then(|details| {
+                            details
+                                .checkout
+                                .as_ref()
+                                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                        })
+                })
+                .ok_or_else(utils::missing_field_err("purpose_of_payment"))?;
 
             (
                 Some(build_checkout_recipient(
@@ -2772,7 +2871,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?),
                 Some(build_checkout_sender(
                     &item.router_data.resource_common_data,
-                    sender_date_of_birth,
+                    item.router_data.request.sender_details.as_ref(),
+                    item.router_data.request.customer.as_ref(),
                 )?),
                 Some(CheckoutInstruction { purpose }),
             )
@@ -3688,10 +3788,18 @@ pub struct PaymentVoidResponse {
 /// `/voids` and stays `Pending` until PSync confirms — never `VoidFailed`, which would report a
 /// failure the connector did not state. Non-2xx responses go through `build_error_response`.
 fn http_code_to_attempt_status_for_void_flow(http_code: u16) -> common_enums::AttemptStatus {
-    if matches!(http_code, 200 | 202) {
+    if matches!(http_code, 200) {
         common_enums::AttemptStatus::Voided
     } else {
         common_enums::AttemptStatus::Pending
+    }
+}
+
+fn http_code_to_attempt_status_for_refund_flow(http_code: u16) -> common_enums::RefundStatus {
+    if matches!(http_code, 200) {
+        common_enums::RefundStatus::Success
+    } else {
+        common_enums::RefundStatus::Pending
     }
 }
 
@@ -4368,7 +4476,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
         // 202 = capture accepted; 200 = "Payment is already captured" (Checkout's idempotent
         // success for a repeated capture). Both mean the funds are captured. Any other 2xx is
         // undocumented for /captures and stays Pending until PSync confirms.
-        let (status, amount_captured) = if matches!(item.http_code, 200 | 202) {
+        let (status, amount_captured) = if matches!(item.http_code, 200) {
             (
                 common_enums::AttemptStatus::Charged,
                 Some(item.router_data.request.capture_money.clone()),
@@ -4462,7 +4570,8 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
         // `payment_refund_declined` webhooks. Mapping 202 to Success would report a refund the
         // issuer can still decline (sandbox amount 3738). Non-2xx answers take the error path.
         // This intentionally diverges from Hyperswitch, which maps 202 to Success.
-        let refund_status = common_enums::RefundStatus::Pending;
+        let refund_status: common_enums::RefundStatus =
+            http_code_to_attempt_status_for_refund_flow(item.http_code);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.action_id.clone(),
@@ -4767,6 +4876,8 @@ pub enum CheckoutWebhookEventType {
     PaymentApproved,
     PaymentCaptured,
     PaymentDeclined,
+    #[serde(rename = "payment_paid")]
+    PayoutPaid,
     PaymentRefunded,
     PaymentRefundDeclined,
     PaymentAuthenticationFailed,
@@ -4798,12 +4909,23 @@ pub enum CheckoutWebhookEventType {
     Unknown,
 }
 
-/// Thin body used by `get_event_type` — deserialises only the `type` field so we
-/// avoid pulling in the full data payload during the stateless ParseEvent phase.
+/// Thin body used to classify events without requiring payment-specific fields.
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookEventTypeBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutWebhookEventType,
+    pub data: Option<CheckoutWebhookEventTypeData>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookEventTypeData {
+    pub destination: Option<CheckoutPayoutDestination>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutPayoutDestination {
+    #[serde(rename = "type")]
+    pub payout_destination_type: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4817,6 +4939,8 @@ pub struct CheckoutWebhookData {
     pub response_code: Option<String>,
     pub response_summary: Option<String>,
     pub auth_code: Option<String>,
+    /// Destination supplied on card-payout payment events.
+    pub destination: Option<CheckoutPayoutDestination>,
     /// Scheme transaction identifier (network transaction id) carried by
     /// `payment_approved` / `payment_declined` / `card_verified` events.
     pub scheme_id: Option<String>,
@@ -4899,9 +5023,21 @@ pub fn is_chargeback_event(event_code: &CheckoutWebhookEventType) -> bool {
     )
 }
 
-impl From<CheckoutWebhookEventType> for domain_types::connector_types::EventType {
-    fn from(event: CheckoutWebhookEventType) -> Self {
-        match event {
+pub fn is_payout_webhook(body: &CheckoutWebhookBody) -> bool {
+    match &body.transaction_type {
+        CheckoutWebhookEventType::PayoutPaid => true,
+        CheckoutWebhookEventType::PaymentApproved | CheckoutWebhookEventType::PaymentDeclined => {
+            body.data.destination.is_some()
+        }
+        _ => false,
+    }
+}
+
+impl From<CheckoutWebhookEventTypeBody> for domain_types::connector_types::EventType {
+    fn from(body: CheckoutWebhookEventTypeBody) -> Self {
+        let has_payout_destination = body.data.is_some_and(|data| data.destination.is_some());
+
+        match body.transaction_type {
             CheckoutWebhookEventType::AuthenticationStarted
             | CheckoutWebhookEventType::AuthenticationApproved
             | CheckoutWebhookEventType::AuthenticationAttempted => Self::PaymentActionRequired,
@@ -4910,8 +5046,15 @@ impl From<CheckoutWebhookEventType> for domain_types::connector_types::EventType
             | CheckoutWebhookEventType::PaymentAuthenticationFailed => {
                 Self::PaymentIntentAuthorizationFailure
             }
+            CheckoutWebhookEventType::PaymentApproved if has_payout_destination => {
+                Self::PayoutSuccess
+            }
             CheckoutWebhookEventType::PaymentApproved => Self::PaymentIntentAuthorizationSuccess,
             CheckoutWebhookEventType::PaymentCaptured => Self::PaymentIntentSuccess,
+            CheckoutWebhookEventType::PayoutPaid => Self::PayoutSuccess,
+            CheckoutWebhookEventType::PaymentDeclined if has_payout_destination => {
+                Self::PayoutFailure
+            }
             CheckoutWebhookEventType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelFailure,
             CheckoutWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentCaptureFailure,
@@ -4970,7 +5113,8 @@ impl TryFrom<CheckoutWebhookEventType> for common_enums::AttemptStatus {
             | CheckoutWebhookEventType::PaymentRetryScheduled => Ok(Self::Pending),
             CheckoutWebhookEventType::PaymentVoided => Ok(Self::Voided),
             CheckoutWebhookEventType::PaymentVoidDeclined => Ok(Self::VoidFailed),
-            CheckoutWebhookEventType::PaymentRefunded
+            CheckoutWebhookEventType::PayoutPaid
+            | CheckoutWebhookEventType::PaymentRefunded
             | CheckoutWebhookEventType::PaymentRefundDeclined
             | CheckoutWebhookEventType::PaymentRefundPending
             | CheckoutWebhookEventType::DisputeReceived
@@ -5032,6 +5176,7 @@ impl TryFrom<CheckoutWebhookEventType> for common_enums::RefundStatus {
             | CheckoutWebhookEventType::DisputeArbitrationWon
             | CheckoutWebhookEventType::DisputeWon
             | CheckoutWebhookEventType::DisputeLost
+            | CheckoutWebhookEventType::PayoutPaid
             | CheckoutWebhookEventType::Unknown => Err(error_stack::report!(
                 domain_types::errors::WebhookError::WebhookEventTypeNotFound
             )),

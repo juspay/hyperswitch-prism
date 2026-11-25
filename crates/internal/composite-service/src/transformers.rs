@@ -371,10 +371,13 @@ impl
             currency_conversion_data: item.currency_conversion_data.clone(),
             is_account_funding_transaction: item.is_account_funding_transaction,
             recipient_details: item.recipient_details.clone(),
+            sender_details: item.sender_details.clone(),
             additional_connector_details: item.additional_connector_details.clone(),
             business_country: item.business_country.clone(),
+            merchant_details: item.merchant_details.clone(),
             enable_avs_check: item.enable_avs_check,
             enable_account_name_verification: item.enable_account_name_verification,
+            purpose_of_payment: item.purpose_of_payment.clone(),
         }
     }
 }
@@ -761,6 +764,7 @@ impl
             payment_channel: item.payment_channel,
             billing_descriptor: item.billing_descriptor.clone(),
             l2_l3_data: item.l2_l3_data.clone(),
+            merchant_details: item.merchant_details.clone(),
         }
     }
 }
@@ -1322,10 +1326,13 @@ impl
             currency_conversion_data: request.currency_conversion_data.clone(),
             is_account_funding_transaction: request.is_account_funding_transaction,
             recipient_details: request.recipient_details.clone(),
+            sender_details: request.sender_details.clone(),
             additional_connector_details: request.additional_connector_details.clone(),
             business_country: request.business_country.clone(),
+            merchant_details: request.merchant_details.clone(),
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
+            purpose_of_payment: request.purpose_of_payment.clone(),
         }
     }
 }

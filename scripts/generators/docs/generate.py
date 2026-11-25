@@ -15,7 +15,7 @@ How it works:
   3. Outputs docs-generated/connectors/{name}.md
 
 To add docs for a new connector:
-  - Run field-probe to generate probe data: cd crates/internal/field-probe && cargo r
+  - Run field-probe to generate probe data: cd tools/field-probe && cargo r
   - Run: python3 scripts/generators/docs/generate.py {name}
 """
 

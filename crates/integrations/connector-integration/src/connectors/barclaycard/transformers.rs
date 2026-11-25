@@ -210,6 +210,8 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::Neteller(_) => "neteller",
         WalletData::PaymayaRedirect(_) => "paymaya_redirect",
         WalletData::PayhereRedirect {} => "payhere_redirect",
+        WalletData::BoostRedirect {} => "boost_redirect",
+        WalletData::AliPayPlusRedirect {} => "ali_pay_plus_redirect",
     }
 }
 
@@ -279,6 +281,7 @@ fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
         | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::MyDebit
         | common_enums::CardNetwork::AirPlus
         | common_enums::CardNetwork::Aurore
         | common_enums::CardNetwork::EftposAustralia
@@ -2184,8 +2187,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         redirection_data: Some(Box::new(RedirectForm::CybersourceAuthSetup {
                             access_token: info_response
                                 .consumer_authentication_information
-                                .access_token
-                                .expose(),
+                                .access_token,
                             ddc_url: info_response
                                 .consumer_authentication_information
                                 .device_data_collection_url,
@@ -2396,7 +2398,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         ) {
                             (Some(token), Some(step_up_url)) => {
                                 Some(RedirectForm::CybersourceConsumerAuth {
-                                    access_token: token.expose(),
+                                    access_token: token,
                                     step_up_url,
                                 })
                             }

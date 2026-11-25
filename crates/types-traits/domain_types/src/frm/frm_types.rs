@@ -70,11 +70,12 @@ impl ConnectorResponseHeaders for FrmFlowData {
     }
 }
 
-/// Merchant details used for FRM risk scoring.
+/// Merchant account details supplied with payment or risk requests.
 #[derive(Debug, Clone, Default)]
 pub struct MerchantDetails {
     pub merchant_id: Option<String>,
     pub merchant_category_code: Option<u32>,
+    pub merchant_country_code: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

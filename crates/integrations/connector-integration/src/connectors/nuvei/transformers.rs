@@ -6,7 +6,7 @@ use domain_types::{
         PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        AirlineLocation, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, ContinueRedirectionResponse, EventType,
         MandateReference, MandateReferenceId,
         NuveiClientAuthenticationResponse as NuveiClientAuthenticationResponseDomain,
@@ -29,6 +29,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::{AuthenticationData, AuthoriseIntegrityObject, BrowserInformation},
     router_response_types::RedirectForm,
+    utils::split_full_name,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -778,31 +779,54 @@ pub struct NuveiBillingAddress {
     pub state: Option<Secret<String>>,
 }
 
-impl From<(&PaymentFlowData, pii::Email, common_enums::CountryAlpha2)> for NuveiBillingAddress {
-    fn from(
-        (resource_data, email, country): (
-            &PaymentFlowData,
-            pii::Email,
-            common_enums::CountryAlpha2,
-        ),
+/// `(first_name, last_name)` as sent on the Nuvei billing address.
+type BillingNames = (Option<Secret<String>>, Option<Secret<String>>);
+
+/// Fill each missing billing name from the cardholder name when available.
+pub(super) fn billing_names(
+    billing_first_name: Option<Secret<String>>,
+    billing_last_name: Option<Secret<String>>,
+    card_holder_name: Option<Secret<String>>,
+) -> BillingNames {
+    let (card_first_name, card_last_name) = split_full_name(card_holder_name);
+    (
+        billing_first_name
+            .filter(|name| !name.peek().trim().is_empty())
+            .or(card_first_name),
+        billing_last_name
+            .filter(|name| !name.peek().trim().is_empty())
+            .or(card_last_name),
+    )
+}
+
+impl NuveiBillingAddress {
+    fn new(
+        resource_data: &PaymentFlowData,
+        email: pii::Email,
+        country: common_enums::CountryAlpha2,
+        card_holder_name: Option<Secret<String>>,
     ) -> Self {
+        let (first_name, last_name) = billing_names(
+            resource_data.get_optional_billing_first_name(),
+            resource_data.get_optional_billing_last_name(),
+            card_holder_name,
+        );
         Self {
             email,
             country,
-            first_name: resource_data.get_optional_billing_first_name(),
-            last_name: resource_data.get_optional_billing_last_name(),
+            first_name,
+            last_name,
             phone: resource_data.get_optional_billing_phone_number(),
             city: resource_data.get_optional_billing_city(),
             address: resource_data.get_optional_billing_line1(),
             address_line2: resource_data.get_optional_billing_line2(),
             address_line3: resource_data.get_optional_billing_line3(),
             zip: resource_data.get_optional_billing_zip(),
-            // 2-letter state code (US/CA full names converted), as hyperswitch
-            // `to_state_code_as_optional`; Nuvei rejects longer values.
             state: resource_data
                 .get_billing_address()
                 .ok()
-                .and_then(|details| details.to_state_code_as_optional().ok().flatten()),
+                .and_then(|details| details.get_optional_country_prefixed_state_code())
+                .filter(|state| state.peek().chars().count() <= 5),
         }
     }
 }
@@ -820,11 +844,33 @@ fn get_nuvei_card_holder_name<T: PaymentMethodDataTypes>(
         .or_else(|| resource_data.get_optional_billing_full_name())
 }
 
+/// The Name_on_card received on the payment method
+/// (`payment_method_data.card.card_holder_name`, likewise on an NTID card),
+/// used to fill missing billing names (`billing_names`). `None` for payment
+/// methods that carry no card holder name (wallets, network tokens).
+fn payment_method_name_on_card<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    data: Option<&PaymentMethodData<T>>,
+) -> Option<Secret<String>> {
+    match data {
+        Some(PaymentMethodData::Card(card)) => card.card_holder_name.clone(),
+        Some(PaymentMethodData::CardDetailsForNetworkTransactionId(card)) => {
+            card.card_holder_name.clone()
+        }
+        _ => None,
+    }
+}
+
 /// Billing address for flows where Nuvei requires it: billing email (else the
 /// request email) and billing country are mandatory, each with its own error.
-fn get_required_billing_address(
+/// Use the merchant account country only when the customer billing country is absent.
+/// `card_holder_name` (Name_on_card) fills missing billing names, see `billing_names`.
+pub(super) fn get_required_billing_address(
     resource_data: &PaymentFlowData,
     fallback_email: Option<pii::Email>,
+    card_holder_name: Option<Secret<String>>,
+    merchant_country: Option<common_enums::CountryAlpha2>,
 ) -> Result<NuveiBillingAddress, Report<IntegrationError>> {
     let email = resource_data
         .get_optional_billing_email()
@@ -837,13 +883,19 @@ fn get_required_billing_address(
         })?;
     let country = resource_data
         .get_optional_billing_country()
+        .or(merchant_country)
         .ok_or_else(|| {
             nuvei_missing_field(
                 "billing_address.country",
                 "Send address.billing_address.country_alpha2_code",
             )
         })?;
-    Ok(NuveiBillingAddress::from((resource_data, email, country)))
+    Ok(NuveiBillingAddress::new(
+        resource_data,
+        email,
+        country,
+        card_holder_name,
+    ))
 }
 
 #[serde_with::skip_serializing_none]
@@ -1575,8 +1627,28 @@ struct NuveiFlightLegDetails {
     stop_over_code: String,
 }
 
+pub(super) fn nuvei_airline_carrier_and_number(
+    segment: Option<&domain_types::connector_types::AirlineSegment>,
+) -> (Option<&str>, Option<&str>) {
+    let Some(segment) = segment else {
+        return (None, None);
+    };
+    (
+        segment
+            .operating_carrier_code
+            .as_deref()
+            .map(str::trim)
+            .filter(|code| !code.is_empty()),
+        segment
+            .operating_flight_number
+            .as_deref()
+            .map(str::trim)
+            .filter(|number| !number.is_empty()),
+    )
+}
+
 // Airline data is supplied explicitly through domain_data on each request.
-fn get_nuvei_airline_addendums(
+pub(super) fn get_nuvei_airline_addendums(
     domain: Option<&domain_types::connector_types::DomainData>,
 ) -> Result<Option<Secret<NuveiAddendums>>, Report<IntegrationError>> {
     let Some(data) = domain.and_then(|domain| domain.airline_data.as_ref()) else {
@@ -1599,44 +1671,44 @@ fn get_nuvei_airline_addendums(
             }
         })
         .collect();
-    let legs = data
-        .flight_segments
-        .iter()
-        .enumerate()
-        .map(|(index, segment)| {
-            let departure = segment.departure.as_ref();
-            let arrival = segment.arrival.as_ref();
-            NuveiFlightLegDetails {
-                airline_code: segment
-                    .marketing_carrier_code
-                    .as_ref()
-                    .or(data.airline_code.as_ref())
-                    .cloned(),
-                flight_number: segment.flight_number.as_deref().map(|number| {
-                    let carrier = segment
-                        .marketing_carrier_code
-                        .as_ref()
-                        .or(data.airline_code.as_ref());
-                    match carrier {
-                        Some(carrier) if !number.starts_with(carrier.as_str()) => {
-                            format!("{carrier} {number}")
-                        }
-                        _ => number.to_owned(),
-                    }
-                }),
-                departure_date: departure
-                    .and_then(|location| location.date_time.as_deref())
-                    .map(nuvei_airline_date),
-                arrival_date: arrival
-                    .and_then(|location| location.date_time.as_deref())
-                    .map(nuvei_airline_date),
-                departure_country: departure.and_then(|location| location.country_code.clone()),
-                departure_city: departure.and_then(|location| location.city_name.clone()),
-                departure_airport: departure.and_then(|location| location.airport_code.clone()),
-                destination_country: arrival.and_then(|location| location.country_code.clone()),
-                destination_city: arrival.and_then(|location| location.city_name.clone()),
-                destination_airport: arrival.and_then(|location| location.airport_code.clone()),
-                stop_over_code: segment.stopover_code.clone().unwrap_or_else(|| {
+    let make_leg = |departure: Option<&AirlineLocation>,
+                    arrival: Option<&AirlineLocation>,
+                    carrier: Option<&str>,
+                    flight_number: Option<&str>,
+                    stop_over_code: String|
+     -> Result<NuveiFlightLegDetails, Report<IntegrationError>> {
+        Ok(NuveiFlightLegDetails {
+            airline_code: carrier.map(str::to_owned),
+            flight_number: flight_number.map(|number| match carrier {
+                Some(carrier) if !number.starts_with(carrier) => {
+                    format!("{carrier} {number}")
+                }
+                _ => number.to_owned(),
+            }),
+            departure_date: departure
+                .and_then(|location| location.date_time.as_deref())
+                .map(nuvei_airline_date)
+                .transpose()?,
+            arrival_date: arrival
+                .and_then(|location| location.date_time.as_deref())
+                .map(nuvei_airline_date)
+                .transpose()?,
+            departure_country: departure.and_then(|location| location.country_code.clone()),
+            departure_city: departure.and_then(|location| location.city_name.clone()),
+            departure_airport: departure.and_then(|location| location.airport_code.clone()),
+            destination_country: arrival.and_then(|location| location.country_code.clone()),
+            destination_city: arrival.and_then(|location| location.city_name.clone()),
+            destination_airport: arrival.and_then(|location| location.airport_code.clone()),
+            stop_over_code,
+        })
+    };
+    let legs = if data.flight_journeys.is_empty() {
+        // Preserve the segment-based mapping for callers without journey details.
+        data.flight_segments
+            .iter()
+            .enumerate()
+            .map(|(index, segment)| {
+                let stop_over_code = segment.stopover_code.clone().unwrap_or_else(|| {
                     if segment.journey_no.is_some_and(|journey_no| {
                         data.flight_segments
                             .iter()
@@ -1647,10 +1719,37 @@ fn get_nuvei_airline_addendums(
                     } else {
                         "O".to_owned()
                     }
-                }),
-            }
-        })
-        .collect();
+                });
+                let (carrier, number) = nuvei_airline_carrier_and_number(Some(segment));
+                make_leg(
+                    segment.departure.as_ref(),
+                    segment.arrival.as_ref(),
+                    carrier,
+                    number,
+                    stop_over_code,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        data.flight_journeys
+            .iter()
+            .map(|journey| {
+                let mut segments = data.flight_segments.iter().filter(|segment| {
+                    journey.journey_no.is_some() && segment.journey_no == journey.journey_no
+                });
+                let first_segment = segments.next();
+                let has_connection = segments.next().is_some();
+                let (carrier, number) = nuvei_airline_carrier_and_number(first_segment);
+                make_leg(
+                    journey.departure.as_ref(),
+                    journey.arrival.as_ref(),
+                    carrier,
+                    number,
+                    if has_connection { "X" } else { "O" }.to_owned(),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?
+    };
     Ok(Some(Secret::new(NuveiAddendums {
         airlines: NuveiAirlines {
             reservation_details: NuveiReservationDetails {
@@ -1672,22 +1771,31 @@ fn get_nuvei_airline_addendums(
                     .document_type
                     .clone()
                     .unwrap_or_else(|| "TKT".to_owned()),
-                issue_date: data.ticket_issue_date.as_deref().map(nuvei_airline_date),
-                flight_date_utc: data.flight_date.as_deref().map(|value| {
-                    time::OffsetDateTime::parse(
-                        value,
-                        &time::format_description::well_known::Rfc3339,
-                    )
-                    .ok()
-                    .map(|date| date.to_offset(time::UtcOffset::UTC))
-                    .and_then(|date| {
-                        date.format(time::macros::format_description!(
-                            "[year]-[month]-[day] [hour]:[minute]:[second]"
-                        ))
-                        .ok()
+                issue_date: data
+                    .ticket_issue_date
+                    .as_deref()
+                    .map(nuvei_airline_date)
+                    .transpose()?,
+                flight_date_utc: data
+                    .flight_journeys
+                    .first()
+                    .and_then(|journey| journey.utc_departure.as_deref())
+                    .or(data.flight_date.as_deref())
+                    .map(|value| {
+                        match time::OffsetDateTime::parse(
+                            value,
+                            &time::format_description::well_known::Rfc3339,
+                        ) {
+                            Ok(date) => date
+                                .to_offset(time::UtcOffset::UTC)
+                                .format(time::macros::format_description!(
+                                    "[year]-[month]-[day] [hour]:[minute]:[second]"
+                                ))
+                                .change_context(nuvei_airline_date_format_error()),
+                            Err(_) => nuvei_airline_date(value),
+                        }
                     })
-                    .unwrap_or_else(|| nuvei_airline_date(value))
-                }),
+                    .transpose()?,
                 issuing_carrier_code: data
                     .issuing_carrier_code
                     .as_ref()
@@ -1701,16 +1809,56 @@ fn get_nuvei_airline_addendums(
     })))
 }
 
-fn nuvei_airline_date(value: &str) -> String {
-    time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
-        .ok()
-        .and_then(|date| {
-            date.format(time::macros::format_description!(
+fn nuvei_airline_date_format_error() -> IntegrationError {
+    IntegrationError::RequestEncodingFailed {
+        context: nuvei_error_context(
+            "Check the airline timestamp and retry the request",
+            "Nuvei could not format an airline timestamp as YYYY-MM-DD HH:mm:ss",
+        ),
+    }
+}
+
+fn nuvei_airline_date(value: &str) -> Result<String, Report<IntegrationError>> {
+    let offset_date =
+        time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+            .or_else(|_| {
+                // Some inputs separate the local time and numeric offset with a space.
+                time::OffsetDateTime::parse(
+                    value,
+                    time::macros::format_description!(
+                        "[year]-[month]-[day]T[hour]:[minute]:[second] [offset_hour sign:automatic]:[offset_minute]"
+                    ),
+                )
+            });
+    if let Ok(date) = offset_date {
+        return date
+            .format(time::macros::format_description!(
                 "[year]-[month]-[day] [hour]:[minute]:[second]"
             ))
-            .ok()
-        })
-        .unwrap_or_else(|| value.to_string())
+            .change_context(nuvei_airline_date_format_error());
+    }
+    // Local departure/arrival timestamps may omit the timezone.
+    // Format their wall-clock time without assuming or converting a timezone.
+    let local_date = time::PrimitiveDateTime::parse(
+        value,
+        time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]"),
+    )
+    .or_else(|_| {
+        time::PrimitiveDateTime::parse(
+            value,
+            time::macros::format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]"
+            ),
+        )
+    });
+    match local_date {
+        Ok(date) => date
+            .format(time::macros::format_description!(
+                "[year]-[month]-[day] [hour]:[minute]:[second]"
+            ))
+            .change_context(nuvei_airline_date_format_error()),
+        Err(_) => Ok(value.to_owned()),
+    }
 }
 
 fn get_nuvei_capture_addendums(
@@ -1751,21 +1899,19 @@ fn merge_nuvei_capture_ticket(
     {
         reservation_details.ticket_number = Some(ticket);
     }
-    // Preserve the supplied issue date; use capture time only when it is absent.
-    if reservation_details.issue_date.is_none() {
-        reservation_details.issue_date = Some(
-            common_utils::date_time::now()
-                .format(time::macros::format_description!(
-                    "[year]-[month]-[day] [hour]:[minute]:[second]"
-                ))
-                .change_context(IntegrationError::RequestEncodingFailed {
-                    context: nuvei_error_context(
-                        "Check the server clock and retry the capture; issueDate is generated from the capture time",
-                        "Nuvei could not format the capture timestamp as YYYY-MM-DD HH:mm:ss for addendums.airlines.reservationDetails.issueDate",
-                    ),
-                })?,
-        );
-    }
+    // Capture requests use the current timestamp for issueDate. - https://docs.nuvei.com/documentation/features/addendums/airline/
+    reservation_details.issue_date = Some(
+        common_utils::date_time::now()
+            .format(time::macros::format_description!(
+                "[year]-[month]-[day] [hour]:[minute]:[second]"
+            ))
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: nuvei_error_context(
+                    "Check the server clock and retry the capture; issueDate is generated from the capture time",
+                    "Nuvei could not format the capture timestamp as YYYY-MM-DD HH:mm:ss for addendums.airlines.reservationDetails.issueDate",
+                ),
+            })?,
+    );
     Ok(Some(Secret::new(addendums)))
 }
 
@@ -2841,7 +2987,15 @@ fn build_nuvei_three_ds_authorize_request<
         )
     })?;
 
-    let billing_address = get_required_billing_address(resource, email)?;
+    let billing_address = get_required_billing_address(
+        resource,
+        email,
+        card.card_holder_name.clone(),
+        request
+            .merchant_details
+            .as_ref()
+            .and_then(|details| details.merchant_country_code),
+    )?;
     let shipping_address = resource
         .get_optional_shipping_country()
         .map(|country| NuveiShippingAddress::from((resource, country)));
@@ -3333,7 +3487,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 )
                             },
                         )?,
-                        billing_address: get_required_billing_address(resource, email)?,
+                        billing_address: get_required_billing_address(
+                            resource,
+                            email,
+                            // wallets carry no Name_on_card
+                            None,
+                            request
+                                .merchant_details
+                                .as_ref()
+                                .and_then(|details| details.merchant_country_code),
+                        )?,
                         shipping_address: resource
                             .get_optional_shipping_country()
                             .map(|country| NuveiShippingAddress::from((resource, country))),
@@ -3376,8 +3539,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let client_request_id = resource.connector_request_reference_id.clone();
         let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
-        // billing email and country are mandatory
-        let billing_address = get_required_billing_address(resource, email.clone())?;
+        // Payment billing requires email and country.
+        let billing_address = get_required_billing_address(
+            resource,
+            email.clone(),
+            payment_method_name_on_card(Some(&request.payment_method_data)),
+            request
+                .merchant_details
+                .as_ref()
+                .and_then(|details| details.merchant_country_code),
+        )?;
         let shipping_address = resource
             .get_optional_shipping_country()
             .map(|country| NuveiShippingAddress::from((resource, country)));
@@ -4254,7 +4425,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_billing_email()
             .or_else(|| request.email.clone())
             .zip(resource.get_optional_billing_country())
-            .map(|(email, country)| NuveiBillingAddress::from((resource, email, country)));
+            .map(|(email, country)| {
+                NuveiBillingAddress::new(
+                    resource,
+                    email,
+                    country,
+                    payment_method_name_on_card(request.payment_method_data.as_ref()),
+                )
+            });
 
         Ok(Self {
             session_token,
@@ -4654,7 +4832,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let email = resource
             .get_optional_billing_email()
             .or_else(|| request.email.clone());
-        let billing_address = get_required_billing_address(resource, email)?;
+        let billing_address = get_required_billing_address(
+            resource,
+            email,
+            payment_method_name_on_card(request.payment_method_data.as_ref()),
+            request
+                .merchant_details
+                .as_ref()
+                .and_then(|details| details.merchant_country_code),
+        )?;
         let shipping_address = resource
             .get_optional_shipping_country()
             .map(|country| NuveiShippingAddress::from((resource, country)));
@@ -6177,8 +6363,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let client_request_id = resource.connector_request_reference_id.clone();
         let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
-        // Billing email and country are mandatory; shipping only when present
-        let billing_address = get_required_billing_address(resource, request.email.clone())?;
+        // Payment billing requires email and country.
+        let billing_address = get_required_billing_address(
+            resource,
+            request.email.clone(),
+            payment_method_name_on_card(Some(&request.payment_method_data)),
+            None,
+        )?;
         let shipping_address = resource
             .get_optional_shipping_country()
             .map(|country| NuveiShippingAddress::from((resource, country)));
@@ -6625,8 +6816,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ip_address: Secret::new(ip_address),
         };
 
-        // All arms: billing email and country are mandatory
-        let billing_address = get_required_billing_address(resource, request.email.clone())?;
+        // Payment billing requires email and country.
+        let billing_address = get_required_billing_address(
+            resource,
+            request.email.clone(),
+            payment_method_name_on_card(Some(&request.payment_method_data)),
+            None,
+        )?;
 
         // clientUniqueId is String(45)
         let client_request_id = resource.connector_request_reference_id.clone();

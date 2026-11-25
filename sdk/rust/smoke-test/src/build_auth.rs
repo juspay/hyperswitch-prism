@@ -21,11 +21,29 @@ fn get_val(
     }
 }
 
+/// Optional string credential: absent or `null` is `None`; present with the wrong shape is
+/// an error, so a creds.json typo does not silently run a different configuration.
 fn get_opt_secret(
     creds: &serde_json::Map<String, serde_json::Value>,
     key: &str,
-) -> Option<Secret<String>> {
-    get_val(creds, key).ok().map(Secret::new)
+) -> Result<Option<Secret<String>>, String> {
+    match creds.get(key) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(_) => get_val(creds, key).map(|value| Some(Secret::new(value))),
+    }
+}
+
+/// Optional boolean credential: absent or `null` is `None`; anything but a JSON bool is an
+/// error (e.g. `"true"` as a string).
+fn get_opt_bool(
+    creds: &serde_json::Map<String, serde_json::Value>,
+    key: &str,
+) -> Result<Option<bool>, String> {
+    match creds.get(key) {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::Bool(value)) => Ok(Some(*value)),
+        Some(_) => Err(format!("invalid field {key}: expected a JSON boolean")),
+    }
 }
 
 pub fn build_connector_config(
@@ -38,7 +56,7 @@ pub fn build_connector_config(
             config: Some(connector_specific_config::Config::Adyen(AdyenConfig {
                 api_key: Some(Secret::new(get_val(creds, "api_key")?)),
                 merchant_account: Some(Secret::new(get_val(creds, "merchant_account")?)),
-                review_key: get_opt_secret(creds, "review_key"),
+                review_key: get_opt_secret(creds, "review_key")?,
                 ..Default::default()
             })),
         }),
@@ -91,7 +109,7 @@ pub fn build_connector_config(
                 BraintreeConfig {
                     public_key: Some(Secret::new(get_val(creds, "public_key")?)),
                     private_key: Some(Secret::new(get_val(creds, "private_key")?)),
-                    merchant_account_id: get_opt_secret(creds, "merchant_account_id"),
+                    merchant_account_id: get_opt_secret(creds, "merchant_account_id")?,
                     ..Default::default()
                 },
             )),
@@ -118,8 +136,8 @@ pub fn build_connector_config(
                     api_key: Some(Secret::new(get_val(creds, "api_key")?)),
                     merchant_account: Some(Secret::new(get_val(creds, "merchant_account")?)),
                     api_secret: Some(Secret::new(get_val(creds, "api_secret")?)),
-                    disable_avs: creds.get("disable_avs").and_then(|v| v.as_bool()),
-                    disable_cvn: creds.get("disable_cvn").and_then(|v| v.as_bool()),
+                    disable_avs: get_opt_bool(creds, "disable_avs")?,
+                    disable_cvn: get_opt_bool(creds, "disable_cvn")?,
                     ..Default::default()
                 },
             )),
@@ -154,7 +172,7 @@ pub fn build_connector_config(
                 api_key: Some(Secret::new(get_val(creds, "api_key")?)),
                 merchant_account: Some(Secret::new(get_val(creds, "merchant_account")?)),
                 api_secret: Some(Secret::new(get_val(creds, "api_secret")?)),
-                terminal_id: get_opt_secret(creds, "terminal_id"),
+                terminal_id: get_opt_secret(creds, "terminal_id")?,
                 ..Default::default()
             })),
         }),
@@ -221,13 +239,13 @@ pub fn build_connector_config(
                     thumbprint: Some(Secret::new(get_val(creds, "thumbprint")?)),
                     private_key: Some(Secret::new(get_val(creds, "private_key")?)),
                     resource_id: Some(Secret::new(get_val(creds, "resource_id")?)),
-                    company_name: get_opt_secret(creds, "company_name"),
-                    product_name: get_opt_secret(creds, "product_name"),
+                    company_name: get_opt_secret(creds, "company_name")?,
+                    product_name: get_opt_secret(creds, "product_name")?,
                     merchant_purchase_description: get_opt_secret(
                         creds,
                         "merchant_purchase_description",
-                    ),
-                    statement_descriptor: get_opt_secret(creds, "statement_descriptor"),
+                    )?,
+                    statement_descriptor: get_opt_secret(creds, "statement_descriptor")?,
                     ..Default::default()
                 },
             )),
@@ -243,7 +261,7 @@ pub fn build_connector_config(
         "mollie" => Ok(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Mollie(MollieConfig {
                 api_key: Some(Secret::new(get_val(creds, "api_key")?)),
-                profile_token: get_opt_secret(creds, "profile_token"),
+                profile_token: get_opt_secret(creds, "profile_token")?,
                 ..Default::default()
             })),
         }),
@@ -275,7 +293,7 @@ pub fn build_connector_config(
         "nmi" => Ok(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Nmi(NmiConfig {
                 api_key: Some(Secret::new(get_val(creds, "api_key")?)),
-                public_key: get_opt_secret(creds, "public_key"),
+                public_key: get_opt_secret(creds, "public_key")?,
                 ..Default::default()
             })),
         }),
@@ -323,7 +341,7 @@ pub fn build_connector_config(
         "payme" => Ok(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Payme(PaymeConfig {
                 seller_payme_id: Some(Secret::new(get_val(creds, "seller_payme_id")?)),
-                payme_client_key: get_opt_secret(creds, "payme_client_key"),
+                payme_client_key: get_opt_secret(creds, "payme_client_key")?,
                 ..Default::default()
             })),
         }),
@@ -432,7 +450,7 @@ pub fn build_connector_config(
                     username: Some(Secret::new(get_val(creds, "username")?)),
                     password: Some(Secret::new(get_val(creds, "password")?)),
                     entity_id: Some(Secret::new(get_val(creds, "entity_id")?)),
-                    merchant_name: get_opt_secret(creds, "merchant_name"),
+                    merchant_name: get_opt_secret(creds, "merchant_name")?,
                     ..Default::default()
                 },
             )),
@@ -475,7 +493,7 @@ pub fn build_connector_config(
                 merchant_id: Some(Secret::new(get_val(creds, "merchant_id")?)),
                 merchant_key: Some(Secret::new(get_val(creds, "merchant_key")?)),
                 website: Some(Secret::new(get_val(creds, "website")?)),
-                client_id: get_opt_secret(creds, "client_id"),
+                client_id: get_opt_secret(creds, "client_id")?,
                 ..Default::default()
             })),
         }),
@@ -484,6 +502,15 @@ pub fn build_connector_config(
                 api_key: Some(Secret::new(get_val(creds, "api_key")?)),
                 ..Default::default()
             })),
+        }),
+        "payhound" => Ok(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Payhound(
+                PayhoundConfig {
+                    api_key: Some(Secret::new(get_val(creds, "api_key")?)),
+                    api_secret: Some(Secret::new(get_val(creds, "api_secret")?)),
+                    ..Default::default()
+                },
+            )),
         }),
         "payload" => Ok(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Payload(PayloadConfig {
@@ -561,7 +588,7 @@ pub fn build_connector_config(
         "revolut" => Ok(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Revolut(RevolutConfig {
                 secret_api_key: Some(Secret::new(get_val(creds, "secret_api_key")?)),
-                signing_secret: get_opt_secret(creds, "signing_secret"),
+                signing_secret: get_opt_secret(creds, "signing_secret")?,
                 ..Default::default()
             })),
         }),
@@ -670,7 +697,7 @@ pub fn build_connector_config(
             config: Some(connector_specific_config::Config::Paypal(PaypalConfig {
                 client_id: Some(Secret::new(get_val(creds, "client_id")?)),
                 client_secret: Some(Secret::new(get_val(creds, "client_secret")?)),
-                payer_id: get_opt_secret(creds, "payer_id"),
+                payer_id: get_opt_secret(creds, "payer_id")?,
                 ..Default::default()
             })),
         }),

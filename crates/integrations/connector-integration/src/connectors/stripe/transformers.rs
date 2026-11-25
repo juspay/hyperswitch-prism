@@ -1406,6 +1406,8 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Grabpay
             | common_enums::PaymentMethodType::Paymaya
             | common_enums::PaymentMethodType::Payhere
+            | common_enums::PaymentMethodType::Boost
+            | common_enums::PaymentMethodType::AliPayPlus
             | common_enums::PaymentMethodType::QwikcilverWallet
             | common_enums::PaymentMethodType::Ted => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
@@ -1717,6 +1719,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
+        | WalletData::AliPayPlusRedirect {}
+        | WalletData::BoostRedirect {}
         | WalletData::PayhereRedirect {}
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_)
@@ -2115,6 +2119,7 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::Prop
         | common_enums::CardNetwork::PrivateLabel
         | common_enums::CardNetwork::Dinacard
+        | common_enums::CardNetwork::MyDebit
         | common_enums::CardNetwork::AirPlus
         | common_enums::CardNetwork::Aurore
         | common_enums::CardNetwork::EftposAustralia
@@ -2538,6 +2543,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::AliPayPlusRedirect {}
+            | WalletData::BoostRedirect {}
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)
@@ -2565,12 +2572,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBlik(Box::new(StripeBlik {
                     payment_method_data_type,
-                    code: Secret::new(blik_code.clone().ok_or(
-                        IntegrationError::MissingRequiredField {
+                    code: blik_code
+                        .clone()
+                        .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "blik_code",
                             context: Default::default(),
-                        },
-                    )?),
+                        })?,
                 })),
             )),
             BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(
@@ -7293,12 +7300,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             moto: is_moto,
             on_behalf_of,
-            error_on_requires_action: item
-                .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|details| details.stripe.as_ref())
-                .and_then(|stripe| stripe.error_on_requires_action),
+            error_on_requires_action: item.request.additional_connector_details.as_ref().and_then(
+                |details| {
+                    details.error_on_requires_action.or_else(|| {
+                        details
+                            .stripe
+                            .as_ref()
+                            .and_then(|stripe| stripe.error_on_requires_action)
+                    })
+                },
+            ),
             token_request_three_d_secure: None,
         })
     }

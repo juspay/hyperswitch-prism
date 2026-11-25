@@ -4,7 +4,6 @@
     "PaymentService/Authorize",
     "PaymentService/Get",
     "PaymentService/Refund",
-    "RefundService/Get",
-    "EventService/HandleEvent"
+    "RefundService/Get"
   ]
 }

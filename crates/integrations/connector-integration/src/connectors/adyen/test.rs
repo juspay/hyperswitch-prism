@@ -156,6 +156,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -259,7 +260,9 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    sender_details: None,
                     business_country: None,
+                    merchant_details: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
                     additional_connector_details: None,
@@ -390,6 +393,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -450,7 +454,9 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    sender_details: None,
                     business_country: None,
+                    merchant_details: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
                     additional_connector_details: None,
@@ -597,5 +603,32 @@ mod tests {
         //     let result = connector_integration.build_request_v2(&req);
         //     assert!(result.is_err(), "Expected error for invalid fields");
         // }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod webhook_additional_data_tests {
+    use crate::connectors::adyen::transformers::get_webhook_object_from_body;
+
+    #[test]
+    fn notification_without_additional_data_decodes() {
+        let body = serde_json::json!({
+            "live": "false",
+            "notificationItems": [{
+                "NotificationRequestItem": {
+                    "pspReference": "PSP1",
+                    "originalReference": "PSP0",
+                    "amount": { "value": 1000, "currency": "EUR" },
+                    "eventCode": "REFUND_FAILED",
+                    "merchantAccountCode": "Merchant",
+                    "merchantReference": "ref-1",
+                    "success": "true"
+                }
+            }]
+        });
+        let item = get_webhook_object_from_body(body.to_string().into_bytes()).unwrap();
+        assert_eq!(item.psp_reference, "PSP1");
+        assert!(item.additional_data.hmac_signature.is_none());
     }
 }
