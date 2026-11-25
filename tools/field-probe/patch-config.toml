@@ -50,6 +50,13 @@ patches = [
 ]
 
 [[multi]]
+# Flywire confirmation needs the saved session ID inside JSON-encoded feature data.
+aliases = ["connector_feature_data.session_id"]
+patches = [
+  { path = "connector_feature_data", type = "secret_string", value = '{"session_id":"probe_session_001"}' },
+]
+
+[[multi]]
 # connector_feature_data is a Secret<String> containing JSON, not a nested proto
 # message. Patch the serialized metadata when RAFT asks for its authorization ID.
 aliases = ["connector_feature_data.api_transaction_id"]
