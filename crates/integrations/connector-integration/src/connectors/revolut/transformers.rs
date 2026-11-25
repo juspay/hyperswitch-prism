@@ -948,10 +948,9 @@ impl<F> TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
             RevolutOrderState::Cancelled => AttemptStatus::Voided,
         };
 
-        let connector_transaction_id = response
-            .payments
-            .and_then(|payments| payments.first().map(|p| p.id.clone()))
-            .unwrap_or_else(|| response.id.clone());
+        // Capture, PSync and Refund all address the order. Returning a payment-attempt
+        // id here would make the next PSync/Refund call a 404 against /api/orders/{id}.
+        let connector_transaction_id = response.id.clone();
 
         let merchant_reference = response
             .merchant_order_data
