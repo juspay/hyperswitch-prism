@@ -816,7 +816,14 @@
         "status": "supported",
         "proto_request": {
           "merchant_reverse_id": "probe_reverse_001",
-          "connector_transaction_id": "probe_connector_txn_001"
+          "connector_transaction_id": "probe_connector_txn_001",
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
         },
         "sample": {
           "url": "https://connect-cert.fiservapis.com/ch/payments/v1/cancels",

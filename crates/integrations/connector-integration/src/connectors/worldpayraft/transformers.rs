@@ -14,8 +14,8 @@ use domain_types::{
         Void, VoidPC, VoidPostRefund,
     },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        AdditionalConnectorDetails, MandateReference, MandateReferenceId, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId, SetupMandateRequestData,
@@ -1288,6 +1288,8 @@ pub struct WorldpayraftCardAuthInner<T: PaymentMethodDataTypes> {
     pub proc_flags_indicators: Option<WorldpayraftProcFlags>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reference_trace_numbers: Option<WorldpayraftCardAuthTraceNumbers>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_defined_data: Option<WorldpayraftUserDefinedData>,
     #[serde(flatten)]
     pub brand_specific_data: WorldpayraftBrandSpecificData,
     #[serde(rename = "WorldPayMerchantID")]
@@ -1295,6 +1297,17 @@ pub struct WorldpayraftCardAuthInner<T: PaymentMethodDataTypes> {
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: String,
     pub local_date_time: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct WorldpayraftUserDefinedData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_data1: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_data2: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_data3: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1324,6 +1337,63 @@ fn mastercard_cof_trace_numbers(
     Ok(Some(WorldpayraftCardAuthTraceNumbers {
         economically_related_link_id: link_id.to_owned(),
     }))
+}
+
+fn validate_worldpayraft_user_data(
+    field_name: &str,
+    value: Option<&str>,
+    max_length: usize,
+) -> Result<(), error_stack::Report<errors::IntegrationError>> {
+    let Some(value) = value else {
+        return Ok(());
+    };
+    let received_length = value.chars().count();
+    if received_length > max_length {
+        return Err(errors::IntegrationError::MaxFieldLengthViolated {
+            connector: "worldpayraft".to_string(),
+            field_name: field_name.to_string(),
+            max_length,
+            received_length,
+            context: errors::IntegrationErrorContext {
+                suggested_action: Some(format!(
+                    "Shorten {field_name} to {max_length} characters or fewer."
+                )),
+                doc_url: Some(
+                    "https://docs.worldpay.com/api-specification/native-raft/credit#/rest/api-endpoints/credit/credit-authorization"
+                        .to_string(),
+                ),
+                additional_context: Some(format!(
+                    "Worldpay RAFT limits {field_name} to {max_length} characters; the supplied value has {received_length}."
+                )),
+            },
+        }
+        .into());
+    }
+    Ok(())
+}
+
+fn get_worldpayraft_user_defined_data(
+    additional_details: Option<&AdditionalConnectorDetails>,
+) -> Result<Option<WorldpayraftUserDefinedData>, error_stack::Report<errors::IntegrationError>> {
+    let Some(additional_details) = additional_details else {
+        return Ok(None);
+    };
+    let user_data1 = additional_details.user_data1.as_deref();
+    let user_data2 = additional_details.user_data2.as_deref();
+    let user_data3 = additional_details.user_data3.as_deref();
+    validate_worldpayraft_user_data("UserData1", user_data1, 35)?;
+    validate_worldpayraft_user_data("UserData2", user_data2, 20)?;
+    validate_worldpayraft_user_data("UserData3", user_data3, 20)?;
+
+    let data = WorldpayraftUserDefinedData {
+        user_data1: user_data1.map(str::to_owned),
+        user_data2: user_data2.map(str::to_owned),
+        user_data3: user_data3.map(str::to_owned),
+    };
+    Ok(
+        (data.user_data1.is_some() || data.user_data2.is_some() || data.user_data3.is_some())
+            .then_some(data),
+    )
 }
 
 /// Outer wrapper for authorize requests.
@@ -1871,6 +1941,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             (None, None) => CardFields::try_from(&request.payment_method_data)?,
         };
         let is_debit = card.is_debit;
+        let user_defined_data =
+            get_worldpayraft_user_defined_data(request.additional_connector_details.as_ref())?;
         let is_auto_capture = request.is_auto_capture();
         validate_partial_approval(request.enable_partial_authorization)?;
         let request_incremental_authorization =
@@ -2082,6 +2154,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             proc_flags_indicators: pos.proc_flags,
             reference_trace_numbers,
+            user_defined_data,
             brand_specific_data,
             world_pay_merchant_id: auth.merchant_id,
             api_transaction_id: truncate_api_transaction_id(payment_id),
@@ -3565,6 +3638,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = &router_data.request;
         validate_partial_approval(request.enable_partial_authorization)?;
+        let user_defined_data =
+            get_worldpayraft_user_defined_data(request.additional_connector_details.as_ref())?;
         let reference = WorldpayraftNetworkReference::try_from(Some(&request.mandate_reference))?;
         let network_transaction_id = reference.network_transaction_id;
         let transaction_link_id = reference.transaction_link_id;
@@ -3729,6 +3804,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }),
             proc_flags_indicators: pos.proc_flags,
             reference_trace_numbers,
+            user_defined_data,
             brand_specific_data: WorldpayraftBrandSpecificData::for_mit(
                 network.as_ref(),
                 network_transaction_id.map(str::to_owned),

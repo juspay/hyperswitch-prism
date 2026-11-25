@@ -1060,7 +1060,7 @@ fn parse_worldpayxml_funding_transaction_type(
 ) -> Result<requests::WorldpayxmlFundingTransactionType, Report<IntegrationError>> {
     serde_json::from_value(serde_json::Value::String(raw.to_owned())).change_context(
         IntegrationError::InvalidConnectorConfig {
-            config: "additional_connector_details.worldpayxml.funding_transaction_type",
+            config: "additional_connector_details.funding_transaction_type",
             context: IntegrationErrorContext {
                 additional_context: Some(format!("unknown funding transaction type {raw}")),
                 suggested_action: Some(
@@ -1077,7 +1077,7 @@ fn parse_worldpayxml_payment_purpose(
 ) -> Result<requests::WorldpayxmlPaymentPurpose, Report<IntegrationError>> {
     serde_json::from_value(serde_json::Value::String(raw.to_owned())).change_context(
         IntegrationError::InvalidConnectorConfig {
-            config: "additional_connector_details.worldpayxml.payment_purpose",
+            config: "purpose_of_payment",
             context: IntegrationErrorContext {
                 additional_context: Some(format!("unknown payment purpose {raw}")),
                 suggested_action: Some("send a supported worldpayxml payment purpose".to_string()),
@@ -1460,33 +1460,35 @@ fn build_worldpayxml_funding_transfer<
                 })),
             }?;
 
-            let worldpayxml_details = router_data
+            let additional_details = router_data
                 .request
                 .additional_connector_details
                 .as_ref()
-                .and_then(|details| details.worldpayxml.as_ref())
-                .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.worldpayxml",
-                ))?;
+                .ok_or_else(utils::missing_field_err("additional_connector_details"))?;
 
-            let transfer_type = worldpayxml_details
+            let transfer_type = additional_details
                 .funding_transaction_type
                 .as_deref()
                 .map(parse_worldpayxml_funding_transaction_type)
                 .transpose()?
                 .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.worldpayxml.funding_transaction_type",
+                    "additional_connector_details.funding_transaction_type",
                 ))?
                 .code();
 
-            let payment_purpose = worldpayxml_details
-                .payment_purpose
+            let payment_purpose = router_data
+                .request
+                .purpose_of_payment
                 .as_deref()
+                .or_else(|| {
+                    additional_details
+                        .worldpayxml
+                        .as_ref()
+                        .and_then(|worldpayxml| worldpayxml.payment_purpose.as_deref())
+                })
                 .map(parse_worldpayxml_payment_purpose)
                 .transpose()?
-                .ok_or_else(utils::missing_field_err(
-                    "additional_connector_details.worldpayxml.payment_purpose",
-                ))?
+                .ok_or_else(utils::missing_field_err("purpose_of_payment"))?
                 .code();
 
             Ok(requests::WorldpayxmlFundingTransfer {
@@ -2256,21 +2258,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        let connector_transaction_id = router_data
+        // Order inquiries can use the original order code when no transaction ID is stored.
+        let order_code = router_data
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
-            })?;
+            .unwrap_or_else(|_| {
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone()
+            });
 
         Ok(Self {
             version: API_VERSION.to_string(),
             merchant_code: auth.merchant_code,
             inquiry: requests::WorldpayxmlInquiry {
-                order_inquiry: requests::WorldpayxmlOrderInquiry {
-                    order_code: connector_transaction_id,
-                },
+                order_inquiry: requests::WorldpayxmlOrderInquiry { order_code },
             },
         })
     }

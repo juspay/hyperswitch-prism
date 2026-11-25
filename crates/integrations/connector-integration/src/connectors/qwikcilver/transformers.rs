@@ -466,6 +466,17 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
+        if req.refund_money.amount() != req.payment_money.amount() {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Partial refunds".to_string(),
+                connector: "qwikcilver",
+                context: qc_err_ctx(
+                    "Qwikcilver Cancel Redeem reverses the complete original redemption and does not accept a refund amount.",
+                    "Request a full refund for the original redemption.",
+                ),
+            }));
+        }
+
         let txn = req.connector_transaction_id.parse::<i64>().map_err(|_| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
                 field_name: "connector_transaction_id",
