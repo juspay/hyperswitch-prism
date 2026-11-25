@@ -1071,22 +1071,29 @@ pub fn verify_webhook_signature(
     let public_key = PKey::from_rsa(rsa)
         .change_context(errors::WebhookError::WebhookSourceVerificationFailed)?;
 
-    let (algorithm, signature_b64) = if signature.len() >= 10
-        && signature.starts_with("alg=RS")
-        && matches!(signature.as_bytes().get(9), Some(b';'))
-    {
-        let prefix = &signature[..10];
-
-        let algorithm = match prefix {
-            "alg=RS256;" => Algorithm::SHA256,
-            "alg=RS384;" => Algorithm::SHA384,
-            "alg=RS512;" => Algorithm::SHA512,
-            _ => Algorithm::SHA1,
-        };
-
-        (algorithm, &signature[10..])
-    } else {
-        (Algorithm::SHA1, signature.as_str())
+    // Trustly declares the algorithm in an `alg=RS###;` prefix. Accept the
+    // documented RS256/RS384/RS512 set and reject anything else — silently
+    // falling back to SHA-1 would verify a signature under a weaker digest the
+    // sender never chose. Legacy notifications with no `alg=` prefix remain
+    // SHA-1, which is what they have always been verified as.
+    let (algorithm, signature_b64) = match signature.split_once(';') {
+        Some((declared, rest)) if declared.starts_with("alg=") => {
+            let algorithm = match declared {
+                "alg=RS256" => Algorithm::SHA256,
+                "alg=RS384" => Algorithm::SHA384,
+                "alg=RS512" => Algorithm::SHA512,
+                other => {
+                    return Err(error_stack::report!(
+                        errors::WebhookError::WebhookSourceVerificationFailed
+                    ))
+                    .attach_printable(format!(
+                        "trustly: unsupported signature algorithm declaration `{other};`"
+                    ))
+                }
+            };
+            (algorithm, rest)
+        }
+        _ => (Algorithm::SHA1, signature.as_str()),
     };
 
     let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
