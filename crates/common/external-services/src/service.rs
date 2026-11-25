@@ -1540,7 +1540,8 @@ pub async fn call_connector_api(
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
     let connector_host = url.host_str().unwrap_or("unknown").to_string();
 
-    let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string());
+    let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string())
+        || proxy.bypass_hosts.contains(&connector_host);
 
     let proxy_name = header_proxy_name.unwrap_or("primary");
 

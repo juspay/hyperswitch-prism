@@ -269,6 +269,7 @@ mod unit {
         let override_json = json!({
             "proxy": {
                 "idle_pool_connection_timeout": 45,
+                "bypass_hosts": ["no-proxy.local", ".internal"],
                 "bypass_urls": ["http://no-proxy.local"],
             },
         });
@@ -277,6 +278,10 @@ mod unit {
         assert_eq!(
             new_config.proxy.bypass_urls,
             vec!["http://no-proxy.local".to_string()]
+        );
+        assert_eq!(
+            new_config.proxy.bypass_hosts,
+            vec!["no-proxy.local".to_string(), ".internal".to_string()]
         );
     }
 
