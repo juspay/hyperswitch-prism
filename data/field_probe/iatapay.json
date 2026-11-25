@@ -128,6 +128,10 @@
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

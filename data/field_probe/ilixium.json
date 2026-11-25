@@ -167,6 +167,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: BankTransfer(DanamonVaBankTransfer)"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Voucher(Dragonpay)"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

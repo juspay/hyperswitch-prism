@@ -293,6 +293,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Family Mart | x |
 | Seicomart | x |
 | Pay Easy | x |
+| DragonPay | x |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 

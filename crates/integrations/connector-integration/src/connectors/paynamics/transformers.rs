@@ -766,7 +766,11 @@ impl PaynamicsPaymentResponse {
     }
     pub fn redirect(&self) -> Option<Box<RedirectForm>> {
         let dragonpay_url;
-        let text = match self.payment_action_info.as_ref().and_then(|value| value.peek().as_str()) {
+        let text = match self
+            .payment_action_info
+            .as_ref()
+            .and_then(|value| value.peek().as_str())
+        {
             Some(text) => text,
             None => {
                 dragonpay_url = dragonpay_instruction_url(self.direct_otc_info.as_ref()?.peek())?;
@@ -799,12 +803,20 @@ fn dragonpay_instruction_url(instructions: &serde_json::Value) -> Option<String>
         if entry.get("pay_channel").and_then(serde_json::Value::as_str) != Some("dp_ph") {
             continue;
         }
-        let Some(text) = entry.get("pay_instructions").and_then(serde_json::Value::as_str) else {
+        let Some(text) = entry
+            .get("pay_instructions")
+            .and_then(serde_json::Value::as_str)
+        else {
             continue;
         };
         for candidate in text.split_whitespace() {
-            let Ok(url) = url::Url::parse(candidate) else { continue };
-            let Some(token) = url.path().strip_prefix("/paygate/transactions/dragonpay/status/") else {
+            let Ok(url) = url::Url::parse(candidate) else {
+                continue;
+            };
+            let Some(token) = url
+                .path()
+                .strip_prefix("/paygate/transactions/dragonpay/status/")
+            else {
                 continue;
             };
             if url.scheme() != "https"
@@ -819,7 +831,10 @@ fn dragonpay_instruction_url(instructions: &serde_json::Value) -> Option<String>
             {
                 continue;
             }
-            if checkout.as_deref().is_some_and(|previous| previous != candidate) {
+            if checkout
+                .as_deref()
+                .is_some_and(|previous| previous != candidate)
+            {
                 return None;
             }
             checkout = Some(candidate.to_owned());

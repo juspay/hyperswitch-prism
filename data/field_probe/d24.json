@@ -128,6 +128,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Directa24 only supports PaymentMethodData::BankTransfer(LocalBankTransfer { .. }) among bank transfers"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 only supports PaymentMethodData::CardRedirect(Webpay {}) and PaymentMethodData::BankTransfer(LocalBankTransfer { .. }) — no card data is sent to /v3/deposits"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

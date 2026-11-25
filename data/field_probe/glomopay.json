@@ -160,6 +160,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Glomopay Authorize does not support payment method variant: BankTransfer(DanamonVaBankTransfer)"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Glomopay Authorize does not support payment method variant: Voucher(Dragonpay)"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

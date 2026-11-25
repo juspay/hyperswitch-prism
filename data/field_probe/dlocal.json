@@ -128,6 +128,10 @@
         "status": "error",
         "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
+      "Dragonpay": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

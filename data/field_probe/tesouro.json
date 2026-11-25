@@ -128,6 +128,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

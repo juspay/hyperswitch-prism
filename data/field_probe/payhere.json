@@ -99,6 +99,9 @@
       "DanamonVaBankTransfer": {
         "status": "not_implemented"
       },
+      "Dragonpay": {
+        "status": "not_implemented"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

@@ -161,6 +161,10 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

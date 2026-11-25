@@ -158,6 +158,10 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

@@ -10,8 +10,8 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync, Refund, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundsData, RefundsResponseData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -31,7 +31,8 @@ use std::fmt::Debug;
 use transformers as paynamics;
 use transformers::{
     PaynamicsAuthorizeRequest, PaynamicsPaymentResponse, PaynamicsRefundRequest,
-    PaynamicsRefundResponse, PaynamicsSyncRequest, PaynamicsSyncResponse, PaynamicsVoidPCRequest, PaynamicsVoidPCResponse,
+    PaynamicsRefundResponse, PaynamicsSyncRequest, PaynamicsSyncResponse, PaynamicsVoidPCRequest,
+    PaynamicsVoidPCResponse,
 };
 
 pub(crate) mod headers {
