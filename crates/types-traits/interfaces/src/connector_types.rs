@@ -1,3 +1,6 @@
+use domain_types::connector_types::{
+    GetPaymentMethodIdentityData, GetPaymentMethodIdentityResponseData,
+};
 use std::collections::HashSet;
 use std::str::FromStr;
 
@@ -111,6 +114,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + RechargeV2
     + CreatePaymentMethodV2
     + GetPaymentMethodV2
+    + GetPaymentMethodIdentityV2
     + RefreshPaymentMethodV2<T>
     + PaymentVoidV2
     + PaymentVoidPostCaptureV2
@@ -208,6 +212,7 @@ pub trait AuthenticatorServiceTrait<T: PaymentMethodDataTypes>:
     + ClientAuthentication
     + PaymentTokenV2<T>
     + GetPaymentMethodV2
+    + GetPaymentMethodIdentityV2
     + PaymentMethodEligibilityV2
 {
 }
@@ -247,6 +252,10 @@ pub fn validate_psync_connector_transaction_id(
 }
 
 pub trait ValidationTrait: ConnectorCommon {
+    fn should_do_get_identity(&self) -> bool {
+        false
+    }
+
     fn should_do_order_create(&self) -> bool {
         false
     }
@@ -433,6 +442,16 @@ pub trait GetPaymentMethodV2:
     PaymentFlowData,
     GetPaymentMethodData,
     GetPaymentMethodResponseData,
+>
+{
+}
+
+pub trait GetPaymentMethodIdentityV2:
+    ConnectorIntegrationV2<
+    connector_flow::GetPaymentMethodIdentity,
+    PaymentFlowData,
+    GetPaymentMethodIdentityData,
+    GetPaymentMethodIdentityResponseData,
 >
 {
 }

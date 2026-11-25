@@ -2332,7 +2332,26 @@ pub struct GetPaymentMethodData {
 }
 
 #[derive(Debug, Clone)]
+pub struct GetPaymentMethodIdentityData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
+    pub payment_method_type: PaymentMethodType,
+    pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub payment_method_token: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct GetPaymentMethodResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethodIdentityResponseData {
     pub merchant_payment_method_id: Option<String>,
     pub connector_payment_method_id: Option<String>,
     pub customer: Option<CustomerInfo>,

@@ -254,6 +254,10 @@ service PaymentMethodService {
   // Retrieve payment method details from the payment processor.
   rpc Get(PaymentMethodServiceGetRequest) returns (PaymentMethodServiceGetResponse);
 
+  // Retrieve provider-reported identity associated with a payment instrument.
+  // This retrieves data; it does not verify identity or match ownership.
+  rpc GetIdentity(PaymentMethodServiceGetIdentityRequest) returns (PaymentMethodServiceGetIdentityResponse);
+
   // Refresh a payment method the caller already holds in full. The request carries the
   // instrument itself, not a reference to it: use Refresh when you own the complete
   // payment method details and the provider exposes an endpoint that evaluates them.

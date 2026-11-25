@@ -4616,7 +4616,45 @@ message PaymentMethodServiceGetRequest {
   optional string payment_method_token = 9;  // PaymentMethod Token Information
 }
 
+// Fetch provider-reported identity associated with an instrument, without verification.
+message PaymentMethodServiceGetIdentityRequest {
+  optional string merchant_payment_method_id = 1; // Merchant reference for the payment instrument
+  optional string connector_payment_method_id = 2; // Optional connector instrument/account reference
+
+  // Optional caller context; identity retrieval does not perform matching.
+  optional Customer customer = 3;
+  optional ConnectorState state = 4;   // Connector authentication state
+  optional SecretString connector_feature_data = 5; // Connector-specific metadata for the transaction
+  optional SecretString metadata = 6; // Additional metadata for the connector
+  optional bool test_mode = 7;
+  PaymentMethodType payment_method_type = 8; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+  optional string payment_method_token = 9;  // Connector token used to access instrument identity
+}
+
 message PaymentMethodServiceGetResponse {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
+
+  PaymentMethodDetails payment_method_details = 3; // details of the Payment method
+
+  // Customer Information
+  optional Customer customer = 4;
+  optional Address address = 5;
+
+  // Error Information
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  map<string, string> response_headers = 8;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString typed_connector_response = 11;
+  optional SecretString raw_connector_request = 10;
+  optional SecretString typed_connector_request = 12;
+}
+
+// Identity resides in the appropriate payment_method_details instrument branch.
+message PaymentMethodServiceGetIdentityResponse {
   optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
   optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
 
@@ -4749,6 +4787,7 @@ message BankAccount {
     BankAccountDetailsSepa sepa = 9;             // EU SEPA
   }
   optional string bank_name = 10;                // Name of the financial institution
+  repeated SecretString account_holder_names = 11; // BankAccount holder names
 }
 
 // ACH bank account details (United States)

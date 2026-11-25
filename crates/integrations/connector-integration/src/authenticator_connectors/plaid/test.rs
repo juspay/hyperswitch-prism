@@ -358,7 +358,7 @@ mod tests {
             types::ResponseRouterData,
         };
 
-        fn make_router_data() -> RouterDataV2<
+        pub(super) fn make_router_data() -> RouterDataV2<
             GetPaymentMethod,
             PaymentFlowData,
             GetPaymentMethodData,
@@ -486,7 +486,13 @@ mod tests {
                 GetPaymentMethodResponseData {
                     payment_method_details: Some(PaymentMethodDetails::BankAccount(details)),
                     ..
-                } => details,
+                } => {
+                    assert!(details
+                        .accounts
+                        .iter()
+                        .all(|account| account.account_holder_names.is_empty()));
+                    details
+                }
                 other => panic!("unexpected: {other:?}"),
             }
         }
@@ -698,6 +704,179 @@ mod tests {
             let json = r#"{"link_token":"link-sandbox-xyz","request_id":"req3"}"#;
             let res: PlaidLinkTokenResponse = serde_json::from_str(json).unwrap();
             assert!(res.expiration.is_none());
+        }
+    }
+    mod identity_get {
+        use crate::{
+            authenticator_connectors::{plaid::transformers::PlaidIdentityGetResponse, Plaid},
+            types::ResponseRouterData,
+        };
+        use domain_types::{
+            connector_flow::GetPaymentMethodIdentity,
+            connector_types::{
+                GetPaymentMethodIdentityData, GetPaymentMethodIdentityResponseData, PaymentFlowData,
+            },
+            payment_method_data::{DefaultPCIHolder, PaymentMethodDetails},
+            router_data::ErrorResponse,
+            router_data_v2::RouterDataV2,
+        };
+        use hyperswitch_masking::PeekInterface;
+        use interfaces::connector_integration_v2::{
+            BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2,
+        };
+        use serde_json::json;
+        use std::marker::PhantomData;
+
+        type IdentityRouter = RouterDataV2<
+            GetPaymentMethodIdentity,
+            PaymentFlowData,
+            GetPaymentMethodIdentityData,
+            GetPaymentMethodIdentityResponseData,
+        >;
+        fn router() -> IdentityRouter {
+            let base = super::auth_get::make_router_data();
+            IdentityRouter {
+                flow: PhantomData,
+                resource_common_data: base.resource_common_data,
+                connector_config: base.connector_config,
+                request: GetPaymentMethodIdentityData {
+                    merchant_payment_method_id: base.request.merchant_payment_method_id,
+                    connector_payment_method_id: base.request.connector_payment_method_id,
+                    customer: base.request.customer,
+                    payment_method_type: base.request.payment_method_type,
+                    connector_feature_data: base.request.connector_feature_data,
+                    payment_method_token: base.request.payment_method_token,
+                },
+                response: Err(ErrorResponse::default()),
+            }
+        }
+
+        #[test]
+        fn request_filters_account_and_requires_access_token() {
+            let connector = Plaid::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                GetPaymentMethodIdentity,
+                PaymentFlowData,
+                GetPaymentMethodIdentityData,
+                GetPaymentMethodIdentityResponseData,
+            > = connector.get_connector_integration_v2();
+            let mut req = router();
+            req.request.connector_payment_method_id = Some("account_1".into());
+            let request = integration
+                .build_request_v2(&req)
+                .expect("filtered request")
+                .expect("HTTP request");
+            assert!(request.url.ends_with("/identity/get"));
+            let body = match request.body.expect("body") {
+                common_utils::request::RequestContent::Json(body) => {
+                    body.masked_serialize().expect("JSON body")
+                }
+                _ => panic!("expected JSON"),
+            };
+            assert_eq!(body["options"]["account_ids"], json!(["account_1"]));
+            req.request.connector_payment_method_id = None;
+            let request = integration
+                .build_request_v2(&req)
+                .expect("all accounts")
+                .expect("request");
+            let body = match request.body.expect("body") {
+                common_utils::request::RequestContent::Json(body) => {
+                    body.masked_serialize().expect("JSON")
+                }
+                _ => panic!("expected JSON"),
+            };
+            assert!(body.get("options").is_none());
+            req.request.payment_method_token = None;
+            assert!(integration.build_request_v2(&req).is_err());
+        }
+
+        #[test]
+        fn connector_error_remains_visible_in_identity_response() {
+            let mut data = router();
+            data.response = Err(ErrorResponse {
+                code: "PRODUCTS_NOT_SUPPORTED".into(),
+                message: "Identity unavailable for this Item".into(),
+                status_code: 400,
+                ..ErrorResponse::default()
+            });
+            let response = domain_types::types::generate_get_payment_method_identity_response(data)
+                .expect("error response conversion");
+            assert_eq!(response.status_code, 400);
+            assert!(response.payment_method_details.is_none());
+            let details = response
+                .error
+                .expect("error")
+                .connector_details
+                .expect("connector error");
+            assert_eq!(details.code.as_deref(), Some("PRODUCTS_NOT_SUPPORTED"));
+            assert_eq!(
+                details.message.as_deref(),
+                Some("Identity unavailable for this Item")
+            );
+        }
+
+        #[test]
+        fn response_preserves_grouped_names_per_account_and_proto_mapping() {
+            use domain_types::utils::ForeignFrom;
+            let response: PlaidIdentityGetResponse = serde_json::from_value(json!({
+                "accounts": [
+                    {"account_id":"joint", "name":"Joint checking", "holder_category":"unrecognized", "owners":[
+                        {"names":["Alice Example", "Bob Example"], "emails":[]},
+                        {"names":["Example Business LLC"]}
+                    ]},
+                    {"account_id":"other", "name":"Other account", "owners":[{"names":["Carol Example"]}]},
+                    {"account_id":"empty", "name":"No names", "owners":[]}
+                ]
+            })).expect("names-only projection does not need balances or holder category");
+            let converted = IdentityRouter::try_from(ResponseRouterData {
+                response,
+                router_data: router(),
+                http_code: 200,
+            })
+            .expect("transform");
+            let data = converted.response.expect("success");
+            assert_eq!(data.status_code, 200);
+            let details = data.payment_method_details.expect("details");
+            let PaymentMethodDetails::BankAccount(accounts) = &details else {
+                panic!("bank accounts")
+            };
+            let names: Vec<Vec<&str>> = accounts
+                .accounts
+                .iter()
+                .map(|account| {
+                    account
+                        .account_holder_names
+                        .iter()
+                        .map(|name| name.peek().as_str())
+                        .collect()
+                })
+                .collect();
+            assert_eq!(
+                names,
+                vec![
+                    vec!["Alice Example", "Bob Example", "Example Business LLC"],
+                    vec!["Carol Example"],
+                    vec![]
+                ]
+            );
+            assert!(accounts
+                .accounts
+                .iter()
+                .all(|account| account.account_details.is_none()));
+            let proto = grpc_api_types::payments::PaymentMethodDetails::foreign_from(details);
+            let Some(grpc_api_types::payments::payment_method_details::Details::BankAccount(
+                accounts,
+            )) = proto.details
+            else {
+                panic!("proto bank accounts")
+            };
+            assert_eq!(accounts.accounts[0].account_holder_names.len(), 3);
+            assert_eq!(
+                accounts.accounts[1].account_holder_names[0].peek(),
+                "Carol Example"
+            );
+            assert!(accounts.accounts[2].account_holder_names.is_empty());
         }
     }
 }

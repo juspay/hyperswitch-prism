@@ -2210,6 +2210,8 @@ pub struct BankAccount {
     pub available_balance_money: Option<common_utils::types::Money>,
     pub account_details: Option<BankAccountRoutingDetails>,
     pub bank_name: Option<String>,
+    #[serde(default)]
+    pub account_holder_names: Vec<Secret<String>>,
 }
 
 /// A collection of bank accounts returned by a bank-linking flow (matches proto `BankAccountDetails`)

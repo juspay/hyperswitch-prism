@@ -673,6 +673,8 @@ message CompositePaymentMethodGetResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
   optional PaymentMethodServiceGetResponse get_response = 2;
   optional PaymentMethodServiceTokenizeResponse tokenize_response = 3;
+  // Present only when the connector enables identity retrieval; preserves its outcome.
+  optional PaymentMethodServiceGetIdentityResponse get_identity_response = 4;
 }
 
 // Request message for composite payment method recharge flow.

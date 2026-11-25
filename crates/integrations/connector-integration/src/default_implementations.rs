@@ -12,6 +12,12 @@
 //!
 //! If a connector needs a real implementation, add it in the connector's own file.
 
+use domain_types::{
+    connector_flow::GetPaymentMethodIdentity,
+    connector_types::{GetPaymentMethodIdentityData, GetPaymentMethodIdentityResponseData},
+};
+use interfaces::connector_types::GetPaymentMethodIdentityV2;
+
 use crate::connectors::*;
 use common_utils::{request::Request, CustomResult};
 use domain_types::{
@@ -624,9 +630,52 @@ macro_rules! default_impl_get_payment_method_v2_single {
 }
 
 #[macro_export]
+macro_rules! default_impl_get_payment_method_identity_v2_single {
+    ($connector:ident) => {
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            GetPaymentMethodIdentityV2 for $connector<T>
+        {
+        }
+
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            ConnectorIntegrationV2<
+                GetPaymentMethodIdentity,
+                PaymentFlowData,
+                GetPaymentMethodIdentityData,
+                GetPaymentMethodIdentityResponseData,
+            > for $connector<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<
+                    GetPaymentMethodIdentity,
+                    PaymentFlowData,
+                    GetPaymentMethodIdentityData,
+                    GetPaymentMethodIdentityResponseData,
+                >,
+            ) -> CustomResult<String, IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    "get_payment_method_identity",
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                )
+                .into())
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! default_impl_get_payment_method_v2 {
     ( $( $connector:ident ),* $(,)? ) => {
         $( $crate::default_impl_get_payment_method_v2_single!($connector); )*
+    };
+}
+
+#[macro_export]
+macro_rules! default_impl_get_payment_method_identity_v2 {
+    ( $( $connector:ident ),* $(,)? ) => {
+        $( $crate::default_impl_get_payment_method_identity_v2_single!($connector); )*
     };
 }
 
@@ -755,6 +804,130 @@ default_impl_create_payment_method_v2!(
 );
 
 default_impl_get_payment_method_v2!(
+    Revpay,
+    Betterpayment,
+    Ecommpay,
+    Citigate,
+    JpmorganOrbital,
+    Paynearme,
+    Saferpay,
+    Paydotcom,
+    Boost,
+    Ilixium,
+    ElavonPg,
+    GlobalpaymentsRealex,
+    GlobalpaymentsHeartland,
+    Tesouro,
+    AbsaSanlam,
+    Aci,
+    Adyen,
+    Airwallex,
+    Authipay,
+    Authorizedotnet,
+    Axisbank,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Calida,
+    Cashfree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Easebuzz,
+    Elavon,
+    Finix,
+    Fiserv,
+    Fiservcommercehub,
+    Fiservemea,
+    Fiuu,
+    Flywire,
+    Forte,
+    Getnet,
+    Gigadat,
+    Givepayments,
+    Globalpay,
+    Helcim,
+    Hipay,
+    Hyperpg,
+    Iatapay,
+    Imerchantsolutions,
+    Itaubank,
+    Jpmorgan,
+    Juspay,
+    Glomopay,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Moneris,
+    Etisalat,
+    Merchante,
+    Multisafepay,
+    Netcetera,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Noon,
+    Novalnet,
+    Nuvei,
+    Paybox,
+    Payconex,
+    Payhound,
+    Payload,
+    Payme,
+    Paypal,
+    Paysafe,
+    Paytm,
+    Payu,
+    Peachpayments,
+    Phonepe,
+    PinelabsOnline,
+    Placetopay,
+    Powertranz,
+    Ppro,
+    Rapyd,
+    Razorpay,
+    RazorpayV2,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Tamara,
+    Hyperswitch,
+    Affirm,
+    Truelayer,
+    Trustly,
+    Trustpay,
+    Trustpayments,
+    Tsys,
+    TsysTransit,
+    TwocTwopPaco,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayvantiv,
+    Worldpayraft,
+    D24,
+    Worldpayxml,
+    Xendit,
+    Zift,
+    Travelhub,
+    Payhere,
+    Reddot,
+);
+default_impl_get_payment_method_identity_v2!(
+    Qwikcilver,
+    Maya,
     Revpay,
     Betterpayment,
     Ecommpay,

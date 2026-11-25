@@ -17,10 +17,10 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
-    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceGetRequest,
-    PaymentMethodServiceRechargeRequest, PaymentMethodServiceTokenizeRequest,
-    PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceGetIdentityRequest,
+    PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
+    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
     PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceRefundRequest,
     PaymentServiceVerifyRedirectResponseResponse, PaymentServiceVoidRequest,
     RefundServiceGetRequest,
@@ -1599,6 +1599,24 @@ impl
             timestamp: item.timestamp,
             state: resolved_state,
             connector_feature_data: item.connector_feature_data.clone(),
+        }
+    }
+}
+
+// Derive Identity from the resolved Get request so both atomic lookups use the
+// same token, account selection, connector metadata, and caller context.
+impl ForeignFrom<&PaymentMethodServiceGetRequest> for PaymentMethodServiceGetIdentityRequest {
+    fn foreign_from(item: &PaymentMethodServiceGetRequest) -> Self {
+        Self {
+            merchant_payment_method_id: item.merchant_payment_method_id.clone(),
+            connector_payment_method_id: item.connector_payment_method_id.clone(),
+            customer: item.customer.clone(),
+            state: item.state.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            metadata: item.metadata.clone(),
+            test_mode: item.test_mode,
+            payment_method_type: item.payment_method_type,
+            payment_method_token: item.payment_method_token.clone(),
         }
     }
 }
