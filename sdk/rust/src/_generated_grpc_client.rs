@@ -56,6 +56,8 @@ use grpc_api_types::payments::{
     PaymentMethodServiceCreateResponse,
     PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceGetIdentityRequest,
+    PaymentMethodServiceGetIdentityResponse,
     PaymentMethodServiceGetRequest,
     PaymentMethodServiceGetResponse,
     PaymentMethodServiceRechargeRequest,
@@ -327,6 +329,12 @@ impl_grpc_client!(
         get,
         PaymentMethodServiceGetRequest,
         PaymentMethodServiceGetResponse
+    ),
+    (
+        get_identity,
+        get_identity,
+        PaymentMethodServiceGetIdentityRequest,
+        PaymentMethodServiceGetIdentityResponse
     ),
     (
         refresh,

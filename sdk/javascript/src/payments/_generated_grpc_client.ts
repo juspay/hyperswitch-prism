@@ -217,10 +217,12 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentMethodServiceCreateRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodServiceCreateResponse: ["rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest"],
   PaymentMethodServiceGetRequest: ["connectorFeatureData", "metadata"],
+  PaymentMethodServiceGetIdentityRequest: ["connectorFeatureData", "metadata"],
   PaymentMethodServiceGetResponse: ["rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest"],
+  PaymentMethodServiceGetIdentityResponse: ["rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest"],
   PaymentMethodServiceRefreshResponse: ["rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest"],
   WalletDetails: ["walletPin"],
-  BankAccount: ["accountName", "accountId"],
+  BankAccount: ["accountName", "accountId", "accountHolderNames"],
   BankAccountDetailsAch: ["accountNumber", "routingNumber"],
   BankAccountDetailsBacs: ["accountNumber", "sortCode"],
   BankAccountDetailsSepa: ["iban", "bic"],
@@ -562,7 +564,9 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentMethodServiceCreateRequest: { "customer": "Customer", "state": "ConnectorState" },
   PaymentMethodServiceCreateResponse: { "paymentMethodDetails": "PaymentMethodDetails", "customer": "Customer", "address": "Address", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PaymentMethodServiceGetRequest: { "customer": "Customer", "state": "ConnectorState" },
+  PaymentMethodServiceGetIdentityRequest: { "customer": "Customer", "state": "ConnectorState" },
   PaymentMethodServiceGetResponse: { "paymentMethodDetails": "PaymentMethodDetails", "customer": "Customer", "address": "Address", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  PaymentMethodServiceGetIdentityResponse: { "paymentMethodDetails": "PaymentMethodDetails", "customer": "Customer", "address": "Address", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PaymentMethodServiceRefreshRequest: { "paymentMethod": "PaymentMethod" },
   PaymentMethodServiceRefreshResponse: { "result": "RefreshResult", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   RefreshResult: { "card": "CardRefreshResult" },
@@ -871,6 +875,11 @@ export class GrpcPaymentMethodClient {
   async paymentMethodGet(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payment_method/payment_method_get",
       req, types.PaymentMethodServiceGetRequest, types.PaymentMethodServiceGetResponse);
+  }
+  /** PaymentMethodService.GetIdentity — Retrieve provider-reported identity associated with a payment instrument. This retrieves data; it does not verify identity or match ownership. */
+  async getIdentity(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment_method/get_identity",
+      req, types.PaymentMethodServiceGetIdentityRequest, types.PaymentMethodServiceGetIdentityResponse);
   }
   /** PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them. */
   async refresh(req: unknown): Promise<unknown> {

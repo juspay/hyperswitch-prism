@@ -296,6 +296,13 @@ class GrpcPaymentMethodClient:
             "payment_method/payment_method_get",
             req, payment_pb2.PaymentMethodServiceGetResponse,
         )
+    def get_identity(self, req: payment_pb2.PaymentMethodServiceGetIdentityRequest) -> payment_pb2.PaymentMethodServiceGetIdentityResponse:
+        """PaymentMethodService.GetIdentity — Retrieve provider-reported identity associated with a payment instrument. This retrieves data; it does not verify identity or match ownership."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/get_identity",
+            req, payment_pb2.PaymentMethodServiceGetIdentityResponse,
+        )
     def refresh(self, req: payment_pb2.PaymentMethodServiceRefreshRequest) -> payment_pb2.PaymentMethodServiceRefreshResponse:
         """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
         return _call_grpc(
