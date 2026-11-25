@@ -251,6 +251,85 @@ pub enum RapydInitiationType {
     Installment,
 }
 
+fn merge_avs_response(
+    existing: Option<ConnectorResponseData>,
+    avs_result: Option<&RapydAvsResult>,
+) -> Option<ConnectorResponseData> {
+    let Some(avs_result) = avs_result else {
+        return existing;
+    };
+    let is_overcapture_enabled = existing
+        .as_ref()
+        .and_then(ConnectorResponseData::is_overcapture_enabled);
+    let extended_authorization_response_data = existing
+        .as_ref()
+        .and_then(ConnectorResponseData::get_extended_authorization_response_data)
+        .cloned();
+    let additional_data = existing
+        .and_then(|response| response.additional_payment_method_data)
+        .unwrap_or_else(|| AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: None,
+            card_network: None,
+            domestic_network: None,
+            auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
+        });
+    let additional_data = match additional_data {
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data,
+            payment_checks,
+            card_network,
+            domestic_network,
+            auth_code,
+            processor_card_network,
+            card_subtype,
+            card_segment_type,
+            funding_source,
+            card_type,
+            issuer_name,
+            issuer_country,
+        } => AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data,
+            payment_checks: Some(match payment_checks {
+                None => serde_json::json!({"avs_result": avs_result}),
+                Some(serde_json::Value::Object(checks)) => serde_json::Value::Object(
+                    checks
+                        .into_iter()
+                        .chain(std::iter::once((
+                            "avs_result".to_string(),
+                            serde_json::json!(avs_result),
+                        )))
+                        .collect(),
+                ),
+                Some(checks) => checks,
+            }),
+            card_network,
+            domestic_network,
+            auth_code,
+            processor_card_network,
+            card_subtype,
+            card_segment_type,
+            funding_source,
+            card_type,
+            issuer_name,
+            issuer_country,
+        },
+        other => other,
+    };
+    Some(ConnectorResponseData::new(
+        Some(additional_data),
+        is_overcapture_enabled,
+        extended_authorization_response_data,
+    ))
+}
+
 impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
@@ -258,46 +337,14 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<RapydPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let mut connector_response = item
-            .router_data
-            .resource_common_data
-            .connector_response
-            .clone();
-        if let Some(avs_result) = item
-            .response
-            .data
-            .as_ref()
-            .and_then(|data| data.payment_method_data.as_ref())
-            .and_then(|data| data.avs_result.as_ref())
-        {
-            let response = connector_response
-                .get_or_insert_with(|| ConnectorResponseData::new(None, None, None));
-            let additional_data =
-                response
-                    .additional_payment_method_data
-                    .get_or_insert_with(|| AdditionalPaymentMethodConnectorResponse::Card {
-                        authentication_data: None,
-                        payment_checks: None,
-                        card_network: None,
-                        domestic_network: None,
-                        auth_code: None,
-                        processor_card_network: None,
-                        card_subtype: None,
-                        card_segment_type: None,
-                        funding_source: None,
-                        card_type: None,
-                        issuer_name: None,
-                        issuer_country: None,
-                    });
-            if let AdditionalPaymentMethodConnectorResponse::Card { payment_checks, .. } =
-                additional_data
-            {
-                let checks = payment_checks.get_or_insert_with(|| serde_json::json!({}));
-                if let Some(checks) = checks.as_object_mut() {
-                    checks.insert("avs_result".to_string(), serde_json::json!(avs_result));
-                }
-            }
-        }
+        let connector_response = merge_avs_response(
+            item.router_data.resource_common_data.connector_response,
+            item.response
+                .data
+                .as_ref()
+                .and_then(|data| data.payment_method_data.as_ref())
+                .and_then(|data| data.avs_result.as_ref()),
+        );
         let (status, response) = match &item.response.data {
             Some(data) => {
                 let attempt_status =
