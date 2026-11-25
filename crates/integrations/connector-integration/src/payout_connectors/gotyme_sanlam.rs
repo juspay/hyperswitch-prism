@@ -110,12 +110,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = GotymeSanlamAuthType::try_from(auth_type)?;
 
-        Ok(vec![
-            (
-                headers::X_API_KEY.to_string(),
-                auth.api_key.peek().to_owned().into_masked(),
-            ),
-        ])
+        Ok(vec![(
+            headers::X_API_KEY.to_string(),
+            auth.api_key.peek().to_owned().into_masked(),
+        )])
     }
 
     fn build_error_response(

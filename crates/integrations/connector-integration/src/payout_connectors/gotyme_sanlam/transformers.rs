@@ -18,7 +18,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     utils::{convert_amount, get_unimplemented_payment_method_error_message},
 };
-use hyperswitch_masking::{Secret, PeekInterface};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::GotymeSanlamPayoutsRouterData;
@@ -593,4 +593,3 @@ impl TryFrom<ResponseRouterData<GotymeSanlamPayoutResponse, Self>>
         })
     }
 }
-
