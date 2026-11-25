@@ -137,8 +137,6 @@ jobs:
         if: ${{ !inputs.dry_run }}
         working-directory: hyperswitch-docs
         env:
-          # checkout no longer persists credentials, so push re-auths
-          # explicitly with the docs CI token; it never reaches .git/config.
           PUSH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_DOCS_CI }}
           SOURCE_SHA: ${{ github.sha }}
           SOURCE_BRANCH: ${{ github.ref_name }}
