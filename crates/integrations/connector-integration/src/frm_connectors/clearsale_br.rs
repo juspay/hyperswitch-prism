@@ -405,6 +405,7 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         GetConnectorCustomer,
         GetPaymentMethod,
+        GetPaymentMethodIdentity,
         IncrementalAuthorization,
         MandateRevoke,
         PaymentMethodEligibility,

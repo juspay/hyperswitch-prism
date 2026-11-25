@@ -1,3 +1,11 @@
+use domain_types::{
+    connector_flow::GetPaymentMethodIdentity,
+    connector_types::{GetPaymentMethodIdentityData, GetPaymentMethodIdentityResponseData},
+    types::generate_get_payment_method_identity_response,
+};
+use grpc_api_types::payments::{
+    PaymentMethodServiceGetIdentityRequest, PaymentMethodServiceGetIdentityResponse,
+};
 use std::{fmt::Debug, sync::Arc};
 
 use crate::{
@@ -2386,6 +2394,49 @@ impl PaymentMethodService for PaymentMethod {
     }
 
     #[tracing::instrument(
+        name = "get_payment_method_identity",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
+            service_method = "GetIdentity",
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::GetPaymentMethodIdentity.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        ),
+        skip(self, request)
+    )]
+    async fn get_identity(
+        &self,
+        request: tonic::Request<PaymentMethodServiceGetIdentityRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceGetIdentityResponse>, tonic::Status> {
+        info!("GET_PAYMENT_METHOD_IDENTITY_FLOW: initiated");
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentMethodService".to_string());
+        let config = get_config_from_request(&request).into_grpc_status()?;
+
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::GetPaymentMethodIdentity,
+            |request_data| Box::pin(self.internal_get_payment_method_identity(request_data)),
+        )
+        .await
+    }
+
+    #[tracing::instrument(
         name = "recharge",
         fields(
             name = common_utils::consts::NAME,
@@ -2525,6 +2576,22 @@ impl PaymentMethod {
         request_data_constructor: GetPaymentMethodData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_get_payment_method_response,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>, AuthenticatorConnectorData],
+        all_keys_required: None
+    );
+
+    implement_connector_operation!(
+        fn_name: internal_get_payment_method_identity,
+        log_prefix: "GET_PAYMENT_METHOD_IDENTITY",
+        request_type: PaymentMethodServiceGetIdentityRequest,
+        response_type: PaymentMethodServiceGetIdentityResponse,
+        flow_marker: GetPaymentMethodIdentity,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: GetPaymentMethodIdentityData,
+        response_data_type: GetPaymentMethodIdentityResponseData,
+        request_data_constructor: GetPaymentMethodIdentityData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_get_payment_method_identity_response,
         connector_data_types: [ConnectorData<DefaultPCIHolder>, AuthenticatorConnectorData],
         all_keys_required: None
     );

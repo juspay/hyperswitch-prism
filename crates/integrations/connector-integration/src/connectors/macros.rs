@@ -2519,6 +2519,17 @@ macro_rules! expand_flow_status_impl {
             response: ::domain_types::connector_types::GetPaymentMethodResponseData,
         );
     };
+    (connector: $c:ident, flow: GetPaymentMethodIdentity, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::GetPaymentMethodIdentityV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::GetPaymentMethodIdentity,
+            flow_name: "get_payment_method_identity",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::GetPaymentMethodIdentityData,
+            response: ::domain_types::connector_types::GetPaymentMethodIdentityResponseData,
+        );
+    };
     (connector: $c:ident, flow: PreAuthenticate, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::PaymentPreAuthenticateV2<$g> for $c<$g> {}
         $crate::connectors::macros::flow_status_emit!(

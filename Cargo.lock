@@ -1506,6 +1506,7 @@ dependencies = [
  "prost-types",
  "serde",
  "serde_json",
+ "tokio",
  "tonic 0.14.5",
  "tracing",
  "ucs_common_enums",

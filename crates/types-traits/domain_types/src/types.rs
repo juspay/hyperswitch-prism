@@ -1,4 +1,5 @@
 use core::result::Result;
+use grpc_api_types::payments::PaymentMethodServiceGetIdentityResponse;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 pub use crate::payment_method_data::{
@@ -7,12 +8,14 @@ pub use crate::payment_method_data::{
 
 use crate::{
     connector_flow::{
-        CreatePaymentMethod, GetPaymentMethod, MandateRevoke, PaymentMethodEligibility, Recharge,
+        CreatePaymentMethod, GetPaymentMethod, GetPaymentMethodIdentity, MandateRevoke,
+        PaymentMethodEligibility, Recharge,
     },
     connector_types::{
         self, AuthenticatorConnectorEnum, CaptureSyncResponse, ConnectorEnum,
         CreatePaymentMethodData, CreatePaymentMethodResponseData, EligibilityErrorInfo,
-        FrmConnectorEnum, GetPaymentMethodData, GetPaymentMethodResponseData,
+        FrmConnectorEnum, GetPaymentMethodData, GetPaymentMethodIdentityData,
+        GetPaymentMethodIdentityResponseData, GetPaymentMethodResponseData,
         IntegritySpecifications, PMEligibility, PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse, PayoutConnectorEnum, RechargeRequestData,
         RechargeResponseData, SurchargeConnectorEnum,
@@ -16939,6 +16942,41 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceGetRequest>
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceGetIdentityRequest>
+    for connector_types::GetPaymentMethodIdentityData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::PaymentMethodServiceGetIdentityRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let payment_method_type =
+            grpc_api_types::payments::PaymentMethodType::try_from(value.payment_method_type)
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_type",
+                    context: IntegrationErrorContext::default(),
+                })
+                .and_then(common_enums::PaymentMethodType::foreign_try_from)?;
+
+        let customer = value
+            .customer
+            .as_ref()
+            .map(CustomerInfo::foreign_try_from)
+            .transpose()?;
+        Ok(Self {
+            merchant_payment_method_id: value.merchant_payment_method_id,
+            connector_payment_method_id: value.connector_payment_method_id,
+            customer,
+            payment_method_type,
+            connector_feature_data: value
+                .connector_feature_data
+                .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
+                .transpose()?,
+            payment_method_token: value.payment_method_token.map(Secret::new),
+        })
+    }
+}
+
 impl
     ForeignTryFrom<(
         grpc_api_types::payments::PaymentMethodServiceGetRequest,
@@ -16970,6 +17008,91 @@ impl
             status: common_enums::AttemptStatus::Unspecified,
             payment_method: PaymentMethod::Wallet,
             payment_method_type: None,
+            address: PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: extract_connector_request_reference_id(
+                &value.merchant_payment_method_id,
+            ),
+            customer_id: None,
+            connector_customer: None,
+            description: None,
+            return_url: None,
+            connector_feature_data: value
+                .connector_feature_data
+                .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
+                .transpose()?,
+            captured_money: None,
+            capturable_money: None,
+            money: None,
+            access_token,
+            session_token: None,
+            reference_id: None,
+            connector_order_id: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: value.test_mode,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors: _connectors.into(),
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            authorized_money: None,
+            merchant_request_id: None,
+            l2_l3_data: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            settlement_status: None,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::PaymentMethodServiceGetIdentityRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, _connectors, metadata): (
+            grpc_api_types::payments::PaymentMethodServiceGetIdentityRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+        let payment_method_type =
+            grpc_api_types::payments::PaymentMethodType::try_from(value.payment_method_type)
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_type",
+                    context: IntegrationErrorContext::default(),
+                })?;
+        let payment_method = PaymentMethod::foreign_try_from(payment_method_type)?;
+        let payment_method_type =
+            common_enums::PaymentMethodType::foreign_try_from(payment_method_type)?;
+        Ok(Self {
+            raw_connector_status: None,
+            merchant_id: merchant_id_from_header,
+            payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
+            attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Unspecified,
+            payment_method,
+            payment_method_type: Some(payment_method_type),
             address: PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -22950,6 +23073,7 @@ impl ForeignFrom<payment_method_data::PaymentMethodDetails>
                                         }
                                     }),
                                     bank_name: acct.bank_name,
+                                    account_holder_names: acct.account_holder_names,
                                 })
                                 .collect(),
                         },
@@ -23236,6 +23360,80 @@ pub fn generate_get_payment_method_response(
             typed_connector_request,
         }),
         Err(error) => Ok(PaymentMethodServiceGetResponse {
+            merchant_payment_method_id: None,
+            connector_payment_method_id: error.connector_transaction_id.clone(),
+            payment_method_details: None,
+            customer: None,
+            address: None,
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(error.code.clone()),
+                    message: Some(error.message.clone()),
+                    reason: error.reason.clone(),
+                    connector_transaction_id: error.connector_transaction_id.clone(),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+            status_code: error.status_code as u32,
+            response_headers: router_data_v2
+                .resource_common_data
+                .get_connector_response_headers_as_map(),
+            raw_connector_response,
+            typed_connector_response,
+            raw_connector_request,
+            typed_connector_request,
+        }),
+    }
+}
+
+pub fn generate_get_payment_method_identity_response(
+    router_data_v2: RouterDataV2<
+        GetPaymentMethodIdentity,
+        PaymentFlowData,
+        GetPaymentMethodIdentityData,
+        GetPaymentMethodIdentityResponseData,
+    >,
+) -> Result<PaymentMethodServiceGetIdentityResponse, error_stack::Report<ConnectorError>> {
+    let response = router_data_v2.response;
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let typed_connector_request = router_data_v2
+        .resource_common_data
+        .get_typed_connector_request()
+        .map(Secret::new);
+
+    match response {
+        Ok(response) => Ok(PaymentMethodServiceGetIdentityResponse {
+            merchant_payment_method_id: response.merchant_payment_method_id,
+            connector_payment_method_id: response.connector_payment_method_id,
+            payment_method_details: response
+                .payment_method_details
+                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
+            customer: response
+                .customer
+                .map(grpc_api_types::payments::Customer::foreign_from),
+            address: None,
+            error: None,
+            status_code: response.status_code as u32,
+            response_headers: router_data_v2
+                .resource_common_data
+                .get_connector_response_headers_as_map(),
+            raw_connector_response,
+            typed_connector_response,
+            raw_connector_request,
+            typed_connector_request,
+        }),
+        Err(error) => Ok(PaymentMethodServiceGetIdentityResponse {
             merchant_payment_method_id: None,
             connector_payment_method_id: error.connector_transaction_id.clone(),
             payment_method_details: None,

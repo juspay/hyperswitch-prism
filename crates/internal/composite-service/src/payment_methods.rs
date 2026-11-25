@@ -346,6 +346,47 @@ where
         }
     }
 
+    /// Fetch provider-reported identity for the instrument when the connector
+    /// enables it.
+    async fn get_identity(
+        &self,
+        connector: &ConnectorVariant,
+        inner: &PaymentMethodServiceGetRequest,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<Option<PaymentMethodServiceGetIdentityResponse>, tonic::Status> {
+        let should_do_get_identity = match connector {
+            ConnectorVariant::Payment(c) => ConnectorData::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::get_connector_by_name(c)
+            .connector
+            .should_do_get_identity(),
+            ConnectorVariant::Authenticator(c) => {
+                AuthenticatorConnectorData::get_connector_by_name(c)
+                    .connector
+                    .should_do_get_identity()
+            }
+            _ => false,
+        };
+
+        match should_do_get_identity {
+            true => {
+                let identity = PaymentMethodServiceGetIdentityRequest::foreign_from(inner);
+                let mut identity_request = tonic::Request::new(identity);
+                *identity_request.metadata_mut() = metadata.clone();
+                *identity_request.extensions_mut() = extensions.clone();
+
+                Ok(Some(
+                    self.payment_method_service
+                        .get_identity(identity_request)
+                        .await?
+                        .into_inner(),
+                ))
+            }
+            false => Ok(None),
+        }
+    }
+
     async fn process_recharge(
         &self,
         request: tonic::Request<CompositePaymentMethodRechargeRequest>,
@@ -430,9 +471,9 @@ where
             access_token_response.as_ref(),
             tokenize_response.as_ref(),
         ));
-        let mut inner_request = tonic::Request::new(inner);
-        *inner_request.metadata_mut() = metadata;
-        *inner_request.extensions_mut() = extensions;
+        let mut inner_request = tonic::Request::new(inner.clone());
+        *inner_request.metadata_mut() = metadata.clone();
+        *inner_request.extensions_mut() = extensions.clone();
 
         let get_response = self
             .payment_method_service
@@ -440,10 +481,15 @@ where
             .await?
             .into_inner();
 
+        let get_identity_response = self
+            .get_identity(&connector, &inner, &metadata, &extensions)
+            .await?;
+
         Ok(tonic::Response::new(CompositePaymentMethodGetResponse {
             access_token_response,
             get_response: Some(get_response),
             tokenize_response,
+            get_identity_response,
         }))
     }
 

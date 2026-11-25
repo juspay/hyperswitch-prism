@@ -4,6 +4,7 @@
 //! It ensures that request and response data remain consistent across connector interactions
 //! by comparing critical fields like amounts, currencies, and transaction identifiers.
 use common_utils::{errors::IntegrityCheckError, types::MinorUnit};
+use domain_types::connector_types::GetPaymentMethodIdentityData;
 use domain_types::router_request_types::ClientAuthenticationTokenIntegrityObject;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
@@ -296,6 +297,7 @@ impl_check_integrity!(SurchargeRefundSucceededRequest);
 impl_check_integrity!(RechargeRequestData);
 impl_check_integrity!(CreatePaymentMethodData);
 impl_check_integrity!(GetPaymentMethodData);
+impl_check_integrity!(GetPaymentMethodIdentityData);
 impl_check_integrity!(RefreshPaymentMethodData<S>);
 impl_check_integrity!(PreRiskCheckRequest);
 impl_check_integrity!(PostRiskCheckRequest);
@@ -1710,6 +1712,16 @@ impl GetIntegrityObject<CreatePaymentMethodIntegrityObject> for CreatePaymentMet
 }
 
 impl GetIntegrityObject<GetPaymentMethodIntegrityObject> for GetPaymentMethodData {
+    fn get_response_integrity_object(&self) -> Option<GetPaymentMethodIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> GetPaymentMethodIntegrityObject {
+        GetPaymentMethodIntegrityObject {}
+    }
+}
+
+impl GetIntegrityObject<GetPaymentMethodIntegrityObject> for GetPaymentMethodIdentityData {
     fn get_response_integrity_object(&self) -> Option<GetPaymentMethodIntegrityObject> {
         None
     }

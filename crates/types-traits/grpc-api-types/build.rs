@@ -135,6 +135,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Existing callers only send flight_segments; keep the additive journey list optional in JSON.
     config.field_attribute(".types.AirlineData.flight_journeys", "#[serde(default)]");
 
+    // Keep existing bank-account JSON valid when holder names are unavailable.
+    config.field_attribute(
+        ".types.BankAccount.account_holder_names",
+        "#[serde(default)]",
+    );
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(

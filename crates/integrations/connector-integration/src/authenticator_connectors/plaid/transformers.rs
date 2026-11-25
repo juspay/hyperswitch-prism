@@ -1,5 +1,8 @@
 use common_enums::{BankHolderType, BankType};
 use common_utils::{pii::Email, types::FloatMajorUnit};
+use domain_types::connector_types::{
+    GetPaymentMethodIdentityData, GetPaymentMethodIdentityResponseData,
+};
 
 use domain_types::{
     connector_types::{
@@ -667,6 +670,7 @@ fn plaid_account_to_bank_account(
         available_balance_money: convert(acct.balances.available),
         account_details: None,
         bank_name: institution_name,
+        account_holder_names: Vec::new(),
     }
 }
 
@@ -926,5 +930,163 @@ impl common_utils::errors::ErrorSwitch<ConnectorError> for PlaidErrorResponse {
                 additional_context: self.error_message.clone(),
             },
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PlaidIdentityGetRequest {
+    pub client_id: Secret<String>,
+    pub secret: Secret<String>,
+    pub access_token: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<PlaidIdentityGetOptions>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PlaidRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::GetPaymentMethodIdentity,
+                PaymentFlowData,
+                GetPaymentMethodIdentityData,
+                GetPaymentMethodIdentityResponseData,
+            >,
+            T,
+        >,
+    > for PlaidIdentityGetRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PlaidRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::GetPaymentMethodIdentity,
+                PaymentFlowData,
+                GetPaymentMethodIdentityData,
+                GetPaymentMethodIdentityResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PlaidAuthType::try_from(&item.router_data.connector_config)?;
+
+        let access_token = item
+            .router_data
+            .request
+            .payment_method_token
+            .ok_or_else(|| {
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token (access_token)",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Plaid /identity/get requires the access_token as payment_method_token"
+                                .to_owned(),
+                        ),
+                        suggested_action: Some(
+                            "Pass the Plaid access_token (obtained from token exchange) as payment_method_token"
+                                .to_owned(),
+                        ),
+                        doc_url: Some(
+                            "https://plaid.com/docs/api/products/identity/#identityget".to_owned(),
+                        ),
+                    },
+                })
+            })?;
+
+        let options = item
+            .router_data
+            .request
+            .connector_payment_method_id
+            .map(|account_id| PlaidIdentityGetOptions {
+                account_ids: vec![account_id],
+            });
+        Ok(Self {
+            options,
+            client_id: auth.client_id,
+            secret: auth.secret,
+            access_token,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PlaidIdentityGetOptions {
+    pub account_ids: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PlaidIdentityGetResponse {
+    pub accounts: Vec<PlaidIdentityAccount>,
+}
+
+// Identity deliberately consumes only account identity and owner names. Unused
+// balances, holder categories, and contact fields must not prevent name retrieval.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PlaidIdentityAccount {
+    pub account_id: Secret<String>,
+    pub name: Secret<String>,
+    pub owners: Vec<PlaidIdentityOwner>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PlaidIdentityOwner {
+    pub names: Vec<Secret<String>>,
+}
+
+impl TryFrom<ResponseRouterData<PlaidIdentityGetResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::GetPaymentMethodIdentity,
+        PaymentFlowData,
+        GetPaymentMethodIdentityData,
+        GetPaymentMethodIdentityResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PlaidIdentityGetResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let accounts = item
+            .response
+            .accounts
+            .into_iter()
+            .map(|account| BankAccount {
+                account_id: account.account_id,
+                account_name: account.name,
+                account_holder_names: account
+                    .owners
+                    .into_iter()
+                    .flat_map(|owner| owner.names)
+                    .collect(),
+                // Identity supplies no routing credentials. GetPaymentMethod remains
+                // responsible for fetching them independently through Auth.
+                account_details: None,
+                bank_type: None,
+                bank_holder_type: None,
+                balance_money: None,
+                available_balance_money: None,
+                bank_name: None,
+            })
+            .collect();
+        Ok(Self {
+            response: Ok(GetPaymentMethodIdentityResponseData {
+                merchant_payment_method_id: item
+                    .router_data
+                    .request
+                    .merchant_payment_method_id
+                    .clone(),
+                connector_payment_method_id: item
+                    .router_data
+                    .request
+                    .connector_payment_method_id
+                    .clone(),
+                customer: None,
+                payment_method_details: Some(PaymentMethodDetails::BankAccount(
+                    BankAccountDetails { accounts },
+                )),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }

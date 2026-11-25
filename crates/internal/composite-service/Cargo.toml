@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
 tonic = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
 connector-integration = { path = "../../integrations/connector-integration" }
 domain_types = { path = "../../types-traits/domain_types" }
 interfaces = { path = "../../types-traits/interfaces" }
