@@ -875,17 +875,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: ResponseRouterData<GlomopayAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
-        let status = match response.status {
-            GlomopayPaymentStatus::ActionRequired => AttemptStatus::Failure,
-            other => AttemptStatus::from(other),
-        };
-
         let redirect_url = response
             .next_steps
             .as_ref()
             .and_then(|steps| steps.iter().find(|s| s.action == "redirect"))
             .and_then(|step| step.payload.as_ref())
             .and_then(|p| p.url.clone());
+
+        // `action_required` is not a terminal failure — it means the payer still has to
+        // act. Use the existing Pending mapping, and promote to AuthenticationPending only
+        // when a real authentication redirect is available to hand to the caller.
+        let status = match response.status {
+            GlomopayPaymentStatus::ActionRequired if redirect_url.is_some() => {
+                AttemptStatus::AuthenticationPending
+            }
+            other => AttemptStatus::from(other),
+        };
 
         // GlomoPay's redirect is a plain GET with all params (paymentId, authToken, redirectUrl)
         // in the URL's query string. An HTML `<form method="GET">` submission would strip the
