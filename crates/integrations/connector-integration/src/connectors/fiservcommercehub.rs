@@ -12,11 +12,12 @@ use domain_types::{
         ServerAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData, WebhookResourceReference,
     },
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -46,7 +47,7 @@ use transformers::{
     FiservcommercehubSetupMandateRequest, FiservcommercehubSetupMandateResponse,
     FiservcommercehubVoidPCRequest, FiservcommercehubVoidRequest,
     FiservcommercehubVoidResponse as FiservcommercehubVoidPCResponse,
-    FiservcommercehubVoidResponse,
+    FiservcommercehubVoidResponse, FiservcommercehubWebhookBody,
 };
 
 use super::macros;
@@ -659,6 +660,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::webhooks::IncomingWebhook for Fiservcommercehub<T>
 {
+    fn verify_webhook_source(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
+        Ok(false)
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
+        let payload: FiservcommercehubWebhookBody = request
+            .body
+            .parse_struct("FiservcommercehubWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse Fiservcommercehub webhook body to determine event type",
+            )?;
+        Ok(payload.get_event_type())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
+        let payload: FiservcommercehubWebhookBody = request
+            .body
+            .parse_struct("FiservcommercehubWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse Fiservcommercehub webhook body to build the webhook reference",
+            )?;
+        Ok(Some(payload.into_webhook_event_reference()))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

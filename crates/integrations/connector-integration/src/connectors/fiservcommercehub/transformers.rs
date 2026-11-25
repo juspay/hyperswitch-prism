@@ -15,12 +15,12 @@ use domain_types::{
         ServerAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        MandateIds, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData,
+        EventType, MandateIds, MandateReference, MandateReferenceId, PaymentFlowData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData, WebhookResourceReference,
     },
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -3517,6 +3517,58 @@ where
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// WEBHOOK (Notification Hub) PARSING
+// =============================================================================
+// Fiserv's webhook `event` object reuses the same gatewayResponse / paymentReceipt
+// shape as the synchronous Payments API responses above, so the existing
+// `FiservcommercehubGatewayResponseBody` / `FiservcommercehubPaymentReceipt` types
+// are reused here rather than duplicated.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct FiservcommercehubWebhookBody {
+    #[serde(rename = "type")]
+    pub event_type: String,
+    pub event_timestamp: Option<String>,
+    pub event: FiservcommercehubWebhookEvent,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubWebhookEvent {
+    pub gateway_response: FiservcommercehubGatewayResponseBody,
+    pub payment_receipt: Option<FiservcommercehubPaymentReceipt>,
+}
+
+impl FiservcommercehubWebhookBody {
+    /// Mirrors the `FiservcommercehubTransactionState` -> `AttemptStatus` mapping
+    /// above one-for-one, so a new wire state added there needs a matching arm here.
+    pub fn get_event_type(&self) -> EventType {
+        match self.event.gateway_response.transaction_state {
+            FiservcommercehubTransactionState::Approved
+            | FiservcommercehubTransactionState::Captured => EventType::PaymentIntentSuccess,
+            FiservcommercehubTransactionState::Authorized => {
+                EventType::PaymentIntentAuthorizationSuccess
+            }
+            FiservcommercehubTransactionState::Pending
+            | FiservcommercehubTransactionState::Timeout => EventType::PaymentIntentProcessing,
+            FiservcommercehubTransactionState::Declined
+            | FiservcommercehubTransactionState::Rejected
+            | FiservcommercehubTransactionState::Failed => EventType::PaymentIntentFailure,
+            FiservcommercehubTransactionState::Cancelled
+            | FiservcommercehubTransactionState::Voided => EventType::PaymentIntentCancelled,
+        }
+    }
+
+    pub fn into_webhook_event_reference(&self) -> WebhookResourceReference {
+        let details = &self.event.gateway_response.transaction_processing_details;
+        WebhookResourceReference::Payment(PaymentWebhookReference {
+            connector_transaction_id: Some(details.transaction_id.clone()),
+            merchant_transaction_id: details.order_id.clone(),
+            connector_preprocessing_id: None,
         })
     }
 }
