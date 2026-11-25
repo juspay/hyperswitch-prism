@@ -87,6 +87,7 @@ jobs:
           git tag "medusa-custom-payments-v${NEW_VERSION}"
 
       - name: Push version bump and tag
+        id: push
         env:
           PUSH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |

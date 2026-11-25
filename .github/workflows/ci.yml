@@ -565,6 +565,7 @@ jobs:
           make docs SKIP_PROBE=1
 
       - name: Check for changes and commit
+        id: commit
         env:
           PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
