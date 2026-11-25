@@ -44,6 +44,7 @@ pub fn generate_signature(
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
         "ecommpay" => generate_ecommpay_signature(payload, secret),
         "cybersource" => generate_cybersource_signature(payload, secret, ctx.timestamp),
+        "elavon_pg" => generate_elavon_pg_signature(payload, secret),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
 }
@@ -156,6 +157,24 @@ const CYBERSOURCE_FIXTURE_KEY_ID: &str = "00000000-0000-0000-0000-000000000000";
 /// Message format: {timestamp}.{payload}
 /// The HMAC key is the Base64-decoded digital-signature key (the webhook secret
 /// is stored in its Base64 form).
+/// Generate an Elavon Payment Gateway notification signature (the `signature-{signerId}`
+/// header value): Base64(SHA-512(Base64-decoded shared secret || raw body)), the secret first.
+/// The documented vector (secret `h/vw9k…PvA==`, compact `saleAuthorized` body) gives
+/// `BYPhl69v…HhQ==`.
+/// https://developer.elavon.com/products/elavon-payment-gateway/v1/webhook-notifications
+fn generate_elavon_pg_signature(payload: &[u8], secret: &str) -> Result<String, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    use sha2::{Digest, Sha512};
+
+    let key = STANDARD
+        .decode(secret)
+        .map_err(|e| format!("Elavon PG webhook secret must be Base64: {e}"))?;
+    let mut hasher = Sha512::new();
+    hasher.update(&key);
+    hasher.update(payload);
+    Ok(STANDARD.encode(hasher.finalize()))
+}
+
 fn generate_cybersource_signature(
     payload: &[u8],
     secret: &str,

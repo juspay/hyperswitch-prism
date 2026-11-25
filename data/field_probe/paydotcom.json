@@ -961,6 +961,32 @@
         "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com SetupMandate is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paydotcom"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paydotcom"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paydotcom"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paydotcom"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paydotcom"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paydotcom"
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

@@ -31,7 +31,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PaypalConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "parse_event", "post_authenticate", "proxy_authorize", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "create_order", "create_server_authentication_token", "get", "incremental_authorization", "parse_event", "post_authenticate", "proxy_authorize", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -282,6 +282,7 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
                 minorAmount = 1000L
                 currency = Currency.USD
             }
+            returnUrl = "https://example.com/return"
         }
     }.build()
     val response = client.create_client_authentication_token(request)
@@ -341,6 +342,29 @@ fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }.build()
     val response = client.handle_event(request)
     println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: PaymentService.IncrementalAuthorization
+fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
+        merchantAuthorizationId = "probe_auth_001"  // Identification.
+        connectorTransactionId = "probe_connector_txn_001"
+        amountBuilder.apply {  // New total authorized amount, including this increase.
+            minorAmount = 1100L
+            currency = Currency.USD
+        }
+        reason = "incremental_auth_probe"  // Optional Fields.
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_access_token"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+    val response = client.incremental_authorization(request)
+    println("Status: ${response.status.name}")
 }
 
 // Flow: EventService.ParseEvent
@@ -568,6 +592,7 @@ fun main(args: Array<String>) {
         "createServerAuthenticationToken" -> createServerAuthenticationToken(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
+        "incrementalAuthorization" -> incrementalAuthorization(txnId)
         "parseEvent" -> parseEvent(txnId)
         "postAuthenticate" -> postAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
@@ -576,6 +601,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, parseEvent, postAuthenticate, proxyAuthorize, recurringCharge, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, createOrder, createServerAuthenticationToken, get, handleEvent, incrementalAuthorization, parseEvent, postAuthenticate, proxyAuthorize, recurringCharge, refund, refundGet, setupRecurring, void")
     }
 }

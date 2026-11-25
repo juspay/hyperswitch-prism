@@ -981,6 +981,7 @@ impl
         };
         Ok(Self {
             token_authentication_value: None,
+            sca_exemption_reason: None,
             electronic_commerce_indicator: Some(
                 data.eci
                     .clone()
@@ -1023,6 +1024,7 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganCard<T> {
             return Err(Self::invalid_wallet_field("token_cryptogram").into());
         }
         Ok(requests::JpmorganAuthentication {
+            sca_exemption_reason: None,
             token_authentication_value: Some(cryptogram.clone()),
             electronic_commerce_indicator: eci.clone(),
             three_ds: None,
@@ -2937,20 +2939,16 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
     ) -> Result<Option<requests::JpmorganRecurring>, Error> {
         match request.mit_category {
             Some(
-                common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
-            ) => Ok(None),
-            Some(
                 common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription,
             ) => Ok(Some(requests::JpmorganRecurring {
                 recurring_sequence: requests::JpmorganRecurringSequence::Subsequent,
                 agreement_id: None,
                 is_variable_amount: Some(true),
             })),
-            None => Err(IntegrationError::MissingRequiredField {
-                field_name: "mit_category",
-                context: Default::default(),
-            }
-            .into()),
+            Some(
+                common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
+            )
+            | None => Ok(None),
             Some(common_enums::MitCategory::Installment) => {
                 Err(Self::unsupported("Installment merchant-initiated payments"))
             }
@@ -3097,8 +3095,15 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 Some(requests::JpmorganAccountNumberType::SafetechToken)
             }
         };
+        let authentication = request
+            .additional_connector_details
+            .as_ref()
+            .and_then(|details| details.request_sca_exemption)
+            .filter(|request_sca_exemption| *request_sca_exemption)
+            .and_then(|_| build_mit_authentication(request.mit_category.as_ref()));
 
         Ok(requests::JpmorganMitCard {
+            authentication,
             account_number: number,
             account_number_type,
             expiry,
@@ -3111,6 +3116,28 @@ impl<T: PaymentMethodDataTypes> requests::JpmorganRepeatPaymentRequest<T> {
                 ),
         })
     }
+}
+
+fn build_mit_authentication(
+    mit_category: Option<&common_enums::MitCategory>,
+) -> Option<requests::JpmorganAuthentication> {
+    let sca_exemption_reason = match mit_category {
+        Some(common_enums::MitCategory::Unscheduled) | None => {
+            Some(requests::JpmorganScaExemptionReason::MerchantInitiatedTransaction)
+        }
+        Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
+            Some(requests::JpmorganScaExemptionReason::RecurringPayment)
+        }
+        Some(common_enums::MitCategory::Installment | common_enums::MitCategory::Resubmission) => {
+            None
+        }
+    };
+    sca_exemption_reason.map(|sca_exemption_reason| requests::JpmorganAuthentication {
+        sca_exemption_reason: Some(sca_exemption_reason),
+        token_authentication_value: None,
+        electronic_commerce_indicator: None,
+        three_ds: None,
+    })
 }
 
 // RepeatPayment (subsequent MIT) request transformer

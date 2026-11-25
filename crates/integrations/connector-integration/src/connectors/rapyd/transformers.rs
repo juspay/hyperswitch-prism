@@ -710,6 +710,10 @@ pub struct RapydPaymentsRequest<
     pub address: Option<Address>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub statement_descriptor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ewallet: Option<Secret<String>>,
     /// Inline customer used when saving a payment method.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer: Option<RapydInlineCustomer>,
@@ -1696,6 +1700,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: item.router_data.request.email.clone(),
+            statement_descriptor: item
+                .router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            ewallet: item
+                .router_data
+                .request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.ewallet.clone()),
             customer,
             save_payment_method,
             initiation_type,
@@ -2565,6 +2581,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: request.email.clone(),
+            statement_descriptor: request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            ewallet: request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.ewallet.clone()),
             save_payment_method: Some(true),
             initiation_type: Some(purpose.initiation_type),
         })
@@ -2759,6 +2783,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing()
                 .map(Address::from),
             receipt_email: request.email.clone(),
+            statement_descriptor: request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            ewallet: request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.ewallet.clone()),
         })
     }
 }

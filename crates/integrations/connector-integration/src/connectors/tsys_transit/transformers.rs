@@ -4161,6 +4161,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         business_country: None,
         enable_avs_check: None,
         enable_account_name_verification: None,
+        purpose_of_payment: None,
     }
 }
 

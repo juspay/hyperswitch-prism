@@ -147,7 +147,7 @@ message CompositeAuthorizeRequest {
   // Details about the recipient of funds for account-funded transactions.
   optional RecipientDetails recipient_details = 61;
 
-  // Additional connector-specific details (e.g. purpose of payment for Checkout.com).
+  // Additional connector-specific details
   optional AdditionalConnectorDetails additional_connector_details = 62;
   optional string business_country = 63;
 
@@ -169,6 +169,9 @@ message CompositeAuthorizeRequest {
 
   // Details about the sender of funds for account-funded transactions.
   optional SenderDetails sender_details = 69;
+
+  // Transaction purpose
+  optional string purpose_of_payment = 70;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -897,7 +900,7 @@ message CompositeVerifyRedirectResponseRequest {
   // Details about the recipient of funds for account-funded transactions.
   optional RecipientDetails recipient_details = 57;
 
-  // Additional connector-specific details (e.g. purpose of payment for Checkout.com).
+  // Additional connector-specific details.
   optional AdditionalConnectorDetails additional_connector_details = 58;
   optional string business_country = 59;
 
@@ -919,6 +922,9 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Details about the sender of funds for account-funded transactions.
   optional SenderDetails sender_details = 65;
+
+  // Transaction purpose
+  optional string purpose_of_payment = 66;
 }
 
 // Response message for composite verify redirect response flow.
