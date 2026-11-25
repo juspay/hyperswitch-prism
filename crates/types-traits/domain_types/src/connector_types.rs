@@ -78,7 +78,6 @@ pub enum ConnectorEnum {
     Payu,
     Cashtocode,
     Novalnet,
-    Netcetera,
     Nexinets,
     Noon,
     Braintree,
@@ -225,7 +224,7 @@ pub enum FrmConnectorEnum {
     ClearsaleBr,
 }
 
-/// Enum representing connectors that support authenticator flows (account linking, identity verification)
+/// Enum representing connectors that support authenticator flows (3DS, account linking, identity verification)
 #[derive(
     Clone,
     Copy,
@@ -241,6 +240,7 @@ pub enum FrmConnectorEnum {
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticatorConnectorEnum {
+    Netcetera,
     Plaid,
 }
 
@@ -387,6 +387,7 @@ impl ForeignTryFrom<AuthType> for AuthenticatorConnectorEnum {
     fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
         match config {
             AuthType::Plaid(_) => Ok(Self::Plaid),
+            AuthType::Netcetera(_) => Ok(Self::Netcetera),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -2434,12 +2435,13 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SdkInformation {
     pub sdk_app_id: String,
-    pub sdk_enc_data: String,
+    pub sdk_enc_data: Secret<String>,
     pub sdk_ephem_pub_key: std::collections::HashMap<String, String>,
     pub sdk_trans_id: String,
     pub sdk_reference_number: String,
     pub sdk_max_timeout: u8,
     pub sdk_type: Option<SdkType>,
+    pub sdk_server_signed_content: Option<Secret<String>>,
     pub device_details: Option<DeviceDetails>,
 }
 
@@ -2471,6 +2473,68 @@ pub enum DeviceChannel {
     App,
     #[serde(rename = "BRW")]
     Browser,
+    /// 3DS Requestor Initiated (EMVCo deviceChannel "03").
+    #[serde(rename = "3RI")]
+    ThreeRi,
+}
+
+/// EMVCo `threeDSRequestorChallengeInd` (3DS 2.2 codes 01-09).
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum ThreeDsRequestorChallengeIndicator {
+    #[serde(rename = "01")]
+    NoPreference,
+    #[serde(rename = "02")]
+    NoChallengeRequested,
+    #[serde(rename = "03")]
+    ChallengeRequested,
+    #[serde(rename = "04")]
+    ChallengeMandated,
+    #[serde(rename = "05")]
+    NoChallengeTransactionalRiskAnalysis,
+    #[serde(rename = "06")]
+    NoChallengeDataShareOnly,
+    #[serde(rename = "07")]
+    NoChallengeScaAlreadyPerformed,
+    #[serde(rename = "08")]
+    NoChallengeWhitelistExemption,
+    #[serde(rename = "09")]
+    ChallengeWhitelistPrompt,
+}
+
+/// EMVCo `threeDSRequestorAuthenticationInd` (codes 01-07).
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum ThreeDsRequestorAuthenticationIndicator {
+    #[serde(rename = "01")]
+    Payment,
+    #[serde(rename = "02")]
+    Recurring,
+    #[serde(rename = "03")]
+    Installment,
+    #[serde(rename = "04")]
+    AddCard,
+    #[serde(rename = "05")]
+    MaintainCard,
+    #[serde(rename = "06")]
+    CardholderVerification,
+    #[serde(rename = "07")]
+    BillingAgreement,
+}
+
+/// EMVCo `messageCategory`.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum ThreeDsMessageCategory {
+    #[serde(rename = "01")]
+    PaymentAuthentication,
+    #[serde(rename = "02")]
+    NonPaymentAuthentication,
+}
+
+/// EMVCo AReq `acquirer` object.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AcquirerDetails {
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone)]
@@ -2492,6 +2556,19 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub domain_data: Option<DomainData>,
     pub sdk_information: Option<SdkInformation>,
     pub device_channel: Option<DeviceChannel>,
+    /// EMVCo AReq `merchant` object (name, MCC, country).
+    pub merchant_details: Option<crate::frm::frm_types::MerchantDetails>,
+    /// EMVCo AReq `acquirer` object.
+    pub acquirer_details: Option<AcquirerDetails>,
+    /// EMVCo `threeDSRequestorChallengeInd`.
+    pub three_ds_requestor_challenge_indicator: Option<ThreeDsRequestorChallengeIndicator>,
+    /// EMVCo `threeDSRequestorAuthenticationInd`.
+    pub three_ds_requestor_authentication_indicator:
+        Option<ThreeDsRequestorAuthenticationIndicator>,
+    /// EMVCo `messageCategory`.
+    pub message_category: Option<ThreeDsMessageCategory>,
+    /// EMVCo `threeDSCompInd`: outcome of the 3DS Method (DDC) step.
+    pub threeds_completion_indicator: Option<ThreeDsCompletionIndicator>,
     /// Stored-credential intent, for connectors whose Authenticate leg can charge
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub customer_acceptance: Option<CustomerAcceptance>,
@@ -6682,6 +6759,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::ClearsaleBr(_) => Ok(Self::Frm(FrmConnectorEnum::ClearsaleBr)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
+            AuthType::Netcetera(_) => {
+                Ok(Self::Authenticator(AuthenticatorConnectorEnum::Netcetera))
+            }
         }
     }
 }

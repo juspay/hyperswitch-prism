@@ -3868,7 +3868,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsPreAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_pre_authenticate_response,
-        connector_data_types: [ConnectorData, FrmConnectorData],
+        connector_data_types: [ConnectorData + AuthenticatorConnectorData, FrmConnectorData],
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3885,7 +3885,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_authenticate_response,
-        connector_data_types: [ConnectorData],
+        connector_data_types: [ConnectorData + AuthenticatorConnectorData],
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3902,7 +3902,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsPostAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_post_authenticate_response,
-        connector_data_types: [ConnectorData],
+        connector_data_types: [ConnectorData + AuthenticatorConnectorData],
         all_keys_required: None,
         has_payment_method_data: option
     );

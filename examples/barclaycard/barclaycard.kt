@@ -259,7 +259,7 @@ fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
                 countryAlpha2Code = CountryAlpha2.US
             }
         }
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         continueRedirectionUrl = "https://example.com/3ds-continue"
         redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
             params = "probe_redirect_params"
