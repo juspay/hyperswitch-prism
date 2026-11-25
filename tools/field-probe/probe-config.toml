@@ -19,9 +19,11 @@ expires_in_seconds = 3600
 
 # Per-connector access token overrides
 # Some OAuth connectors require special token formats (e.g., fiservcommercehub needs "key_id|||encoded_public_key")
-# The encoded_public_key must be valid Base64
+# CommerceHub encrypts probe payment data with this complete Base64-encoded
+# 2048-bit RSA public key (DER SubjectPublicKeyInfo). This is a test-only key;
+# its private key is not retained or needed by the probe.
 [access_token.overrides]
-fiservcommercehub = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"
+fiservcommercehub = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"
 
 # OAuth connectors that require a cached access_token from a prior CreateAccessToken flow.
 # These connectors will have the mock access_token populated in the request state.
@@ -108,6 +110,19 @@ default = '{}'
 
 # Per-connector request field overrides.
 # Format: [connector_overrides."flow1,flow2,...".connector]
+# CommerceHub authentication calls continue a prior server-side 3DS response.
+# 1 = AuthenticationStage::DeviceDataCollectionPending; the browser's DDC
+# session ID is distinct from the connector authentication transaction ID.
+[connector_overrides.authenticate.fiservcommercehub]
+"authentication_data.authentication_stage" = 1
+"authentication_data.connector_transaction_id" = "probe_authentication_txn_001"
+"redirection_response.payload" = { MessageType = "profile.completed", SessionId = "probe_ddc_session_001", Status = "true" }
+
+# 2 = AuthenticationStage::ChallengePending, returned by Authenticate.
+[connector_overrides.post_authenticate.fiservcommercehub]
+"authentication_data.authentication_stage" = 2
+"authentication_data.connector_transaction_id" = "probe_authentication_txn_001"
+
 # Rapyd requires an exact country-specific card method. Use Iceland and EUR
 # for fresh card and wallet objects instead of the generic US/USD probe input.
 # 103 = CountryAlpha2::IS; 45 = Currency::EUR.

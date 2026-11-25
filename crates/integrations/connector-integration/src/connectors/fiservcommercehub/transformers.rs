@@ -3623,8 +3623,34 @@ fn device_collection_reference(
     let Some(payload) = redirect.and_then(|response| response.payload.as_ref()) else {
         return Ok(None);
     };
+    let mut collection_message = payload.peek().clone();
+    // RedirectionResponse.payload is a proto map<string, string>. Decode only
+    // the JSON-valued DDC fields; session IDs must remain strings.
+    for field_name in ["Payload", "Status"] {
+        let Some(field_value) = collection_message.get_mut(field_name) else {
+            continue;
+        };
+        if let serde_json::Value::String(encoded_value) = field_value {
+            *field_value = serde_json::from_str(encoded_value).change_context(
+                errors::IntegrationError::InvalidDataFormat {
+                    field_name: "redirect_response.payload",
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "JSON-encode the Cardinal Payload object and Status boolean when \
+                            forwarding them through the redirection response."
+                                .to_string(),
+                        ),
+                        doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
+                        additional_context: Some(format!(
+                            "The Cardinal {field_name} field is not valid JSON."
+                        )),
+                    },
+                },
+            )?;
+        }
+    }
     let message: FiservcommercehubDeviceCollectionMessage = serde_json::from_value(
-        payload.peek().clone(),
+        collection_message,
     )
     .change_context(errors::IntegrationError::InvalidDataFormat {
         field_name: "redirect_response.payload",

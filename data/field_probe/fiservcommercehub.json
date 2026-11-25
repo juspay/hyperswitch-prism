@@ -3,8 +3,59 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "error",
-        "error": "Invalid data format: authentication_data.authentication_stage. Expected authentication stage DeviceDataCollectionPending; received None."
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "authentication_data": {
+            "connector_transaction_id": "probe_authentication_txn_001",
+            "authentication_stage": "AUTHENTICATION_STAGE_DEVICE_DATA_COLLECTION_PENDING"
+          },
+          "return_url": "https://example.com/3ds-return",
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "redirection_response": {
+            "payload": {
+              "MessageType": "profile.completed",
+              "SessionId": "probe_ddc_session_001",
+              "Status": "true"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments-vas/v1/3ds/authenticate",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"source\":{\"sourceType\":\"PaymentCard\",\"encryptionData\":{\"keyId\":\"probe_key_id\",\"encryptionType\":\"RSA\",\"encryptionBlock\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"encryptionBlockFields\":\"card.cardData:16,card.nameOnCard:8,card.expirationMonth:2,card.expirationYear:4,card.securityCode:3\",\"encryptionTarget\":\"MANUAL\"}},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"additionalData3DS\":{\"authenticationTransactionId\":\"probe_authentication_txn_001\",\"serviceProviderReferenceId\":\"probe_ddc_session_001\",\"channel\":\"BROWSER\"},\"billingAddress\":{\"address\":{}}}"
+        }
       }
     },
     "authorize": {
@@ -41,8 +92,65 @@
         "error": "This feature is not implemented: Fiserv CommerceHub requires the pre-decrypted Apple Pay flow (ApplePayPaymentData::Decrypted); the encrypted token variant is not supported — decrypt the Apple Pay payload with your own merchant certificate before submitting. Received ApplePayPaymentData::Encrypted; expected Decrypted"
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption of decrypted wallet payment data failed"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  },
+                  "merchant_token_identifier": "probe_merchant_token_id",
+                  "device_manufacturer_identifier": "040010030273"
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"source\":{\"sourceType\":\"DecryptedWallet\",\"walletType\":\"APPLE_PAY\",\"encryptionData\":{\"keyId\":\"probe_key_id\",\"encryptionType\":\"RSA\",\"encryptionBlock\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"encryptionBlockFields\":\"cavv:8,card.cardData:16,card.expirationMonth:2,card.expirationYear:4\",\"encryptionTarget\":\"MANUAL\"},\"accountType\":\"DPAN\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_txn_001\"},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"SECURE_ECOM\"}}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -97,8 +205,51 @@
         "error": "This feature is not implemented: Fiserv CommerceHub supports only Card, CardWithNoCvc, ApplePay (pre-decrypted), and GooglePay (pre-decrypted). Received an unsupported payment method type for the Authorize flow"
       },
       "Card": {
-        "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"source\":{\"sourceType\":\"PaymentCard\",\"encryptionData\":{\"keyId\":\"probe_key_id\",\"encryptionType\":\"RSA\",\"encryptionBlock\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"encryptionBlockFields\":\"card.cardData:16,card.nameOnCard:8,card.expirationMonth:2,card.expirationYear:4,card.securityCode:3\"}},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_txn_001\"},\"transactionInteraction\":{\"origin\":\"ECOM\"}}"
+        }
       },
       "CashappQr": {
         "status": "not_implemented",
@@ -177,8 +328,61 @@
         "error": "This feature is not implemented: Fiserv CommerceHub requires the pre-decrypted Google Pay flow (GpayTokenizationData::Decrypted); the encrypted ECv2 token variant is not supported — decrypt the Google Pay payload with your own merchant certificate before submitting. Received GpayTokenizationData::Encrypted; expected Decrypted"
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption of decrypted wallet payment data failed"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"source\":{\"sourceType\":\"DecryptedWallet\",\"walletType\":\"GOOGLE_PAY\",\"encryptionData\":{\"keyId\":\"probe_key_id\",\"encryptionType\":\"RSA\",\"encryptionBlock\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"encryptionBlockFields\":\"cavv:8,card.cardData:16,card.expirationMonth:2,card.expirationYear:4\",\"encryptionTarget\":\"MANUAL\"},\"accountType\":\"DPAN\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_txn_001\"},\"transactionInteraction\":{\"origin\":\"ECOM\",\"eciIndicator\":\"SECURE_ECOM\"}}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -465,7 +669,7 @@
           },
           "state": {
             "access_token": {
-              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
@@ -580,7 +784,7 @@
           },
           "state": {
             "access_token": {
-              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
@@ -621,7 +825,7 @@
           "reason": "incremental_auth_probe",
           "state": {
             "access_token": {
-              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
@@ -660,26 +864,197 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Invalid data format: authentication_data.authentication_stage. Expected authentication stage ChallengePending; received None."
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "authentication_data": {
+            "connector_transaction_id": "probe_authentication_txn_001",
+            "authentication_stage": "AUTHENTICATION_STAGE_CHALLENGE_PENDING"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments-vas/v1/3ds/verify",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"additionalData3DS\":{\"authenticationTransactionId\":\"probe_authentication_txn_001\"}}"
+        }
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments-vas/v1/3ds/device-data-initialize",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"source\":{\"sourceType\":\"PaymentCard\",\"encryptionData\":{\"keyId\":\"probe_key_id\",\"encryptionType\":\"RSA\",\"encryptionBlock\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"encryptionBlockFields\":\"card.cardData:16,card.nameOnCard:8,card.expirationMonth:2,card.expirationYear:4,card.securityCode:3\",\"encryptionTarget\":\"MANUAL\"}},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"transactionDetails\":{\"captureFlag\":true}}"
+        }
       }
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"source\":{\"sourceType\":\"PaymentCard\",\"encryptionData\":{\"keyId\":\"probe_key_id\",\"encryptionType\":\"RSA\",\"encryptionBlock\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"encryptionBlockFields\":\"card.cardData:16,card.nameOnCard:8,card.expirationMonth:2,card.expirationYear:4,card.securityCode:13\"}},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_proxy_txn_001\"},\"transactionInteraction\":{\"origin\":\"ECOM\"}}"
+        }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments-vas/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"source\":{\"sourceType\":\"PaymentCard\",\"encryptionData\":{\"keyId\":\"probe_key_id\",\"encryptionType\":\"RSA\",\"encryptionBlock\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"encryptionBlockFields\":\"card.cardData:16,card.nameOnCard:8,card.expirationMonth:2,card.expirationYear:4,card.securityCode:13\"}},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"transactionDetails\":{\"merchantTransactionId\":\"probe_proxy_mandate_001\",\"accountVerification\":true},\"transactionInteraction\":{\"origin\":\"ECOM\"},\"storedCredentials\":{\"initiator\":\"CARD_HOLDER\",\"sequence\":\"FIRST\"}}"
+        }
       }
     },
     "recurring_charge": {
@@ -708,7 +1083,7 @@
           "off_session": true,
           "state": {
             "access_token": {
-              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
@@ -756,7 +1131,7 @@
           "reason": "customer_request",
           "state": {
             "access_token": {
-              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
@@ -788,7 +1163,7 @@
           "refund_id": "probe_refund_id_001",
           "state": {
             "access_token": {
-              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
@@ -819,7 +1194,7 @@
           "connector_transaction_id": "probe_connector_txn_001",
           "state": {
             "access_token": {
-              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
@@ -844,8 +1219,57 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments-vas/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"source\":{\"sourceType\":\"PaymentCard\",\"encryptionData\":{\"keyId\":\"probe_key_id\",\"encryptionType\":\"RSA\",\"encryptionBlock\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"encryptionBlockFields\":\"card.cardData:16,card.nameOnCard:8,card.expirationMonth:2,card.expirationYear:4,card.securityCode:3\"}},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"transactionDetails\":{\"merchantTransactionId\":\"probe_mandate_001\",\"accountVerification\":true},\"transactionInteraction\":{\"origin\":\"ECOM\"},\"storedCredentials\":{\"initiator\":\"CARD_HOLDER\",\"sequence\":\"FIRST\"}}"
+        }
       }
     },
     "token_authorize": {
@@ -899,7 +1323,7 @@
           "connector_transaction_id": "probe_connector_txn_001",
           "state": {
             "access_token": {
-              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
