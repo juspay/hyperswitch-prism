@@ -959,8 +959,53 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for moneris"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/validations",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
+            "via": "HyperSwitch",
+            "x-correlation-id": "probe_proxy_mandate_001",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\",\"orderId\":\"probe_proxy_mandate_001\",\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"MERCHANT_INITIATED\"},\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+        }
       }
     },
     "recurring_charge": {
@@ -1051,14 +1096,88 @@
     },
     "reverse": {
       "default": {
-        "status": "not_supported",
-        "error": "void_post_capture flow not supported by moneris connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/cancel",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
+            "via": "HyperSwitch",
+            "x-correlation-id": "probe_reverse_001",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"void_pc_probe_reverse_001\",\"reason\":null}"
+        }
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for moneris"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/validations",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "user-agent": "hyperswitch-prism",
+            "via": "HyperSwitch",
+            "x-correlation-id": "probe_mandate_001",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\",\"orderId\":\"probe_mandate_001\",\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"MERCHANT_INITIATED\"},\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+        }
       }
     },
     "token_authorize": {
@@ -1070,7 +1189,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for moneris"
+        "error": "This feature is not implemented: Moneris Setup Mandate currently supports card payment methods only.. Received payment method: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, token_payment_method_type: None })"
       }
     },
     "tokenize": {
