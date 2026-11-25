@@ -4,14 +4,14 @@ use common_utils::{types::Money, Email};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, IncrementalAuthorization, PostAuthenticate, PreAuthenticate, RSync,
-        Refund, RepeatPayment, ServerAuthenticationToken, Void, VoidPC,
+        Refund, RepeatPayment, ServerAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, ServerAuthenticationTokenResponseData,
+        ResponseId, ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
@@ -173,6 +173,325 @@ pub struct MonerisPaymentsRequest<
     ecommerce_indicator: Option<EcommerceIndicator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     three_d_secure_data: Option<MonerisThreeDSecureData>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    idempotency_key: String,
+    order_id: String,
+    payment_method: PaymentMethod<T>,
+    ecommerce_indicator: EcommerceIndicator,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MonerisRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MonerisSetupMandateRequest<T>
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: MonerisRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let connector_reference = &item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id;
+        let idempotency_key = uuid::Uuid::new_v5(
+            &uuid::Uuid::NAMESPACE_URL,
+            format!("moneris:setup_mandate:{connector_reference}").as_bytes(),
+        )
+        .to_string();
+
+        let is_wallet_authenticated = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
+                matches!(&apple_pay.payment_data, ApplePayPaymentData::Decrypted(_))
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => matches!(
+                &google_pay.tokenization_data,
+                GpayTokenizationData::Decrypted(decrypted) if decrypted.cryptogram.is_some()
+            ),
+            _ => false,
+        };
+        let ecommerce_indicator = derive_ecommerce_indicator(
+            item.router_data.request.payment_channel.as_ref(),
+            item.router_data.request.mit_category.as_ref(),
+            is_wallet_authenticated,
+            is_wallet_authenticated,
+            false,
+        );
+
+        let payment_method_data = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => PaymentMethod::Card(PaymentMethodCard {
+                payment_method_source: PaymentMethodSource::Card,
+                card: MonerisCard {
+                    card_number: card.card_number.clone(),
+                    expiry_month: Secret::new(
+                        card.card_exp_month.peek().parse::<i64>().change_context(
+                            IntegrationError::InvalidDataFormat {
+                                field_name: "card_exp_month",
+                                context: IntegrationErrorContext {
+                                    suggested_action: Some(
+                                        "Pass card_exp_month as a numeric string.".to_string(),
+                                    ),
+                                    doc_url: None,
+                                    additional_context: None,
+                                },
+                            },
+                        )?,
+                    ),
+                    expiry_year: Secret::new(
+                        card.get_expiry_year_4_digit()
+                            .peek()
+                            .parse::<i64>()
+                            .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "card_exp_year",
+                                context: IntegrationErrorContext {
+                                    suggested_action: Some(
+                                        "Pass card_exp_year as a four-digit year.".to_string(),
+                                    ),
+                                    doc_url: None,
+                                    additional_context: None,
+                                },
+                            })?,
+                    ),
+                    card_security_code: card.card_cvc.clone(),
+                },
+                store_payment_method: StorePaymentMethod::MerchantInitiated,
+            }),
+            PaymentMethodData::Wallet(wallet) => {
+                let wallet_indicator = WalletIndicator::InBrowser;
+                let credential_on_file_information = Some(CredentialOnFileInformation {
+                    payment_indicator: PaymentIndicator::CustomerInitiated,
+                    payment_information: PaymentInformation::First,
+                    issuer_id: None,
+                });
+                match wallet {
+                    WalletData::ApplePay(apple_pay) => match &apple_pay.payment_data {
+                        ApplePayPaymentData::Decrypted(decrypted) => {
+                            let card_brand = MonerisCardBrand::try_from(
+                                apple_pay.payment_method.network.as_str(),
+                            )?;
+                            let expiry_month = decrypted
+                                .application_expiration_month
+                                .peek()
+                                .parse::<i64>()
+                                .change_context(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay_expiry_month",
+                                    context: IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Pass Apple Pay expiry month as a numeric string."
+                                                .to_string(),
+                                        ),
+                                        doc_url: None,
+                                        additional_context: None,
+                                    },
+                                })?;
+                            let expiry_year = decrypted
+                                .get_four_digit_expiry_year()
+                                .peek()
+                                .parse::<i64>()
+                                .change_context(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay_expiry_year",
+                                    context: IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Pass Apple Pay expiry year as a four-digit year."
+                                                .to_string(),
+                                        ),
+                                        doc_url: None,
+                                        additional_context: None,
+                                    },
+                                })?;
+                            PaymentMethod::ApplePayDecrypted(PaymentMethodApplePayDecrypted {
+                                payment_method_source: PaymentMethodSource::ApplePayDecrypted,
+                                application_primary_account_number: Secret::new(
+                                    decrypted.application_primary_account_number.get_card_no(),
+                                ),
+                                expiry_month: Secret::new(expiry_month),
+                                expiry_year: Secret::new(expiry_year),
+                                data_type: match card_brand {
+                                    MonerisCardBrand::Interac => ApplePayDataType::Emv,
+                                    _ => ApplePayDataType::ThreeDSecure,
+                                },
+                                cryptogram: decrypted
+                                    .payment_data
+                                    .online_payment_cryptogram
+                                    .clone(),
+                                card_brand,
+                                wallet_ecommerce_indicator: decrypted
+                                    .payment_data
+                                    .eci_indicator
+                                    .clone(),
+                                wallet_indicator,
+                                device_manufacturer_identifier: decrypted
+                                    .device_manufacturer_identifier
+                                    .clone(),
+                                store_payment_method: Some(StorePaymentMethod::MerchantInitiated),
+                                credential_on_file_information,
+                            })
+                        }
+                        ApplePayPaymentData::Encrypted(_) => {
+                            return Err(IntegrationError::NotImplemented(
+                                "Moneris Setup Mandate supports decrypted Apple Pay data only."
+                                    .to_string(),
+                                IntegrationErrorContext {
+                                    suggested_action: Some(
+                                        "Provide decrypted Apple Pay payment data.".to_string(),
+                                    ),
+                                    doc_url: None,
+                                    additional_context: None,
+                                },
+                            )
+                            .into());
+                        }
+                    },
+                    WalletData::GooglePay(google_pay) => match &google_pay.tokenization_data {
+                        GpayTokenizationData::Decrypted(decrypted) => {
+                            let card_brand =
+                                MonerisCardBrand::try_from(google_pay.info.card_network.as_str())?;
+                            let expiry_month = decrypted
+                                .card_exp_month
+                                .peek()
+                                .parse::<i64>()
+                                .change_context(IntegrationError::InvalidDataFormat {
+                                    field_name: "google_pay_expiry_month",
+                                    context: IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Pass Google Pay expiry month as a numeric string."
+                                                .to_string(),
+                                        ),
+                                        doc_url: None,
+                                        additional_context: None,
+                                    },
+                                })?;
+                            let expiry_year = decrypted
+                                .get_four_digit_expiry_year()
+                                .change_context(IntegrationError::InvalidDataFormat {
+                                    field_name: "google_pay_expiry_year",
+                                    context: IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Pass Google Pay expiry year as a four-digit year."
+                                                .to_string(),
+                                        ),
+                                        doc_url: None,
+                                        additional_context: None,
+                                    },
+                                })?
+                                .peek()
+                                .parse::<i64>()
+                                .change_context(IntegrationError::InvalidDataFormat {
+                                    field_name: "google_pay_expiry_year",
+                                    context: IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Pass Google Pay expiry year as a four-digit year."
+                                                .to_string(),
+                                        ),
+                                        doc_url: None,
+                                        additional_context: None,
+                                    },
+                                })?;
+                            PaymentMethod::GooglePayDecrypted(PaymentMethodGooglePayDecrypted {
+                                payment_method_source: PaymentMethodSource::GooglePayDecrypted,
+                                // Moneris' Google Pay decrypted validation schema uses CARD
+                                // for walletSource, including cryptogram-backed credentials.
+                                wallet_source: GooglePayWalletSource::Card,
+                                card_brand,
+                                wallet_indicator,
+                                card_details: GooglePayDecryptedCardDetails {
+                                    personal_account_number: Secret::new(
+                                        decrypted.application_primary_account_number.get_card_no(),
+                                    ),
+                                    expiry_month: Secret::new(expiry_month),
+                                    expiry_year: Secret::new(expiry_year),
+                                    authentication_method: Some(
+                                        if decrypted.cryptogram.is_some() {
+                                            "CRYPTOGRAM_3DS".to_string()
+                                        } else {
+                                            "PAN_ONLY".to_string()
+                                        },
+                                    ),
+                                    cryptogram: decrypted.cryptogram.clone(),
+                                    wallet_ecommerce_indicator: decrypted.eci_indicator.clone(),
+                                },
+                                store_payment_method: Some(StorePaymentMethod::MerchantInitiated),
+                                credential_on_file_information,
+                            })
+                        }
+                        GpayTokenizationData::Encrypted(_) => {
+                            return Err(IntegrationError::NotImplemented(
+                                "Moneris Setup Mandate supports decrypted Google Pay data only."
+                                    .to_string(),
+                                IntegrationErrorContext {
+                                    suggested_action: Some(
+                                        "Provide decrypted Google Pay tokenization data."
+                                            .to_string(),
+                                    ),
+                                    doc_url: None,
+                                    additional_context: None,
+                                },
+                            )
+                            .into());
+                        }
+                    },
+                    _ => {
+                        return Err(IntegrationError::NotImplemented(
+                            "Moneris Setup Mandate supports Apple Pay and Google Pay only for wallet methods."
+                                .to_string(),
+                            IntegrationErrorContext {
+                                suggested_action: Some(
+                                    "Use a card, decrypted Apple Pay, or decrypted Google Pay method."
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                                additional_context: None,
+                            },
+                        )
+                        .into());
+                    }
+                }
+            }
+            other => {
+                return Err(IntegrationError::NotImplemented(
+                    "Moneris Setup Mandate currently supports card payment methods only."
+                        .to_string(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                        "Use a card, decrypted Apple Pay, or decrypted Google Pay payment method for Moneris Setup Mandate.".to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(format!("Received payment method: {other:?}")),
+                    },
+                )
+                .into());
+            }
+        };
+
+        Ok(Self {
+            idempotency_key,
+            order_id: connector_reference.clone(),
+            payment_method: payment_method_data,
+            ecommerce_indicator,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -1016,6 +1335,80 @@ pub struct MonerisPaymentMethodData {
     payment_method_id: Secret<String>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisSetupMandateResponse {
+    validation_id: String,
+    validation_status: MonerisValidationStatus,
+    payment_method: MonerisPaymentMethodData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum MonerisValidationStatus {
+    Succeeded,
+    Processing,
+    Declined,
+    DeclinedRetry,
+}
+
+impl<T> TryFrom<ResponseRouterData<MonerisSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+where
+    T: PaymentMethodDataTypes,
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MonerisSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = match item.response.validation_status {
+            MonerisValidationStatus::Succeeded => common_enums::AttemptStatus::Charged,
+            MonerisValidationStatus::Processing => common_enums::AttemptStatus::Pending,
+            MonerisValidationStatus::Declined | MonerisValidationStatus::DeclinedRetry => {
+                common_enums::AttemptStatus::Failure
+            }
+        };
+        let validation_id = item.response.validation_id;
+        let payment_method_id = item.response.payment_method.payment_method_id;
+        let mandate_reference = (status != common_enums::AttemptStatus::Failure).then(|| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(payment_method_id.peek().to_string()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+            })
+        });
+        let response = Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(validation_id.clone()),
+            redirection_data: None,
+            mandate_reference,
+            connector_metadata: None,
+            network_txn_id: None,
+            network_txn_link_id: None,
+            connector_response_reference_id: Some(validation_id),
+            incremental_authorization_allowed: None,
+            splits: None,
+            status_code: item.http_code,
+            payment_account_reference: None,
+        });
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<MonerisPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
@@ -1601,24 +1994,25 @@ pub fn build_three_d_secure_data(
         return Ok(None);
     };
 
-    // Moneris Create Authentication returns its own resource ID in transaction_id, along with
-    // ECI and cryptogram fields. Only pass transaction_id as a Moneris authentication ID when it
-    // matches Moneris' resource ID format; otherwise it may be a HyperSwitch transaction ID.
-    if let Some(authentication_id) = auth
-        .transaction_id
-        .as_deref()
-        .filter(|id| is_moneris_resource_id(id))
-    {
-        return Ok(Some(MonerisThreeDSecureData::AuthenticationId(
-            MonerisThreeDSecureAuthenticationId {
-                three_d_secure_authentication_id: authentication_id.to_string(),
-            },
-        )));
+    let has_directory_server_transaction_id = auth.ds_trans_id.is_some();
+    if !has_directory_server_transaction_id {
+        if let Some(authentication_id) = auth
+            .transaction_id
+            .as_deref()
+            .filter(|id| is_moneris_resource_id(id))
+        {
+            return Ok(Some(MonerisThreeDSecureData::AuthenticationId(
+                MonerisThreeDSecureAuthenticationId {
+                    three_d_secure_authentication_id: authentication_id.to_string(),
+                },
+            )));
+        }
+
+        if !auth.has_external_authentication() {
+            return Ok(None);
+        }
     }
 
-    if !auth.has_external_authentication() {
-        return Ok(None);
-    }
     let directory_server_transaction_id = auth.ds_trans_id.clone().ok_or(
         IntegrationError::MissingRequiredField {
             field_name: "authentication_data.ds_trans_id",
@@ -2392,7 +2786,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_d_secure_device_channel: device_channel,
             three_d_secure_request_type,
             three_d_secure_notification_url,
-            three_d_secure_completion_indicator: ThreeDSecureCompletionIndicator::Unavailable,
+            three_d_secure_completion_indicator: if is_browser_channel {
+                ThreeDSecureCompletionIndicator::Success
+            } else {
+                ThreeDSecureCompletionIndicator::Unavailable
+            },
             three_d_secure_challenge_requested: ThreeDSecureChallengeRequested::NoPreference,
             three_d_secure_challenge_window_size,
             browser_ip_address,
