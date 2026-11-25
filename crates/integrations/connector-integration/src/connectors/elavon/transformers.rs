@@ -8,11 +8,11 @@ use domain_types::{
         SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId as DomainResponseId, SetupMandateRequestData,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId as DomainResponseId,
+        SetupMandateRequestData,
     },
     payment_address::PaymentAddress,
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -78,7 +78,7 @@ pub enum TransactionType {
     CcReturn,
     CcDelete,
     CcVoid,
-    CcGetToken,
+    CcVerify,
     TxnQuery,
 }
 
@@ -94,7 +94,7 @@ impl Serialize for TransactionType {
             Self::CcReturn => "ccreturn",
             Self::CcDelete => "ccdelete",
             Self::CcVoid => "ccvoid",
-            Self::CcGetToken => "ccgettoken",
+            Self::CcVerify => "ccverify",
             Self::TxnQuery => "txnquery",
         };
         serializer.serialize_str(value)
@@ -107,6 +107,12 @@ pub enum CofIndicator {
     /// Consumer initiated, credential on file (ad hoc)
     #[serde(rename = "C01")]
     ConsumerAdHoc,
+    #[serde(rename = "C02")]
+    ConsumerStandingOrder,
+    #[serde(rename = "C03")]
+    ConsumerSubscription,
+    #[serde(rename = "C04")]
+    ConsumerInstallment,
     #[serde(rename = "M01")]
     MerchantUnscheduled,
     #[serde(rename = "M02")]
@@ -131,17 +137,24 @@ impl From<Option<common_enums::MitCategory>> for CofIndicator {
     }
 }
 
-/// The Card Manager token, only when Converge reports it was stored (`ssl_token_response`
-/// SUCCESS). A token with any other status cannot be charged later.
-pub(super) fn get_saved_card_token(response: &PaymentResponse) -> Option<String> {
-    (response.ssl_token_response.as_deref() == Some("SUCCESS"))
-        .then(|| response.ssl_token.as_ref().map(|t| t.peek().to_string()))
-        .flatten()
+impl CofIndicator {
+    /// The indicator for the payment that saves the card, by what it is saved for.
+    pub(super) fn for_cit(mit_category: Option<&common_enums::MitCategory>) -> Self {
+        match mit_category {
+            Some(common_enums::MitCategory::Recurring) => Self::ConsumerStandingOrder,
+            Some(common_enums::MitCategory::Subscription) => Self::ConsumerSubscription,
+            Some(common_enums::MitCategory::Installment) => Self::ConsumerInstallment,
+            None
+            | Some(
+                common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
+            ) => Self::ConsumerAdHoc,
+        }
+    }
 }
 
-/// Converge's "retain and return" values from the card-saving payment. Its docs require
-/// them on every later card-on-file payment; without them Converge links the MIT to some
-/// other approval on the same token (one token per card, shared by every customer).
+/// Converge's "retain and return" values from a card-on-file payment saved by token
+/// (Card Manager). New cards are no longer saved that way; MITs on tokens saved earlier
+/// still read these from the mandate.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(super) struct ElavonMandateMetadata {
     pub ssl_ps2000_data: Option<String>,
@@ -149,19 +162,14 @@ pub(super) struct ElavonMandateMetadata {
     pub ssl_approval_code: Option<String>,
 }
 
-pub(super) fn get_saved_card_mandate(response: &PaymentResponse) -> Option<MandateReference> {
-    let metadata = ElavonMandateMetadata {
-        ssl_ps2000_data: response.ssl_ps2000_data.clone(),
-        ssl_oar_data: response.ssl_oar_data.clone(),
-        ssl_approval_code: response.ssl_approval_code.clone(),
-    };
-    get_saved_card_token(response).map(|token| MandateReference {
-        connector_mandate_id: Some(token),
-        payment_method_id: None,
-        connector_mandate_request_reference_id: None,
-        mandate_metadata: (metadata.ssl_ps2000_data.is_some() || metadata.ssl_oar_data.is_some())
-            .then(|| common_utils::pii::SecretSerdeValue::new(serde_json::json!(metadata))),
-    })
+/// The card-saving payment's `ssl_ps2000_data` and `ssl_approval_code`, which Converge needs
+/// on every later MIT. They are returned as the network transaction ID and link ID, so the
+/// saved card carries them and each MIT gets them back with the card number.
+pub(super) fn get_cof_reference(response: &PaymentResponse) -> Option<(String, String)> {
+    response
+        .ssl_ps2000_data
+        .clone()
+        .zip(response.ssl_approval_code.clone())
 }
 
 /// Converge rejects the whole request (`5005 Field Character Limit Exceeded`) when a field is
@@ -288,8 +296,6 @@ pub struct CardPaymentRequest<
     pub ssl_email: Option<common_utils::pii::Email>,
     /// `Y` stores the card in Converge's Card Manager. Any other value is ignored
     /// silently: the payment approves and no token comes back.
-    pub ssl_add_token: Option<&'static str>,
-    pub ssl_get_token: Option<&'static str>,
     pub ssl_cit_mit_cof_indicator: Option<CofIndicator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ssl_transaction_currency: Option<Currency>,
@@ -334,10 +340,14 @@ fn get_avs_details_from_payment_address(
 
 /// `ssl_exp_date` in Converge's MMYY format.
 fn get_card_exp_date<T: PaymentMethodDataTypes>(card: &Card<T>) -> Secret<String> {
-    let exp_month = card.card_exp_month.peek().to_string();
+    format_exp_date(&card.card_exp_month, &card.card_exp_year)
+}
+
+fn format_exp_date(month: &Secret<String>, year: &Secret<String>) -> Secret<String> {
+    let exp_month = month.peek().to_string();
     let formatted_exp_month = format!("{exp_month:0>2}");
 
-    let exp_year = card.card_exp_year.peek().to_string();
+    let exp_year = year.peek().to_string();
     let formatted_exp_year = if exp_year.len() == 4 {
         &exp_year[2..]
     } else {
@@ -430,11 +440,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     request_data.setup_future_usage,
                     Some(FutureUsage::OnSession | FutureUsage::OffSession)
                 );
-                let save_flag = save_card.then_some("Y");
                 // Saving the card, or paying with one saved earlier, is a consumer-initiated
                 // credential-on-file payment.
-                let cof_indicator = (save_card || request_data.is_stored_credential == Some(true))
-                    .then_some(CofIndicator::ConsumerAdHoc);
+                let cof_indicator = if save_card {
+                    Some(CofIndicator::for_cit(request_data.mit_category.as_ref()))
+                } else {
+                    (request_data.is_stored_credential == Some(true))
+                        .then_some(CofIndicator::ConsumerAdHoc)
+                };
 
                 let common = &router_data.resource_common_data;
                 let (first_name, last_name) = get_first_and_last_name(common, card);
@@ -468,8 +481,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ssl_first_name: first_name,
                     ssl_last_name: last_name,
                     ssl_email: request_data.email.clone(),
-                    ssl_add_token: save_flag,
-                    ssl_get_token: save_flag,
                     ssl_cit_mit_cof_indicator: cof_indicator,
                     ssl_transaction_currency: request_data
                         .connector_feature_data
@@ -859,34 +870,26 @@ impl<
 
         let payments_response_data = match (&response.result, error_response) {
             (ElavonResult::Success(payment_resp_struct), None) => {
-                let mandate_reference = get_saved_card_mandate(payment_resp_struct).map(Box::new);
-                if mandate_reference.is_none()
-                    && matches!(
-                        router_data.request.setup_future_usage,
-                        Some(FutureUsage::OnSession | FutureUsage::OffSession)
-                    )
-                {
-                    tracing::warn!(
-                        ssl_token_response = ?payment_resp_struct.ssl_token_response,
-                        "Elavon approved the payment but did not save the card; it cannot be used for MIT"
-                    );
-                }
+                let cof_reference = matches!(
+                    router_data.request.setup_future_usage,
+                    Some(FutureUsage::OnSession | FutureUsage::OffSession)
+                )
+                .then(|| get_cof_reference(payment_resp_struct))
+                .flatten();
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: DomainResponseId::ConnectorTransactionId(
                         payment_resp_struct.ssl_txn_id.clone(),
                     ),
                     redirection_data: None,
                     connector_metadata: None,
-                    // `ssl_approval_code` is the issuer's approval code, not a network
-                    // transaction ID; reporting it as one lets it be replayed as an NTID.
-                    network_txn_id: None,
-                    network_txn_link_id: None,
+                    network_txn_id: cof_reference.as_ref().map(|(ps2000, _)| ps2000.clone()),
+                    network_txn_link_id: cof_reference.map(|(_, approval_code)| approval_code),
                     connector_response_reference_id: payment_resp_struct.ssl_approval_code.clone(),
                     // A ccauthonly can be extended by a later ccauthonly on its ssl_txn_id.
                     incremental_authorization_allowed: (attempt_status
                         == AttemptStatus::Authorized)
                         .then_some(true),
-                    mandate_reference,
+                    mandate_reference: None,
                     status_code: http_code,
                     splits: None,
                     payment_account_reference: None,
@@ -1866,16 +1869,16 @@ impl<F> TryFrom<ResponseRouterData<ElavonPSyncResponse, Self>>
 // RepeatPayment Flow (Merchant-Initiated / Token-Based)
 // ============================================================================
 //
-// Elavon uses `ssl_token` (returned during the initial card payment when
-// `ssl_add_token=Y` and `ssl_get_token=Y` are sent) as the mandate reference.
-// Subsequent MIT payments skip the card fields entirely and pass `ssl_token`
-// instead. The `connector_mandate_id` in the authorize response carries that
-// token; the RepeatPayment request reads it back via `request.connector_mandate_id()`.
+// A MIT sends the card number Hyperswitch keeps, with the card-saving payment's
+// `ssl_ps2000_data` (network transaction ID) and `ssl_approval_code` (link ID).
+// Cards saved earlier as Card Manager tokens still MIT by `ssl_token`.
 
-/// Wire request for a token-based (mandate) payment.
+/// Wire request for a merchant-initiated payment.
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
-pub struct MandatePaymentRequest {
+pub struct MandatePaymentRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
     pub ssl_transaction_type: TransactionType,
     pub ssl_account_id: Secret<String>,
     pub ssl_user_id: Secret<String>,
@@ -1883,7 +1886,13 @@ pub struct MandatePaymentRequest {
     pub ssl_vendor_id: Option<Secret<String>>,
     pub ssl_amount: StringMajorUnit,
     pub ssl_email: Option<common_utils::pii::Email>,
-    pub ssl_token: Secret<String>,
+    pub ssl_token: Option<Secret<String>>,
+    pub ssl_card_number: Option<RawCardNumber<T>>,
+    pub ssl_exp_date: Option<Secret<String>>,
+    /// `12`: required on every card-on-file payment.
+    pub ssl_entry_mode: &'static str,
+    pub ssl_avs_address: Option<Secret<String>>,
+    pub ssl_avs_zip: Option<Secret<String>>,
     pub ssl_cit_mit_cof_indicator: CofIndicator,
     /// `1` marks a recurring payment. The installment value `2` also needs
     /// `ssl_payment_number` and `ssl_payment_count`, which no MIT carries, so it is never sent.
@@ -1923,7 +1932,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for MandatePaymentRequest
+    > for MandatePaymentRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -1942,22 +1951,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
         let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
 
-        let (ssl_token, cit_data) = match &request.mandate_reference {
+        let (ssl_token, card, cit_data) = match &request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(mandate_data) => (
-                mandate_data.get_connector_mandate_id().ok_or_else(|| {
-                    report!(IntegrationError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "Elavon RepeatPayment requires ssl_token from the initial \
+                mandate_data
+                    .get_connector_mandate_id()
+                    .ok_or_else(|| {
+                        report!(IntegrationError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Elavon RepeatPayment requires ssl_token from the initial \
                                  Authorize response stored as connector_mandate_id; \
                                  the field was present but empty"
-                                    .to_string(),
-                            ),
-                            ..Default::default()
-                        },
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })
                     })
-                })?,
+                    .map(Secret::new)
+                    .map(Some)?,
+                None,
                 // Mandates saved before this data was stored have none; Converge still
                 // approves those MITs, so they go without it.
                 mandate_data
@@ -1967,23 +1981,54 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })
                     .unwrap_or_default(),
             ),
-            MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(report!(IntegrationError::MissingRequiredField {
-                    field_name: "connector_mandate_id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Elavon RepeatPayment only supports ConnectorMandateId (ssl_token); \
-                             NetworkMandateId and NetworkTokenWithNTI are not accepted"
-                                .to_string(),
-                        ),
-                        ..Default::default()
+            MandateReferenceId::NetworkMandateId(network_mandate) => {
+                let PaymentMethodData::CardDetailsForNetworkTransactionId(card) =
+                    &request.payment_method_data
+                else {
+                    return Err(report!(IntegrationError::MissingRequiredField {
+                        field_name: "payment_method_data.card",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Elavon MIT by network transaction ID sends the saved card \
+                                 number; no card details were provided"
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    }));
+                };
+                let approval_code =
+                    network_mandate.transaction_link_id.clone().ok_or_else(|| {
+                        report!(IntegrationError::MissingRequiredField {
+                        field_name: "network_transaction_link_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Elavon MIT needs the card-saving payment's ssl_approval_code, \
+                                 stored as the network transaction link ID"
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })
+                    })?;
+                (
+                    None,
+                    Some((
+                        card.card_number.clone(),
+                        format_exp_date(&card.card_exp_month, &card.card_exp_year),
+                    )),
+                    ElavonMandateMetadata {
+                        ssl_ps2000_data: Some(network_mandate.network_transaction_id.clone()),
+                        ssl_oar_data: None,
+                        ssl_approval_code: Some(approval_code),
                     },
-                }))
-                .attach_printable(
-                    "Elavon RepeatPayment requires a ConnectorMandateId (ssl_token); \
-                     NetworkMandateId and NetworkTokenWithNTI are not supported",
                 )
+            }
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(report!(IntegrationError::NotImplemented(
+                    "Elavon RepeatPayment does not support network tokens".to_string(),
+                    IntegrationErrorContext::default(),
+                )))
             }
         };
 
@@ -2023,6 +2068,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let cof_indicator = CofIndicator::from(request.mit_category.clone());
+        let (ssl_card_number, ssl_exp_date) = card.unzip();
+        let (avs_address, avs_zip) =
+            get_avs_details_from_payment_address(Some(&router_data.resource_common_data.address));
         Ok(Self {
             ssl_transaction_type: transaction_type,
             ssl_account_id: auth_type.ssl_merchant_id,
@@ -2031,7 +2079,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ssl_vendor_id: auth_type.ssl_vendor_id,
             ssl_amount: amount,
             ssl_email: request.email.clone(),
-            ssl_token: Secret::new(ssl_token),
+            ssl_token,
+            ssl_card_number,
+            ssl_exp_date,
+            ssl_entry_mode: "12",
+            ssl_avs_address: avs_address,
+            ssl_avs_zip: avs_zip,
             ssl_cit_mit_cof_indicator: cof_indicator,
             ssl_recurring_flag: (cof_indicator == CofIndicator::MerchantStandingOrder).then_some(1),
             ssl_invoice_number: Some(fit_to_length(
@@ -2073,18 +2126,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let request =
-            MandatePaymentRequest::try_from(data)
-                .change_context(IntegrationError::RequestEncodingFailed {
+        let request = MandatePaymentRequest::try_from(data).change_context(
+            IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "Failed to build MandatePaymentRequest (ccsale/ccauthonly with ssl_token) \
+                        "Failed to build MandatePaymentRequest (ccsale/ccauthonly) \
                          for Elavon RepeatPayment flow"
                             .to_string(),
                     ),
                     ..Default::default()
                 },
-            })?;
+            },
+        )?;
         to_xmldata(&request, "RepeatPayment").map(Self)
     }
 }
@@ -2159,8 +2212,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// SetupMandate uses ccgettoken with ssl_verify=Y: a $0 account verification that stores
-// the card in Card Manager and returns its token. It never charges the card.
+// SetupMandate uses ccverify: a $0 account verification marked as the card-on-file start.
+// It never charges the card; Hyperswitch keeps the card and later MITs send it.
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct ElavonSetupMandateRequest<
@@ -2180,8 +2233,7 @@ pub struct ElavonSetupMandateRequest<
     pub ssl_first_name: Option<Secret<String>>,
     pub ssl_last_name: Option<Secret<String>>,
     pub ssl_email: Option<common_utils::pii::Email>,
-    pub ssl_verify: &'static str,
-    pub ssl_add_token: &'static str,
+    pub ssl_cit_mit_cof_indicator: CofIndicator,
     pub ssl_customer_code: Option<String>,
     pub ssl_invoice_number: String,
     #[serde(flatten)]
@@ -2260,7 +2312,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (first_name, last_name) = get_first_and_last_name(common, card);
 
         Ok(Self {
-            ssl_transaction_type: TransactionType::CcGetToken,
+            ssl_transaction_type: TransactionType::CcVerify,
             ssl_account_id: auth_type.ssl_merchant_id,
             ssl_user_id: auth_type.ssl_user_id,
             ssl_pin: auth_type.ssl_pin,
@@ -2274,8 +2326,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ssl_first_name: first_name,
             ssl_last_name: last_name,
             ssl_email: request_data.email.clone(),
-            ssl_verify: "Y",
-            ssl_add_token: "Y",
+            ssl_cit_mit_cof_indicator: CofIndicator::for_cit(request_data.mit_category.as_ref()),
             ssl_customer_code: request_data
                 .customer_id
                 .as_ref()
@@ -2363,8 +2414,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (status, response_data) = match response.result {
             ElavonResult::Success(payment_response) => {
-                match get_saved_card_mandate(&payment_response) {
-                    Some(mandate_reference) => (
+                match get_cof_reference(&payment_response) {
+                    Some((ps2000_data, approval_code)) => (
                         AttemptStatus::Charged,
                         Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: DomainResponseId::ConnectorTransactionId(
@@ -2372,29 +2423,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                             redirection_data: None,
                             connector_metadata: None,
-                            network_txn_id: None,
-                            network_txn_link_id: None,
-                            connector_response_reference_id: payment_response.ssl_approval_code,
+                            network_txn_id: Some(ps2000_data),
+                            network_txn_link_id: Some(approval_code.clone()),
+                            connector_response_reference_id: Some(approval_code),
                             incremental_authorization_allowed: None,
-                            mandate_reference: Some(Box::new(mandate_reference)),
+                            mandate_reference: None,
                             status_code: http_code,
                             splits: None,
                             payment_account_reference: None,
                         }),
                     ),
-                    // Never report a saved card without its token.
+                    // Without these no MIT can be made on the card.
                     None => (
                         AttemptStatus::Failure,
                         Err(ErrorResponse {
                             status_code: http_code,
                             code: NO_ERROR_CODE.to_string(),
                             message: format!(
-                                "Converge approved the card verification but returned no card \
-                                 token (ssl_token_response: {})",
-                                payment_response
-                                    .ssl_token_response
-                                    .as_deref()
-                                    .unwrap_or("absent")
+                                "Converge approved the card verification but returned no \
+                                 ssl_ps2000_data or ssl_approval_code (ps2000 present: {})",
+                                payment_response.ssl_ps2000_data.is_some()
                             ),
                             reason: None,
                             attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
