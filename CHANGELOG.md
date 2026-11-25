@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.25.1
+
+### Features
+
+- **connector:** Add moneris zero auth mandate flow ([#2934](https://github.com/juspay/connector-service/pull/2934)) ([`493ff3c`](https://github.com/juspay/connector-service/commit/493ff3c406175ca74534857f32c9d91ca4fd965a))
+
+### Bug Fixes
+
+- **nuvei:** Improve billing and airline request mapping ([#2932](https://github.com/juspay/connector-service/pull/2932)) ([`701b606`](https://github.com/juspay/connector-service/commit/701b606d815832f60fbd2e764befda72d7fc29b6))
+
+**Full Changelog:** [`2026.11.25.0...2026.11.25.1`](https://github.com/juspay/connector-service/compare/2026.11.25.0...2026.11.25.1)
+
+- - -
+
 ## 2026.11.25.0
 
 ### Features
