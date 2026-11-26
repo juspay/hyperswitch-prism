@@ -25,7 +25,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::{
         AuthoriseIntegrityObject, CaptureIntegrityObject, PaymentMethodTokenIntegrityObject,
@@ -185,15 +185,9 @@ fn charge_failure_error(response: &KgpCharge, http_code: u16) -> ErrorResponse {
             .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
         reason: response.failure_message.clone(),
         status_code: http_code,
-        attempt_status: None,
+        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
         connector_transaction_id: Some(response.id.clone()),
-        network_advice_code: None,
-        network_decline_code: None,
-        network_error_message: None,
-        typed_connector_response: None,
-        raw_connector_response: None,
-        raw_connector_request: None,
-        typed_connector_request: None,
+        ..Default::default()
     }
 }
 
@@ -210,15 +204,9 @@ fn refund_failure_error(response: &KgpRefund, http_code: u16) -> ErrorResponse {
             .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
         reason: response.failure_message.clone(),
         status_code: http_code,
-        attempt_status: None,
+        attempt_status: Some(FlowStatus::Refund(RefundStatus::Failure)),
         connector_transaction_id: response.charge.clone(),
-        network_advice_code: None,
-        network_decline_code: None,
-        network_error_message: None,
-        typed_connector_response: None,
-        raw_connector_response: None,
-        raw_connector_request: None,
-        typed_connector_request: None,
+        ..Default::default()
     }
 }
 
