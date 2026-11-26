@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.21.0-hotfix1
+
+### Miscellaneous Tasks
+
+- Rebuild image with Jenkins base-image pull ([`a0c655b`](https://github.com/juspay/connector-service/commit/a0c655b519e4b3955658353be37a44eb6b166b87))
+
+**Full Changelog:** [`2026.11.21.0...2026.11.21.0-hotfix1`](https://github.com/juspay/connector-service/compare/2026.11.21.0...2026.11.21.0-hotfix1)
+
+- - -
+
 ## 2026.11.21.0
 
 ### Features
