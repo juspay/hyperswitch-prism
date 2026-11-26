@@ -250,20 +250,17 @@ pub struct KgpCard {
 
 /// Charge object — shared by Authorize / PSync / Capture / Void responses.
 ///
-/// `currency` stays a raw string: Omise returns lowercase ISO codes ("usd")
-/// while `common_enums::Currency` deserializes UPPERCASE — integrity objects
-/// take the request-side currency instead.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct KgpCharge {
     pub id: String,
     pub object: Option<String>,
     pub status: KgpChargeStatus,
-    pub amount: Option<i64>,
-    pub currency: Option<String>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<Currency>,
     pub authorized: Option<bool>,
     pub paid: Option<bool>,
     pub captured: Option<bool>,
-    pub captured_amount: Option<i64>,
+    pub captured_amount: Option<MinorUnit>,
     pub authorize_uri: Option<String>,
     pub return_uri: Option<String>,
     pub card: Option<KgpCard>,
@@ -292,8 +289,8 @@ pub struct KgpRefund {
     pub id: String,
     pub object: Option<String>,
     pub status: KgpRefundStatus,
-    pub amount: Option<i64>,
-    pub currency: Option<String>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<Currency>,
     pub charge: Option<String>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
@@ -663,12 +660,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Authorise integrity tracks the charge amount, not captured_amount
         // (auth-only leaves captured_amount at 0 while amount is the auth).
         let response_integrity_object = Some(AuthoriseIntegrityObject {
-            amount: MinorUnit::new(
-                response
-                    .amount
-                    .unwrap_or_else(|| router_data.request.money.amount().get_amount_as_i64()),
-            ),
-            currency: router_data.request.currency,
+            amount: response
+                .amount
+                .unwrap_or_else(|| router_data.request.money.amount()),
+            currency: response.currency.unwrap_or(router_data.request.currency),
         });
 
         Ok(Self {
@@ -731,12 +726,12 @@ impl TryFrom<ResponseRouterData<KgpSyncResponse, Self>>
         };
 
         let response_integrity_object = Some(PaymentSynIntegrityObject {
-            amount: MinorUnit::new(
-                response
-                    .amount
-                    .unwrap_or_else(|| router_data.request.money.amount().get_amount_as_i64()),
-            ),
-            currency: router_data.request.money.currency(),
+            amount: response
+                .amount
+                .unwrap_or_else(|| router_data.request.money.amount()),
+            currency: response
+                .currency
+                .unwrap_or_else(|| router_data.request.money.currency()),
         });
 
         Ok(Self {
@@ -820,19 +815,11 @@ impl TryFrom<ResponseRouterData<KgpCaptureResponse, Self>>
 
         // Capture integrity is the amount actually captured (partial or full).
         let response_integrity_object = Some(CaptureIntegrityObject {
-            amount_to_capture: MinorUnit::new(
-                response
-                    .captured_amount
-                    .or(response.amount)
-                    .unwrap_or_else(|| {
-                        router_data
-                            .request
-                            .capture_money
-                            .amount()
-                            .get_amount_as_i64()
-                    }),
-            ),
-            currency: router_data.request.currency,
+            amount_to_capture: response
+                .captured_amount
+                .or(response.amount)
+                .unwrap_or_else(|| router_data.request.capture_money.amount()),
+            currency: response.currency.unwrap_or(router_data.request.currency),
         });
 
         Ok(Self {
@@ -983,14 +970,10 @@ impl TryFrom<ResponseRouterData<KgpRefundResponse, Self>>
         };
 
         let response_integrity_object = Some(RefundIntegrityObject {
-            refund_amount: MinorUnit::new(response.amount.unwrap_or_else(|| {
-                router_data
-                    .request
-                    .refund_money
-                    .amount()
-                    .get_amount_as_i64()
-            })),
-            currency: router_data.request.currency,
+            refund_amount: response
+                .amount
+                .unwrap_or_else(|| router_data.request.refund_money.amount()),
+            currency: response.currency.unwrap_or(router_data.request.currency),
         });
 
         Ok(Self {

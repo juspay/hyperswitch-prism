@@ -28,8 +28,8 @@ use domain_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, ConnectorWebhookSecrets, EventType,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RequestDetails, WebhookResourceReference,
+        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RequestDetails, WebhookResourceReference,
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -469,6 +469,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Kgp<T>
 {
+    fn decode_redirect_response_body(
+        &self,
+        request: &RequestDetails,
+        _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<Vec<u8>, IntegrationError> {
+        // Omise returns the browser to return_uri without an encoded or signed body.
+        Ok(request.body.clone())
+    }
+
+    fn verify_redirect_response_source(
+        &self,
+        _request: &RequestDetails,
+        _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<bool, IntegrationError> {
+        // The browser return is unsigned. Final payment state must be obtained from PSync.
+        Ok(false)
+    }
+
+    fn process_redirect_response(
+        &self,
+        _request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
+        // The charge ID saved during authorization is retained by the caller and used for PSync.
+        Ok(RedirectDetailsResponse {
+            resource_id: None,
+            status: None,
+            response_money: None,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: None,
+            connector_feature_data: None,
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

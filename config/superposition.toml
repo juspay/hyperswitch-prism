@@ -1188,8 +1188,10 @@ connector_base_url = "https://api.ecommpay.com/"
 [[overrides]]
 _context_ = { connector = "kgp" }
 connector_base_url = "https://api.omise.co/"
+connector_secondary_base_url = "https://vault.omise.co/"
 
 # Kgp Production
 [[overrides]]
 _context_ = { connector = "kgp", environment = "production" }
 connector_base_url = "https://api.omise.co/"
+connector_secondary_base_url = "https://vault.omise.co/"
