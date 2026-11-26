@@ -4,7 +4,11 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::RequestContent, FloatMajorUnit,
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+    FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -801,9 +805,7 @@ macros::macro_connector_implementation!(
                 PaymentsAuthorizeData<T>,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
-            use common_utils::request::{Method, RequestBuilder};
-
+        ) -> CustomResult<Option<Request>, errors::IntegrationError> {
             let input_data = FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone()
@@ -1084,9 +1086,7 @@ macros::macro_connector_implementation!(
         fn build_request_v2(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
-            use common_utils::request::{Method, RequestBuilder};
-
+        ) -> CustomResult<Option<Request>, errors::IntegrationError> {
             let input_data = FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone(),
@@ -1139,9 +1139,7 @@ macros::macro_connector_implementation!(
                 SetupMandateRequestData<T>,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
-            use common_utils::request::{Method, RequestBuilder};
-
+        ) -> CustomResult<Option<Request>, errors::IntegrationError> {
             let input_data = FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone()

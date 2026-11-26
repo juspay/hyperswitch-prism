@@ -1423,8 +1423,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         decline_duplicates: None,
                         card: Some(FiservcommercehubTokenCardInfo {
                             expiration_month: Secret::new(format!(
-                                "{:0>2}",
-                                token_data.get_network_token_expiry_month().peek()
+                                "{:02}",
+                                crate::utils::parse_expiry_month(
+                                    token_data.get_network_token_expiry_month().peek(),
+                                    "network_token.token_exp_month",
+                                )?
                             )),
                             expiration_year: token_data.get_expiry_year_4_digit(),
                         }),
@@ -3154,8 +3157,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             decline_duplicates: None,
                             card: Some(FiservcommercehubTokenCardInfo {
                                 expiration_month: Secret::new(format!(
-                                    "{:0>2}",
-                                    token.get_network_token_expiry_month().peek()
+                                    "{:02}",
+                                    crate::utils::parse_expiry_month(
+                                        token.get_network_token_expiry_month().peek(),
+                                        "network_token.token_exp_month",
+                                    )?
                                 )),
                                 expiration_year: token.get_expiry_year_4_digit(),
                             }),
