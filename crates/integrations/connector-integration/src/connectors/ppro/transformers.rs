@@ -1761,11 +1761,8 @@ where
                 )
                 | None => PproScheduleType::Unscheduled,
             }),
-            // PPRO supports only automatic capture; an unset capture_method means automatic.
-            auto_capture: matches!(
-                router_data.request.capture_method,
-                Some(common_enums::CaptureMethod::Automatic) | None
-            ),
+            // An unset capture_method defaults to automatic capture.
+            auto_capture: router_data.request.is_auto_capture(),
             initiator,
             payment_descriptor: router_data.resource_common_data.description.clone(),
         })
