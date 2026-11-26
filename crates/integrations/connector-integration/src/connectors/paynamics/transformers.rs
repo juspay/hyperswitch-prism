@@ -9,6 +9,7 @@ const NO_ADDITIONAL_AMOUNT: i64 = 0;
 const PAYMENT_NOTIFICATION_DISABLED: u8 = 0;
 const PAYMENT_NOTIFICATION_EMAIL: u8 = 1;
 const METADATA_VERSION: u8 = 1;
+const REFUND_QUERY_ID_DOMAIN: &[u8] = b"paynamics-workflow-refund-query:";
 const QUERY_ID_DOMAIN: &[u8] = b"paynamics-workflow-query:";
 const QUERY_ID_PREFIX: &str = "q";
 const QUERY_ID_DIGEST_LENGTH: usize = 31;
@@ -111,9 +112,10 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CaptureMethod};
 use common_utils::types::{MinorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, RSync},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        RefundFlowData, RefundSyncData, RefundsResponseData,
     },
     payment_method_data::{
         BankTransferData, PaymentMethodData, PaymentMethodDataTypes, VoucherData,
@@ -1368,6 +1370,22 @@ pub fn lifecycle_sale_metadata(
     Ok(metadata)
 }
 
+/// Refund eligibility comes from the provider's supplied processing manual,
+/// not acceptance of a generic endpoint. Existing-refund lookup is independent.
+fn validate_refund_eligibility(channel: PaynamicsChannel) -> Result<(), RequestError> {
+    let message = match channel {
+        PaynamicsChannel::Bpi | PaynamicsChannel::Unionbank =>
+            "API refunds are unavailable for BPI/UnionBank Online; request a refund through PTI Merchant Support",
+        PaynamicsChannel::Landbank | PaynamicsChannel::Dragonpay =>
+            "API refunds are unavailable for Brankas/Landbank and DragonPay; the merchant must process refunds manually",
+        PaynamicsChannel::Robinsons =>
+            "API refund eligibility for Robinsons OTC is unconfirmed; contact PTI Merchant Support for manual refund instructions",
+        PaynamicsChannel::Rcbc =>
+            "API refund eligibility for RCBC Digital is unconfirmed; contact PTI Merchant Support before requesting a refund",
+    };
+    Err(unsupported(message))
+}
+
 #[derive(Debug, Serialize)]
 pub struct PaynamicsRefundRequest {
     pub merchant_id: Secret<String>,
@@ -1389,9 +1407,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaynamicsRouterData<
             RouterDataV2<
                 domain_types::connector_flow::Refund,
-                domain_types::connector_types::RefundFlowData,
+                RefundFlowData,
                 domain_types::connector_types::RefundsData,
-                domain_types::connector_types::RefundsResponseData,
+                RefundsResponseData,
             >,
             T,
         >,
@@ -1402,9 +1420,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         item: PaynamicsRouterData<
             RouterDataV2<
                 domain_types::connector_flow::Refund,
-                domain_types::connector_types::RefundFlowData,
+                RefundFlowData,
                 domain_types::connector_types::RefundsData,
-                domain_types::connector_types::RefundsResponseData,
+                RefundsResponseData,
             >,
             T,
         >,
@@ -1413,6 +1431,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let req = &data.request;
         let auth = PaynamicsAuthType::try_from(&data.connector_config)?;
         let sale = lifecycle_sale_metadata(req.connector_feature_data.as_ref())?;
+        validate_refund_eligibility(sale.method.pchannel)?;
         let input = req.refund_connector_metadata.as_ref().ok_or_else(
             domain_types::utils::missing_field_err("refund_connector_metadata.merchant_host_ip"),
         )?;
@@ -1523,17 +1542,17 @@ impl
             PaynamicsRefundResponse,
             RouterDataV2<
                 domain_types::connector_flow::Refund,
-                domain_types::connector_types::RefundFlowData,
+                RefundFlowData,
                 domain_types::connector_types::RefundsData,
-                domain_types::connector_types::RefundsResponseData,
+                RefundsResponseData,
             >,
         >,
     >
     for RouterDataV2<
         domain_types::connector_flow::Refund,
-        domain_types::connector_types::RefundFlowData,
+        RefundFlowData,
         domain_types::connector_types::RefundsData,
-        domain_types::connector_types::RefundsResponseData,
+        RefundsResponseData,
     >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -1605,7 +1624,7 @@ impl
                 currency: data.request.refund_money.currency(),
             });
         data.resource_common_data.status = status;
-        data.response = Ok(domain_types::connector_types::RefundsResponseData {
+        data.response = Ok(RefundsResponseData {
             connector_refund_id: refund_id,
             refund_status: status,
             status_code: item.http_code,
@@ -1864,6 +1883,200 @@ impl TryFrom<ResponseRouterData<PaynamicsVoidPCResponse, Self>>
             post_capture_void_status: status,
             connector_reference_id: Some(operation_id),
             status_code: item.http_code,
+        });
+        Ok(data)
+    }
+}
+
+pub type PaynamicsRefundSyncResponse = PaynamicsPaymentResponse;
+
+/// The merchant refund request ID is the lookup target. The provider refund ID
+/// and original sale carrier independently prevent accepting a sale as a refund.
+pub fn refund_sync_context(
+    flow: &RefundFlowData,
+    request: &RefundSyncData,
+) -> Result<String, RequestError> {
+    let target = flow.refund_id.as_deref().ok_or_else(
+        domain_types::utils::missing_field_err("merchant_refund_id"),
+    )?;
+    validate_request_id(target).map_err(|_| invalid("merchant_refund_id"))?;
+    validate_request_id(&request.connector_refund_id)
+        .map_err(|_| invalid("connector_refund_id"))?;
+    let sale = lifecycle_sale_metadata(request.connector_feature_data.as_ref())?;
+    if target == sale.original_sale_request_id
+        || target == request.connector_refund_id
+        || sale.original_provider_id.as_deref() == Some(target)
+        || sale.latest_provider_id.as_deref() == Some(target)
+    {
+        return Err(invalid("merchant_refund_id"));
+    }
+    if request.connector_refund_id == sale.original_sale_request_id
+        || sale.original_provider_id.as_ref() == Some(&request.connector_refund_id)
+        || sale.latest_provider_id.as_ref() == Some(&request.connector_refund_id)
+    {
+        return Err(invalid("connector_refund_id"));
+    }
+    if request.connector_transaction_id.is_empty()
+        || ![
+            Some(sale.original_sale_request_id.as_str()),
+            sale.original_provider_id.as_deref(),
+            sale.latest_provider_id.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .any(|id| id == request.connector_transaction_id)
+    {
+        return Err(invalid("connector_transaction_id"));
+    }
+    Ok(target.to_owned())
+}
+
+pub fn refund_query_request_id(
+    flow: &RefundFlowData,
+    refund_target: &str,
+) -> Result<String, RequestError> {
+    let reference = flow.merchant_request_id.as_deref().ok_or_else(
+        domain_types::utils::missing_field_err("merchant_request_id"),
+    )?;
+    validate_request_id(reference).map_err(|_| invalid("merchant_request_id"))?;
+    if reference == refund_target {
+        return Err(invalid("merchant_request_id"));
+    }
+    let mut hash = Sha512::new();
+    hash.update(REFUND_QUERY_ID_DOMAIN);
+    hash.update((reference.len() as u64).to_be_bytes());
+    hash.update(reference.as_bytes());
+    hash.update((refund_target.len() as u64).to_be_bytes());
+    hash.update(refund_target.as_bytes());
+    let digest = format!("{:x}", hash.finalize());
+    let id = format!("{QUERY_ID_PREFIX}{}", &digest[..QUERY_ID_DIGEST_LENGTH]);
+    if id == refund_target {
+        return Err(invalid("query_request_id"));
+    }
+    Ok(id)
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaynamicsRefundSyncRequest {
+    pub merchant_id: Secret<String>,
+    pub request_id: String,
+    pub org_trxid2: String,
+    pub signature: Secret<String>,
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaynamicsRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    > for PaynamicsRefundSyncRequest
+{
+    type Error = RequestError;
+    fn try_from(
+        item: PaynamicsRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let data = item.router_data;
+        let target = refund_sync_context(&data.resource_common_data, &data.request)?;
+        let auth = PaynamicsAuthType::try_from(&data.connector_config)?;
+        validate_request_id(auth.merchant_id.peek())
+            .map_err(|_| invalid("connector_config.merchant_id"))?;
+        let request_id = refund_query_request_id(&data.resource_common_data, &target)?;
+        let signature = sign_fields(
+            &[auth.merchant_id.peek(), &request_id, &target],
+            &auth.merchant_key,
+        );
+        Ok(Self {
+            merchant_id: auth.merchant_id,
+            request_id,
+            org_trxid2: target,
+            signature,
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            PaynamicsRefundSyncResponse,
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        >,
+    > for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<PaynamicsRefundSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let response = item.response;
+        let fail = || {
+            crate::utils::response_handling_fail(
+                item.http_code,
+                "paynamics: invalid refund query identity or signature",
+            )
+        };
+        let auth = PaynamicsAuthType::try_from(&data.connector_config).map_err(|_| fail())?;
+        response.verify_signature(&auth)?;
+        data.resource_common_data.raw_connector_status =
+            Some(domain_types::connector_types::RawConnectorStatus {
+                code: Some(response.response_code.clone()),
+                message: response.response_message.clone(),
+                reason: response.response_advise.clone(),
+            });
+        let code: PaynamicsRefundCode =
+            serde_json::from_value(serde_json::Value::String(response.response_code.clone()))
+                .map_err(|_| fail())?;
+        // A query error may echo the current poll ID and carry a diagnostic ID.
+        // Handle it before refund-record correlation, preserving prior status.
+        if matches!(code, PaynamicsRefundCode::Unknown) {
+            data.response = Err(ErrorResponse {
+                status_code: item.http_code,
+                code: response.response_code,
+                message: response.response_message
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.into()),
+                reason: response.response_advise,
+                ..Default::default()
+            });
+            return Ok(data);
+        }
+        let target = refund_sync_context(&data.resource_common_data, &data.request)
+            .map_err(|_| fail())?;
+        if response.signature.is_none()
+            || response.merchant_id.is_none()
+            || response.request_id.as_deref() != Some(target.as_str())
+            || response.response_id.as_deref() != Some(data.request.connector_refund_id.as_str())
+            || response.timestamp.as_deref().filter(|value| !value.is_empty()).is_none()
+        {
+            return Err(fail().into());
+        }
+        data.request.integrity_object =
+            Some(domain_types::router_request_types::RefundSyncIntegrityObject {
+                connector_transaction_id: data.request.connector_transaction_id.clone(),
+                connector_refund_id: data.request.connector_refund_id.clone(),
+            });
+        let status = common_enums::RefundStatus::from(code);
+        data.resource_common_data.status = status;
+        if matches!(code, PaynamicsRefundCode::GR003 | PaynamicsRefundCode::GR038) {
+            data.response = Err(ErrorResponse {
+                status_code: item.http_code,
+                code: response.response_code,
+                message: response.response_message
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.into()),
+                reason: response.response_advise,
+                attempt_status: Some(FlowStatus::Refund(status)),
+                connector_transaction_id: Some(data.request.connector_transaction_id.clone()),
+                ..Default::default()
+            });
+            return Ok(data);
+        }
+        data.response = Ok(RefundsResponseData {
+            connector_refund_id: data.request.connector_refund_id.clone(),
+            refund_status: status,
+            status_code: item.http_code,
+            // Ordinary Workflow query does not supply a refund ARN or money.
+            acquirer_reference_number: None,
         });
         Ok(data)
     }

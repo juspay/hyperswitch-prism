@@ -3,6 +3,7 @@
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Get",
-    "PaymentService/Refund"
+    "PaymentService/Refund",
+    "RefundService/Get"
   ]
 }

@@ -10479,7 +10479,9 @@ impl
             ),
 
             status: common_enums::RefundStatus::Pending,
-            refund_id: None,
+            refund_id: Some(extract_connector_request_reference_id(
+                &value.merchant_refund_id.clone(),
+            )),
             connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,

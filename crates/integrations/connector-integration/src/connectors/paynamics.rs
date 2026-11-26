@@ -8,10 +8,10 @@ use common_utils::{
     events,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync, Refund, VoidPC},
+    connector_flow::{Authorize, PSync, RSync, Refund, VoidPC},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundsData, RefundsResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, RefundSyncData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -31,7 +31,7 @@ use std::fmt::Debug;
 use transformers as paynamics;
 use transformers::{
     PaynamicsAuthorizeRequest, PaynamicsPaymentResponse, PaynamicsRefundRequest,
-    PaynamicsRefundResponse, PaynamicsSyncRequest, PaynamicsSyncResponse, PaynamicsVoidPCRequest, PaynamicsVoidPCResponse,
+    PaynamicsRefundResponse, PaynamicsRefundSyncRequest, PaynamicsRefundSyncResponse, PaynamicsSyncRequest, PaynamicsSyncResponse, PaynamicsVoidPCRequest, PaynamicsVoidPCResponse,
 };
 
 pub(crate) mod headers {
@@ -61,6 +61,12 @@ macros::create_all_prerequisites!(
         request_body: PaynamicsRefundRequest,
         response_body: PaynamicsRefundResponse,
         router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+    ),
+    (
+        flow: RSync,
+        request_body: PaynamicsRefundSyncRequest,
+        response_body: PaynamicsRefundSyncResponse,
+        router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
     ),
     (
         flow: VoidPC,
@@ -339,7 +345,6 @@ macros::macro_connector_flow_status_impls!(
         PreAuthenticate,
         PaymentMethodToken,
         Void,
-        RSync,
         VoidPostRefund,
         RepeatPayment,
         ServerAuthenticationToken,
@@ -391,7 +396,7 @@ static PAYNAMICS_SUPPORTED_METHODS: std::sync::LazyLock<
             subtype,
             PaymentMethodDetails {
                 mandates: FeatureStatus::NotSupported,
-                refunds: FeatureStatus::Supported,
+                refunds: FeatureStatus::NotSupported,
                 supported_capture_methods: vec![common_enums::CaptureMethod::Automatic],
                 specific_features: None,
             },
@@ -478,4 +483,45 @@ macros::macro_connector_implementation!(
  Ok(format!("{}{REVERSAL_PATH}", self.connector_base_url_payments(req)?))
  }
  }
+);
+
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundSyncV2 for Paynamics<T>
+{
+}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type],
+    connector: Paynamics,
+    curl_request: Json(PaynamicsRefundSyncRequest),
+    curl_response: PaynamicsRefundSyncResponse,
+    flow_name: RSync,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundSyncData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(&self, req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            let mut headers = self.build_headers(req)?;
+            let target = paynamics::refund_sync_context(&req.resource_common_data, &req.request)?;
+            headers.push((headers::IDEMPOTENCY_KEY.to_string(), paynamics::refund_query_request_id(&req.resource_common_data, &target)?.into()));
+            Ok(headers)
+        }
+        fn get_url(&self, req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>) -> CustomResult<String, errors::IntegrationError> {
+            Ok(format!("{}{QUERY_PATH}", self.connector_base_url_refunds(req)?))
+        }
+        fn get_error_response_v2(&self, res: Response, event_builder: Option<&mut events::Event>, connector_config: &ConnectorSpecificConfig) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+            // Even non-2xx query errors can carry a signed provider response.
+            // Verify it before exposing any operation details; never map it to
+            // a terminal refund state or promote its diagnostic response ID.
+            let response: PaynamicsRefundSyncResponse = serde_json::from_slice(&res.response)
+                .change_context(crate::utils::response_deserialization_fail(res.status_code, "paynamics: invalid refund query error"))?;
+            let auth = paynamics::PaynamicsAuthType::try_from(connector_config)
+                .change_context(crate::utils::response_handling_fail(res.status_code, "paynamics: invalid refund query credentials"))?;
+            response.verify_signature(&auth)?;
+            self.build_error_response(res, event_builder, connector_config)
+        }
+    }
 );
