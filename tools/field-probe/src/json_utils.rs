@@ -128,6 +128,7 @@ fn try_decode_byte_array(arr: &[serde_json::Value]) -> Option<String> {
 ///   4. Collapse proto3 oneof wrappers
 ///   5. Remove empty objects (e.g. `"billing_address": {}` — artifact of domain-layer gate)
 ///   6. Decode byte arrays (`Vec<u8>`) to UTF-8 strings where possible
+///   7. Sort redirect payload map keys for deterministic generated examples
 pub(crate) fn clean_proto_request(value: &serde_json::Value) -> serde_json::Value {
     match value {
         serde_json::Value::Object(map) => {
@@ -160,7 +161,13 @@ pub(crate) fn clean_proto_request(value: &serde_json::Value) -> serde_json::Valu
                 }
                 result.insert(k.clone(), clean_proto_request(v));
             }
-            flatten_oneof_wrappers(&serde_json::Value::Object(result))
+            let mut cleaned = flatten_oneof_wrappers(&serde_json::Value::Object(result));
+            // Protobuf redirect payloads use HashMap, whose iteration order changes
+            // between runs. Sort that map while preserving message field order.
+            if let Some(payload) = cleaned.pointer_mut("/redirection_response/payload") {
+                payload.sort_all_objects();
+            }
+            cleaned
         }
         serde_json::Value::Array(arr) => {
             // Top-level array: attempt byte-array decode before recursing
