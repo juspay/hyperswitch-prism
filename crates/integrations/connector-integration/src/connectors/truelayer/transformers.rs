@@ -1771,10 +1771,10 @@ fn get_attempt_status(item: TruelayerPaymentStatus) -> AttemptStatus {
         }
         TruelayerPaymentStatus::Settled => AttemptStatus::Charged,
         TruelayerPaymentStatus::AuthorizationRequired => AttemptStatus::AuthenticationPending,
-        TruelayerPaymentStatus::Failed | TruelayerPaymentStatus::AttemptFailed => {
-            AttemptStatus::Failure
+        TruelayerPaymentStatus::Failed => AttemptStatus::Failure,
+        TruelayerPaymentStatus::Authorizing | TruelayerPaymentStatus::AttemptFailed => {
+            AttemptStatus::Pending
         }
-        TruelayerPaymentStatus::Authorizing => AttemptStatus::Pending,
     }
 }
 
