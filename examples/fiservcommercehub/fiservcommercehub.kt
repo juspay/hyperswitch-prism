@@ -298,7 +298,7 @@ fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
             }
         }
         redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
-            putAllPayload(mapOf("SessionId" to "probe_ddc_session_001", "MessageType" to "profile.completed", "Status" to "true"))
+            putAllPayload(mapOf("Status" to "true", "MessageType" to "profile.completed", "SessionId" to "probe_ddc_session_001"))
         }
     }.build()
     val response = client.authenticate(request)
