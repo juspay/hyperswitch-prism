@@ -251,6 +251,10 @@
         "status": "not_supported",
         "error": "bank transfer DanamonVaBankTransfer is not supported by Nuvei is not supported by nuvei. Nuvei has no /payment.do payment option for bank transfer DanamonVaBankTransfer"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented for Nuvei Authorize. This UCS Nuvei integration does not build a /payment.do request for This payment method yet"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

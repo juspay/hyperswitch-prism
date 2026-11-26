@@ -214,6 +214,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Payload"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

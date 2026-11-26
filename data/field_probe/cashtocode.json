@@ -128,6 +128,10 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

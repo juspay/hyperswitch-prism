@@ -248,6 +248,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Family Mart | x |
 | Seicomart | x |
 | Pay Easy | x |
+| DragonPay | x |
 
 **Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts) · [Kotlin](../../examples/volt/volt.kt) · [Rust](../../examples/volt/volt.rs)
 

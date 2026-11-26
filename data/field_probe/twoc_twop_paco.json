@@ -128,6 +128,10 @@
         "status": "error",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
+      "Dragonpay": {
+        "status": "error",
+        "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

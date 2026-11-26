@@ -508,6 +508,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

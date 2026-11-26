@@ -114,8 +114,8 @@ use common_utils::types::{MinorUnit, StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
-        RefundFlowData, RefundSyncData, RefundsResponseData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{
         BankTransferData, PaymentMethodData, PaymentMethodDataTypes, VoucherData,
@@ -768,7 +768,11 @@ impl PaynamicsPaymentResponse {
     }
     pub fn redirect(&self) -> Option<Box<RedirectForm>> {
         let dragonpay_url;
-        let text = match self.payment_action_info.as_ref().and_then(|value| value.peek().as_str()) {
+        let text = match self
+            .payment_action_info
+            .as_ref()
+            .and_then(|value| value.peek().as_str())
+        {
             Some(text) => text,
             None => {
                 dragonpay_url = dragonpay_instruction_url(self.direct_otc_info.as_ref()?.peek())?;
@@ -801,12 +805,20 @@ fn dragonpay_instruction_url(instructions: &serde_json::Value) -> Option<String>
         if entry.get("pay_channel").and_then(serde_json::Value::as_str) != Some("dp_ph") {
             continue;
         }
-        let Some(text) = entry.get("pay_instructions").and_then(serde_json::Value::as_str) else {
+        let Some(text) = entry
+            .get("pay_instructions")
+            .and_then(serde_json::Value::as_str)
+        else {
             continue;
         };
         for candidate in text.split_whitespace() {
-            let Ok(url) = url::Url::parse(candidate) else { continue };
-            let Some(token) = url.path().strip_prefix("/paygate/transactions/dragonpay/status/") else {
+            let Ok(url) = url::Url::parse(candidate) else {
+                continue;
+            };
+            let Some(token) = url
+                .path()
+                .strip_prefix("/paygate/transactions/dragonpay/status/")
+            else {
                 continue;
             };
             if url.scheme() != "https"
@@ -821,7 +833,10 @@ fn dragonpay_instruction_url(instructions: &serde_json::Value) -> Option<String>
             {
                 continue;
             }
-            if checkout.as_deref().is_some_and(|previous| previous != candidate) {
+            if checkout
+                .as_deref()
+                .is_some_and(|previous| previous != candidate)
+            {
                 return None;
             }
             checkout = Some(candidate.to_owned());
@@ -1896,9 +1911,10 @@ pub fn refund_sync_context(
     flow: &RefundFlowData,
     request: &RefundSyncData,
 ) -> Result<String, RequestError> {
-    let target = flow.refund_id.as_deref().ok_or_else(
-        domain_types::utils::missing_field_err("merchant_refund_id"),
-    )?;
+    let target = flow
+        .refund_id
+        .as_deref()
+        .ok_or_else(domain_types::utils::missing_field_err("merchant_refund_id"))?;
     validate_request_id(target).map_err(|_| invalid("merchant_refund_id"))?;
     validate_request_id(&request.connector_refund_id)
         .map_err(|_| invalid("connector_refund_id"))?;
@@ -1935,9 +1951,12 @@ pub fn refund_query_request_id(
     flow: &RefundFlowData,
     refund_target: &str,
 ) -> Result<String, RequestError> {
-    let reference = flow.merchant_request_id.as_deref().ok_or_else(
-        domain_types::utils::missing_field_err("merchant_request_id"),
-    )?;
+    let reference =
+        flow.merchant_request_id
+            .as_deref()
+            .ok_or_else(domain_types::utils::missing_field_err(
+                "merchant_request_id",
+            ))?;
     validate_request_id(reference).map_err(|_| invalid("merchant_request_id"))?;
     if reference == refund_target {
         return Err(invalid("merchant_request_id"));
@@ -2034,35 +2053,45 @@ impl
             data.response = Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.response_code,
-                message: response.response_message
+                message: response
+                    .response_message
                     .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.into()),
                 reason: response.response_advise,
                 ..Default::default()
             });
             return Ok(data);
         }
-        let target = refund_sync_context(&data.resource_common_data, &data.request)
-            .map_err(|_| fail())?;
+        let target =
+            refund_sync_context(&data.resource_common_data, &data.request).map_err(|_| fail())?;
         if response.signature.is_none()
             || response.merchant_id.is_none()
             || response.request_id.as_deref() != Some(target.as_str())
             || response.response_id.as_deref() != Some(data.request.connector_refund_id.as_str())
-            || response.timestamp.as_deref().filter(|value| !value.is_empty()).is_none()
+            || response
+                .timestamp
+                .as_deref()
+                .filter(|value| !value.is_empty())
+                .is_none()
         {
             return Err(fail().into());
         }
-        data.request.integrity_object =
-            Some(domain_types::router_request_types::RefundSyncIntegrityObject {
+        data.request.integrity_object = Some(
+            domain_types::router_request_types::RefundSyncIntegrityObject {
                 connector_transaction_id: data.request.connector_transaction_id.clone(),
                 connector_refund_id: data.request.connector_refund_id.clone(),
-            });
+            },
+        );
         let status = common_enums::RefundStatus::from(code);
         data.resource_common_data.status = status;
-        if matches!(code, PaynamicsRefundCode::GR003 | PaynamicsRefundCode::GR038) {
+        if matches!(
+            code,
+            PaynamicsRefundCode::GR003 | PaynamicsRefundCode::GR038
+        ) {
             data.response = Err(ErrorResponse {
                 status_code: item.http_code,
                 code: response.response_code,
-                message: response.response_message
+                message: response
+                    .response_message
                     .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.into()),
                 reason: response.response_advise,
                 attempt_status: Some(FlowStatus::Refund(status)),

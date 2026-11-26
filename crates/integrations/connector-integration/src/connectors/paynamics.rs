@@ -10,8 +10,9 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundsData, RefundsResponseData, RefundSyncData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -31,7 +32,8 @@ use std::fmt::Debug;
 use transformers as paynamics;
 use transformers::{
     PaynamicsAuthorizeRequest, PaynamicsPaymentResponse, PaynamicsRefundRequest,
-    PaynamicsRefundResponse, PaynamicsRefundSyncRequest, PaynamicsRefundSyncResponse, PaynamicsSyncRequest, PaynamicsSyncResponse, PaynamicsVoidPCRequest, PaynamicsVoidPCResponse,
+    PaynamicsRefundResponse, PaynamicsRefundSyncRequest, PaynamicsRefundSyncResponse,
+    PaynamicsSyncRequest, PaynamicsSyncResponse, PaynamicsVoidPCRequest, PaynamicsVoidPCResponse,
 };
 
 pub(crate) mod headers {
@@ -484,7 +486,6 @@ macros::macro_connector_implementation!(
  }
  }
 );
-
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Paynamics<T>

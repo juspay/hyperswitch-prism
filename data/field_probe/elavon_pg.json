@@ -208,6 +208,10 @@
         "status": "not_implemented",
         "error": "Payment method BankTransfer(DanamonVaBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments (payment_method_data.card), its own stored cards and pre-decrypted Apple Pay / Google Pay. Other wallets, bank transfers and BNPL are not implemented for this connector."
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(Dragonpay) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments (payment_method_data.card), its own stored cards and pre-decrypted Apple Pay / Google Pay. Other wallets, bank transfers and BNPL are not implemented for this connector."
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

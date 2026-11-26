@@ -243,6 +243,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Family Mart | ? |
 | Seicomart | ? |
 | Pay Easy | ? |
+| DragonPay | ? |
 
 **Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts) · [Kotlin](../../examples/paysafe/paysafe.kt) · [Rust](../../examples/paysafe/paysafe.rs)
 

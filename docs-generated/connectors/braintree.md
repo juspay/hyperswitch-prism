@@ -288,6 +288,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Family Mart | x |
 | Seicomart | x |
 | Pay Easy | x |
+| DragonPay | x |
 
 **Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt) · [Rust](../../examples/braintree/braintree.rs)
 

@@ -243,6 +243,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Family Mart | x |
 | Seicomart | x |
 | Pay Easy | x |
+| DragonPay | x |
 
 **Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts) · [Kotlin](../../examples/gigadat/gigadat.kt) · [Rust](../../examples/gigadat/gigadat.rs)
 

@@ -156,6 +156,10 @@
         "status": "error",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
+      "Dragonpay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
