@@ -4267,6 +4267,7 @@ pub struct AuthorizedotnetWebhookObjectId {
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetWebhookPayload {
     pub id: Option<String>,
+    pub response_code: Option<i32>,
     /// `payload.merchantReferenceId`: echo of the request `refId`; absent when no
     /// `refId` was sent (techspec "IncomingWebhook").
     pub merchant_reference_id: Option<String>,
