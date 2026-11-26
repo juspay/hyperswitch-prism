@@ -36,6 +36,7 @@ mod tests {
         utils::ForeignTryFrom,
     };
     use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+    use interfaces::api::ConnectorCommon;
 
     use super::super::transformers::*;
 
@@ -1953,6 +1954,110 @@ mod tests {
             message: Some("order not found".to_owned()),
         };
         assert!(!rejected.status.eq_ignore_ascii_case("OK"));
+    }
+
+    // ── error responses ──────────────────────────────────────────────────
+
+    fn error_response_body(
+        status_code: u16,
+        body: &'static str,
+    ) -> domain_types::router_data::ErrorResponse {
+        super::super::ClearSaleBr::<DefaultPCIHolder>::new()
+            .build_error_response(
+                domain_types::router_response_types::Response {
+                    headers: None,
+                    response: bytes::Bytes::from_static(body.as_bytes()),
+                    status_code,
+                },
+                None,
+                &domain_types::router_data::ConnectorSpecificConfig::ClearSaleBr {
+                    username: Secret::new("username".to_owned()),
+                    password: Secret::new("password".to_owned()),
+                    b2b_b2c: None,
+                    product: None,
+                    base_url: None,
+                },
+            )
+            .expect("error responses must not require a documented JSON body")
+    }
+
+    #[test]
+    fn error_response_handles_plain_text_authentication_errors() {
+        for body in ["UserNotFound", "ExpiredToken"] {
+            let response = error_response_body(401, body);
+            assert_eq!(response.status_code, 401);
+            assert_eq!(response.code, "401");
+            assert_eq!(response.message, body);
+            assert_eq!(response.reason, None);
+        }
+    }
+
+    #[test]
+    fn error_response_preserves_model_state_validation_details() {
+        for (body, detail) in [
+            (
+                r#"{"Message":"The request is invalid.","ModelState":{"name":["The name field is required."]}}"#,
+                "name: The name field is required.",
+            ),
+            (
+                r#"{"Message":"The request is invalid.","ModelState":{"existing-orders":["ORDER_CODE"]}}"#,
+                "existing-orders: ORDER_CODE",
+            ),
+            (
+                r#"{"Message":"The request is invalid.","ModelState":{"orders-not-found":["ORDER_CODE"]}}"#,
+                "orders-not-found: ORDER_CODE",
+            ),
+            (
+                r#"{"Message":"The request is invalid.","ModelState":{"status-not-allowed":["status PGA is not allowed"]}}"#,
+                "status-not-allowed: status PGA is not allowed",
+            ),
+        ] {
+            let response = error_response_body(400, body);
+            assert_eq!(response.code, "400");
+            assert_eq!(response.message, "The request is invalid.");
+            assert_eq!(response.reason.as_deref(), Some(detail));
+        }
+    }
+
+    #[test]
+    fn error_response_includes_all_json_parse_errors() {
+        let response = error_response_body(
+            400,
+            r#"{"Message":"The request is invalid.","ModelState":{"[0]":["Required properties are missing from object: code."],"":["Could not parse Json, property Code is a mandatory field."]}}"#,
+        );
+        assert_eq!(response.code, "400");
+        assert!(response
+            .reason
+            .as_deref()
+            .is_some_and(|reason| reason.contains("Required properties are missing")));
+        assert!(response
+            .reason
+            .as_deref()
+            .is_some_and(|reason| reason.contains("Could not parse Json")));
+    }
+
+    #[test]
+    fn error_response_handles_message_only_json() {
+        let response = error_response_body(400, r#"{"Message":"The request is invalid."}"#);
+        assert_eq!(response.code, "400");
+        assert_eq!(response.message, "The request is invalid.");
+        assert_eq!(response.reason, None);
+    }
+
+    #[test]
+    fn error_response_handles_empty_and_unrecognized_bodies() {
+        let response = error_response_body(500, "");
+        assert_eq!(response.status_code, 500);
+        assert_eq!(response.code, "500");
+        assert_eq!(response.message, common_utils::consts::NO_ERROR_MESSAGE);
+        assert_eq!(response.reason, None);
+
+        // Proxy/WAF responses are outside the ClearSale schema too; retain their
+        // text instead of turning them into UCS response-deserialization errors.
+        let response = error_response_body(502, "<html>Bad gateway</html>");
+        assert_eq!(response.code, "502");
+        assert_eq!(response.message, "<html>Bad gateway</html>");
+        assert_eq!(response.reason, None);
     }
 
     // ── webhook ──────────────────────────────────────────────────────────
