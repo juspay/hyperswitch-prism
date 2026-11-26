@@ -36,8 +36,8 @@
           "redirection_response": {
             "payload": {
               "Status": "true",
-              "SessionId": "probe_ddc_session_001",
-              "MessageType": "profile.completed"
+              "MessageType": "profile.completed",
+              "SessionId": "probe_ddc_session_001"
             }
           }
         },
