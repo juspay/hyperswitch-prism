@@ -359,8 +359,12 @@ pub struct KgpPaymentsRequest {
     /// `pre_auth` | `final_auth`. Omitted for standard auto-capture.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authorization_type: Option<String>,
-    // webhooks are deliberately NOT sent: Omise rejects non-HTTPS /
-    // localhost dynamic webhook endpoints with a 400.
+    /// Per-charge webhook endpoint supplied by Euler. Omise requires HTTPS.
+    #[serde(
+        rename = "webhook_endpoints[]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub webhook_endpoint: Option<String>,
 }
 
 /// `POST {api}/charges/{id}/capture` — optional partial via `capture_amount`.
@@ -610,6 +614,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             metadata_txn_id: Some(reference),
             ip: None,
             authorization_type,
+            webhook_endpoint: request.webhook_url.clone(),
         })
     }
 }
