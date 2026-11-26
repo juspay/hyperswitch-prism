@@ -338,7 +338,7 @@ pub(crate) mod headers {
 
 macros::create_amount_converter_wrapper!(
     connector_name: Imerchantsolutions,
-    amount_type: MinorUnit
+    amount_type: ConnectorMinorUnit
 );
 
 macros::create_all_prerequisites!(

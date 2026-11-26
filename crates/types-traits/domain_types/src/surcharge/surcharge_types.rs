@@ -104,10 +104,9 @@ pub struct SurchargeRefundInitRequest {
 #[derive(Debug, Clone)]
 pub struct SurchargeRefundInitResponse {
     pub connector_surcharge_refund_id: String,
-    pub refund_amount: MinorUnit,
-    pub original_transaction_fee: Option<MinorUnit>,
-    pub previously_refunded_transaction_fees: Option<MinorUnit>,
-    pub currency: Option<Currency>,
+    pub refund_money: Money,
+    pub original_transaction_fee_money: Option<Money>,
+    pub previously_refunded_transaction_fees_money: Option<Money>,
 }
 
 #[derive(Debug, Clone)]
@@ -179,8 +178,7 @@ pub struct SurchargeCalculateIntegrityObject {
 #[derive(Debug, Clone)]
 pub struct SurchargeCalculateResponse {
     pub connector_response_reference_id: Option<String>,
-    pub surcharge_amount: MinorUnit,
+    pub surcharge_money: Money,
     pub surcharge_rate_percent: f64,
     pub connector_surcharge_id: String,
-    pub currency: Currency,
 }

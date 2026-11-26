@@ -22,7 +22,7 @@ use domain_types::{
     router_response_types::RedirectForm,
     utils::{get_unimplemented_payment_method_error_message, ForeignTryFrom},
 };
-use grpc_api_types::payments::{Currency, Money};
+use grpc_api_types::payments::Currency;
 
 // Note: Refund and RefundsData are used for the Refund flow implementation
 use error_stack::ResultExt;
@@ -1529,7 +1529,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     .change_context(ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
                     })?;
-                let amount_data = item.router_data.request.money.amount();
                 let currency_data = item.router_data.request.currency.ok_or(
                     ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
@@ -1541,24 +1540,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     })
                 })?;
 
+                let _ = Currency::foreign_try_from(currency_data).map_err(|_| {
+                    error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                        context: Default::default(),
+                    })
+                })?;
+
                 (
                     AttemptStatus::AuthenticationPending,
                     Ok(PaymentsResponseData::PreAuthenticateResponse {
                         resource_id: None,
                         authentication_data: None,
                         redirection_data: Some(Box::new(RedirectForm::Nmi {
-                            amount: Money {
-                                minor_amount: amount_data.get_amount_as_i64(),
-                                currency: Currency::foreign_try_from(currency_data)
-                                    .map_err(|_| {
-                                        error_stack::report!(
-                                            ConnectorError::ResponseHandlingFailed {
-                                                context: Default::default(),
-                                            }
-                                        )
-                                    })?
-                                    .into(),
-                            },
+                            money: item.router_data.request.money.clone(),
                             public_key: auth_type.public_key.ok_or(
                                 ConnectorError::ResponseHandlingFailed {
                                     context: Default::default(),
@@ -1735,8 +1729,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .money
             .as_ref()
-            .map(|money| money.amount())
-            .is_some_and(|amount| amount > common_utils::types::MinorUnit::zero())
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+            .is_some_and(|amount| amount > common_utils::types::ConnectorMinorUnit::zero())
         {
             return Err(IntegrationError::NotSupported {
                 message: "Setup Mandate with non zero amount".to_string(),

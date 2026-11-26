@@ -93,14 +93,14 @@ impl TryFrom<&ConnectorSpecificConfig> for NuveiAuthType {
 }
 
 impl NuveiAuthType {
-    pub fn generate_checksum(&self, params: &[&str]) -> String {
+    pub fn generate_checksum(
+        &self,
+        params: &[&dyn common_utils::crypto::SignatureValue],
+    ) -> String {
         use sha2::{Digest, Sha256};
-
-        let mut concatenated = params.join("");
-        concatenated.push_str(self.merchant_secret.peek());
-
         let mut hasher = Sha256::new();
-        hasher.update(concatenated.as_bytes());
+        common_utils::crypto::update_signature(params, |bytes| hasher.update(bytes));
+        hasher.update(self.merchant_secret.peek().as_bytes());
         format!("{:x}", hasher.finalize())
     }
 
@@ -1098,7 +1098,7 @@ impl From<&NuveiPaymentStatus> for AttemptStatus {
 /// Single attempt-status mapping for Nuvei payment responses
 /// (port of hyperswitch `get_payment_status`). Every arm is explicit.
 pub(super) fn get_nuvei_payment_status(
-    amount: Option<i64>,
+    amount: Option<common_utils::types::ConnectorMinorUnit>,
     transaction_type: Option<&NuveiTransactionType>,
     transaction_status: Option<&NuveiTransactionStatus>,
     status: &NuveiPaymentStatus,
@@ -1113,7 +1113,9 @@ pub(super) fn get_nuvei_payment_status(
     }
 
     // Zero-amount authorization (card verification)
-    if amount == Some(0) && transaction_type == Some(&NuveiTransactionType::Auth) {
+    if amount == Some(common_utils::types::ConnectorMinorUnit::zero())
+        && transaction_type == Some(&NuveiTransactionType::Auth)
+    {
         return match transaction_status {
             Some(NuveiTransactionStatus::Approved) => AttemptStatus::Charged,
             Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
@@ -1299,7 +1301,7 @@ fn nuvei_raw_connector_status(
 
 fn nuvei_payment_response_status(
     response: &NuveiPaymentsResponse,
-    amount: Option<i64>,
+    amount: Option<common_utils::types::ConnectorMinorUnit>,
 ) -> AttemptStatus {
     let status = get_nuvei_payment_status(
         amount,
@@ -2523,7 +2525,7 @@ impl TransactionType {
     /// SequentialAutomatic); otherwise they would silently become a Sale.
     fn get_from_capture_method(
         capture_method: Option<common_enums::CaptureMethod>,
-        minor_amount: common_utils::types::MinorUnit,
+        minor_amount: common_utils::types::ConnectorMinorUnit,
     ) -> Result<Self, Report<IntegrationError>> {
         match capture_method {
             Some(
@@ -2539,7 +2541,7 @@ impl TransactionType {
             }
             .into()),
             Some(common_enums::CaptureMethod::Manual) => Ok(Self::Auth),
-            _ if minor_amount == common_utils::types::MinorUnit::zero() => Ok(Self::Auth),
+            _ if minor_amount == common_utils::types::ConnectorMinorUnit::zero() => Ok(Self::Auth),
             _ => Ok(Self::Sale),
         }
     }
@@ -3577,7 +3579,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Determine transaction type based on capture method (Auth for manual or amount 0)
         let transaction_type = TransactionType::get_from_capture_method(
             request.capture_method,
-            request.money.amount(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
         )?;
 
         // Build urlDetails from router_return_url if available
@@ -3595,7 +3597,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_id.peek(),
             auth.merchant_site_id.peek(),
             &client_request_id,
-            &amount.get_amount_as_string(),
+            &amount,
             &currency.to_string(),
             &time_stamp.to_string(),
         ]);
@@ -3646,7 +3648,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let status = nuvei_payment_response_status(
             response,
-            Some(request.money.amount().get_amount_as_i64()),
+            Some(common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)),
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -3777,8 +3779,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // from this request; these are not gateway-reported amounts.
                 // Partial approval remains in captured/capturable flow amounts.
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: request.money.amount(),
-                    currency: request.currency,
+                    money: request.money.clone(),
                 }),
                 ..request.clone()
             },
@@ -4645,8 +4646,10 @@ fn build_nuvei_three_ds_payment_request<
     let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
     let amount = NuveiAmountConvertor::convert(money)?;
-    let transaction_type =
-        TransactionType::get_from_capture_method(capture_method, money.amount())?;
+    let transaction_type = TransactionType::get_from_capture_method(
+        capture_method,
+        common_utils::types::ConnectorMinorUnitForConnector.convert(money),
+    )?;
 
     // dynamicDescriptor.merchantPhone is at most 13 characters
     let dynamic_descriptor = get_dynamic_descriptor(billing_descriptor)?;
@@ -4667,7 +4670,7 @@ fn build_nuvei_three_ds_payment_request<
         auth.merchant_id.peek(),
         auth.merchant_site_id.peek(),
         &client_request_id,
-        &amount.get_amount_as_string(),
+        &amount,
         &currency.to_string(),
         &time_stamp.to_string(),
     ]);
@@ -4913,7 +4916,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // AuthenticationFailed
         let status = nuvei_payment_response_status(
             response,
-            Some(request.money.amount().get_amount_as_i64()),
+            Some(common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)),
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -5154,7 +5157,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_site_id.peek(),
             &client_request_id,
             &client_unique_id,
-            &amount.get_amount_as_string(),
+            &amount,
             &currency.to_string(),
             &related_transaction_id,
             &time_stamp.to_string(),
@@ -5252,7 +5255,7 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
 
         let status = nuvei_payment_response_status(
             &response,
-            Some(request.money.amount().get_amount_as_i64()),
+            Some(common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)),
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -5322,7 +5325,7 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
                 .resource_common_data
                 .capturable_money
                 .as_ref()
-                .map(|money| money.amount().get_amount_as_i64()),
+                .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money)),
         );
 
         // status ERROR, or a 2xx DECLINED/ERROR settle, is a failure
@@ -5406,7 +5409,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_site_id.peek(),
             &client_request_id,
             &client_unique_id,
-            &amount.get_amount_as_string(),
+            &amount,
             &currency.to_string(),
             &related_transaction_id,
             &time_stamp.to_string(),
@@ -5723,7 +5726,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_site_id.peek(),
             &client_request_id,
             &client_unique_id,
-            &amount.get_amount_as_string(),
+            &amount,
             &currency.to_string(),
             &related_transaction_id,
             &time_stamp.to_string(),
@@ -5755,14 +5758,13 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
 
         // APPROVED+Void -> Voided; APPROVED without transactionType -> Pending;
         // DECLINED/ERROR+Void -> VoidFailed
-        let status = nuvei_payment_response_status(
-            response,
-            router_data
-                .request
-                .money
-                .as_ref()
-                .map(|money| money.amount().get_amount_as_i64()),
-        );
+        let status =
+            nuvei_payment_response_status(
+                response,
+                router_data.request.money.as_ref().map(|money| {
+                    common_utils::types::ConnectorMinorUnitForConnector.convert(money)
+                }),
+            );
 
         // status ERROR, or a 2xx DECLINED/ERROR void, is a failure;
         // a failed void is VoidFailed
@@ -6077,7 +6079,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_id.peek(),
             auth.merchant_site_id.peek(),
             &client_request_id,
-            &amount.get_amount_as_string(),
+            &amount,
             &currency.to_string(),
             &time_stamp.to_string(),
         ]);
@@ -6383,7 +6385,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .money
             .clone()
             .unwrap_or_else(|| common_utils::types::Money::zero(currency));
-        let minor_amount = money.amount();
+        let minor_amount = common_utils::types::ConnectorMinorUnitForConnector.convert(&money);
         let amount = NuveiAmountConvertor::convert(&money)?;
 
         let l2_l3_data = resource.l2_l3_data.as_deref();
@@ -6401,7 +6403,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_id.peek(),
             auth.merchant_site_id.peek(),
             &client_request_id,
-            &amount.get_amount_as_string(),
+            &amount,
             &currency.to_string(),
             &time_stamp.to_string(),
         ]);
@@ -6463,8 +6465,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 request
                     .money
                     .as_ref()
-                    .map(|money| money.amount().get_amount_as_i64())
-                    .unwrap_or(0),
+                    .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+                    .unwrap_or_else(common_utils::types::ConnectorMinorUnit::zero),
             ),
         );
 
@@ -6837,7 +6839,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Auth for manual capture or amount 0, else Sale
         let transaction_type = TransactionType::get_from_capture_method(
             request.capture_method,
-            request.money.amount(),
+            common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money),
         )?;
 
         // Checksum: merchantId + merchantSiteId + clientRequestId + amount + currency + timeStamp + merchantSecretKey
@@ -6845,7 +6847,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             auth.merchant_id.peek(),
             auth.merchant_site_id.peek(),
             &client_request_id,
-            &amount.get_amount_as_string(),
+            &amount,
             &currency.to_string(),
             &time_stamp.to_string(),
         ]);
@@ -6895,7 +6897,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let status = nuvei_payment_response_status(
             response,
-            Some(request.money.amount().get_amount_as_i64()),
+            Some(common_utils::types::ConnectorMinorUnitForConnector.convert(&request.money)),
         );
 
         let connector_response = build_nuvei_connector_response(response.payment_option.as_ref());
@@ -7722,7 +7724,7 @@ pub fn build_payment_webhook_details(
         .parse::<f64>()
         .ok()
         .filter(|amount| *amount == 0.0)
-        .map(|_| 0);
+        .map(|_| common_utils::types::ConnectorMinorUnit::zero());
     let status = nuvei_payment_response_status(&response, amount);
     let error = build_nuvei_error_response(&response, 200, None);
     let connector_transaction_id = notification

@@ -425,30 +425,17 @@ fn get_repeat_payment_original_authorized_amount<T>(
         RepeatPaymentData<T>,
         PaymentsResponseData,
     >,
-) -> Result<Option<String>, error_stack::Report<IntegrationError>>
+) -> Result<Option<StringMajorUnit>, error_stack::Report<IntegrationError>>
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 {
-    let original_pair = router_data
+    router_data
         .request
         .recurring_mandate_payment_data
         .as_ref()
-        .and_then(|data| {
-            data.original_payment_authorized_money
-                .as_ref()
-                .map(|oa| (oa.amount(), oa.currency()))
-        });
-
-    match original_pair {
-        Some((original_amount, original_currency)) => {
-            Ok(Some(domain_types::utils::get_amount_as_string(
-                &common_enums::CurrencyUnit::Base,
-                original_amount,
-                original_currency,
-            )?))
-        }
-        None => Ok(None),
-    }
+        .and_then(|data| data.original_payment_authorized_money.as_ref())
+        .map(BarclaycardAmountConvertor::convert)
+        .transpose()
 }
 
 fn get_error_reason(

@@ -17,7 +17,9 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
+use common_utils::{
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::ConnectorMinorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund,
@@ -80,7 +82,7 @@ pub(crate) mod headers {
 // applied in the transformer, not here.
 macros::create_amount_converter_wrapper!(
     connector_name: GlobalpaymentsRealex,
-    amount_type: MinorUnit
+    amount_type: ConnectorMinorUnit
 );
 
 macros::create_all_prerequisites!(
@@ -149,7 +151,7 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: MinorUnit
+        amount_converter: ConnectorMinorUnit
     ],
     member_functions: {
         pub fn connector_base_url_payments<'a, F, Req, Res>(

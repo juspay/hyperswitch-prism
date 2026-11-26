@@ -672,7 +672,7 @@
             "x-client-id": "probe_id",
             "x-client-secret": "probe_key"
           },
-          "body": "{\"refund_id\":\"probe_refund_001\",\"refund_amount\":\"10.00\",\"refund_note\":\"customer_request\"}"
+          "body": "{\"refund_id\":\"probe_refund_001\",\"refund_amount\":10.0,\"refund_note\":\"customer_request\"}"
         }
       }
     },

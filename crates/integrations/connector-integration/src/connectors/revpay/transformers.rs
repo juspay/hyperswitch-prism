@@ -7,9 +7,8 @@ use common_utils::{
     errors::ParsingError,
     pii::Email,
     types::{
-        AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, Money, StringMajorUnit,
-        StringMajorUnitForConnector, StringMajorUnitWithTwoDecimals,
-        StringMajorUnitWithTwoDecimalsForConnector,
+        AmountConvertor, Money, StringMajorUnit, StringMajorUnitForConnector,
+        StringMajorUnitWithTwoDecimals, StringMajorUnitWithTwoDecimalsForConnector,
     },
 };
 use domain_types::{
@@ -145,8 +144,7 @@ fn amount_conversion_context(money: &Money, field_name: &str) -> IntegrationErro
         ),
         doc_url: None,
         additional_context: Some(format!(
-            "revPAY {field_name} conversion failed for minor amount {} in {:?}; the converter rejects negative values and currencies whose precision cannot be represented by the required two-decimal wire format",
-            money.amount().get_amount_as_i64(),
+            "revPAY {field_name} conversion failed in {:?}; the converter rejects negative values and currencies whose precision cannot be represented by the required two-decimal wire format",
             money.currency()
         )),
     }
@@ -905,35 +903,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // RESPONSE TYPES
 // =============================================================================
 
-/// RevPay JSON responses may echo amounts as strings or numbers. Both variants
-/// use shared money types and their converters. Form webhooks use StringMajorUnit
-/// directly so signature verification preserves the received amount text.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum RevpayAmount {
-    Text(StringMajorUnit),
-    Number(FloatMajorUnit),
-}
-
-impl RevpayAmount {
-    fn to_money(&self, currency: Currency) -> Result<Money, error_stack::Report<ParsingError>> {
-        match self {
-            Self::Text(amount) => {
-                StringMajorUnitForConnector.convert_back(amount.clone(), currency)
-            }
-            Self::Number(amount) => FloatMajorUnitForConnector.convert_back(*amount, currency),
-        }
-    }
-}
-
-impl common_utils::crypto::SignatureValue for RevpayAmount {
-    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
-        match self {
-            Self::Text(amount) => amount.update_signature(update),
-            Self::Number(amount) => update(format!("{:.2}", amount.0).as_bytes()),
-        }
-    }
-}
+pub use common_utils::types::StringOrNumberMajorUnit as RevpayAmount;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RevpayPaymentsResponse {
@@ -1127,9 +1097,20 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
         // tampering between request build and response handling. Amount is
         // mandatory in the doc; fall back to the request value only when the
         // connector genuinely omits it.
+        let integrity_currency = echoed_currency(
+            response.currency.as_deref(),
+            router_data.request.money.currency(),
+            item.http_code,
+        )?;
+        if response.amount.is_none() && integrity_currency != router_data.request.money.currency() {
+            return Err(crate::utils::response_deserialization_fail(
+                item.http_code,
+                "revpay: echoed currency differs from the request currency but the response omits Amount",
+            ).into());
+        }
         let integrity_amount = match &response.amount {
             Some(amount) => amount
-                .to_money(router_data.request.money.currency())
+                .to_money(integrity_currency)
                 .change_context(crate::utils::response_handling_fail_for_connector(
                     item.http_code,
                     "revpay",
@@ -1137,12 +1118,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
                 .attach_printable("revpay: echoed Amount cannot be converted to domain money")?,
             None => router_data.request.money.clone(),
         };
-        let integrity_currency = echoed_currency(
-            response.currency.as_deref(),
-            router_data.request.money.currency(),
-            item.http_code,
-        )?;
-
         // 09 → shopper must open Bank_Redirect_URL with a plain HTTP GET;
         // RedirectForm::Uri navigates callers directly to the URL as-is.
         let redirection_data = response
@@ -1172,8 +1147,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<RevpayPaymentsRespons
             response: Ok(payments_response_data),
             request: PaymentsAuthorizeData {
                 integrity_object: Some(AuthoriseIntegrityObject {
-                    amount: integrity_amount.amount(),
-                    currency: integrity_currency,
+                    money: integrity_amount,
                 }),
                 ..router_data.request.clone()
             },
@@ -1346,6 +1320,12 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
             router_data.request.money.currency(),
             item.http_code,
         )?;
+        if response.amount.is_none() && integrity_currency != router_data.request.money.currency() {
+            return Err(crate::utils::response_deserialization_fail(
+                item.http_code,
+                "revpay: echoed currency differs from the request currency but the response omits Amount",
+            ).into());
+        }
         let integrity_amount = match &response.amount {
             Some(amount) => amount
                 .to_money(integrity_currency)
@@ -1391,8 +1371,7 @@ impl TryFrom<ResponseRouterData<RevpayPSyncResponse, Self>>
             response: Ok(payments_response_data),
             request: PaymentsSyncData {
                 integrity_object: Some(PaymentSynIntegrityObject {
-                    amount: integrity_amount.amount(),
-                    currency: integrity_currency,
+                    money: integrity_amount,
                 }),
                 ..router_data.request.clone()
             },
@@ -1729,8 +1708,7 @@ impl TryFrom<ResponseRouterData<RevpayRefundResponse, Self>>
             }),
             request: RefundsData {
                 integrity_object: Some(RefundIntegrityObject {
-                    refund_amount: integrity_amount.amount(),
-                    currency: integrity_currency,
+                    refund_money: integrity_amount,
                 }),
                 ..router_data.request.clone()
             },

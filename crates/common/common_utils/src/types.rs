@@ -12,10 +12,13 @@ use utoipa::ToSchema;
 use crate::errors::ParsingError;
 
 pub use crate::money::{
-    AmountConvertor, ConnectorMinorUnit, ConnectorMinorUnitForConnector, FloatMajorUnit,
-    FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector, Money, StringMajorUnit,
-    StringMajorUnitForConnector, StringMajorUnitForCore, StringMajorUnitWithTwoDecimals,
-    StringMajorUnitWithTwoDecimalsForConnector, StringMinorUnit, StringMinorUnitForConnector,
+    AmountConvertor, BasisPointsPercentageForConnector, ConnectorAmount, ConnectorMinorUnit,
+    ConnectorMinorUnitForConnector, FloatMajorUnit, FloatMajorUnitForConnector,
+    FloatMajorUnitWithTwoDecimals, FloatMajorUnitWithTwoDecimalsForConnector, MinorUnit,
+    MinorUnitEncodingError, Money, Percentage, PositiveStringMinorUnitForConnector,
+    StringMajorUnit, StringMajorUnitForConnector, StringMajorUnitForCore,
+    StringMajorUnitWithTwoDecimals, StringMajorUnitWithTwoDecimalsForConnector, StringMinorUnit,
+    StringMinorUnitForConnector, StringOrNumberMajorUnit, StringOrNumberMinorUnit,
     StringTwoDecimalUnit, StringTwoDecimalUnitForConnector,
 };
 

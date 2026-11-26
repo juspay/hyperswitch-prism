@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use common_enums as enums;
-use common_utils::{ext_traits::OptionExt, fp_utils::when, pii, types::MinorUnit, CustomResult};
+use common_utils::{
+    ext_traits::OptionExt, fp_utils::when, pii, types::ConnectorMinorUnit, CustomResult,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, IncrementalAuthorization, Void},
     connector_types::{
@@ -392,10 +394,10 @@ fn get_settlement_info<
         PaymentsAuthorizeData<T>,
         PaymentsResponseData,
     >,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
 ) -> Option<AutoSettlement> {
     match router_data.request.capture_method.unwrap_or_default() {
-        _ if amount == MinorUnit::zero() => None,
+        _ if amount == ConnectorMinorUnit::zero() => None,
         enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
             Some(AutoSettlement { auto: true })
         }
@@ -576,7 +578,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             instruction: Instruction {
                 settlement: get_settlement_info(
                     &item.router_data,
-                    item.router_data.request.money.amount(),
+                    common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money),
                 ),
                 method: PaymentMethod::try_from((
                     item.router_data.resource_common_data.payment_method,
@@ -590,7 +593,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: item.router_data.request.money.amount(),
+                    amount: common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money),
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -744,7 +748,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: item.router_data.request.money.amount(),
+                    amount: common_utils::types::ConnectorMinorUnitForConnector
+                        .convert(&item.router_data.request.money),
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -912,7 +917,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Extract amount before moving item to pass for correct status determination
-        let amount = item.router_data.request.money.amount();
+        let amount = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.money);
         // Use the existing ForeignTryFrom implementation
         Self::foreign_try_from((item, None, amount))
     }
@@ -934,7 +940,8 @@ impl<
         item: ResponseRouterData<WorldpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Extract amount before moving item to pass for correct status determination
-        let amount = item.router_data.request.money.amount();
+        let amount = common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.money);
         // Use the existing ForeignTryFrom implementation
         Self::foreign_try_from((item, None, amount))
     }
@@ -944,7 +951,7 @@ impl<F, T>
     ForeignTryFrom<(
         ResponseRouterData<WorldpayPaymentsResponse, Self>,
         Option<String>,
-        MinorUnit,
+        ConnectorMinorUnit,
     )> for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
@@ -952,7 +959,7 @@ impl<F, T>
         item: (
             ResponseRouterData<WorldpayPaymentsResponse, Self>,
             Option<String>,
-            MinorUnit,
+            ConnectorMinorUnit,
         ),
     ) -> Result<Self, Self::Error> {
         let (router_data, optional_correlation_id, amount) = item;
@@ -1044,7 +1051,8 @@ impl<F, T>
             PaymentOutcome::FraudHighRisk => Some("Transaction marked as high risk".to_string()),
             _ => None,
         };
-        let status = if amount == MinorUnit::zero() && worldpay_status == PaymentOutcome::Authorized
+        let status = if amount == ConnectorMinorUnit::zero()
+            && worldpay_status == PaymentOutcome::Authorized
         {
             enums::AttemptStatus::Charged
         } else {
@@ -1183,7 +1191,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .replace('_', "-"),
             value: PaymentValue {
-                amount: item.router_data.request.capture_money.amount(),
+                amount: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.capture_money),
                 currency: item.router_data.request.currency,
             },
         })
@@ -1230,14 +1239,14 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
 impl<F>
     TryFrom<(
         &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
-        MinorUnit,
+        ConnectorMinorUnit,
     )> for WorldpayPartialRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         req: (
             &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
-            MinorUnit,
+            ConnectorMinorUnit,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, amount) = req;
@@ -1316,7 +1325,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             reference: item.router_data.request.refund_id.replace('_', "-"),
             value: PaymentValue {
-                amount: item.router_data.request.refund_money.amount(),
+                amount: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.refund_money),
                 currency: item.router_data.request.currency,
             },
         })
@@ -1793,7 +1803,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             value: PaymentValue {
-                amount: item.router_data.request.money.amount(),
+                amount: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&item.router_data.request.money),
                 currency: item.router_data.request.currency,
             },
         })

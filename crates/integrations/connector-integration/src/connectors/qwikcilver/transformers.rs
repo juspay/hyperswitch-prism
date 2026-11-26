@@ -285,9 +285,8 @@ where
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
-                        "Failed to convert Redeem amount {} {} to FloatMajorUnit. \
+                        "Failed to convert Redeem amount in {} to FloatMajorUnit. \
                          Qwikcilver expects major-unit decimals (e.g. 0.20 AED).",
-                        item.router_data.request.money.amount().get_amount_as_i64(),
                         item.router_data.request.currency,
                     ),
                     "Verify `amount.amount.amount` is a non-negative integer and \
@@ -609,8 +608,7 @@ where
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
-                        "Failed to convert Recharge amount {} {} to FloatMajorUnit.",
-                        req.money.amount().get_amount_as_i64(),
+                        "Failed to convert Recharge amount in {} to FloatMajorUnit.",
                         req.currency,
                     ),
                     "Verify `amount.amount.amount` is a non-negative integer and \
@@ -701,10 +699,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .or_else(|| data.request.connector_payment_method_id.clone());
                 let recharge_currency = data.request.currency;
                 let payment_method_details = body.wallet.as_ref().map(|w| {
-                    let balance = connector
-                        .convert_back(w.balance, recharge_currency)
-                        .ok()
-                        .map(|money| money.amount());
+                    let balance_money = connector.convert_back(w.balance, recharge_currency).ok();
                     let items = w
                         .card
                         .as_ref()
@@ -719,7 +714,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .wallet_holder_name
                             .as_ref()
                             .map(|h| h.clone().expose()),
-                        balance,
+                        balance_money,
                         product_id: w.wallet_program_group_name.clone(),
                         items,
                     })
@@ -1039,11 +1034,10 @@ fn wallet_details_to_payment_method_details(
     wallet: &QwikcilverWalletDetails,
     currency: Option<common_enums::Currency>,
 ) -> PaymentMethodDetails {
-    let balance = wallet
+    let balance_money = wallet
         .balance
         .zip(currency)
-        .and_then(|(b, c)| amount_converter.convert_back(b, c).ok())
-        .map(|money| money.amount());
+        .and_then(|(b, c)| amount_converter.convert_back(b, c).ok());
     let items = wallet
         .card
         .as_ref()
@@ -1058,7 +1052,7 @@ fn wallet_details_to_payment_method_details(
             .wallet_holder_name
             .as_ref()
             .map(|h| h.clone().expose()),
-        balance,
+        balance_money,
         product_id: wallet.wallet_program_group_name.clone(),
         items,
     })

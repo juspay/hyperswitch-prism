@@ -739,9 +739,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount {} {} into Ilixium's \
+                        "Failed to convert minor_amount in {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.money.amount().get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -771,7 +770,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// [`PaymentsPreAuthenticateData`] is a narrower struct, so three things differ:
 ///
 /// * `payment_method_data` and `currency` are `Option` here and must be unwrapped;
-/// * `amount` is a single `MinorUnit` (there is no separate `minor_amount`);
+/// * `amount` is a single `ConnectorMinorUnit` (there is no separate `minor_amount`);
 /// * `is_auto_capture()` returns a `Result` (it rejects `ManualMultiple`/`Scheduled`) rather than
 ///   a bare `bool`.
 ///
@@ -840,9 +839,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert amount {} {} into Ilixium's transaction.amount \
+                        "Failed to convert amount in {} into Ilixium's transaction.amount \
                          (minor units, digits only, sent as a JSON string).",
-                        request.money.amount().get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1058,9 +1056,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount_to_capture {} {} into Ilixium's \
+                        "Failed to convert minor_amount_to_capture in {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.capture_money.amount().get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -1196,9 +1193,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert void amount {} {} into Ilixium's \
+                        "Failed to convert void amount in {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        minor_amount.amount().get_amount_as_i64(),
                         currency
                     )),
                 },
@@ -1411,9 +1407,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_refund_amount {} {} into Ilixium's \
+                        "Failed to convert minor_refund_amount in {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.refund_money.amount().get_amount_as_i64(),
                         request.currency
                     )),
                 },
@@ -2852,7 +2847,12 @@ impl IlixiumHistoryStatus {
 /// and no `cardResponse` either, hence no `authCode`, `iso8583code` or 3-D Secure field.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct IlixiumHistoryTransaction {
-    pub amount: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "common_utils::types::ConnectorMinorUnitForConnector::deserialize_optional_string",
+        serialize_with = "common_utils::types::ConnectorMinorUnitForConnector::serialize_optional_string"
+    )]
+    pub amount: Option<common_utils::types::ConnectorMinorUnit>,
     pub currency: Option<String>,
     /// The only value that ties a report entry back to a UCS payment.
     #[serde(rename = "merchantRef")]
@@ -2920,12 +2920,10 @@ impl IlixiumHistoryOperation {
             .filter(|value| !value.is_empty())
     }
 
-    /// `transaction.amount` parsed from its minor-unit digit string (`^[\d]{1,12}$`).
-    fn minor_amount(&self) -> Option<i64> {
+    fn minor_amount(&self) -> Option<common_utils::types::ConnectorMinorUnit> {
         self.transaction
             .as_ref()
-            .and_then(|transaction| transaction.amount.as_deref())
-            .and_then(|amount| amount.parse::<i64>().ok())
+            .and_then(|transaction| transaction.amount)
     }
 }
 
@@ -3453,7 +3451,7 @@ impl IlixiumHistoryResponse {
         &self,
         merchant_ref: &str,
         connector_refund_id: &str,
-        minor_refund_amount: Option<i64>,
+        minor_refund_amount: Option<common_utils::types::ConnectorMinorUnit>,
     ) -> Option<RefundOperationMatch<'_>> {
         let candidates: Vec<(usize, &IlixiumHistoryOperation)> = self
             .operation
@@ -3754,7 +3752,7 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
         let refund_amount = request
             .refund_money
             .as_ref()
-            .map(|money| money.amount().get_amount_as_i64());
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money));
 
         let Some(matched) = response.match_refund_operation(
             &merchant_ref,

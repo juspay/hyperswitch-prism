@@ -24,11 +24,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{connectors::easebuzz::EasebuzzRouterData, types::ResponseRouterData};
 
-/// Extract the inner string from a `StringMajorUnit` for use in hash computation.
-fn string_major_unit_to_string(amount: &StringMajorUnit) -> String {
-    amount.get_amount_as_string()
-}
-
 pub trait ForeignTryFrom<F>: Sized {
     type Error;
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
@@ -106,7 +101,7 @@ impl Default for EasebuzzErrorResponse {
 pub fn compute_initiate_link_hash(
     key: &str,
     txnid: &str,
-    amount: &str,
+    amount: &(impl common_utils::crypto::SignatureValue + ?Sized),
     productinfo: &str,
     firstname: &str,
     email: &str,
@@ -116,12 +111,14 @@ pub fn compute_initiate_link_hash(
     // udf1..udf10 are empty strings
     let empty = "";
     let salt_str = salt.peek();
-    let input = format!(
-        "{key}|{txnid}|{amount}|{productinfo}|{firstname}|{email}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{salt_str}",
+    let suffix = format!(
+        "|{productinfo}|{firstname}|{email}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{e}|{salt_str}",
         e = empty
     );
     let mut hasher = Sha512::new();
-    hasher.update(input.as_bytes());
+    hasher.update(format!("{key}|{txnid}|").as_bytes());
+    amount.update_signature(&mut |bytes| hasher.update(bytes));
+    hasher.update(suffix.as_bytes());
     format!("{:x}", hasher.finalize())
 }
 
@@ -234,12 +231,10 @@ impl
             .unwrap_or_else(|| "https://example.com/return".to_string());
 
         let key_str = auth.api_key.peek().to_string();
-        let amount_for_hash = string_major_unit_to_string(&amount_str);
-
         let hash = compute_initiate_link_hash(
             &key_str,
             &txnid,
-            &amount_for_hash,
+            &amount_str,
             &productinfo,
             &firstname,
             &email,
@@ -631,7 +626,7 @@ pub struct EasebuzzCaptureRequest {
     /// Easebuzz transaction ID (easepayid) from authorize step
     pub txnid: String,
     /// Transaction amount in major units (rupees), e.g. "100.0"
-    pub amount: String,
+    pub amount: StringMajorUnit,
     /// HMAC-SHA512 hash for authentication
     pub hash: String,
 }
@@ -641,14 +636,15 @@ pub struct EasebuzzCaptureRequest {
 fn compute_easebuzz_capture_hash(
     key: &str,
     txnid: &str,
-    amount: &str,
+    amount: &(impl common_utils::crypto::SignatureValue + ?Sized),
     salt: &Secret<String>,
 ) -> String {
     use sha2::{Digest, Sha512};
     let salt_str = salt.peek();
-    let input = format!("{key}|{txnid}|{amount}|{salt_str}");
     let mut hasher = Sha512::new();
-    hasher.update(input.as_bytes());
+    hasher.update(format!("{key}|{txnid}|").as_bytes());
+    amount.update_signature(&mut |bytes| hasher.update(bytes));
+    hasher.update(format!("|{salt_str}").as_bytes());
     format!("{:x}", hasher.finalize())
 }
 
@@ -714,7 +710,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                 },
             })?;
-        let amount_for_hash = string_major_unit_to_string(&amount);
+        let amount_for_hash = amount;
 
         let key_str = auth.api_key.peek().to_string();
 
@@ -900,14 +896,15 @@ fn compute_easebuzz_refund_hash(
     key: &str,
     merchant_refund_id: &str,
     easebuzz_id: &str,
-    refund_amount: &str,
+    refund_amount: &(impl common_utils::crypto::SignatureValue + ?Sized),
     salt: &Secret<String>,
 ) -> String {
     use sha2::{Digest, Sha512};
     let salt_str = salt.peek();
-    let input = format!("{key}|{merchant_refund_id}|{easebuzz_id}|{refund_amount}|{salt_str}");
     let mut hasher = Sha512::new();
-    hasher.update(input.as_bytes());
+    hasher.update(format!("{key}|{merchant_refund_id}|{easebuzz_id}|").as_bytes());
+    refund_amount.update_signature(&mut |bytes| hasher.update(bytes));
+    hasher.update(format!("|{salt_str}").as_bytes());
     format!("{:x}", hasher.finalize())
 }
 
@@ -922,7 +919,7 @@ pub struct EasebuzzRefundRequest {
     /// Easebuzz transaction ID (easepayid from authorize/capture)
     pub easebuzz_id: String,
     /// Amount to refund in major units (rupees), e.g. "50.0"
-    pub refund_amount: String,
+    pub refund_amount: StringMajorUnit,
     /// HMAC-SHA512 hash: sha512(key|merchantRefundId|easebuzzId|refundAmount|salt)
     pub hash: String,
 }
@@ -979,7 +976,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                 },
             })?;
-        let refund_amount_str = string_major_unit_to_string(&refund_amount);
+        let refund_amount_str = refund_amount;
 
         let key_str = auth.api_key.peek().to_string();
 
@@ -1097,7 +1094,7 @@ pub struct EasebuzzSyncRequest {
     /// Transaction ID (merchant's txnid, NOT easepayid)
     pub txnid: String,
     /// Transaction amount in major units (rupees as float string, e.g. "100.00")
-    pub amount: String,
+    pub amount: StringMajorUnit,
     /// Customer email (defaults to "mail@gmail.com" if empty)
     pub email: Secret<String, EmailStrategy>,
     /// Customer phone (defaults to "9999999999" if empty)
@@ -1143,16 +1140,17 @@ pub enum EasebuzzTxnSyncMsg {
 fn compute_easebuzz_sync_hash(
     key: &str,
     txnid: &str,
-    amount: &str,
+    amount: &(impl common_utils::crypto::SignatureValue + ?Sized),
     email: &str,
     phone: &str,
     salt: &Secret<String>,
 ) -> String {
     use sha2::{Digest, Sha512};
     let salt_str = salt.peek();
-    let input = format!("{key}|{txnid}|{amount}|{email}|{phone}|{salt_str}");
     let mut hasher = Sha512::new();
-    hasher.update(input.as_bytes());
+    hasher.update(format!("{key}|{txnid}|").as_bytes());
+    amount.update_signature(&mut |bytes| hasher.update(bytes));
+    hasher.update(format!("|{email}|{phone}|{salt_str}").as_bytes());
     format!("{:x}", hasher.finalize())
 }
 
@@ -1215,7 +1213,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                 },
             })?;
-        let amount_str = string_major_unit_to_string(&amount);
+        let amount_str = amount;
 
         // Email/phone from billing address, with defaults matching initiateLink
         let email = router_data

@@ -271,11 +271,11 @@ pub struct ReddotAuthorizeRequest<
 }
 
 /// Payment signature input, in the exact concatenation order mandated by RDP.
-pub(super) struct PaymentSignatureInput<'a> {
+pub(super) struct PaymentSignatureInput<'a, A: crypto::SignatureValue + ?Sized> {
     pub(super) mid: &'a str,
     pub(super) order_id: &'a str,
     pub(super) payment_type: &'a str,
-    pub(super) amount: &'a str,
+    pub(super) amount: &'a A,
     pub(super) ccy: &'a str,
     pub(super) card_no: &'a str,
     pub(super) exp_date: &'a str,
@@ -289,8 +289,8 @@ pub(super) struct PaymentSignatureInput<'a> {
 ///
 /// `amount`, `exp_date` and `card_no`/`cvv2` contributions MUST use the exact
 /// values sent in the outgoing JSON body.
-pub(super) fn compute_payment_signature(
-    input: PaymentSignatureInput<'_>,
+pub(super) fn compute_payment_signature<A: crypto::SignatureValue + ?Sized>(
+    input: PaymentSignatureInput<'_, A>,
 ) -> Result<String, IntegrationError> {
     use sha2::{Digest, Sha512};
 
@@ -328,11 +328,8 @@ pub(super) fn compute_payment_signature(
         },
     )?;
 
-    let concatenated = [
-        input.mid,
-        input.order_id,
-        input.payment_type,
-        input.amount,
+    let prefix = [input.mid, input.order_id, input.payment_type].concat();
+    let suffix = [
         input.ccy,
         card_first6,
         card_last4,
@@ -343,7 +340,11 @@ pub(super) fn compute_payment_signature(
     .concat();
 
     let mut hasher = Sha512::new();
-    hasher.update(concatenated.as_bytes());
+    hasher.update(prefix.as_bytes());
+    input
+        .amount
+        .update_signature(&mut |bytes| hasher.update(bytes));
+    hasher.update(suffix.as_bytes());
     Ok(hex::encode(hasher.finalize()))
 }
 
@@ -498,13 +499,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let exp_month = card_data.get_card_expiry_month_2_digit()?;
                 let exp_year = card_data.get_expiry_year_4_digit();
                 let exp_date = Secret::new(format!("{}{}", exp_month.peek(), exp_year.peek()));
-                let amount_str = amount.get_amount_as_string();
-
                 let signature = compute_payment_signature(PaymentSignatureInput {
                     mid: auth.mid.peek(),
                     order_id: &order_id,
                     payment_type: RDP_PAYMENT_TYPE_SALE,
-                    amount: &amount_str,
+                    amount: &amount,
                     ccy: &ccy,
                     card_no: card_data.card_number.peek(),
                     exp_date: exp_date.peek(),
@@ -910,8 +909,7 @@ impl TryFrom<ResponseRouterData<ReddotPSyncResponse, Self>>
         let integrity_object = response_money
             .as_ref()
             .map(|money| PaymentSynIntegrityObject {
-                amount: money.amount(),
-                currency: money.currency(),
+                money: money.clone(),
             });
 
         // An enquiry-level error without a transaction record cannot establish
@@ -1106,20 +1104,22 @@ const RDP_MERCHANT_API_ACTION_REFUND: &str = "refund";
 /// (`compute_payment_signature`) and the SHA-512 generic enquiry signature
 /// (`compute_generic_signature`).
 pub(crate) fn compute_merchant_api_signature(
-    mut params: Vec<(&str, String)>,
+    mut params: Vec<(&str, &dyn crypto::SignatureValue)>,
     secret_key: &str,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     params.sort_by_key(|(key_a, _)| *key_a);
-    let mut pairs: Vec<String> = params
-        .into_iter()
-        .map(|(key, value)| format!("{key}={value}"))
-        .collect();
-    pairs.push(format!("secret_key={secret_key}"));
-    let message = pairs.join("&");
+    let mut message = Vec::new();
+    for (key, value) in params {
+        message.extend_from_slice(key.as_bytes());
+        message.push(b'=');
+        value.update_signature(&mut |bytes| message.extend_from_slice(bytes));
+        message.push(b'&');
+    }
+    message.extend_from_slice(format!("secret_key={secret_key}").as_bytes());
 
     Ok(hex::encode(
         crypto::Md5
-            .generate_digest(message.as_bytes())
+            .generate_digest(&message)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -1195,7 +1195,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let amount_str = amount.get_amount_as_string();
         let ccy = router_data.request.refund_money.currency().to_string();
         // RDP `order_number` must equal the exact order_id RDP recorded at
         // authorize. It is persisted in connector_metadata["reddot_order_id"]
@@ -1206,17 +1205,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let refund_id = required_refund_reference(&router_data.request.refund_id)?.to_string();
         let signature = compute_merchant_api_signature(
             vec![
-                ("action_type", RDP_MERCHANT_API_ACTION_REFUND.to_string()),
-                ("amount", amount_str.clone()),
-                ("currency", ccy.clone()),
-                ("mid", auth.mid.peek().clone()),
-                ("order_number", order_number.clone()),
-                ("refund_id", refund_id.clone()),
-                (
-                    "response_type",
-                    RDP_MERCHANT_API_RESPONSE_TYPE_JSON.to_string(),
-                ),
-                ("transaction_id", transaction_id.clone()),
+                ("action_type", &RDP_MERCHANT_API_ACTION_REFUND),
+                ("amount", &amount),
+                ("currency", &ccy),
+                ("mid", auth.mid.peek()),
+                ("order_number", &order_number),
+                ("refund_id", &refund_id),
+                ("response_type", &RDP_MERCHANT_API_RESPONSE_TYPE_JSON),
+                ("transaction_id", &transaction_id),
             ],
             auth.secret.peek(),
         )?;
@@ -1293,8 +1289,7 @@ impl TryFrom<ResponseRouterData<ReddotRefundResponse, Self>>
                         ),
                     ))?;
                 Some(RefundIntegrityObject {
-                    refund_amount: refund_amount.amount(),
-                    currency,
+                    refund_money: refund_amount,
                 })
             }
             _ => None,

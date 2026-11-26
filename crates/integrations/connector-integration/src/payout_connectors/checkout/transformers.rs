@@ -3,7 +3,7 @@ use crate::types::ResponseRouterData;
 use common_enums::{Currency, PayoutStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
@@ -63,7 +63,7 @@ pub fn credentials(
 pub struct CheckoutPayoutRequest {
     source: CheckoutPayoutSource,
     destination: CheckoutPayoutMethod,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     reference: String,
     processing_channel_id: Secret<String>,
@@ -658,7 +658,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }),
             destination,
             amount: domain_types::utils::convert_amount(
-                &common_utils::types::MinorUnitForConnector,
+                &common_utils::types::ConnectorMinorUnitForConnector,
                 &data.request.money,
             )?,
             currency: data.request.destination_currency,
@@ -685,7 +685,7 @@ pub struct CheckoutPayoutResponse {
     reference: Option<String>,
     requested_on: Option<String>,
     processed_on: Option<String>,
-    amount: Option<MinorUnit>,
+    amount: Option<ConnectorMinorUnit>,
     currency: Option<Currency>,
 }
 /// Checkout.com returns transfer statuses in PascalCase on the wire (e.g. `"Pending"`,

@@ -1,11 +1,6 @@
 //! Money types and amount converters.
 
-use std::{
-    fmt::Display,
-    iter::Sum,
-    ops::{Add, Mul, Sub},
-    str::FromStr,
-};
+use std::str::FromStr;
 
 use common_enums::enums;
 use error_stack::ResultExt;
@@ -20,7 +15,7 @@ use crate::errors::ParsingError;
 /// Amount convertor trait for connector
 pub trait AmountConvertor: Send {
     /// Output type for the connector
-    type Output;
+    type Output: ConnectorAmount;
     /// Converts domain money into the connector's amount representation.
     fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>>;
 
@@ -30,6 +25,32 @@ pub trait AmountConvertor: Send {
         amount: Self::Output,
         currency: enums::Currency,
     ) -> Result<Money, error_stack::Report<ParsingError>>;
+}
+
+/// Connector amount representations are owned by the shared money framework.
+pub trait ConnectorAmount: connector_amount::Sealed {}
+
+mod connector_amount {
+    pub trait Sealed {}
+
+    macro_rules! amount_types {
+        ($($amount:ty),+ $(,)?) => {
+            $(impl Sealed for $amount {}
+            impl super::ConnectorAmount for $amount {})+
+        };
+    }
+
+    amount_types!(
+        super::ConnectorMinorUnit,
+        super::StringMinorUnit,
+        super::StringMajorUnit,
+        super::StringTwoDecimalUnit,
+        super::FloatMajorUnit,
+        super::FloatMajorUnitWithTwoDecimals,
+        super::StringMajorUnitWithTwoDecimals,
+        super::StringOrNumberMinorUnit,
+        super::StringOrNumberMajorUnit,
+    );
 }
 
 /// Connector required amount type
@@ -118,24 +139,6 @@ impl AmountConvertor for FloatMajorUnitForConnector {
     }
 }
 
-/// Connector required amount type
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
-pub struct MinorUnitForConnector;
-
-impl AmountConvertor for MinorUnitForConnector {
-    type Output = MinorUnit;
-    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(money.amount)
-    }
-    fn convert_back(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Money, error_stack::Report<ParsingError>> {
-        Ok(Money::from_minor_unit(amount, currency))
-    }
-}
-
 /// Converts domain minor units to and from connector-side integer minor units.
 ///
 /// Both representations use the currency's minor denomination, so this converter
@@ -143,11 +146,110 @@ impl AmountConvertor for MinorUnitForConnector {
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct ConnectorMinorUnitForConnector;
 
+/// Failure to encode a strictly positive amount using a connector wire exponent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum MinorUnitEncodingError {
+    #[error("minor-unit scaling overflow")]
+    Overflow,
+    #[error("scaled minor-unit amount is not positive")]
+    NonPositive,
+    #[error("currency has no supported decimal exponent")]
+    UnsupportedCurrency,
+    #[error("connector wire exponent cannot represent the amount exactly")]
+    PrecisionLoss,
+}
+
+/// Encodes positive integer text using a currency-only connector exponent policy.
+/// `None` retains the currency's exponent. An override changes the wire exponent,
+/// not the domain currency: wire = minor * 10^(wire exponent - currency exponent).
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct PositiveStringMinorUnitForConnector;
+
+impl PositiveStringMinorUnitForConnector {
+    pub fn convert(
+        &self,
+        money: &Money,
+        amount_exponent_override: fn(enums::Currency) -> Option<u8>,
+    ) -> Result<StringMinorUnit, MinorUnitEncodingError> {
+        let amount = money.amount.0;
+        if amount <= 0 {
+            return Err(MinorUnitEncodingError::NonPositive);
+        }
+        let currency_exponent = money
+            .currency
+            .number_of_digits_after_decimal_point()
+            .map_err(|_| MinorUnitEncodingError::UnsupportedCurrency)?;
+        let wire_exponent = amount_exponent_override(money.currency).unwrap_or(currency_exponent);
+        let scaled = if wire_exponent >= currency_exponent {
+            let multiplier = 10_i64
+                .checked_pow(u32::from(wire_exponent - currency_exponent))
+                .ok_or(MinorUnitEncodingError::Overflow)?;
+            amount
+                .checked_mul(multiplier)
+                .ok_or(MinorUnitEncodingError::Overflow)?
+        } else {
+            let divisor = 10_i64
+                .checked_pow(u32::from(currency_exponent - wire_exponent))
+                .ok_or(MinorUnitEncodingError::Overflow)?;
+            if amount % divisor != 0 {
+                return Err(MinorUnitEncodingError::PrecisionLoss);
+            }
+            amount / divisor
+        };
+        Ok(StringMinorUnit::new(scaled.to_string()))
+    }
+}
+
+impl ConnectorMinorUnitForConnector {
+    /// Preserves the integer minor-unit value without currency scaling.
+    pub fn convert(&self, money: &Money) -> ConnectorMinorUnit {
+        ConnectorMinorUnit(money.amount.get_amount_as_i64())
+    }
+
+    /// Decode a quoted integer response amount without exposing its scalar value.
+    pub fn deserialize_string<'de, D>(deserializer: D) -> Result<ConnectorMinorUnit, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        value
+            .parse::<i64>()
+            .map(ConnectorMinorUnit)
+            .map_err(serde::de::Error::custom)
+    }
+
+    /// Decode an optional quoted minor-unit response amount, ignoring invalid integer text.
+    /// Non-string JSON values remain deserialization errors.
+    pub fn deserialize_optional_string<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<ConnectorMinorUnit>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <Option<String> as serde::Deserialize>::deserialize(deserializer)?;
+        Ok(value.and_then(|value| value.parse::<i64>().ok().map(ConnectorMinorUnit)))
+    }
+
+    /// Encode an optional connector amount as quoted, canonical minor-unit text.
+    pub fn serialize_optional_string<S>(
+        amount: &Option<ConnectorMinorUnit>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde::Serialize::serialize(
+            &amount.as_ref().map(|amount| amount.0.to_string()),
+            serializer,
+        )
+    }
+}
+
 impl AmountConvertor for ConnectorMinorUnitForConnector {
     type Output = ConnectorMinorUnit;
 
     fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        Ok(ConnectorMinorUnit(money.amount.get_amount_as_i64()))
+        Ok(Self::convert(self, money))
     }
 
     fn convert_back(
@@ -164,7 +266,6 @@ impl AmountConvertor for ConnectorMinorUnitForConnector {
 
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
-    Default,
     Debug,
     serde::Deserialize,
     serde::Serialize,
@@ -177,7 +278,36 @@ impl AmountConvertor for ConnectorMinorUnitForConnector {
     PartialOrd,
 )]
 
-pub struct MinorUnit(pub i64);
+pub struct MinorUnit(i64);
+
+/// An opaque percentage with two decimal places: 2.50 represents 2.5%.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Percentage(Decimal);
+
+impl Percentage {
+    /// Derive a percentage in the domain, truncating to whole basis points.
+    pub fn from_minor_unit_ratio(numerator: MinorUnit, denominator: MinorUnit) -> Option<Self> {
+        if denominator.0 <= 0 {
+            return None;
+        }
+
+        // Preserve checked i64 scaling before division, including overflow omission.
+        let basis_points = numerator.0.checked_mul(10_000)? / denominator.0;
+        Some(Self(Decimal::new(basis_points, 2)))
+    }
+}
+
+/// Encode a domain percentage as a nonnegative, bounded basis-point string.
+pub struct BasisPointsPercentageForConnector;
+
+impl BasisPointsPercentageForConnector {
+    pub fn convert(&self, percentage: &Percentage, maximum_basis_points: u16) -> Option<String> {
+        let basis_points = percentage.0.checked_mul(Decimal::from(100))?.to_i64()?;
+        (0..=i64::from(maximum_basis_points))
+            .contains(&basis_points)
+            .then(|| basis_points.to_string())
+    }
+}
 
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
@@ -261,40 +391,6 @@ impl MinorUnit {
     }
 }
 
-impl Display for MinorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Add for MinorUnit {
-    type Output = Self;
-    fn add(self, a2: Self) -> Self {
-        Self(self.0 + a2.0)
-    }
-}
-
-impl Sub for MinorUnit {
-    type Output = Self;
-    fn sub(self, a2: Self) -> Self {
-        Self(self.0 - a2.0)
-    }
-}
-
-impl Mul<u16> for MinorUnit {
-    type Output = Self;
-
-    fn mul(self, a2: u16) -> Self::Output {
-        Self(self.0 * i64::from(a2))
-    }
-}
-
-impl Sum for MinorUnit {
-    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self(0), |a, b| a + b)
-    }
-}
-
 /// An integer minor-unit amount carried by a connector request or response.
 ///
 /// This is distinct from domain [`MinorUnit`]. Use
@@ -325,11 +421,16 @@ impl ConnectorMinorUnit {
     pub fn zero() -> Self {
         Self(0)
     }
+
+    /// Checks a connector amount against an integer minor-unit threshold.
+    pub fn is_greater_than(&self, value: i64) -> bool {
+        self.0 > value
+    }
 }
 
-impl Display for ConnectorMinorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+impl crate::crypto::SignatureValue for ConnectorMinorUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(self.0.to_string().as_bytes());
     }
 }
 
@@ -350,6 +451,25 @@ impl Display for ConnectorMinorUnit {
 pub struct StringMinorUnit(String);
 
 impl StringMinorUnit {
+    /// Checks whether the converted amount is zero, including zero-padded text.
+    pub fn is_zero(&self) -> bool {
+        let digits = self.0.trim_start_matches(['-', '+']);
+        !digits.is_empty() && digits.bytes().all(|digit| digit == b'0')
+    }
+
+    /// Adds leading zeros up to the total width without truncating or moving the sign.
+    pub fn with_zero_padding(self, minimum_width: usize) -> Self {
+        let (sign, digits) = if let Some(digits) = self.0.strip_prefix('-') {
+            ("-", digits)
+        } else if let Some(digits) = self.0.strip_prefix('+') {
+            ("+", digits)
+        } else {
+            ("", self.0.as_str())
+        };
+        let width = minimum_width.saturating_sub(sign.len());
+        Self(format!("{sign}{digits:0>width$}"))
+    }
+
     /// forms a new minor unit in string from amount
     fn new(value: String) -> Self {
         Self(value)
@@ -370,15 +490,94 @@ impl StringMinorUnit {
     }
 }
 
-impl Display for StringMinorUnit {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+impl crate::crypto::SignatureValue for StringMinorUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(self.0.as_bytes());
     }
 }
 
 /// Connector specific types to send
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
-pub struct FloatMajorUnit(pub f64);
+pub struct FloatMajorUnit(f64);
+
+/// Numeric amounts use fixed hundredths when included in a connector signature.
+impl crate::crypto::SignatureValue for FloatMajorUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        update(format!("{:.2}", self.0).as_bytes());
+    }
+}
+
+/// Numeric major units with at most two decimal places and no scalar accessor.
+/// JSON numbers do not preserve trailing zeroes; use the string type when required.
+#[derive(Default, Debug, serde::Serialize, Clone, Copy, PartialEq, PartialOrd, ToSchema)]
+#[serde(transparent)]
+pub struct FloatMajorUnitWithTwoDecimals(f64);
+
+impl FloatMajorUnitWithTwoDecimals {
+    fn decimal(value: f64) -> Result<Decimal, error_stack::Report<ParsingError>> {
+        let decimal =
+            Decimal::from_f64(value).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+        if decimal.normalize().scale() > TWO_DECIMAL_EXPONENT || decimal.to_f64() != Some(value) {
+            return Err(error_stack::report!(ParsingError::StructParseFailure(
+                "numeric major-unit amount with two decimals"
+            )));
+        }
+        Ok(decimal)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for FloatMajorUnitWithTwoDecimals {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <f64 as serde::Deserialize>::deserialize(deserializer)?;
+        Self::decimal(value).map_err(serde::de::Error::custom)?;
+        Ok(Self(value))
+    }
+}
+
+/// Converts Money to numeric major units without rounding or losing its value.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct FloatMajorUnitWithTwoDecimalsForConnector;
+
+impl AmountConvertor for FloatMajorUnitWithTwoDecimalsForConnector {
+    type Output = FloatMajorUnitWithTwoDecimals;
+
+    fn convert(&self, money: &Money) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        let scale = Decimal::from_i128_with_scale(currency_scale(money.currency)?, 0);
+        let major = Decimal::from(money.amount.0) / scale;
+        let value = major
+            .to_f64()
+            .ok_or(ParsingError::FloatToDecimalConversionFailure)?;
+        if FloatMajorUnitWithTwoDecimals::decimal(value)? != major {
+            return Err(error_stack::report!(ParsingError::StructParseFailure(
+                "lossless numeric major-unit amount with two decimals"
+            )));
+        }
+        Ok(FloatMajorUnitWithTwoDecimals(value))
+    }
+
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        currency: enums::Currency,
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        let scale = Decimal::from_i128_with_scale(currency_scale(currency)?, 0);
+        let minor = FloatMajorUnitWithTwoDecimals::decimal(amount.0)?
+            .checked_mul(scale)
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        if !minor.fract().is_zero() {
+            return Err(error_stack::report!(ParsingError::StructParseFailure(
+                "whole minor-unit amount"
+            )));
+        }
+        let minor = minor
+            .to_i64()
+            .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
+        Ok(Money::from_minor_unit(MinorUnit::new(minor), currency))
+    }
+}
 
 impl FloatMajorUnit {
     /// forms a new major unit from amount
@@ -389,6 +588,11 @@ impl FloatMajorUnit {
     /// forms a new major unit with zero amount
     pub fn zero() -> Self {
         Self(0.0)
+    }
+
+    /// Checks whether the converted amount is positive.
+    pub fn is_positive(&self) -> bool {
+        self.0 > 0.0
     }
 
     /// converts to minor unit as i64 from FloatMajorUnit
@@ -411,6 +615,45 @@ impl FloatMajorUnit {
 /// Connector specific types to send
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
 pub struct StringMajorUnit(String);
+
+/// Preserves APIs that encode minor-unit amounts as either JSON strings or numbers.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum StringOrNumberMinorUnit {
+    Text(StringMinorUnit),
+    Number(ConnectorMinorUnit),
+}
+
+/// Preserves APIs that encode major-unit amounts as either JSON strings or numbers.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum StringOrNumberMajorUnit {
+    Text(StringMajorUnit),
+    Number(FloatMajorUnit),
+}
+
+impl StringOrNumberMajorUnit {
+    pub fn to_money(
+        &self,
+        currency: enums::Currency,
+    ) -> Result<Money, error_stack::Report<ParsingError>> {
+        match self {
+            Self::Text(amount) => {
+                StringMajorUnitForConnector.convert_back(amount.clone(), currency)
+            }
+            Self::Number(amount) => FloatMajorUnitForConnector.convert_back(*amount, currency),
+        }
+    }
+}
+
+impl crate::crypto::SignatureValue for StringOrNumberMajorUnit {
+    fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
+        match self {
+            Self::Text(amount) => amount.update_signature(update),
+            Self::Number(amount) => amount.update_signature(update),
+        }
+    }
+}
 
 impl crate::crypto::SignatureValue for StringMajorUnit {
     fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
@@ -444,10 +687,6 @@ impl StringMajorUnit {
     /// forms a new StringMajorUnit default unit i.e zero
     pub fn zero() -> Self {
         Self("0".to_string())
-    }
-    /// Get string amount from struct to be removed in future
-    pub fn get_amount_as_string(&self) -> String {
-        self.0.clone()
     }
 }
 
@@ -485,11 +724,6 @@ impl StringTwoDecimalUnit {
     /// forms a new implied-decimal unit from amount
     fn new(value: String) -> Self {
         Self(value)
-    }
-
-    /// Get the wire string.
-    pub fn get_amount_as_string(&self) -> &str {
-        &self.0
     }
 
     /// Reject a negative amount, for gateways whose amount field is unsigned.

@@ -15,7 +15,7 @@ use common_utils::{
     errors::CustomResult,
     pii::Email,
     request::Method,
-    types::{MinorUnit, StringMajorUnit},
+    types::{ConnectorMinorUnitForConnector, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -660,13 +660,8 @@ impl ElavonPgCaptureRoute {
             None => Ok(Self::Partial),
             Some(metadata) if metadata.is_partially_capturable => Ok(Self::Partial),
             Some(metadata) if metadata.authorized_total == *requested_total => Ok(Self::Full),
-            Some(metadata) => Err(error_stack::report!(IntegrationError::NotSupported {
-                message: format!(
-                    "a capture of {} against an authorization of {}: partial capture on an \
-                     account whose EPG transactions report isPartiallyCapturable = false",
-                    requested_total.get_amount_as_string(),
-                    metadata.authorized_total.get_amount_as_string(),
-                ),
+            Some(_) => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "a partial capture against an authorization on an account whose EPG transactions report isPartiallyCapturable = false".to_owned(),
                 connector: ELAVON_PG_CONNECTOR_ID,
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -2255,14 +2250,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        // `/stored-cards` carries no total, so a non-zero amount would be reported as a charge
-        // EPG never made.
-        if router_data
-            .request
-            .money
-            .as_ref()
-            .is_some_and(|money| money.amount() > MinorUnit::zero())
-        {
+        // `/stored-cards` carries no total, so a non-zero amount would be reported as a
+        // charge EPG never made.
+        if router_data.request.money.as_ref().is_some_and(|money| {
+            ConnectorMinorUnitForConnector
+                .convert(money)
+                .is_greater_than(0)
+        }) {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: "Non-zero amount on SetupMandate".to_string(),
                 connector: ELAVON_PG_CONNECTOR_ID,

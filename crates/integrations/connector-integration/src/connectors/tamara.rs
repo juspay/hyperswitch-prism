@@ -10,7 +10,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
@@ -45,7 +45,7 @@ use transformers::{
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
-macros::create_amount_converter_wrapper!(connector_name: Tamara, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Tamara, amount_type: ConnectorMinorUnit);
 
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
@@ -100,7 +100,7 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: MinorUnit
+        amount_converter: ConnectorMinorUnit
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(

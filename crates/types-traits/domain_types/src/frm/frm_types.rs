@@ -87,6 +87,8 @@ pub struct InstallmentDetails {
 #[derive(Debug, Clone)]
 pub struct PreRiskCheckRequest {
     pub money: Money,
+    /// Checked subtotal of named order items, prepared before entering L3.
+    pub named_items_subtotal_money: Option<Money>,
     pub customer_info: Option<CustomerInfo>,
     pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub browser_info: Option<BrowserInformation>,
@@ -130,6 +132,8 @@ pub struct PreRiskCheckResponse {
 #[derive(Debug, Clone)]
 pub struct PostRiskCheckRequest {
     pub money: Money,
+    /// Checked subtotal of named order items, prepared before entering L3.
+    pub named_items_subtotal_money: Option<Money>,
     pub customer_info: Option<CustomerInfo>,
     pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub browser_info: Option<BrowserInformation>,

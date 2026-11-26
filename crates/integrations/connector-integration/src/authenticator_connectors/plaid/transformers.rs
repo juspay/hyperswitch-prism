@@ -814,7 +814,8 @@ impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
                 }),
             )
         } else {
-            let request_amount = data.request.money.amount();
+            let request_amount =
+                common_utils::types::ConnectorMinorUnitForConnector.convert(&data.request.money);
             let currency = data.request.money.currency();
 
             // An account covers the request when its comparable balance
@@ -825,7 +826,10 @@ impl TryFrom<ResponseRouterData<PlaidBalanceGetResponse, Self>>
                 let comparable = acct.balances.available.or(acct.balances.current);
                 comparable
                     .and_then(|bal| super::PlaidAmountConvertor::convert_back(bal, currency).ok())
-                    .is_some_and(|balance| balance.amount() > request_amount)
+                    .is_some_and(|balance| {
+                        common_utils::types::ConnectorMinorUnitForConnector.convert(&balance)
+                            > request_amount
+                    })
             };
 
             // When the request pins a specific account (connector_payment_method_id

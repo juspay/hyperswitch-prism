@@ -240,6 +240,7 @@ mod tests {
                     raw_connector_request: None,
                     typed_connector_request: None,
                     capturable_money: None,
+                    reported_amounts: None,
                     money: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
@@ -402,6 +403,7 @@ mod tests {
                     raw_connector_request: None,
                     typed_connector_request: None,
                     capturable_money: None,
+                    reported_amounts: None,
                     money: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
@@ -446,7 +448,10 @@ mod tests {
                 mask: None,
                 official_name: None,
                 balances: PlaidBalances {
-                    current: current.map(common_utils::types::FloatMajorUnit),
+                    current: current.map(|amount| {
+                        serde_json::from_value(serde_json::json!(amount))
+                            .expect("numeric balance response")
+                    }),
                     available: None,
                     limit: None,
                     iso_currency_code: currency,

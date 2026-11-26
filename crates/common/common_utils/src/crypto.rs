@@ -477,6 +477,16 @@ pub struct Sha256;
 pub trait GenerateDigest {
     /// takes a message and creates a digest for it
     fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError>;
+
+    /// Hash exact wire representations without returning their raw values to the caller.
+    fn generate_digest_from_fields(
+        &self,
+        fields: &[&dyn SignatureValue],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let mut message = Vec::new();
+        update_signature(fields, |bytes| message.extend_from_slice(bytes));
+        self.generate_digest(&message)
+    }
 }
 
 impl GenerateDigest for Sha512 {
@@ -849,7 +859,7 @@ pub trait SignatureValue {
     fn update_signature(&self, update: &mut dyn FnMut(&[u8]));
 }
 
-impl<T: AsRef<str>> SignatureValue for T {
+impl<T: AsRef<str> + ?Sized> SignatureValue for T {
     fn update_signature(&self, update: &mut dyn FnMut(&[u8])) {
         update(self.as_ref().as_bytes());
     }

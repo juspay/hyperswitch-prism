@@ -103,24 +103,15 @@ fn nuvei_context(
 }
 
 fn convert_payout_amount(
-    amount: common_utils::types::MinorUnit,
-    destination_currency: common_enums::Currency,
+    money: &common_utils::types::Money,
 ) -> Result<StringMajorUnit, Report<IntegrationError>> {
     StringMajorUnitForConnector
-        .convert(&{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: nuvei-transfer-amount; see PR #2642"
-            )]
-            let legacy_money =
-                common_utils::types::Money::from_minor_unit(amount, destination_currency);
-            legacy_money
-        })
+        .convert(money)
         .change_context(IntegrationError::InvalidDataFormat {
             field_name: "amount",
             context: nuvei_context(
-                "Nuvei payout amount could not be converted to destination currency units",
-                "Provide an amount valid for the destination currency",
+                "Nuvei payout amount could not be converted using its denomination currency",
+                "Provide a valid source amount and currency",
             ),
         })
 }
@@ -149,8 +140,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })),
         }?;
         let request = &data.request;
-        let amount = convert_payout_amount(request.money.amount(), request.destination_currency)?;
-        let currency = request.destination_currency.to_string();
+        crate::payout_connectors::require_matching_payout_currency(
+            &request.money,
+            request.destination_currency,
+            "Nuvei",
+        )?;
+        let amount = convert_payout_amount(&request.money)?;
+        let currency = request.money.currency().to_string();
         let time_stamp = NuveiAuthType::get_timestamp();
         let reference = match &data.resource_common_data.connector_request_reference_id {
             reference if !reference.trim().is_empty() => Ok(reference),
@@ -202,7 +198,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             merchant_id.peek(),
             merchant_site_id.peek(),
             reference,
-            &amount.get_amount_as_string(),
+            &amount,
             &currency,
             &time_stamp.to_string(),
         ]);
@@ -337,6 +333,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NuveiPayoutResponse, 
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use domain_types::{payment_method_data::DefaultPCIHolder, utils::ForeignTryFrom};
 
     fn response(
         status: NuveiPaymentStatus,
@@ -354,15 +351,24 @@ mod tests {
     }
 
     #[test]
-    fn payout_amount_uses_destination_currency_units() {
+    fn payout_amount_preserves_its_source_currency_units() {
+        let request = PayoutTransferRequest::<DefaultPCIHolder>::foreign_try_from(
+            grpc_api_types::payouts::PayoutServiceTransferRequest {
+                amount: Some(grpc_api_types::payments::Money {
+                    minor_amount: 1234,
+                    currency: grpc_api_types::payments::Currency::Usd.into(),
+                }),
+                destination_currency: grpc_api_types::payments::Currency::Jpy.into(),
+                ..Default::default()
+            },
+        )
+        .expect("valid payout fixture");
         assert_eq!(
-            convert_payout_amount(
-                common_utils::types::MinorUnit::new(1234),
-                common_enums::Currency::JPY,
+            serde_json::to_value(
+                convert_payout_amount(&request.money).expect("USD amount should convert")
             )
-            .expect("JPY amount should convert")
-            .get_amount_as_string(),
-            "1234"
+            .expect("wire amount"),
+            serde_json::json!("12.34")
         );
     }
 
@@ -378,12 +384,12 @@ mod tests {
 
         assert_eq!(
             auth.generate_checksum(&[
-                "merchant",
-                "site",
-                "payout_123",
-                "10.00",
-                "USD",
-                "20261007123000"
+                &"merchant",
+                &"site",
+                &"payout_123",
+                &"10.00",
+                &"USD",
+                &"20261007123000"
             ]),
             "8501f7dd724473e8a4149c9e227684e221b82b6fa40816add3e1064b36c21eee"
         );

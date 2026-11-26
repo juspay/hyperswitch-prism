@@ -41,7 +41,7 @@ use crate::{types::ResponseRouterData, with_error_response_body};
 
 use super::macros;
 
-macros::create_amount_converter_wrapper!(connector_name: Glomopay, amount_type: MinorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Glomopay, amount_type: ConnectorMinorUnit);
 
 macros::create_all_prerequisites!(
     connector_name: Glomopay,

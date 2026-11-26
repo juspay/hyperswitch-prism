@@ -480,21 +480,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + serde
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converter = StringMajorUnitForConnector;
-        let total_amount = converter
-            .convert(&{
-                #[expect(
-                    clippy::disallowed_methods,
-                    reason = "Temporary payout currency contract: cybersource-transfer; see PR #2642"
-                )]
-                let legacy_money = common_utils::types::Money::from_minor_unit(
-                    req.request.money.amount(),
-                    req.request.destination_currency,
-                );
-                legacy_money
-            })
-            .change_context(IntegrationError::AmountConversionFailed {
+        crate::payout_connectors::require_matching_payout_currency(
+            &req.request.money,
+            req.request.destination_currency,
+            "Cybersource",
+        )?;
+        let total_amount = converter.convert(&req.request.money).change_context(
+            IntegrationError::AmountConversionFailed {
                 context: Default::default(),
-            })?;
+            },
+        )?;
         let connector_req = transformers::CybersourcePayoutFulfillRequest::try_from((
             req,
             CybersourcePayoutContext { total_amount },

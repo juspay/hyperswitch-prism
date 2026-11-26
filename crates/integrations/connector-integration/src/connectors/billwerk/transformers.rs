@@ -4,7 +4,7 @@ pub type RefundsResponseRouterData<F, T> =
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     pii::Email,
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
 };
 
 use crate::{connectors::billwerk::BillwerkRouterData, types::ResponseRouterData, utils};
@@ -83,7 +83,7 @@ pub struct BillwerkTokenResponse {
 #[derive(Debug, Serialize)]
 pub struct BillwerkPaymentsRequest {
     handle: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
     customer: BillwerkCustomerObject,
@@ -96,7 +96,7 @@ pub struct BillwerkPaymentsRequest {
 #[derive(Debug, Serialize)]
 pub struct BillwerkRepeatPaymentRequest {
     handle: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,7 +107,7 @@ pub struct BillwerkRepeatPaymentRequest {
 #[derive(Debug, Serialize)]
 pub struct BillwerkSetupMandateRequest {
     handle: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
     customer: BillwerkCustomerObject,
@@ -142,7 +142,7 @@ pub struct BillwerkCustomerObject {
 
 #[derive(Debug, Serialize)]
 pub struct BillwerkCaptureRequest {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -173,7 +173,7 @@ pub struct RefundResponse {
 #[derive(Debug, Serialize)]
 pub struct BillwerkRefundRequest {
     pub invoice: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub text: Option<String>,
 }
 
@@ -311,7 +311,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.money),
             source,
             currency: item.router_data.request.currency,
             customer: BillwerkCustomerObject {
@@ -491,7 +492,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.capture_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.capture_money),
         })
     }
 }
@@ -509,7 +511,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.refund_money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&item.router_data.request.refund_money),
             invoice: item.router_data.request.connector_transaction_id.clone(),
             text: item.router_data.request.reason.clone(),
         })
@@ -608,8 +611,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .money
             .as_ref()
-            .map(|money| money.amount())
-            .unwrap_or(MinorUnit::new(0));
+            .map(|money| common_utils::types::ConnectorMinorUnitForConnector.convert(money))
+            .unwrap_or(ConnectorMinorUnit::zero());
         Ok(Self {
             handle: item
                 .router_data
@@ -708,7 +711,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: router_data.request.money.amount(),
+            amount: common_utils::types::ConnectorMinorUnitForConnector
+                .convert(&router_data.request.money),
             source,
             currency: router_data.request.currency,
             customer_handle: router_data
@@ -737,7 +741,7 @@ pub struct BillwerkClientAuthRequest {
 #[derive(Debug, Serialize)]
 pub struct BillwerkSessionOrder {
     pub handle: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub customer: BillwerkSessionCustomer,
 }
@@ -828,7 +832,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             order: BillwerkSessionOrder {
                 handle,
-                amount: router_data.request.money.amount(),
+                amount: common_utils::types::ConnectorMinorUnitForConnector
+                    .convert(&router_data.request.money),
                 currency: router_data.request.currency,
                 customer,
             },

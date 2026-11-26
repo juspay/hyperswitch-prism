@@ -383,9 +383,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount {} {} to Boost's FloatMajorUnit \
+                        "Failed to convert minor_amount in {} to Boost's FloatMajorUnit \
                          (unquoted JSON decimal, e.g. 1.00) for the Authorize request.",
-                        item.router_data.request.money.amount().get_amount_as_i64(),
                         item.router_data.request.currency
                     )),
                 },
@@ -654,14 +653,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_refund_amount {} {} to Boost's \
+                        "Failed to convert minor_refund_amount in {} to Boost's \
                          FloatMajorUnit (unquoted JSON decimal, e.g. 1.00) for the reversal \
                          (refund/void) request against connector_transaction_id {}.",
-                        item.router_data
-                            .request
-                            .refund_money
-                            .amount()
-                            .get_amount_as_i64(),
                         item.router_data.request.currency,
                         item.router_data.request.connector_transaction_id
                     )),

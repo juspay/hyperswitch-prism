@@ -678,10 +678,7 @@ impl Default for PaymentsSyncData {
             mandate_id: Default::default(),
             payment_method_type: Default::default(),
             payment_experience: Default::default(),
-            money: common_utils::types::Money::from_minor_unit(
-                MinorUnit::default(),
-                Default::default(),
-            ),
+            money: common_utils::types::Money::zero(Default::default()),
             all_keys_required: Default::default(),
             integrity_object: Default::default(),
             integrity_specifications: Default::default(),
@@ -753,6 +750,17 @@ pub struct RawConnectorStatus {
 }
 
 #[derive(Debug, Clone)]
+pub enum ReportedPaymentAmounts {
+    /// The provider reported a total and a separately captured amount.
+    Capturable { total_money: Option<Money> },
+    /// Bank-transfer metadata needs the amount received from these reported values.
+    BankTransferFunding {
+        total_money: Money,
+        remaining_money: Money,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<CustomerId>,
@@ -769,6 +777,8 @@ pub struct PaymentFlowData {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub captured_money: Option<Money>,
     pub capturable_money: Option<Money>,
+    /// Raw, typed response facts; derived balances are computed after leaving L3.
+    pub reported_amounts: Option<ReportedPaymentAmounts>,
     pub money: Option<Money>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub session_token: Option<String>,
@@ -2196,14 +2206,16 @@ pub enum CaptureSyncResponse {
         resource_id: ResponseId,
         status: common_enums::AttemptStatus,
         connector_response_reference_id: Option<String>,
-        amount: Option<MinorUnit>,
+        #[serde(rename = "amount")]
+        money: Option<Money>,
     },
     Error {
         code: String,
         message: String,
         reason: Option<String>,
         status_code: u16,
-        amount: Option<MinorUnit>,
+        #[serde(rename = "amount")]
+        money: Option<Money>,
     },
 }
 
@@ -3750,14 +3762,8 @@ impl Default for RefundsData {
             webhook_url: Default::default(),
             connector_feature_data: Default::default(),
             refund_connector_metadata: Default::default(),
-            payment_money: common_utils::types::Money::from_minor_unit(
-                MinorUnit::default(),
-                Default::default(),
-            ),
-            refund_money: common_utils::types::Money::from_minor_unit(
-                MinorUnit::default(),
-                Default::default(),
-            ),
+            payment_money: common_utils::types::Money::zero(Default::default()),
+            refund_money: common_utils::types::Money::zero(Default::default()),
             refund_status: Default::default(),
             merchant_account_id: Default::default(),
             capture_method: Default::default(),
@@ -3858,10 +3864,7 @@ impl Default for PaymentsCaptureData {
         Self {
             domain_data: Default::default(),
             payment_method_data: Default::default(),
-            capture_money: common_utils::types::Money::from_minor_unit(
-                MinorUnit::default(),
-                Default::default(),
-            ),
+            capture_money: common_utils::types::Money::zero(Default::default()),
             currency: Default::default(),
             connector_transaction_id: Default::default(),
             multiple_capture_data: Default::default(),
@@ -4796,7 +4799,8 @@ pub struct StripeSplitPaymentData {
     pub charge_type: common_enums::PaymentChargeType,
 
     /// Platform fees to be collected on the payment
-    pub application_fees: Option<MinorUnit>,
+    #[serde(rename = "application_fees")]
+    pub application_fee_money: Option<Money>,
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
@@ -4826,7 +4830,8 @@ pub struct StripeSplitResponseData {
     pub charge_type: common_enums::PaymentChargeType,
 
     /// Platform fees collected on the payment
-    pub application_fees: Option<MinorUnit>,
+    #[serde(rename = "application_fees")]
+    pub application_fee_money: Option<Money>,
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
@@ -4856,7 +4861,8 @@ pub struct AdyenSplitData {
 /// Data for the split items
 pub struct AdyenSplitItem {
     /// The amount of the split item
-    pub amount: Option<MinorUnit>,
+    #[serde(rename = "amount")]
+    pub money: Option<Money>,
     /// Defines type of split item
     pub split_type: common_enums::AdyenSplitType,
     /// The unique identifier of the account to which the split amount is allocated.
@@ -4980,15 +4986,14 @@ pub struct RecurringMandatePaymentData {
 }
 
 pub trait RecurringMandateData {
-    fn get_original_payment_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_original_payment_amount(&self) -> Result<Money, Error>;
     fn get_original_payment_currency(&self) -> Result<Currency, Error>;
 }
 
 impl RecurringMandateData for RecurringMandatePaymentData {
-    fn get_original_payment_amount(&self) -> Result<MinorUnit, Error> {
+    fn get_original_payment_amount(&self) -> Result<Money, Error> {
         self.original_payment_authorized_money
-            .as_ref()
-            .map(|money| money.amount())
+            .clone()
             .ok_or_else(missing_field_err("original_payment_authorized_amount"))
     }
     fn get_original_payment_currency(&self) -> Result<Currency, Error> {
@@ -5539,6 +5544,8 @@ pub struct TaxInfo {
     pub merchant_tax_registration_id: Option<Secret<String>>,
     pub merchant_vat_registration_id: Option<Secret<String>>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    /// Derived from shipping tax and effective shipping cost at the domain boundary.
+    pub shipping_tax_percentage: Option<common_utils::types::Percentage>,
     pub order_tax_amount: Option<MinorUnit>,
     pub value_added_tax_amount: Option<MinorUnit>,
     /// A percentage between 0 and 100 — 2.5 means 2.5%.
@@ -5743,20 +5750,25 @@ impl L2L3Data {
             .and_then(|order| order.merchant_order_reference_id.clone())
     }
 
-    pub fn get_discount_amount(&self) -> Option<MinorUnit> {
+    pub fn get_discount_amount(&self, payment: &Money) -> Option<Money> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.discount_amount)
+            .and_then(|data| data.discount_amount)
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
-    pub fn get_shipping_cost(&self) -> Option<MinorUnit> {
+    pub fn get_shipping_cost(&self, payment: &Money) -> Option<Money> {
         self.order_info
             .as_ref()
-            .and_then(|order| order.shipping_cost)
+            .and_then(|data| data.shipping_cost)
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
-    pub fn get_duty_amount(&self) -> Option<MinorUnit> {
-        self.order_info.as_ref().and_then(|order| order.duty_amount)
+    pub fn get_duty_amount(&self, payment: &Money) -> Option<Money> {
+        self.order_info
+            .as_ref()
+            .and_then(|data| data.duty_amount)
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
     pub fn get_order_commodity_code(&self) -> Option<String> {
@@ -5765,10 +5777,11 @@ impl L2L3Data {
             .and_then(|order| order.order_commodity_code.clone())
     }
 
-    pub fn get_value_added_tax_amount(&self) -> Option<MinorUnit> {
+    pub fn get_value_added_tax_amount(&self, payment: &Money) -> Option<Money> {
         self.tax_info
             .as_ref()
-            .and_then(|tax| tax.value_added_tax_amount)
+            .and_then(|data| data.value_added_tax_amount)
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
     pub fn get_value_added_tax_percent(&self) -> Option<f64> {
@@ -5805,14 +5818,18 @@ impl L2L3Data {
             .and_then(|tax| tax.merchant_vat_registration_id.clone())
     }
 
-    pub fn get_shipping_amount_tax(&self) -> Option<MinorUnit> {
+    pub fn get_shipping_amount_tax(&self, payment: &Money) -> Option<Money> {
         self.tax_info
             .as_ref()
-            .and_then(|tax| tax.shipping_amount_tax)
+            .and_then(|data| data.shipping_amount_tax)
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
-    pub fn get_order_tax_amount(&self) -> Option<MinorUnit> {
-        self.tax_info.as_ref().and_then(|tax| tax.order_tax_amount)
+    pub fn get_order_tax_amount(&self, payment: &Money) -> Option<Money> {
+        self.tax_info
+            .as_ref()
+            .and_then(|data| data.order_tax_amount)
+            .map(|amount| common_utils::types::Money::from_minor_unit(amount, payment.currency()))
     }
 
     pub fn get_customer_id(&self) -> Option<CustomerId> {
@@ -6227,7 +6244,7 @@ pub struct GpayTransactionInfo {
     /// The total price status (ex: 'FINAL')
     pub total_price_status: String,
     /// The total price
-    pub total_price: MinorUnit,
+    pub total_price: common_utils::types::ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -6450,7 +6467,7 @@ pub struct AmountInfo {
     #[serde(rename = "type")]
     pub total_type: Option<String>,
     /// The total amount
-    pub amount: MinorUnit,
+    pub amount: common_utils::types::ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -6475,7 +6492,7 @@ pub struct PaypalTransactionInfo {
     /// Currency code
     pub currency_code: Currency,
     /// Total price
-    pub total_price: MinorUnit,
+    pub total_price: common_utils::types::ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

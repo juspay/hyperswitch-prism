@@ -644,13 +644,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .resource_common_data
             .capturable_money
-            .map(|amount| amount.amount())
+            .map(|amount| common_utils::types::ConnectorMinorUnitForConnector.convert(&amount))
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: Default::default(),
             })?;
 
-        if item.router_data.request.capture_money.amount() != amount_authorized {
+        if common_utils::types::ConnectorMinorUnitForConnector
+            .convert(&item.router_data.request.capture_money)
+            != amount_authorized
+        {
             return Err(IntegrationError::NotSupported {
                 message: "Forte only supports full captures.".to_string(),
                 connector: "Forte",

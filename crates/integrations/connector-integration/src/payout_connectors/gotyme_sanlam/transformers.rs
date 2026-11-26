@@ -242,17 +242,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = convert_amount(item.connector.amount_converter, &{
-            #[expect(
-                clippy::disallowed_methods,
-                reason = "Temporary payout currency contract: gotyme-sanlam-transfer; see PR #2642"
-            )]
-            let legacy_money = common_utils::types::Money::from_minor_unit(
-                item.router_data.request.money.amount(),
-                item.router_data.request.destination_currency,
-            );
-            legacy_money
-        })?;
+        crate::payout_connectors::require_matching_payout_currency(
+            &item.router_data.request.money,
+            item.router_data.request.destination_currency,
+            "GotymeSanlam",
+        )?;
+        let amount = convert_amount(
+            item.connector.amount_converter,
+            &item.router_data.request.money,
+        )?;
         let payload = GotymeSanlamPayoutTransferPayload::try_from((&item.router_data, amount))?;
 
         Ok(Self {

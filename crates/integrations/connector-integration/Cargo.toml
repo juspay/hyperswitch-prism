@@ -51,6 +51,9 @@ josekit = "0.8.7"
 async-trait = "0.1.92"
 openssl = { version = "0.10.81" }
 
+[build-dependencies]
+syn = { version = "2", features = ["full", "visit"] }
+
 [features]
 # Déjà call-graph instrumentation (`ucs::*` / `connector::*` spans). A pure cfg
 # switch — no dependencies — so feature-off builds are byte-identical. Enabled
