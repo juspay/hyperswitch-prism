@@ -33,6 +33,7 @@ use grpc_api_types::payments::{
 };
 use interfaces::connector_types::AuthenticationStep;
 
+use crate::payment_methods::is_wallet_payload_decrypted_network_token;
 use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
@@ -383,28 +384,43 @@ where
                 tonic::Status::invalid_argument(format!("invalid payment_method: {err}"))
             })?
             .unwrap_or_default();
-        let connector_data = ConnectorData::<
+        let payment_method_type = payload
+            .payment_method
+            .clone()
+            .map(Option::<common_enums::PaymentMethodType>::foreign_try_from)
+            .transpose()
+            .map_err(|err| {
+                tonic::Status::invalid_argument(format!("invalid payment_method_type: {err}"))
+            })?
+            .flatten();
+        let is_wallet_decrypted_network_token =
+            is_wallet_payload_decrypted_network_token(payload.payment_method.as_ref());
+        let should_tokenize = ConnectorData::<
             domain_types::payment_method_data::DefaultPCIHolder,
-        >::get_connector_by_name(connector);
-
-        if !connector_data
+        >::get_connector_by_name(connector)
             .connector
-            .should_do_payment_method_token(payment_method, None, false)
-        {
-            return Ok(None);
+            .should_do_payment_method_token(
+                payment_method,
+                payment_method_type,
+                is_wallet_decrypted_network_token,
+            );
+
+        match should_tokenize {
+            true => {
+                let tokenize_payload = PaymentMethodServiceTokenizeRequest::foreign_from(payload);
+                let mut tokenize_request = tonic::Request::new(tokenize_payload);
+                *tokenize_request.metadata_mut() = metadata.clone();
+                *tokenize_request.extensions_mut() = extensions.clone();
+
+                Ok(Some(
+                    self.payment_method_service
+                        .tokenize(tokenize_request)
+                        .await?
+                        .into_inner(),
+                ))
+            }
+            false => Ok(None),
         }
-
-        let tokenize_payload = PaymentMethodServiceTokenizeRequest::foreign_from(payload);
-        let mut tokenize_request = tonic::Request::new(tokenize_payload);
-        *tokenize_request.metadata_mut() = metadata.clone();
-        *tokenize_request.extensions_mut() = extensions.clone();
-
-        Ok(Some(
-            self.payment_method_service
-                .tokenize(tokenize_request)
-                .await?
-                .into_inner(),
-        ))
     }
     async fn create_server_authentication_token<Req: CompositeAccessTokenRequest>(
         &self,

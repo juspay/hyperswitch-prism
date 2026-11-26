@@ -21,15 +21,12 @@ use common_utils::{
     ext_traits::ByteSliceExt,
 };
 use domain_types::{
-    connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, Void,
-    },
+    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, Void},
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, ConnectorWebhookSecrets, EventType,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RequestDetails, WebhookResourceReference,
+        ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, WebhookResourceReference,
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -265,23 +262,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth =
-            kgp::KgpAuthType::try_from(auth_type)
-                .change_context(IntegrationError::FailedToObtainAuthType {
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Configure KGP with an Omise secret key in api_key and a public key in \
-                         public_key."
-                            .to_string(),
-                    ),
-                    doc_url: Some("https://docs.omise.co/api-authentication".to_string()),
-                    additional_context: Some(
-                        "KGP charge, capture, void, and refund requests use the secret key for \
-                         HTTP Basic authentication."
-                            .to_string(),
-                    ),
-                },
-            })?;
+        let context = errors::IntegrationErrorContext {
+            suggested_action: Some(
+                "Configure KGP with an Omise secret key in api_key and a public key in public_key."
+                    .to_string(),
+            ),
+            doc_url: Some("https://docs.omise.co/api-authentication".to_string()),
+            additional_context: Some(
+                "KGP charge, capture, void, and refund requests use the secret key for HTTP \
+                 Basic authentication."
+                    .to_string(),
+            ),
+        };
+        let auth = kgp::KgpAuthType::try_from(auth_type)
+            .change_context(IntegrationError::FailedToObtainAuthType { context })?;
         // HTTP Basic with empty password: base64("<secret_key>:")
         let encoded = BASE64_ENGINE.encode(format!("{}:", auth.secret_key.peek()));
         Ok(vec![(
@@ -346,52 +340,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Required by ConnectorServiceTrait; no KGP customer HTTP integration is registered.
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Kgp<T>
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            CreateConnectorCustomer,
-            PaymentFlowData,
-            ConnectorCustomerData,
-            ConnectorCustomerResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::NotImplemented(
-            "KGP customer creation is not implemented by this connector".to_string(),
-            errors::IntegrationErrorContext {
-                suggested_action: Some(
-                    "Do not invoke CreateConnectorCustomer for KGP. Authorize with an Omise \
-                     one-time token, or pass an existing Omise customer and saved card pair."
-                        .to_string(),
-                ),
-                doc_url: Some("https://docs.omise.co/customers-api".to_string()),
-                additional_context: Some(
-                    "KGP does not create a customer during every authorization; customer \
-                     creation is a separate saved-card operation and is currently unsupported."
-                        .to_string(),
-                ),
-            },
-        )
-        .into())
-    }
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Kgp<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Kgp<T>
 {
+    fn should_create_connector_customer(&self) -> bool {
+        false
+    }
+
     fn should_do_payment_method_token(
         &self,
         payment_method: common_enums::PaymentMethod,
@@ -513,10 +468,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn process_redirect_response(
         &self,
-        _request: &RequestDetails,
+        request: &RequestDetails,
         _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
-        // The charge ID saved during authorization is retained by the caller and used for PSync.
+        // Omise does not guarantee a structured payload when it returns the browser to
+        // `return_uri`. Preserve any callback body or query string for diagnostics; the charge
+        // ID saved during authorization remains the authoritative PSync lookup key.
+        let raw_connector_response = if request.body.is_empty() {
+            request.query_params.clone()
+        } else {
+            Some(String::from_utf8_lossy(&request.body).into_owned())
+        };
         Ok(RedirectDetailsResponse {
             resource_id: None,
             status: None,
@@ -525,7 +487,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_code: None,
             error_message: None,
             error_reason: None,
-            raw_connector_response: None,
+            raw_connector_response,
             connector_feature_data: None,
         })
     }
@@ -555,6 +517,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     not_implemented: [
         Accept,
         ClientAuthenticationToken,
+        CreateConnectorCustomer,
         DefendDispute,
         GetConnectorCustomer,
         MandateRevoke,

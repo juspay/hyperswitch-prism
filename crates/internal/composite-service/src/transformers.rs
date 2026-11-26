@@ -28,7 +28,7 @@ use grpc_api_types::payments::{
 
 use crate::utils::{
     get_access_token, get_connector_customer_id, get_payment_method_token, get_session_token,
-    grpc_connector_from_connector_variant,
+    get_tokenized_payment_method, grpc_connector_from_connector_variant,
 };
 
 pub trait ForeignFrom<F>: Sized {
@@ -325,21 +325,10 @@ impl
             order_tax_amount: item.order_tax_amount,
             surcharge_amount: None,
             shipping_cost: item.shipping_cost,
-            payment_method: payment_method_tokenize_response
-                .filter(|response| !response.payment_method_token.is_empty())
-                .map(|response| grpc_api_types::payments::PaymentMethod {
-                    payment_method: Some(
-                        grpc_api_types::payments::payment_method::PaymentMethod::Token(
-                            grpc_api_types::payments::TokenPaymentMethodType {
-                                token: Some(hyperswitch_masking::Secret::new(
-                                    response.payment_method_token.clone(),
-                                )),
-                                token_payment_method_type: None,
-                            },
-                        ),
-                    ),
-                })
-                .or_else(|| item.payment_method.clone()),
+            payment_method: get_tokenized_payment_method(
+                item.payment_method.clone(),
+                payment_method_tokenize_response,
+            ),
             capture_method: item.capture_method,
             customer: item.customer.clone(),
             address: item.address.clone(),
@@ -1134,6 +1123,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentMethodServiceTokenizeReq
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         Self {
             integrity_specifications: item.integrity_specifications,
+            // Authorize carries the payment method inline and has no merchant payment-method ID.
             merchant_payment_method_id: None,
             amount: item.amount,
             payment_method: item.payment_method.clone(),
