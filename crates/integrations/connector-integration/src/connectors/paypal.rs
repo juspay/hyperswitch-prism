@@ -1031,9 +1031,19 @@ macros::macro_connector_implementation!(
             let connector_metadata = req.resource_common_data.connector_feature_data
                 .as_ref()
                 .map(|secret| secret.clone().expose());
+            // PayPal replays the stored response for a repeated PayPal-Request-Id, so each
+            // partial capture needs its own id or every capture after the first is a no-op.
+            let request_id = req
+                .request
+                .multiple_capture_data
+                .as_ref()
+                .map_or(
+                    req.resource_common_data.connector_request_reference_id.as_str(),
+                    |data| data.capture_reference.as_str(),
+                );
             self.build_headers(
                 &access_token.access_token.expose(),
-                &req.resource_common_data.connector_request_reference_id,
+                request_id,
                 &req.connector_config,
                 connector_metadata.as_ref(),
             )

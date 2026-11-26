@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.26.0
+
+### Features
+
+- **connector:** [Rapyd] map per-payment AVS checks ([#2939](https://github.com/juspay/connector-service/pull/2939)) ([`b3b2fcc`](https://github.com/juspay/connector-service/commit/b3b2fccfec2f5b64212ec90b21b7bc422a1d7ad4))
+
+### Bug Fixes
+
+- **connector:** [PayPal] send Mastercard NTI date on MITs and use a distinct request id per partial capture ([#2949](https://github.com/juspay/connector-service/pull/2949)) ([`681713b`](https://github.com/juspay/connector-service/commit/681713bc39a8096159648d7e2b1287e755c485da))
+- **flywire:** Separate checkout session and payment IDs ([#2938](https://github.com/juspay/connector-service/pull/2938)) ([`a5c628f`](https://github.com/juspay/connector-service/commit/a5c628f7951d3d5deafd44b639bcebaf64e19e19))
+
+**Full Changelog:** [`2026.11.25.1...2026.11.26.0`](https://github.com/juspay/connector-service/compare/2026.11.25.1...2026.11.26.0)
+
+- - -
+
 ## 2026.11.25.1
 
 ### Features
