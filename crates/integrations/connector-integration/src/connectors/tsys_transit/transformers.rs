@@ -2695,9 +2695,9 @@ fn get_payment_status_from_psync_response(
     response_code: Option<String>,
 ) -> AttemptStatus {
     let transaction_type = item.transaction_type.to_lowercase();
-    // Using a static string instead of an enum since `transaction_status` is returned as a plain string,
-    // e.g. "Credit Card Sale Void". Check "void" first: void types also contain "sale"/"auth".
-    if transaction_type.contains("void") {
+    // TSYS returns transaction_type as a string. Only an authorization void releases
+    // a hold; a sale void is a capture reversal.
+    if transaction_type.contains("auth") && transaction_type.contains("void") {
         match item.transaction_status {
             Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Voided,
             Some(TsysTransitTransactionStatus::Decline)
