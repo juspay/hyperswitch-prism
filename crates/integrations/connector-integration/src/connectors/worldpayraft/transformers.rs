@@ -2400,30 +2400,54 @@ impl TryFrom<ResponseRouterData<WorldpayraftSyncResponse, Self>>
             } => (true, creditpurchaseresponse),
         };
         let mut router_data = item.router_data;
-        let status = if inner.return_code == RETURN_CODE_SUCCESS {
-            payment_status(&inner.return_code, &inner.response_code, auto_capture)
-        } else {
+        let connector_error = WorldpayraftErrorResponse::from(&inner);
+        let recovery_error = !connector_error.is_success();
+        let status = if recovery_error {
+            // A failed replay does not establish the original authorization's outcome.
+            // Keep the current status so HyperSwitch can retry PSync via Process Tracker.
             router_data.resource_common_data.status
+        } else {
+            payment_status(&inner.return_code, &inner.response_code, auto_capture)
         };
         router_data.resource_common_data.status = status;
+        let existing_connector_transaction_id = match &router_data.request.connector_transaction_id
+        {
+            ResponseId::ConnectorTransactionId(id) => parse_connector_transaction_id(id)
+                .ok()
+                .filter(|(_, authorization_number, retrieval_reference, _)| {
+                    !authorization_number.trim().is_empty()
+                        || !retrieval_reference.trim().is_empty()
+                })
+                .map(|_| id.clone()),
+            _ => None,
+        };
+        if recovery_error {
+            router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: existing_connector_transaction_id
+                    .map(ResponseId::ConnectorTransactionId)
+                    .unwrap_or(ResponseId::NoResponseId),
+                redirection_data: None,
+                connector_metadata: router_data
+                    .request
+                    .connector_feature_data
+                    .as_ref()
+                    .map(|metadata| metadata.peek().clone()),
+                mandate_reference: router_data.request.mandate_reference.clone().map(Box::new),
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            });
+            return Ok(router_data);
+        }
         let connector_transaction_id = inner
             .reference_trace_numbers
             .as_ref()
             .map(|trace| trace.connector_transaction_id(TXN_TYPE_CREDIT))
-            .or_else(|| match &router_data.request.connector_transaction_id {
-                ResponseId::ConnectorTransactionId(id) => Some(id.clone()),
-                _ => None,
-            })
-            .unwrap_or_default();
-
-        if let Some(error) = WorldpayraftErrorResponse::from(&inner).error_response_if_failed(
-            item.http_code,
-            Some(FlowStatus::Payment(status)),
-            Some(connector_transaction_id.clone()),
-        ) {
-            router_data.response = Err(error);
-            return Ok(router_data);
-        }
+            .or(existing_connector_transaction_id);
 
         let request = &router_data.request;
         let mut metadata =
@@ -2461,7 +2485,9 @@ impl TryFrom<ResponseRouterData<WorldpayraftSyncResponse, Self>>
             errors::ConnectorError::response_handling_failed(item.http_code),
         )?;
         router_data.response = Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
+            resource_id: ResponseId::ConnectorTransactionId(
+                connector_transaction_id.unwrap_or_default(),
+            ),
             redirection_data: None,
             mandate_reference: inner
                 .encryption_token_data
