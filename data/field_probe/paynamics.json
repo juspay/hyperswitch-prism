@@ -633,8 +633,8 @@
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund_sync flow for paynamics"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data — Missing required field: connector_feature_data"
       }
     },
     "reverse": {
