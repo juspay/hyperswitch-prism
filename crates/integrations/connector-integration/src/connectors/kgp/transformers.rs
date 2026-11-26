@@ -336,7 +336,7 @@ pub struct KgpTokenRequest<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
 #[derive(Debug, Clone, Serialize)]
 pub struct KgpPaymentsRequest {
     /// Integer minor units.
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Currency,
     /// Omise card token (`tokn_…`) or card id (`card_…`).
     pub card: Secret<String>,
@@ -369,7 +369,7 @@ pub struct KgpPaymentsRequest {
 pub struct KgpCaptureRequest {
     /// Partial capture amount in minor units. Omitted = capture full.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub capture_amount: Option<i64>,
+    pub capture_amount: Option<MinorUnit>,
 }
 
 /// `POST {api}/charges/{id}/reverse` — uncaptured auth only.
@@ -381,7 +381,7 @@ pub struct KgpVoidRequest {}
 pub struct KgpRefundRequest {
     /// Minor units. Omitted = full remaining refundable.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     #[serde(
         rename = "metadata[refund_id]",
         skip_serializing_if = "Option::is_none"
@@ -601,7 +601,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone();
 
         Ok(Self {
-            amount: request.money.amount().get_amount_as_i64(),
+            amount: request.money.amount(),
             currency: request.currency,
             card: card_token,
             customer,
@@ -772,7 +772,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Partial capture: send capture_amount when it is less than the full auth.
         // Omise treats a missing capture_amount as "capture everything remaining".
         Ok(Self {
-            capture_amount: Some(request.capture_money.amount().get_amount_as_i64()),
+            capture_amount: Some(request.capture_money.amount()),
         })
     }
 }
@@ -939,7 +939,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         Ok(Self {
-            amount: Some(request.refund_money.amount().get_amount_as_i64()),
+            amount: Some(request.refund_money.amount()),
             metadata_refund_id: Some(request.refund_id.clone()),
         })
     }
