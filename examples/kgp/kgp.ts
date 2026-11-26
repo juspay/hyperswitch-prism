@@ -5,9 +5,9 @@
 // Kgp — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx kgp.ts checkout_autocapture
 
-import { PaymentClient, CustomerClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, CaptureMethod, Currency, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["capture", "customer_create", "get", "parse_event", "refund", "refund_get", "token_authorize", "void"];
+export const SUPPORTED_FLOWS = ["capture", "get", "parse_event", "refund", "refund_get", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -32,15 +32,6 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
             "minorAmount": 1000,
             "currency": Currency.USD
         }
-    };
-}
-
-function _buildCustomerCreateRequest(): types.ICustomerServiceCreateRequest {
-    return {
-        "merchantCustomerId": "cust_probe_123",  // Identification.
-        "customerName": "John Doe",  // Name of the customer.
-        "email": {"value": "test@example.com"},  // Email address of the customer.
-        "phoneNumber": {"value": "4155552671"}  // Phone number of the customer.
     };
 }
 
@@ -123,15 +114,6 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
     return captureResponse;
 }
 
-// Flow: CustomerService.Create
-async function customerCreate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const customerClient = new CustomerClient(config);
-
-    const customerResponse = await customerClient.customerCreate(_buildCustomerCreateRequest());
-
-    return customerResponse;
-}
-
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -189,7 +171,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, customerCreate, get, parseEvent, refund, refundGet, tokenAuthorize, voidPayment, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    capture, get, parseEvent, refund, refundGet, tokenAuthorize, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner
