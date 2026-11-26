@@ -61,6 +61,7 @@ const FISERV_TRANSACTION_DETAILS_DOC_URL: &str =
 const FISERV_TRANSACTION_INTERACTION_DOC_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Reference/Master-Data/Transaction-Interaction.mdx?branch=active#electronic-commerce-indicator-eci";
 const FISERV_DECRYPTED_WALLET_DOC_URL: &str = "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Digital-Wallets/Decrypted-Wallet/Decrypted-Wallet.mdx";
+pub(crate) const FISERV_THREE_DS_DOC_URL: &str = "https://developer.fiserv.com/product/CommerceHub/docs/Online-Commerce/3D-Secure/3DS-API-Direct.mdx?branch=active";
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum FiservcommercehubEncryptionType {
@@ -3216,8 +3217,6 @@ where
 // The caller forwards typed authentication data between the granular RPCs and
 // hosts Cardinal's DDC/challenge iframe. Browser completion triggers verification;
 // only the server response can advance authentication toward authorization.
-pub(crate) const FISERV_THREE_DS_DOC_URL: &str = "https://developer.fiserv.com/product/CommerceHub/docs/Online-Commerce/3D-Secure/3DS-API-Direct.mdx?branch=active";
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubAuthenticatedChargeRequest {
@@ -3245,149 +3244,165 @@ fn build_authenticated_charge_request<T: PaymentMethodDataTypes>(
         .and_then(|authentication_data| authentication_data.authentication_stage);
     match authentication_stage {
         Some(_) => {
-            let auth = FiservcommercehubAuthType::try_from(config)?;
-            let authentication_reference = FiservcommercehubAuthenticationReference::try_from((
-                request.authentication_data.as_ref(),
-                common_enums::AuthenticationStage::ReadyToAuthorize,
-            ))?;
-
-            let currency_matches = amount.currency == request.money.currency();
-            let authentication_status = request
-                .authentication_data
-                .as_ref()
-                .and_then(|authentication_data| authentication_data.trans_status.as_ref());
-            match (currency_matches, authentication_status) {
-                (false, _) => Err(error_stack::Report::new(
-                    errors::IntegrationError::InvalidDataFormat {
-                        field_name: "currency",
-                        context: errors::IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Use the same currency in the authorization request and its \
-                                money field."
-                                    .to_string(),
-                            ),
-                            doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                            additional_context: Some(
-                                "The authorization currency must match request.money.currency."
-                                    .to_string(),
-                            ),
-                        },
-                    },
-                )),
-                (
-                    true,
-                    Some(
-                        common_enums::TransactionStatus::Success
-                        | common_enums::TransactionStatus::NotVerified,
-                    ),
-                ) => Ok(Some(FiservcommercehubAuthenticatedChargeRequest {
-                    amount,
-                    merchant_details: build_three_ds_merchant_details(&auth),
-                    transaction_details: FiservcommercehubTransactionDetailsReq {
-                        capture_flag: request.is_auto_capture(),
-                        merchant_transaction_id: resource.connector_request_reference_id.clone(),
-                        merchant_order_id: request.merchant_order_id.clone(),
-                        merchant_invoice_number: parse_connector_metadata(
-                            request.metadata.as_ref(),
-                        )?
-                        .merchant_invoice_id,
-                        create_token: None,
-                    },
-                    stored_credentials: request
-                        .is_customer_initiated_mandate_payment()
-                        .then(FiservcommercehubStoredCredentials::new_cit),
-                    additional_data_3ds: authentication_reference,
-                })),
-                (true, _) => Err(error_stack::Report::new(
-                    errors::IntegrationError::InvalidDataFormat {
-                        field_name: "authentication_data.trans_status",
-                        context: errors::IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Complete 3DS authentication successfully before authorizing the \
-                                payment."
-                                    .to_string(),
-                            ),
-                            doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                            additional_context: Some(
-                                "Authorization requires successful or accepted attempted \
-                                authentication."
-                                    .to_string(),
-                            ),
-                        },
-                    },
-                )),
-            }
+            build_managed_three_ds_charge_request(resource, config, request, amount).map(Some)
         }
         None => {
-            let authentication_data = request.authentication_data.as_ref();
-            let authentication_status =
-                authentication_data.and_then(|data| data.trans_status.as_ref());
-            let requires_card_authentication = resource.auth_type == AuthenticationType::ThreeDs
-                && matches!(
-                    &request.payment_method_data,
-                    PaymentMethodData::Card(_) | PaymentMethodData::CardWithNoCvc(_)
-                );
-            let has_external_authentication =
-                authentication_data.is_some_and(AuthenticationData::has_external_authentication);
-            let missing_authentication =
-                requires_card_authentication && !has_external_authentication;
-
-            // Challenge responses also contain DS IDs. An incomplete status must
-            // remain blocked even if the caller loses the managed authentication stage.
-            match (authentication_status, missing_authentication) {
-                (
-                    Some(
-                        common_enums::TransactionStatus::Success
-                        | common_enums::TransactionStatus::NotVerified,
-                    )
-                    | None,
-                    false,
-                ) => Ok(None),
-                (
-                    Some(
-                        common_enums::TransactionStatus::Success
-                        | common_enums::TransactionStatus::NotVerified,
-                    )
-                    | None,
-                    true,
-                ) => Err(error_stack::Report::new(
-                    errors::IntegrationError::InvalidDataFormat {
-                        field_name: "authentication_data",
-                        context: errors::IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Forward the CommerceHub authentication data for the same \
-                                payment attempt."
-                                    .to_string(),
-                            ),
-                            doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                            additional_context: Some(
-                                "Managed 3DS authorization requires completed authentication; \
-                                start with PreAuthenticate."
-                                    .to_string(),
-                            ),
-                        },
-                    },
-                )),
-                (Some(_), _) => Err(error_stack::Report::new(
-                    errors::IntegrationError::InvalidDataFormat {
-                        field_name: "authentication_data.trans_status",
-                        context: errors::IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Complete 3DS authentication successfully before authorizing the \
-                                payment."
-                                    .to_string(),
-                            ),
-                            doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                            additional_context: Some(
-                                "Pending, failed or unsupported 3DS authentication cannot \
-                                authorize a payment."
-                                    .to_string(),
-                            ),
-                        },
-                    },
-                )),
-            }
+            validate_source_charge_authentication(resource, request)?;
+            Ok(None)
         }
+    }
+}
+
+fn build_managed_three_ds_charge_request<T: PaymentMethodDataTypes>(
+    resource: &PaymentFlowData,
+    config: &ConnectorSpecificConfig,
+    request: &PaymentsAuthorizeData<T>,
+    amount: FiservcommercehubAuthorizeAmount,
+) -> Result<
+    FiservcommercehubAuthenticatedChargeRequest,
+    error_stack::Report<errors::IntegrationError>,
+> {
+    let auth = FiservcommercehubAuthType::try_from(config)?;
+    // Authorization requires this completed stage, regardless of the supplied stage.
+    let authentication_reference = FiservcommercehubAuthenticationReference::try_from((
+        request.authentication_data.as_ref(),
+        common_enums::AuthenticationStage::ReadyToAuthorize,
+    ))?;
+
+    let currency_matches = amount.currency == request.money.currency();
+    let authentication_status = request
+        .authentication_data
+        .as_ref()
+        .and_then(|authentication_data| authentication_data.trans_status.as_ref());
+    match (currency_matches, authentication_status) {
+        (false, _) => Err(error_stack::Report::new(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use the same currency in the authorization request and its \
+                        money field."
+                            .to_string(),
+                    ),
+                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "The authorization currency must match request.money.currency.".to_string(),
+                    ),
+                },
+            },
+        )),
+        (
+            true,
+            Some(
+                common_enums::TransactionStatus::Success
+                | common_enums::TransactionStatus::NotVerified,
+            ),
+        ) => Ok(FiservcommercehubAuthenticatedChargeRequest {
+            amount,
+            merchant_details: build_three_ds_merchant_details(&auth),
+            transaction_details: FiservcommercehubTransactionDetailsReq {
+                capture_flag: request.is_auto_capture(),
+                merchant_transaction_id: resource.connector_request_reference_id.clone(),
+                merchant_order_id: request.merchant_order_id.clone(),
+                merchant_invoice_number: parse_connector_metadata(request.metadata.as_ref())?
+                    .merchant_invoice_id,
+                create_token: None,
+            },
+            stored_credentials: request
+                .is_customer_initiated_mandate_payment()
+                .then(FiservcommercehubStoredCredentials::new_cit),
+            additional_data_3ds: authentication_reference,
+        }),
+        (true, _) => Err(error_stack::Report::new(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.trans_status",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Complete 3DS authentication successfully before authorizing the \
+                        payment."
+                            .to_string(),
+                    ),
+                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Authorization requires successful or accepted attempted \
+                        authentication."
+                            .to_string(),
+                    ),
+                },
+            },
+        )),
+    }
+}
+
+fn validate_source_charge_authentication<T: PaymentMethodDataTypes>(
+    resource: &PaymentFlowData,
+    request: &PaymentsAuthorizeData<T>,
+) -> Result<(), error_stack::Report<errors::IntegrationError>> {
+    let authentication_data = request.authentication_data.as_ref();
+    let authentication_status = authentication_data.and_then(|data| data.trans_status.as_ref());
+    let requires_card_authentication = resource.auth_type == AuthenticationType::ThreeDs
+        && matches!(
+            &request.payment_method_data,
+            PaymentMethodData::Card(_) | PaymentMethodData::CardWithNoCvc(_)
+        );
+    let has_external_authentication =
+        authentication_data.is_some_and(AuthenticationData::has_external_authentication);
+    let missing_authentication = requires_card_authentication && !has_external_authentication;
+
+    // Challenge responses also contain DS IDs. An incomplete status must
+    // remain blocked even if the caller loses the managed authentication stage.
+    match (authentication_status, missing_authentication) {
+        (
+            Some(
+                common_enums::TransactionStatus::Success
+                | common_enums::TransactionStatus::NotVerified,
+            )
+            | None,
+            false,
+        ) => Ok(()),
+        (
+            Some(
+                common_enums::TransactionStatus::Success
+                | common_enums::TransactionStatus::NotVerified,
+            )
+            | None,
+            true,
+        ) => Err(error_stack::Report::new(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Forward the CommerceHub authentication data for the same \
+                        payment attempt."
+                            .to_string(),
+                    ),
+                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Managed 3DS authorization requires completed authentication; \
+                        start with PreAuthenticate."
+                            .to_string(),
+                    ),
+                },
+            },
+        )),
+        (Some(_), _) => Err(error_stack::Report::new(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.trans_status",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Complete 3DS authentication successfully before authorizing the \
+                        payment."
+                            .to_string(),
+                    ),
+                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Pending, failed or unsupported 3DS authentication cannot \
+                        authorize a payment."
+                            .to_string(),
+                    ),
+                },
+            },
+        )),
     }
 }
 
@@ -3817,60 +3832,14 @@ struct FiservcommercehubDynamicFingerprint {
     ip_address: Secret<String>,
 }
 
-fn build_device_fingerprint(
-    browser: Option<&BrowserInformation>,
-) -> Result<FiservcommercehubFingerprintDetails, error_stack::Report<errors::IntegrationError>> {
-    let browser = browser.ok_or_else(|| {
-        error_stack::Report::new(errors::IntegrationError::MissingRequiredField {
-            field_name: "browser_info",
-            context: errors::IntegrationErrorContext {
-                suggested_action: Some(
-                    "Collect all required browser fields when Cardinal device data \
-                    collection is unavailable."
-                        .to_string(),
-                ),
-                doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                additional_context: Some(
-                    "A required CommerceHub 3DS request field is missing.".to_string(),
-                ),
-            },
-        })
-    })?;
-    let locale = browser.language.clone().ok_or_else(|| {
-        error_stack::Report::new(errors::IntegrationError::MissingRequiredField {
-            field_name: "browser_info.language",
-            context: errors::IntegrationErrorContext {
-                suggested_action: Some(
-                    "Collect all required browser fields when Cardinal device data \
-                    collection is unavailable."
-                        .to_string(),
-                ),
-                doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                additional_context: Some(
-                    "A required CommerceHub 3DS request field is missing.".to_string(),
-                ),
-            },
-        })
-    })?;
-    let accepts = browser.accept_header.clone().ok_or_else(|| {
-        error_stack::Report::new(errors::IntegrationError::MissingRequiredField {
-            field_name: "browser_info.accept_header",
-            context: errors::IntegrationErrorContext {
-                suggested_action: Some(
-                    "Collect all required browser fields when Cardinal device data \
-                    collection is unavailable."
-                        .to_string(),
-                ),
-                doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                additional_context: Some(
-                    "A required CommerceHub 3DS request field is missing.".to_string(),
-                ),
-            },
-        })
-    })?;
-    if locale.is_empty() || locale.len() > 8 || accepts.is_empty() || accepts.len() > 256 {
-        return Err(error_stack::Report::new(
-            errors::IntegrationError::InvalidDataFormat {
+impl TryFrom<&BrowserInformation> for FiservcommercehubFingerprintDetails {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(browser: &BrowserInformation) -> Result<Self, Self::Error> {
+        let locale = browser.get_language()?;
+        let accepts = browser.get_accept_header()?;
+        if locale.is_empty() || locale.len() > 8 || accepts.is_empty() || accepts.len() > 256 {
+            return Err(errors::IntegrationError::InvalidDataFormat {
                 field_name: "browser_info",
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(
@@ -3885,166 +3854,29 @@ fn build_device_fingerprint(
                             .to_string(),
                     ),
                 },
-            },
-        ));
-    }
-    let color_depth =
-        browser
-            .color_depth
-            .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-                field_name: "browser_info.color_depth",
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Collect all required browser fields when Cardinal device data \
-                        collection is unavailable."
-                            .to_string(),
-                    ),
-                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                    additional_context: Some(
-                        "A required CommerceHub 3DS request field is missing.".to_string(),
-                    ),
-                },
-            })?;
-    let screen_height =
-        browser
-            .screen_height
-            .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-                field_name: "browser_info.screen_height",
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Collect all required browser fields when Cardinal device data \
-                        collection is unavailable."
-                            .to_string(),
-                    ),
-                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                    additional_context: Some(
-                        "A required CommerceHub 3DS request field is missing.".to_string(),
-                    ),
-                },
-            })?;
-    let screen_width =
-        browser
-            .screen_width
-            .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-                field_name: "browser_info.screen_width",
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Collect all required browser fields when Cardinal device data \
-                        collection is unavailable."
-                            .to_string(),
-                    ),
-                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                    additional_context: Some(
-                        "A required CommerceHub 3DS request field is missing.".to_string(),
-                    ),
-                },
-            })?;
-    let timezone_offset =
-        browser
-            .time_zone
-            .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-                field_name: "browser_info.time_zone",
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Collect all required browser fields when Cardinal device data \
-                        collection is unavailable."
-                            .to_string(),
-                    ),
-                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                    additional_context: Some(
-                        "A required CommerceHub 3DS request field is missing.".to_string(),
-                    ),
-                },
-            })?;
-    let java_enabled =
-        browser
-            .java_enabled
-            .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-                field_name: "browser_info.java_enabled",
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Collect all required browser fields when Cardinal device data \
-                        collection is unavailable."
-                            .to_string(),
-                    ),
-                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                    additional_context: Some(
-                        "A required CommerceHub 3DS request field is missing.".to_string(),
-                    ),
-                },
-            })?;
-    let java_script_enabled = browser.java_script_enabled.ok_or_else(|| {
-        errors::IntegrationError::MissingRequiredField {
-            field_name: "browser_info.java_script_enabled",
-            context: errors::IntegrationErrorContext {
-                suggested_action: Some(
-                    "Collect all required browser fields when Cardinal device data \
-                    collection is unavailable."
-                        .to_string(),
-                ),
-                doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                additional_context: Some(
-                    "A required CommerceHub 3DS request field is missing.".to_string(),
-                ),
-            },
+            }
+            .into());
         }
-    })?;
-    let user_agent = browser
-        .user_agent
-        .as_ref()
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-            field_name: "browser_info.user_agent",
-            context: errors::IntegrationErrorContext {
-                suggested_action: Some(
-                    "Collect all required browser fields when Cardinal device data \
-                    collection is unavailable."
-                        .to_string(),
-                ),
-                doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                additional_context: Some(
-                    "A required CommerceHub 3DS request field is missing.".to_string(),
-                ),
-            },
-        })?
-        .chars()
-        .take(2048)
-        .collect();
-    let ip_address =
-        browser
-            .ip_address
-            .ok_or_else(|| errors::IntegrationError::MissingRequiredField {
-                field_name: "browser_info.ip_address",
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Collect all required browser fields when Cardinal device data \
-                        collection is unavailable."
-                            .to_string(),
-                    ),
-                    doc_url: Some(FISERV_THREE_DS_DOC_URL.to_string()),
-                    additional_context: Some(
-                        "A required CommerceHub 3DS request field is missing.".to_string(),
-                    ),
-                },
-            })?;
-    Ok(FiservcommercehubFingerprintDetails {
-        device_fingerprint: [
-            FiservcommercehubFingerprint::DataStatic(FiservcommercehubStaticFingerprint {
-                color_depth,
-                screen_height,
-                screen_width,
-                timezone_offset,
-                java_enabled,
-                java_script_enabled,
-                locale,
-                accepts,
-                user_agent,
-            }),
-            FiservcommercehubFingerprint::DataDynamic(FiservcommercehubDynamicFingerprint {
-                ip_address: Secret::new(ip_address.to_string()),
-            }),
-        ],
-    })
+        let user_agent = browser.get_user_agent()?;
+        Ok(Self {
+            device_fingerprint: [
+                FiservcommercehubFingerprint::DataStatic(FiservcommercehubStaticFingerprint {
+                    color_depth: browser.get_color_depth()?,
+                    screen_height: browser.get_screen_height()?,
+                    screen_width: browser.get_screen_width()?,
+                    timezone_offset: browser.get_time_zone()?,
+                    java_enabled: browser.get_java_enabled()?,
+                    java_script_enabled: browser.get_java_script_enabled()?,
+                    locale,
+                    accepts,
+                    user_agent: user_agent.chars().take(2048).collect(),
+                }),
+                FiservcommercehubFingerprint::DataDynamic(FiservcommercehubDynamicFingerprint {
+                    ip_address: Secret::new(browser.get_ip_address()?.expose()),
+                }),
+            ],
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -4101,9 +3933,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let service_provider_reference_id =
             device_collection_reference(data.request.redirect_response.as_ref())?;
         let transaction_details = if service_provider_reference_id.is_none() {
-            Some(build_device_fingerprint(
-                data.request.browser_info.as_ref(),
-            )?)
+            let browser = data
+                .request
+                .browser_info
+                .as_ref()
+                .ok_or_else(utils::missing_field_err("browser_info"))?;
+            Some(FiservcommercehubFingerprintDetails::try_from(browser)?)
         } else {
             None
         };
@@ -4200,7 +4035,18 @@ pub struct FiservcommercehubThreeDsResponse {
 #[serde(rename_all = "camelCase")]
 struct FiservcommercehubThreeDsGatewayResponse {
     transaction_type: String,
-    transaction_state: String,
+    transaction_state: FiservcommercehubThreeDsTransactionState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum FiservcommercehubThreeDsTransactionState {
+    Initialized,
+    Authenticated,
+    Waiting,
+    // Unrecognized states must never satisfy initialization or authentication success checks.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4309,6 +4155,9 @@ impl FiservcommercehubAuthenticationResult {
                 Some("N") => Some(common_enums::TransactionStatus::Failure),
                 Some("R") => Some(common_enums::TransactionStatus::Rejected),
                 Some("U") => Some(common_enums::TransactionStatus::VerificationNotPerformed),
+                // Initialize may omit this field. Fiserv's Additional Data 3DS reference
+                // does not enumerate all status codes; authentication_outcome rejects
+                // missing or unsupported values before Authenticate/Verify can advance.
                 _ => None,
             },
             transaction_id: Some(self.authentication_transaction_id.clone()),
@@ -4406,7 +4255,8 @@ impl FiservcommercehubThreeDsResponse {
             Some("C")
                 if expected_stage
                     == common_enums::AuthenticationStage::DeviceDataCollectionPending
-                    && self.gateway_response.transaction_state == "WAITING"
+                    && self.gateway_response.transaction_state
+                        == FiservcommercehubThreeDsTransactionState::Waiting
                     && self.processor_response_details.response_code == "364"
                     && authentication_result.challenge_indicator == Some(true) =>
             {
@@ -4423,7 +4273,8 @@ impl FiservcommercehubThreeDsResponse {
             // Fiserv documents A (attempted) on APPROVED/AUTHENTICATED responses.
             // Permit the payment while preserving A as NotVerified for callers.
             Some("Y" | "A")
-                if self.gateway_response.transaction_state == "AUTHENTICATED"
+                if self.gateway_response.transaction_state
+                    == FiservcommercehubThreeDsTransactionState::Authenticated
                     && self.processor_response_details.response_code == "000"
                     && self.processor_response_details.approval_status.as_deref()
                         == Some("APPROVED")
@@ -4444,11 +4295,14 @@ impl FiservcommercehubThreeDsResponse {
                 return Err(error_stack::Report::new(
                     errors::ConnectorError::response_handling_failed_with_context(
                         http_status,
-                        Some(
+                        Some(format!(
                             "CommerceHub 3DS is incomplete, unsupported or inconsistent; \
-                            authorization is blocked."
-                                .to_string(),
-                        ),
+                            authorization is blocked. authenticationStatus={authentication_status:?}, \
+                            transactionState={:?}, responseCode={}, challengeIndicator={:?}.",
+                            self.gateway_response.transaction_state,
+                            self.processor_response_details.response_code,
+                            authentication_result.challenge_indicator,
+                        )),
                     ),
                 ))
             }
@@ -4483,10 +4337,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservcommercehubThre
         let processor_response = &connector_response.processor_response_details;
         match (
             gateway_response.transaction_type.as_str(),
-            gateway_response.transaction_state.as_str(),
+            gateway_response.transaction_state,
             processor_response.response_code.as_str(),
         ) {
-            ("INITIALIZE", "INITIALIZED", "000") => Ok(()),
+            ("INITIALIZE", FiservcommercehubThreeDsTransactionState::Initialized, "000") => Ok(()),
             _ => Err(
                 errors::ConnectorError::response_handling_failed_with_context(
                     http_status_code,

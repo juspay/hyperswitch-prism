@@ -4,7 +4,11 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::RequestContent, FloatMajorUnit,
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    request::{Method, RequestBuilder, RequestContent},
+    FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -91,7 +95,6 @@ fn build_signed_three_ds_request<B: Serialize + Send + 'static>(
     url: &str,
     body: B,
 ) -> CustomResult<common_utils::request::Request, errors::IntegrationError> {
-    use common_utils::request::{Method, RequestBuilder};
     let serialized = serde_json::to_string(&body).change_context(
         errors::IntegrationError::RequestEncodingFailed {
             context: fiserv_integration_error_context(
@@ -967,8 +970,6 @@ macros::macro_connector_implementation!(
                 PaymentsResponseData,
             >,
         ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
-            use common_utils::request::{Method, RequestBuilder};
-
             let input_data = FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone()
@@ -1285,8 +1286,6 @@ macros::macro_connector_implementation!(
                 PaymentsResponseData,
             >,
         ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
-            use common_utils::request::{Method, RequestBuilder};
-
             let input_data = FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone()
