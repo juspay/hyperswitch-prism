@@ -3787,6 +3787,18 @@ impl RefundsData {
             })
     }
 
+    /// The connector's id for the payment being refunded; errors when the
+    /// caller sent none (the proto field defaults to an empty string).
+    pub fn get_connector_transaction_id(&self) -> Result<String, Error> {
+        if self.connector_transaction_id.is_empty() {
+            return Err(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            }
+            .into());
+        }
+        Ok(self.connector_transaction_id.clone())
+    }
+
     pub fn get_connector_order_id(&self) -> Result<String, Error> {
         self.connector_order_id
             .clone()

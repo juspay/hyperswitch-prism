@@ -6125,15 +6125,26 @@ message RevpayConfig {
   optional string base_url = 50;
 }
 
+// Fire (fire.com) open banking. Protected API calls use a short-lived Bearer
+// access token obtained from POST /business/v1/apps/accesstokens.
 message FireConfig {
+  // Fire API application Client ID, sent as `clientId` in the access-token request.
   SecretString client_id = 1;
+  // Fire API application Client Key. Never sent on the wire: the access-token
+  // request carries `clientSecret` = hex(SHA-256(nonce || client_key)).
   SecretString client_key = 2;
+  // Fire API application Refresh Token, sent as `refreshToken` in the
+  // access-token request (grant type `AccessToken`).
   SecretString refresh_token = 3;
+  // ICAN (fire.com account identifier) of the merchant's Fire account that
+  // receives the funds; sent as `icanTo` when creating a payment request.
+  // Must be a numeric string; a non-numeric value fails the Authorize request.
   SecretString ican_to = 4;
-  optional string base_url = 50;
   // Preprod (HS256) webhook signing secret. Production webhooks are RS256
   // (verified against the vendor JWKS) and need no secret.
-  optional SecretString webhook_secret = 51;
+  optional SecretString webhook_secret = 5;
+  // Overrides the Fire API host from config (e.g. https://api-preprod.fire.com).
+  optional string base_url = 50;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector

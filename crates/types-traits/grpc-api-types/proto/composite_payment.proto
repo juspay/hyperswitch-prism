@@ -935,6 +935,10 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Merchant account details supplied by the caller for authorization after redirect verification.
   optional MerchantDetails merchant_details = 67;
+
+  // Authorize-only payment-request expiry, in Unix epoch seconds; forwarded to
+  // PaymentServiceAuthorizeRequest for authorization after redirect verification.
+  optional int64 payment_expiry = 68;
 }
 
 // Response message for composite verify redirect response flow.

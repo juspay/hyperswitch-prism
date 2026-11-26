@@ -41,6 +41,9 @@ const FIRE_MAX_NUMBER_PAYMENTS: i32 = 1;
 const FIRE_PAYMENT_NOT_AUTHORISED: &str = "NOT_AUTHORISED";
 const FIRE_PAYMENT_NOT_ATTEMPTED: &str = "PAYMENT_NOT_ATTEMPTED";
 const FIRE_REFUND_REJECTED: &str = "REFUND_REJECTED";
+/// Sent as the refund `reason` (mandatory on FIRE's side) when the merchant
+/// supplies none.
+const FIRE_DEFAULT_REFUND_REASON: &str = "Refund requested by merchant";
 const FIRE_BEARER_TOKEN_TYPE: &str = "Bearer";
 /// Production JWKS used by FIRE to sign Bank Pay webhook JWTs (RS256).
 /// The endpoint is fixed by the vendor, not derived from the base URL.
@@ -265,17 +268,6 @@ fn fire_raw_connector_status<T: Serialize>(status: &T) -> Option<RawConnectorSta
     })
 }
 
-fn ensure_supported_currency(currency: &str) -> Result<(), error_stack::Report<IntegrationError>> {
-    if currency != "GBP" && currency != "EUR" {
-        return Err(IntegrationError::not_implemented(
-            format!("FIRE Open Banking does not support {currency}"),
-            IntegrationErrorContext::default(),
-        )
-        .into());
-    }
-    Ok(())
-}
-
 /// `orderDetails.merchantNumber` is an integer on FIRE's side and carries the
 /// merchant id. A merchant id that is not a valid unsigned integer leaves the
 /// field out.
@@ -313,8 +305,8 @@ pub struct FireAuthorizeRequest {
     #[serde(rename = "type")]
     payment_type: FirePaymentRequestType,
     ican_to: i64,
-    currency: String,
-    amount: i64,
+    currency: Currency,
+    amount: MinorUnit,
     description: String,
     my_ref: String,
     max_number_payments: i32,
@@ -382,8 +374,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: IntegrationErrorContext::default(),
             }
         })?;
-        let currency = item.router_data.request.currency.to_string();
-        ensure_supported_currency(&currency)?;
+        let currency = item.router_data.request.currency;
         // Reject unsupported payment methods and banks before FIRE creates a
         // payment request; the response transformer only builds the URL.
         fire_aspsp_uuid(&item.router_data.request.payment_method_data)?;
@@ -421,7 +412,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_type: FirePaymentRequestType::Other,
             ican_to,
             currency,
-            amount: item.router_data.request.money.amount().get_amount_as_i64(),
+            amount: item.router_data.request.money.amount(),
             // FIRE requires myRef and description to be unique across payment
             // requests; the merchant-facing description satisfies both. Only
             // the bank-facing `description` is sanitized; `myRef` is internal
@@ -473,7 +464,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Debug, Clone)]
+/// Payment status, in FIRE's SCREAMING_SNAKE_CASE wire spelling (Get Payment
+/// Details v2 reference).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FirePaymentStatus {
     AwaitingAuthorisation,
     AwaitingMultiAuthorisation,
@@ -484,55 +478,11 @@ pub enum FirePaymentStatus {
     Settled,
     /// A status this connector does not recognize. The raw wire value FIRE
     /// sent is preserved verbatim so `raw_connector_status` shows exactly
-    /// what came in; it is treated as `Pending` - never terminal.
+    /// what came in; it is treated as `Pending` - never terminal. Untagged,
+    /// so it (de)serializes as the bare string and catches any value the
+    /// variants above do not match.
+    #[serde(untagged)]
     Unknown(String),
-}
-
-impl FirePaymentStatus {
-    /// The exact vendor wire spelling (SCREAMING_SNAKE_CASE per FIRE's Get
-    /// Payment Details v2 reference); unknown statuses keep the raw value.
-    fn wire_str(&self) -> &str {
-        match self {
-            Self::AwaitingAuthorisation => "AWAITING_AUTHORISATION",
-            Self::AwaitingMultiAuthorisation => "AWAITING_MULTI_AUTHORISATION",
-            Self::NotAuthorised => "NOT_AUTHORISED",
-            Self::Pending => "PENDING",
-            Self::Authorised => "AUTHORISED",
-            Self::FundsConfirmed => "FUNDS_CONFIRMED",
-            Self::Settled => "SETTLED",
-            Self::Unknown(raw) => raw,
-        }
-    }
-}
-
-impl Serialize for FirePaymentStatus {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.wire_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for FirePaymentStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let raw = String::deserialize(deserializer)?;
-        Ok(match raw.as_str() {
-            "AWAITING_AUTHORISATION" => Self::AwaitingAuthorisation,
-            "AWAITING_MULTI_AUTHORISATION" => Self::AwaitingMultiAuthorisation,
-            "NOT_AUTHORISED" => Self::NotAuthorised,
-            "PENDING" => Self::Pending,
-            "AUTHORISED" => Self::Authorised,
-            "FUNDS_CONFIRMED" => Self::FundsConfirmed,
-            "SETTLED" => Self::Settled,
-            // Catch, never reject: an unrecognized status is Pending with the
-            // raw value preserved for raw_connector_status.
-            other => Self::Unknown(other.to_string()),
-        })
-    }
 }
 
 // Status meanings follow FIRE's Get Payment Details v2 reference:
@@ -571,11 +521,15 @@ pub struct FirePaymentAttemptsResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FirePaymentAttempt {
+    /// "PAYMENT" for payment attempts; "REFUND" / "REFUND_REQUEST" for refund
+    /// entries, which share this list and are skipped by PSync.
+    #[serde(default)]
+    transaction_type: Option<String>,
     status: FirePaymentStatus,
     payment_request_code: String,
     payment_uuid: String,
     currency: FireCurrency,
-    amount_before_charges: i64,
+    amount_before_charges: MinorUnit,
     order_details: FireOrderDetailsResponse,
     date_created: Option<String>,
     last_updated: Option<String>,
@@ -629,7 +583,21 @@ impl TryFrom<ResponseRouterData<FirePaymentAttemptsResponse, Self>>
         )
         .change_context(response_error())?;
 
-        if item.response.pis_payment_request_payments.is_empty() {
+        // The list also carries refund entries for this payment request;
+        // only payment attempts decide the payment status.
+        let attempts: Vec<FirePaymentAttempt> = item
+            .response
+            .pis_payment_request_payments
+            .into_iter()
+            .filter(|attempt| {
+                !attempt
+                    .transaction_type
+                    .as_deref()
+                    .is_some_and(is_fire_refund_transaction_type)
+            })
+            .collect();
+
+        if attempts.is_empty() {
             let status = AttemptStatus::Pending;
             return Ok(Self {
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -661,8 +629,7 @@ impl TryFrom<ResponseRouterData<FirePaymentAttemptsResponse, Self>>
             });
         }
 
-        let selected = select_payment_attempt(item.response.pis_payment_request_payments)
-            .ok_or_else(response_error)?;
+        let selected = select_payment_attempt(attempts).ok_or_else(response_error)?;
         // Integrity: `orderDetails.orderId` must echo the merchant transaction
         // id, and currency and `amountBeforeCharges` must match the original
         // payment. `paymentRequestCode` is only the lookup key and
@@ -688,9 +655,7 @@ impl TryFrom<ResponseRouterData<FirePaymentAttemptsResponse, Self>>
                 Some(selected.payment_uuid.clone()),
             ));
         }
-        if selected.amount_before_charges
-            != item.router_data.request.money.amount().get_amount_as_i64()
-        {
+        if selected.amount_before_charges != item.router_data.request.money.amount() {
             return Err(fire_integrity_error(
                 item.http_code,
                 "amountBeforeCharges",
@@ -723,7 +688,7 @@ impl TryFrom<ResponseRouterData<FirePaymentAttemptsResponse, Self>>
 
         let mut router_data = item.router_data;
         router_data.request.integrity_object = Some(PaymentSynIntegrityObject {
-            amount: MinorUnit::new(selected.amount_before_charges),
+            amount: selected.amount_before_charges,
             currency,
         });
         Ok(Self {
@@ -974,8 +939,8 @@ fn fire_aspsp_uuid<T: PaymentMethodDataTypes>(
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FireRefundRequest {
-    currency: String,
-    amount: i64,
+    currency: Currency,
+    amount: MinorUnit,
     my_ref: String,
     reason: String,
     order_details: FireRefundOrderDetails,
@@ -1001,23 +966,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let currency = item.router_data.request.currency.to_string();
-        ensure_supported_currency(&currency)?;
-        let reason = item.router_data.request.reason.clone().ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "reason",
-                context: IntegrationErrorContext::default(),
-            },
-        )?;
+        let currency = item.router_data.request.currency;
+        // FIRE requires a reason; fall back to a default when the merchant
+        // sends none (or only whitespace).
+        let reason = item
+            .router_data
+            .request
+            .reason
+            .clone()
+            .filter(|reason| !reason.trim().is_empty())
+            .unwrap_or_else(|| FIRE_DEFAULT_REFUND_REASON.to_string());
 
         Ok(Self {
             currency,
-            amount: item
-                .router_data
-                .request
-                .refund_money
-                .amount()
-                .get_amount_as_i64(),
+            amount: item.router_data.request.refund_money.amount(),
             // FIRE's myRef carries the merchant's refund id so the refund
             // can be reconciled against the merchant's records on FIRE's
             // side.
@@ -1032,53 +994,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-#[derive(Debug, Clone)]
+/// Refund status, in FIRE's SCREAMING_SNAKE_CASE wire spelling. FIRE reports
+/// two: RECEIVED (terminal success) and REJECTED (terminal failure).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FireRefundStatus {
     Received,
     Rejected,
     /// A status this connector does not recognize. The raw wire value FIRE
     /// sent is preserved verbatim for `raw_connector_status`; it is treated
-    /// as pending - never terminal.
+    /// as pending - never terminal. Untagged, so it (de)serializes as the
+    /// bare string and catches any value the variants above do not match.
+    #[serde(untagged)]
     Unknown(String),
 }
 
 impl FireRefundStatus {
-    fn wire_str(&self) -> &str {
+    fn refund_status(&self) -> RefundStatus {
         match self {
-            Self::Received => "RECEIVED",
-            Self::Rejected => "REJECTED",
-            Self::Unknown(raw) => raw,
-        }
-    }
-}
-
-impl Serialize for FireRefundStatus {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.wire_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for FireRefundStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let raw = String::deserialize(deserializer)?;
-        Ok(Self::from_wire(&raw))
-    }
-}
-
-impl FireRefundStatus {
-    fn from_wire(raw: &str) -> Self {
-        match raw {
-            "RECEIVED" => Self::Received,
-            "REJECTED" => Self::Rejected,
-            // Catch, never reject: an unrecognized status stays pending with
-            // the raw value preserved for raw_connector_status.
-            other => Self::Unknown(other.to_string()),
+            Self::Received => RefundStatus::Success,
+            Self::Rejected => RefundStatus::Failure,
+            // Never terminal: the webhook or a later RSync reconciles.
+            Self::Unknown(_) => RefundStatus::Pending,
         }
     }
 }
@@ -1110,11 +1047,11 @@ impl TryFrom<ResponseRouterData<FireRefundResponse, Self>>
         // not fail the call - FIRE accepted the request, and erroring here
         // invites a duplicate refund on retry - so it stays pending for
         // RSync or the webhook to reconcile.
-        let refund_status = match item.response.status {
-            Some(FireRefundStatus::Received) => RefundStatus::Success,
-            Some(FireRefundStatus::Rejected) => RefundStatus::Failure,
-            Some(FireRefundStatus::Unknown(_)) | None => RefundStatus::Pending,
-        };
+        let refund_status = item
+            .response
+            .status
+            .as_ref()
+            .map_or(RefundStatus::Pending, FireRefundStatus::refund_status);
         if refund_status == RefundStatus::Failure {
             return Ok(Self {
                 response: Err(ErrorResponse {
@@ -1163,57 +1100,116 @@ impl TryFrom<ResponseRouterData<FireRefundResponse, Self>>
 // =============================================================================
 // REFUND SYNC
 // =============================================================================
-// Get Payment Details v2 (GET /business/v2/payments/{uuid}) serves both
-// payments and refunds: a refund transaction carries `transactionType:
-// "REFUND_REQUEST"` and a refund status. The refund's `refundRequestUuid` —
-// stored as connector_refund_id — is the lookup uuid.
+// FIRE has no refund-specific lookup: RSync uses the same List Payment
+// Attempts call as PSync (GET /business/v2/paymentrequests/{code}/payments).
+// The list carries payments and refunds side by side; refund entries have
+// `transactionType` "REFUND" or "REFUND_REQUEST". The refund being synced is
+// found by:
+//   1. its FIRE uuid — `refundRequestUuid` (or, when absent, `paymentUuid`)
+//      equal to connector_refund_id, the uuid the Refund call returned; else
+//   2. its `myRef`, which the Refund call set to the merchant refund id.
+//      This covers a connector_refund_id that is not a FIRE uuid: the Refund
+//      response omitted `refundRequestUuid` (the Refund flow then stores the
+//      merchant refund id), or the caller synced without one (RefundSyncData
+//      falls back to the merchant refund id).
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FireTransactionDetails {
-    /// The `transactionType` field: "REFUND" or "REFUND_REQUEST" for refunds,
-    /// "PAYMENT" for payments (the sibling `type` field is a category).
-    pub transaction_type: Option<String>,
-    pub status: FirePaymentStatus,
-    pub payment_uuid: Option<String>,
-    pub related_payment_uuid: Option<String>,
-    pub amount_before_charges: Option<i64>,
+pub struct FireRefundSyncResponse {
+    #[serde(default)]
+    pis_payment_request_payments: Vec<FireRefundSyncEntry>,
 }
 
-impl TryFrom<ResponseRouterData<FireTransactionDetails, Self>>
+/// One entry of the List Payment Attempts response, read leniently: only the
+/// fields RSync needs, all optional except `status`, so payment entries (and
+/// fields FIRE adds) never fail decoding.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FireRefundSyncEntry {
+    #[serde(default)]
+    transaction_type: Option<String>,
+    status: FireRefundStatus,
+    #[serde(default)]
+    payment_uuid: Option<String>,
+    #[serde(default)]
+    refund_request_uuid: Option<String>,
+    /// Echoes the Refund request's `myRef` — the merchant refund id.
+    #[serde(default)]
+    my_ref: Option<String>,
+}
+
+impl FireRefundSyncEntry {
+    fn is_refund(&self) -> bool {
+        self.transaction_type
+            .as_deref()
+            .is_some_and(is_fire_refund_transaction_type)
+    }
+
+    /// FIRE's id for this refund: `refundRequestUuid`, else `paymentUuid`.
+    fn fire_refund_uuid(&self) -> Option<&str> {
+        self.refund_request_uuid
+            .as_deref()
+            .or(self.payment_uuid.as_deref())
+    }
+
+    fn matches_fire_uuid(&self, connector_refund_id: &str) -> bool {
+        self.fire_refund_uuid()
+            .is_some_and(|uuid| uuid.eq_ignore_ascii_case(connector_refund_id))
+    }
+
+    fn matches_my_ref(&self, merchant_refund_id: &str) -> bool {
+        self.my_ref.as_deref() == Some(merchant_refund_id)
+    }
+}
+
+impl TryFrom<ResponseRouterData<FireRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<FireTransactionDetails, Self>,
+        item: ResponseRouterData<FireRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response_error =
-            || crate::utils::response_handling_fail_for_connector(item.http_code, "fire");
-        let raw_connector_status = fire_raw_connector_status(&item.response.status);
-        // A non-refund `transactionType` means the uuid resolved to something
-        // other than the refund being synced — never guess a refund status
-        // from it.
-        if item
-            .response
-            .transaction_type
-            .as_deref()
-            .is_some_and(|transaction_type| !is_fire_refund_transaction_type(transaction_type))
-        {
-            return Err(response_error().into());
-        }
-        let refund_status = match item.response.status.wire_str() {
-            // Terminal failure.
-            "REJECTED" => RefundStatus::Failure,
-            // Terminal success — FIRE reports only these two refund
-            // statuses (RECEIVED / REJECTED).
-            "RECEIVED" => RefundStatus::Success,
-            // Unrecognized statuses (including payment statuses surfacing
-            // on a refund lookup): never terminal — keep pending, preserve
-            // the raw value, and let the webhook or a later RSync
-            // reconcile.
-            _ => RefundStatus::Pending,
+        let connector_refund_id = item.router_data.request.connector_refund_id.clone();
+        let refunds = || {
+            item.response
+                .pis_payment_request_payments
+                .iter()
+                .filter(|entry| entry.is_refund())
         };
+        // Merchant refund ids to try against `myRef`: the flow's refund id,
+        // and connector_refund_id itself when it is a merchant refund id
+        // rather than a FIRE uuid.
+        let merchant_refund_ids = [
+            item.router_data.resource_common_data.refund_id.as_deref(),
+            Some(connector_refund_id.as_str()),
+        ];
+        let refund = refunds()
+            .find(|entry| entry.matches_fire_uuid(&connector_refund_id))
+            .or_else(|| {
+                merchant_refund_ids
+                    .into_iter()
+                    .flatten()
+                    .filter(|id| !id.is_empty())
+                    .find_map(|id| refunds().find(|entry| entry.matches_my_ref(id)))
+            });
+        // Report FIRE's uuid once the refund is found, so later syncs and
+        // webhooks key on it instead of the merchant refund id.
+        let resolved_refund_id = refund
+            .and_then(FireRefundSyncEntry::fire_refund_uuid)
+            .map(str::to_string)
+            .unwrap_or_else(|| connector_refund_id.clone());
+
+        let (refund_status, raw_connector_status) = match refund {
+            Some(refund) => (
+                refund.status.refund_status(),
+                fire_raw_connector_status(&refund.status),
+            ),
+            // The refund is not listed (yet) under the payment request:
+            // never guess a terminal state — stay pending.
+            None => (RefundStatus::Pending, None),
+        };
+
         if refund_status == RefundStatus::Failure {
             return Ok(Self {
                 response: Err(ErrorResponse {
@@ -1233,7 +1229,7 @@ impl TryFrom<ResponseRouterData<FireTransactionDetails, Self>>
         }
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: item.router_data.request.connector_refund_id.clone(),
+                connector_refund_id: resolved_refund_id,
                 refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
@@ -1320,7 +1316,7 @@ pub struct FireWebhookClaims {
     #[serde(default)]
     pub currency: Option<FireWebhookCodeDescription>,
     #[serde(default, rename = "amountBeforeCharges")]
-    pub amount_before_charges: Option<i64>,
+    pub amount_before_charges: Option<MinorUnit>,
     #[serde(default, rename = "myRef")]
     pub my_ref: Option<String>,
     #[serde(default)]
@@ -1423,9 +1419,7 @@ impl FireWebhookClaims {
             .as_ref()
             .and_then(|currency| currency.code.as_deref())
             .and_then(|code| Currency::from_str(code).ok())?;
-        MinorUnitForConnector
-            .convert_back(MinorUnit::new(amount), currency)
-            .ok()
+        MinorUnitForConnector.convert_back(amount, currency).ok()
     }
 }
 
@@ -1509,7 +1503,9 @@ pub(crate) fn get_fire_webhook_event_type(
         .as_deref()
         .is_some_and(is_fire_refund_transaction_type)
     {
-        let refund_status = FireRefundStatus::from_wire(status);
+        let refund_status: FireRefundStatus =
+            serde_json::from_value(serde_json::Value::String(status.to_string()))
+                .unwrap_or(FireRefundStatus::Unknown(status.to_string()));
         return match refund_status {
             FireRefundStatus::Rejected => Ok(EventType::RefundFailure),
             // RECEIVED is the terminal refund success.

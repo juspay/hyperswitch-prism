@@ -17,7 +17,7 @@ use domain_types::{
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, FlowStatus},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{Response, VerifyWebhookSourceResponseData},
@@ -33,8 +33,8 @@ use serde::Serialize;
 use transformers as fire;
 use transformers::{
     FireAuthorizeRequest, FireCreatePaymentRequestResponse, FirePaymentAttemptsResponse,
-    FireRefundRequest, FireRefundResponse, FireServerAuthenticationTokenRequest,
-    FireServerAuthenticationTokenResponse, FireTransactionDetails,
+    FireRefundRequest, FireRefundResponse, FireRefundSyncResponse,
+    FireServerAuthenticationTokenRequest, FireServerAuthenticationTokenResponse,
 };
 
 use crate::{
@@ -47,9 +47,6 @@ const FIRE_CREATE_PAYMENT_REQUEST_ENDPOINT: &str = "/business/v1/paymentrequests
 const FIRE_PAYMENT_REQUEST_PAYMENTS_ENDPOINT: &str = "/business/v2/paymentrequests";
 const FIRE_REFUND_ENDPOINT_PREFIX: &str = "/business/v1/payments/";
 const FIRE_REFUND_ENDPOINT_SUFFIX: &str = "/bankpayrefund";
-// Get Payment Details v2 — the same transaction API serves payments and
-// refunds (transactionType "PAYMENT" vs "REFUND" / "REFUND_REQUEST").
-const FIRE_PAYMENT_DETAILS_ENDPOINT_PREFIX: &str = "/business/v2/payments/";
 const CONTENT_TYPE_HEADER: &str = "Content-Type";
 const AUTHORIZATION_HEADER: &str = "Authorization";
 const FIRE_CONTENT_TYPE: &str = "application/json";
@@ -104,7 +101,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: RSync,
-            response_body: FireTransactionDetails,
+            response_body: FireRefundSyncResponse,
             router_data: RouterDataV2<
                 RSync,
                 RefundFlowData,
@@ -151,7 +148,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type],
+    connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Fire,
     curl_request: Json(FireServerAuthenticationTokenRequest),
     curl_response: FireServerAuthenticationTokenResponse,
@@ -190,20 +187,11 @@ macros::macro_connector_implementation!(
                 self.common_get_content_type().to_string().into(),
             )])
         }
-
-        fn get_error_response_v2(
-            &self,
-            res: Response,
-            event_builder: Option<&mut events::Event>,
-            _connector_config: &ConnectorSpecificConfig,
-        ) -> CustomResult<domain_types::router_data::ErrorResponse, errors::ConnectorError> {
-            self.build_error_response(res, event_builder, _connector_config)
-        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type],
+    connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Fire,
     curl_response: FirePaymentAttemptsResponse,
     flow_name: PSync,
@@ -249,15 +237,6 @@ macros::macro_connector_implementation!(
                     format!("{FIRE_BEARER_AUTH_SCHEME} {access_token}").into_masked(),
                 ),
             ])
-        }
-
-        fn get_error_response_v2(
-            &self,
-            res: Response,
-            event_builder: Option<&mut events::Event>,
-            _connector_config: &ConnectorSpecificConfig,
-        ) -> CustomResult<domain_types::router_data::ErrorResponse, errors::ConnectorError> {
-            self.build_error_response(res, event_builder, _connector_config)
         }
     }
 );
@@ -312,7 +291,7 @@ macros::macro_connector_implementation!(
             res: Response,
             event_builder: Option<&mut events::Event>,
             _connector_config: &ConnectorSpecificConfig,
-        ) -> CustomResult<domain_types::router_data::ErrorResponse, errors::ConnectorError> {
+        ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
             let mut error = self.build_error_response(res, event_builder, _connector_config)?;
             // A 4xx at payment initiation is terminal: Fire rejected the
             // payment request itself (malformed payload, invalid URL, auth or
@@ -332,7 +311,7 @@ macros::macro_connector_implementation!(
 // The paymentUuid is the connector transaction ID PSync stored; Fire only
 // accepts refunds against SETTLED payments and answers RECEIVED / REJECTED.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type],
+    connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Fire,
     curl_request: Json(FireRefundRequest),
     curl_response: FireRefundResponse,
@@ -353,14 +332,7 @@ macros::macro_connector_implementation!(
                 RefundsResponseData,
             >,
         ) -> CustomResult<String, errors::IntegrationError> {
-            let payment_uuid = &req.request.connector_transaction_id;
-            if payment_uuid.is_empty() {
-                return Err(errors::IntegrationError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
-                    context: Default::default(),
-                }
-                .into());
-            }
+            let payment_uuid = req.request.get_connector_transaction_id()?;
             let base_url = self.base_url(&req.resource_common_data.connectors);
             Ok(format!(
                 "{base_url}{FIRE_REFUND_ENDPOINT_PREFIX}{payment_uuid}{FIRE_REFUND_ENDPOINT_SUFFIX}"
@@ -385,27 +357,16 @@ macros::macro_connector_implementation!(
                 ),
             ])
         }
-
-        fn get_error_response_v2(
-            &self,
-            res: Response,
-            event_builder: Option<&mut events::Event>,
-            _connector_config: &ConnectorSpecificConfig,
-        ) -> CustomResult<domain_types::router_data::ErrorResponse, errors::ConnectorError> {
-            self.build_error_response(res, event_builder, _connector_config)
-        }
     }
 );
 
-// Bank Pay refund sync: Get Payment Details v2 — the same transaction API
-// as the payment sync, keyed by the refund's `refundRequestUuid` (stored
-// as connector_refund_id). The transaction comes back with
-// `transactionType: "REFUND_REQUEST"` and a refund status
-// (RECEIVED / REJECTED).
+// Refund sync: FIRE has no refund lookup, so RSync lists the payment
+// request's transactions (the PSync call) and picks the refund entry
+// (`transactionType` REFUND / REFUND_REQUEST) matching connector_refund_id.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type],
+    connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Fire,
-    curl_response: FireTransactionDetails,
+    curl_response: FireRefundSyncResponse,
     flow_name: RSync,
     resource_common_data: RefundFlowData,
     flow_request: RefundSyncData,
@@ -423,16 +384,27 @@ macros::macro_connector_implementation!(
                 RefundsResponseData,
             >,
         ) -> CustomResult<String, errors::IntegrationError> {
-            let refund_uuid = &req.request.connector_refund_id;
-            if refund_uuid.is_empty() {
+            // The refund is picked out of the list by FIRE uuid or by `myRef`
+            // (the merchant refund id), so at least one id must be present.
+            let has_merchant_refund_id = req
+                .resource_common_data
+                .refund_id
+                .as_deref()
+                .is_some_and(|id| !id.is_empty());
+            if req.request.connector_refund_id.is_empty() && !has_merchant_refund_id {
                 return Err(errors::IntegrationError::MissingRequiredField {
                     field_name: "connector_refund_id",
                     context: Default::default(),
                 }
                 .into());
             }
+            let code = fire::payment_request_code_from_feature_data(
+                req.request.connector_feature_data.as_ref(),
+            )?;
             let base_url = self.base_url(&req.resource_common_data.connectors);
-            Ok(format!("{base_url}{FIRE_PAYMENT_DETAILS_ENDPOINT_PREFIX}{refund_uuid}"))
+            Ok(format!(
+                "{base_url}{FIRE_PAYMENT_REQUEST_PAYMENTS_ENDPOINT}/{code}/payments"
+            ))
         }
 
         fn get_headers(
@@ -452,15 +424,6 @@ macros::macro_connector_implementation!(
                     format!("{FIRE_BEARER_AUTH_SCHEME} {access_token}").into_masked(),
                 ),
             ])
-        }
-
-        fn get_error_response_v2(
-            &self,
-            res: Response,
-            event_builder: Option<&mut events::Event>,
-            _connector_config: &ConnectorSpecificConfig,
-        ) -> CustomResult<domain_types::router_data::ErrorResponse, errors::ConnectorError> {
-            self.build_error_response(res, event_builder, _connector_config)
         }
     }
 );
@@ -503,7 +466,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         res: Response,
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: fire::FireErrorResponse = res
             .response
             .parse_struct("FireErrorResponse")
@@ -522,7 +485,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let attempt_status: Option<FlowStatus> = None;
         let error = response.primary_error();
 
-        Ok(domain_types::router_data::ErrorResponse {
+        Ok(ErrorResponse {
             status_code: res.status_code,
             // Never `.unwrap_or_default()` here: an empty `code`/`message` is
             // indistinguishable from a connector that really returned "". The
@@ -626,7 +589,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         res: Response,
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<domain_types::router_data::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder, _connector_config)
     }
 }

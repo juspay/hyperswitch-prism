@@ -1334,7 +1334,7 @@ impl
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
             purpose_of_payment: request.purpose_of_payment.clone(),
-            payment_expiry: None,
+            payment_expiry: request.payment_expiry,
         }
     }
 }
