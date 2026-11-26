@@ -415,11 +415,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::AuthenticateResponse {
-                resource_id: Some(ResponseId::ConnectorTransactionId(session_id.clone())),
+                resource_id: None,
                 redirection_data,
                 connector_response_reference_id: None,
                 authentication_data: None,
-                connector_feature_data: None,
+                connector_feature_data: Some(serde_json::json!({ "session_id": session_id })),
                 status_code: item.http_code,
                 mandate_reference: None,
                 network_txn_id: None,
@@ -427,7 +427,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Pending,
-                connector_order_id: Some(session_id),
                 raw_connector_response: raw_response,
                 raw_connector_status: None,
                 ..item.router_data.resource_common_data

@@ -58,7 +58,7 @@ use self::transformers::{
     AuthorizedotnetSdkSessionTokenRequest, AuthorizedotnetSdkSessionTokenResponse,
     AuthorizedotnetSetupMandateRequest, AuthorizedotnetSetupMandateResponse,
     AuthorizedotnetVoidPCRequest, AuthorizedotnetVoidPCResponse, AuthorizedotnetVoidRequest,
-    AuthorizedotnetVoidResponse, AuthorizedotnetWebhookEventType, AuthorizedotnetWebhookObjectId,
+    AuthorizedotnetVoidResponse, AuthorizedotnetWebhookObjectId,
 };
 use super::macros;
 use crate::{types::ResponseRouterData, utils, with_response_body};
@@ -198,43 +198,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Ok(EventType::EndpointVerification);
         }
 
-        let webhook_body: AuthorizedotnetWebhookEventType = request
+        let webhook_body: AuthorizedotnetWebhookObjectId = request
             .body
-            .parse_struct("AuthorizedotnetWebhookEventType")
+            .parse_struct("AuthorizedotnetWebhookObjectId")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable_lazy(|| {
                 "Failed to parse webhook event type from Authorize.Net webhook body"
             })?;
 
-        let event_type = match webhook_body.event_type {
-            transformers::AuthorizedotnetIncomingWebhookEventType::AuthorizationCreated => {
-                EventType::PaymentIntentAuthorizationSuccess
-            }
-            transformers::AuthorizedotnetIncomingWebhookEventType::PriorAuthCapture
-            | transformers::AuthorizedotnetIncomingWebhookEventType::CaptureCreated => {
-                EventType::PaymentIntentCaptureSuccess
-            }
-            transformers::AuthorizedotnetIncomingWebhookEventType::AuthCapCreated => {
-                EventType::PaymentIntentSuccess // Combined auth+capture
-            }
-            transformers::AuthorizedotnetIncomingWebhookEventType::VoidCreated => {
-                EventType::PaymentIntentCancelled
-            }
-            transformers::AuthorizedotnetIncomingWebhookEventType::RefundCreated => {
-                EventType::RefundSuccess
-            }
-            transformers::AuthorizedotnetIncomingWebhookEventType::CustomerCreated
-            | transformers::AuthorizedotnetIncomingWebhookEventType::CustomerPaymentProfileCreated => {
-                EventType::MandateActive
-            }
-            // Authorize.Net delivers many event types this connector does not act on
-            // (fraud, subscription, settlement, ...). They are acknowledged as
-            // not-supported, as hyperswitch does, instead of failing the delivery.
-            transformers::AuthorizedotnetIncomingWebhookEventType::Unknown => {
-                EventType::IncomingWebhookEventUnspecified
-            }
-        };
-        Ok(event_type)
+        Ok(get_authorizedotnet_webhook_event_type(
+            &webhook_body.event_type,
+            webhook_body.payload.response_code,
+        ))
     }
 
     /// Reference for `EventService.ParseEvent` (stateless: no secret, no verification).
@@ -338,7 +313,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             })?),
         };
-        let status = transformers::SyncStatus::from(webhook_body.event_type.clone());
+        let status = get_authorizedotnet_webhook_attempt_status(
+            &webhook_body.event_type,
+            webhook_body.payload.response_code,
+        );
         // The merchant's own reference is payload.merchantReferenceId (the echoed refId);
         // it is absent when the request carried no refId, and is never the transId.
         let merchant_reference_id = webhook_body.payload.merchant_reference_id.clone();
@@ -350,7 +328,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             resource_id: transaction_id
                 .clone()
                 .map(ResponseId::ConnectorTransactionId),
-            status: common_enums::AttemptStatus::from(status),
+            status,
             status_code: 200,
             mandate_reference: None,
             connector_response_reference_id: transaction_id,
@@ -403,6 +381,83 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
+
+fn get_authorizedotnet_webhook_attempt_status(
+    event: &transformers::AuthorizedotnetWebhookEvent,
+    response_code: Option<i32>,
+) -> common_enums::AttemptStatus {
+    match response_code {
+        Some(2 | 3) => common_enums::AttemptStatus::Failure,
+        Some(4) => common_enums::AttemptStatus::Unresolved,
+        _ => common_enums::AttemptStatus::from(transformers::SyncStatus::from(event.clone())),
+    }
+}
+
+fn get_authorizedotnet_webhook_event_type(
+    event: &transformers::AuthorizedotnetWebhookEvent,
+    response_code: Option<i32>,
+) -> EventType {
+    if matches!(response_code, Some(2 | 3)) {
+        return match event {
+            transformers::AuthorizedotnetWebhookEvent::AuthorizationCreated => {
+                EventType::PaymentIntentAuthorizationFailure
+            }
+            transformers::AuthorizedotnetWebhookEvent::PriorAuthCapture
+            | transformers::AuthorizedotnetWebhookEvent::CaptureCreated => {
+                EventType::PaymentIntentCaptureFailure
+            }
+            transformers::AuthorizedotnetWebhookEvent::AuthCapCreated => {
+                EventType::PaymentIntentFailure
+            }
+            transformers::AuthorizedotnetWebhookEvent::VoidCreated => {
+                EventType::PaymentIntentCancelFailure
+            }
+            _ => get_authorizedotnet_event_type_from_name(event),
+        };
+    }
+
+    if response_code == Some(4)
+        && matches!(
+            event,
+            transformers::AuthorizedotnetWebhookEvent::AuthorizationCreated
+                | transformers::AuthorizedotnetWebhookEvent::PriorAuthCapture
+                | transformers::AuthorizedotnetWebhookEvent::CaptureCreated
+                | transformers::AuthorizedotnetWebhookEvent::AuthCapCreated
+                | transformers::AuthorizedotnetWebhookEvent::VoidCreated
+        )
+    {
+        return EventType::PaymentIntentProcessing;
+    }
+
+    get_authorizedotnet_event_type_from_name(event)
+}
+
+fn get_authorizedotnet_event_type_from_name(
+    event: &transformers::AuthorizedotnetWebhookEvent,
+) -> EventType {
+    match event {
+        transformers::AuthorizedotnetWebhookEvent::AuthorizationCreated => {
+            EventType::PaymentIntentAuthorizationSuccess
+        }
+        transformers::AuthorizedotnetWebhookEvent::PriorAuthCapture
+        | transformers::AuthorizedotnetWebhookEvent::CaptureCreated => {
+            EventType::PaymentIntentCaptureSuccess
+        }
+        transformers::AuthorizedotnetWebhookEvent::AuthCapCreated => {
+            EventType::PaymentIntentSuccess
+        }
+        transformers::AuthorizedotnetWebhookEvent::VoidCreated => EventType::PaymentIntentCancelled,
+        transformers::AuthorizedotnetWebhookEvent::RefundCreated => EventType::RefundSuccess,
+        transformers::AuthorizedotnetWebhookEvent::CustomerCreated
+        | transformers::AuthorizedotnetWebhookEvent::CustomerPaymentProfileCreated => {
+            EventType::MandateActive
+        }
+        transformers::AuthorizedotnetWebhookEvent::Unknown => {
+            EventType::IncomingWebhookEventUnspecified
+        }
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> RefundSyncV2
     for Authorizedotnet<T>
 {

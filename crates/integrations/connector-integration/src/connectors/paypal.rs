@@ -21,11 +21,11 @@ use domain_types::{
     connector_types::{
         ClientAuthenticationTokenRequestData, EventContext, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
-        VerifyWebhookSourceFlowData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData, VerifyWebhookSourceFlowData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -51,11 +51,12 @@ use crate::{
     connectors::paypal::transformers::{
         self as paypal, auth_headers, constants as paypal_constants, PaypalAuthResponse,
         PaypalAuthUpdateRequest, PaypalAuthUpdateResponse, PaypalCaptureResponse,
-        PaypalClientAuthTokenRequest, PaypalClientAuthTokenResponse, PaypalOrderCreateRequest,
-        PaypalOrderCreateResponse, PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest,
-        PaypalPaymentsRequest, PaypalRefundRequest, PaypalRepeatPaymentRequest,
-        PaypalRepeatPaymentResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
-        PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
+        PaypalClientAuthTokenRequest, PaypalClientAuthTokenResponse, PaypalIncrementalAuthRequest,
+        PaypalIncrementalAuthResponse, PaypalOrderCreateRequest, PaypalOrderCreateResponse,
+        PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest, PaypalPaymentsRequest,
+        PaypalRefundRequest, PaypalRepeatPaymentRequest, PaypalRepeatPaymentResponse,
+        PaypalSetupMandatesResponse, PaypalSyncResponse, PaypalZeroMandateRequest, RefundResponse,
+        RefundSyncResponse,
     },
     finalize_connector_response,
     types::ResponseRouterData,
@@ -118,6 +119,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentIncrementalAuthorization for Paypal<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Paypal<T>
 {
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
@@ -166,13 +171,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let outcome_code = match payload.event_type {
-            paypal::PaypalWebhookEventType::CustomerDisputeResolved => Some(
-                request
+            paypal::PaypalWebhookEventType::CustomerDisputeResolved => {
+                let details: paypal::PaypalWebhooksBody = request
                     .body
-                    .parse_struct::<paypal::DisputeOutcome>("PaypalDisputeOutcome")
-                    .change_context(WebhookError::WebhookEventTypeNotFound)?
-                    .outcome_code,
-            ),
+                    .parse_struct("PaypalWebhooksBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                get_paypal_dispute_outcome(details.resource)?
+            }
             _ => None,
         };
 
@@ -423,6 +429,19 @@ fn get_paypal_dispute_status_from_outcome(
         paypal::OutcomeCode::ResolvedWithPayout => common_enums::DisputeStatus::DisputeCancelled,
     }
 }
+
+fn get_paypal_dispute_outcome(
+    resource: paypal::PaypalResource,
+) -> Result<Option<paypal::OutcomeCode>, error_stack::Report<WebhookError>> {
+    match resource {
+        paypal::PaypalResource::PaypalDisputeWebhooks(dispute) => {
+            Ok(dispute.dispute_outcome.map(|outcome| outcome.outcome_code))
+        }
+        _ => Err(report!(WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Expected PayPal dispute webhook resource")),
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Paypal<T>
 {
@@ -476,6 +495,12 @@ macros::create_all_prerequisites!(
             flow: Void,
             response_body: PaypalPaymentsCancelResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: PaypalIncrementalAuthRequest,
+            response_body: PaypalIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         ),
         (
             flow: ServerAuthenticationToken,
@@ -730,22 +755,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let base = self.connector_base_url_payments(req);
 
-        let path = if let PaymentMethodData::Wallet(WalletData::PaypalSdk(paypal_wallet_data)) =
-            &req.request.payment_method_data
-        {
-            // Case 1: PaypalSdk wallet - complete order using SDK token
-            format!(
-                "v2/checkout/orders/{}/{}",
-                paypal_wallet_data.token.peek(),
-                action
-            )
-        } else if let Some(order_id) = &req.resource_common_data.connector_order_id {
-            // Case 2: Completing an existing/redirect-approved order (order_id set on the order)
-            format!("v2/checkout/orders/{order_id}/{action}")
-        } else {
-            // Case 3: Creating new order
-            "v2/checkout/orders".to_owned()
-        };
+        let path =
+            if paypal::get_setup_token_id(req.resource_common_data.connector_feature_data.as_ref())
+                .is_some()
+            {
+                // Return from a PayPal wallet setup-token approval: exchange it for a payment token
+                "v3/vault/payment-tokens".to_owned()
+            } else if let PaymentMethodData::Wallet(WalletData::PaypalSdk(paypal_wallet_data)) =
+                &req.request.payment_method_data
+            {
+                // Case 1: PaypalSdk wallet - complete order using SDK token
+                format!(
+                    "v2/checkout/orders/{}/{}",
+                    paypal_wallet_data.token.peek(),
+                    action
+                )
+            } else if let Some(order_id) = &req.resource_common_data.connector_order_id {
+                // Case 2: Completing an existing/redirect-approved order (order_id set on the order)
+                format!("v2/checkout/orders/{order_id}/{action}")
+            } else {
+                // Case 3: Creating new order
+                "v2/checkout/orders".to_owned()
+            };
 
         Ok(format!("{base}{path}"))
     }
@@ -759,7 +790,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsResponseData,
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
-        let body = if matches!(
+        let body = if let Some(setup_token_id) =
+            paypal::get_setup_token_id(req.resource_common_data.connector_feature_data.as_ref())
+        {
+            let connector_req = PaypalZeroMandateRequest::from_setup_token(setup_token_id);
+            let typed = events::MaskedSerdeValue::from_masked_optional(
+                &connector_req,
+                "typed_connector_request",
+            );
+            Some(common_utils::request::ConnectorRequestData::new(
+                common_utils::request::RequestContent::Json(Box::new(connector_req)),
+                typed,
+            ))
+        } else if matches!(
             req.request.payment_method_data,
             PaymentMethodData::Wallet(WalletData::PaypalSdk(_))
         ) {
@@ -802,6 +845,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ConnectorError,
     > {
+        if paypal::get_setup_token_id(data.resource_common_data.connector_feature_data.as_ref())
+            .is_some()
+        {
+            let response: PaypalSetupMandatesResponse = res
+                .response
+                .parse_struct("PaypalSetupMandatesResponse")
+                .change_context(utils::response_handling_fail_for_connector(
+                    res.status_code,
+                    "paypal",
+                ))?;
+            return finalize_connector_response!(event_builder, response, data, res.status_code);
+        }
         let response: PaypalAuthResponse = res
             .response
             .parse_struct("PaypalAuthResponse")
@@ -990,9 +1045,19 @@ macros::macro_connector_implementation!(
             let connector_metadata = req.resource_common_data.connector_feature_data
                 .as_ref()
                 .map(|secret| secret.clone().expose());
+            // PayPal replays the stored response for a repeated PayPal-Request-Id, so each
+            // partial capture needs its own id or every capture after the first is a no-op.
+            let request_id = req
+                .request
+                .multiple_capture_data
+                .as_ref()
+                .map_or(
+                    req.resource_common_data.connector_request_reference_id.as_str(),
+                    |data| data.capture_reference.as_str(),
+                );
             self.build_headers(
                 &access_token.access_token.expose(),
-                &req.resource_common_data.connector_request_reference_id,
+                request_id,
                 &req.connector_config,
                 connector_metadata.as_ref(),
             )
@@ -1052,6 +1117,54 @@ macros::macro_connector_implementation!(
             let authorize_id = paypal_meta.authorize_id.ok_or(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
             Ok(format!(
                 "{}v2/payments/authorizations/{}/void",
+                self.connector_base_url_payments(req),
+                authorize_id,
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paypal,
+    curl_request: Json(PaypalIncrementalAuthRequest),
+    curl_response: PaypalIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data
+                .access_token
+                .clone()
+                .ok_or(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+            let connector_metadata = req.resource_common_data.connector_feature_data
+                .as_ref()
+                .map(|secret| secret.clone().expose());
+            self.build_headers(
+                &access_token.access_token.expose(),
+                &req.resource_common_data.connector_request_reference_id,
+                &req.connector_config,
+                connector_metadata.as_ref(),
+            )
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_metadata_value = req.request.connector_feature_data.clone().map(|secret| secret.expose());
+            let paypal_meta: paypal::PaypalMeta = utils::to_connector_meta(connector_metadata_value)?;
+            let authorize_id = paypal_meta.authorize_id.ok_or(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+            Ok(format!(
+                "{}v2/payments/authorizations/{}/reauthorize",
                 self.connector_base_url_payments(req),
                 authorize_id,
             ))
@@ -1183,10 +1296,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}v3/vault/payment-tokens/",
-                self.connector_base_url_payments(req)
-            ))
+            // A PayPal wallet needs buyer approval first, so it starts with a setup token.
+            let path = match req.request.payment_method_data {
+                PaymentMethodData::Wallet(WalletData::PaypalRedirect(_)) => "v3/vault/setup-tokens",
+                _ => "v3/vault/payment-tokens/",
+            };
+            Ok(format!("{}{path}", self.connector_base_url_payments(req)))
         }
     }
 );
@@ -1801,7 +1916,6 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        IncrementalAuthorization,
         Accept,
         SubmitEvidence,
         DefendDispute,

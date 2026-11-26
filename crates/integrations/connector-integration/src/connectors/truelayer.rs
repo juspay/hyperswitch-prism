@@ -249,12 +249,17 @@ macros::create_all_prerequisites!(
             private_key: String,
             kid: String,
             path: String,
+            merchant_request_id: Option<&String>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
         where
             FlowData: AccessTokenProvider,
             Self: ConnectorIntegrationV2<F, FlowData, Req, Res>,
         {
-            let idempotency_key = common_utils::fp_utils::generate_uuid_v4();
+            // Stable across retries when the caller sends merchant_request_id, so TrueLayer
+            // de-duplicates a retried POST instead of creating a second payment/refund.
+            let idempotency_key = merchant_request_id
+                .cloned()
+                .unwrap_or_else(common_utils::fp_utils::generate_uuid_v4);
             let truelayer_req = self
                 .get_request_body(req)?
                 .map(|req| req.content.get_inner_value().expose().clone());
@@ -356,7 +361,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 .to_string(),
             reason: Some(response.detail),
             attempt_status: None,
-            connector_transaction_id: Some(response.trace_id),
+            // `trace_id` is a request-trace GUID, not a payment/refund id.
+            connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -393,7 +399,14 @@ macros::macro_connector_implementation!(
             let private_key = metadata.private_key.expose().clone();
             let kid = metadata.kid.expose().clone();
             let path = "/v3/payments".to_string();
-            self.build_headers(req, access_token.access_token.expose(), private_key, kid, path)
+            self.build_headers(
+                req,
+                access_token.access_token.expose(),
+                private_key,
+                kid,
+                path,
+                req.resource_common_data.merchant_request_id.as_ref(),
+            )
         }
 
         fn get_url(
@@ -559,7 +572,14 @@ macros::macro_connector_implementation!(
             let kid = metadata.kid.expose().clone();
             let connector_payment_id = req.request.connector_transaction_id.clone();
             let path = format!("/v3/payments/{connector_payment_id}/refunds");
-            self.build_headers(req, access_token.access_token.expose(), private_key, kid, path)
+            self.build_headers(
+                req,
+                access_token.access_token.expose(),
+                private_key,
+                kid,
+                path,
+                req.resource_common_data.merchant_request_id.as_ref(),
+            )
         }
 
         fn get_url(

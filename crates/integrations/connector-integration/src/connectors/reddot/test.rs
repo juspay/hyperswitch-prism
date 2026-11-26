@@ -283,6 +283,7 @@ fn authorize_data() -> AuthorizeData {
         resource_common_data: payment_sync_data().resource_common_data,
         connector_config: config(),
         request: PaymentsAuthorizeData {
+            purpose_of_payment: None,
             payment_method_data: PaymentMethodData::Card(Card::default()),
             money: common_utils::types::Money::zero(Currency::Unspecified),
             order_tax_amount: Default::default(),
@@ -346,6 +347,7 @@ fn authorize_data() -> AuthorizeData {
             additional_connector_details: Default::default(),
             customer: Default::default(),
             business_country: Default::default(),
+            merchant_details: None,
             enable_avs_check: Default::default(),
             enable_account_name_verification: Default::default(),
             is_stored_credential: Default::default(),
