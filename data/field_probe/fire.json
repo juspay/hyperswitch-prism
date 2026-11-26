@@ -1,0 +1,707 @@
+{
+  "connector": "fire",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for fire"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "PaySafeCard": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Skrill": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Webpay": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for fire"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for fire"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for fire"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://api-preprod.fire.com/business/v1/apps/accesstokens",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"clientId\":\"probe_key\",\"clientSecret\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"refreshToken\":\"probe_key\",\"nonce\":1795691473352362,\"grantType\":\"AccessToken\"}"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for fire"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for fire"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for fire"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for fire"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for fire"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for fire"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by fire connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_request_code — Missing required field: connector_feature_data.payment_request_code"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "eyJraWQiOiI2NjAzZWQzYi1iYzMwLTQ3ZmItYjVlMy1iMjFjOWFiYmNlYzkiLCJhbGciOiJIUzI1NiJ9.eyJ0eXBlIjoiT1RIRVIiLCJzdGF0dXMiOiJBVVRIT1JJU0VEIiwidHJhbnNhY3Rpb25UeXBlIjoiUEFZTUVOVCIsInBheW1lbnRVdWlkIjoiM2YyZDBhMjAtZTg0Yi00MWMxLTlkM2QtYTFiMmMzZDRlNWY2In0.c2lnbmF0dXJl"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "eyJraWQiOiI2NjAzZWQzYi1iYzMwLTQ3ZmItYjVlMy1iMjFjOWFiYmNlYzkiLCJhbGciOiJIUzI1NiJ9.eyJ0eXBlIjoiT1RIRVIiLCJzdGF0dXMiOiJBVVRIT1JJU0VEIiwidHJhbnNhY3Rpb25UeXBlIjoiUEFZTUVOVCIsInBheW1lbnRVdWlkIjoiM2YyZDBhMjAtZTg0Yi00MWMxLTlkM2QtYTFiMmMzZDRlNWY2In0.c2lnbmF0dXJl"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for fire"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "eyJraWQiOiI2NjAzZWQzYi1iYzMwLTQ3ZmItYjVlMy1iMjFjOWFiYmNlYzkiLCJhbGciOiJIUzI1NiJ9.eyJ0eXBlIjoiT1RIRVIiLCJzdGF0dXMiOiJBVVRIT1JJU0VEIiwidHJhbnNhY3Rpb25UeXBlIjoiUEFZTUVOVCIsInBheW1lbnRVdWlkIjoiM2YyZDBhMjAtZTg0Yi00MWMxLTlkM2QtYTFiMmMzZDRlNWY2In0.c2lnbmF0dXJl"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "eyJraWQiOiI2NjAzZWQzYi1iYzMwLTQ3ZmItYjVlMy1iMjFjOWFiYmNlYzkiLCJhbGciOiJIUzI1NiJ9.eyJ0eXBlIjoiT1RIRVIiLCJzdGF0dXMiOiJBVVRIT1JJU0VEIiwidHJhbnNhY3Rpb25UeXBlIjoiUEFZTUVOVCIsInBheW1lbnRVdWlkIjoiM2YyZDBhMjAtZTg0Yi00MWMxLTlkM2QtYTFiMmMzZDRlNWY2In0.c2lnbmF0dXJl"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for fire"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for fire"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for fire"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for fire"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for fire"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: FIRE Open Banking does not support USD"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: access_token — Missing required field: access_token"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for fire"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for fire"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Failed to encode connector request"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for fire"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for fire"
+      }
+    }
+  }
+}
