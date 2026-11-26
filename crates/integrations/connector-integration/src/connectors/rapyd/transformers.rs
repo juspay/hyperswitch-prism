@@ -782,6 +782,7 @@ impl TryFrom<&ConnectorSpecificConfig> for RapydAuthType {
     }
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct RapydPaymentsRequest<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
@@ -979,6 +980,7 @@ pub fn build_external_3ds_options(
     })
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct PaymentMethod<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(rename = "type")]
@@ -2020,6 +2022,7 @@ where
 }
 
 // Capture Request
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
     amount: Option<StringMajorUnit>,
@@ -2062,6 +2065,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // Refund Request
+#[serde_with::skip_serializing_none]
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
