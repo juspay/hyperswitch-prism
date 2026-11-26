@@ -159,6 +159,16 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.VerifyRedirectResponse
+fun verifyRedirect(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceVerifyRedirectResponseRequest.newBuilder().apply {
+
+    }.build()
+    val response = client.verify_redirect_response(request)
+    println("Source verified: ${response.sourceVerified}")
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -180,7 +190,8 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
+        "verifyRedirect" -> verifyRedirect(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, parseEvent, refund, refundGet, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, parseEvent, refund, refundGet, tokenAuthorize, verifyRedirect, void")
     }
 }

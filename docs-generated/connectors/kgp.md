@@ -126,6 +126,7 @@ let config = ConnectorConfig {
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.TokenAuthorize](#paymentservicetokenauthorize) | Payments | `PaymentServiceTokenAuthorizeRequest` |
 | [PaymentMethodService.Tokenize](#paymentmethodservicetokenize) | Payments | `PaymentMethodServiceTokenizeRequest` |
+| [PaymentService.VerifyRedirectResponse](#paymentserviceverifyredirectresponse) | Payments | `PaymentServiceVerifyRedirectResponseRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -139,7 +140,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L109) · [Kotlin](../../examples/kgp/kgp.kt#L87) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L114) · [Kotlin](../../examples/kgp/kgp.kt#L87) · [Rust](../../examples/kgp/kgp.rs)
 
 #### PaymentService.Get
 
@@ -150,7 +151,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L118) · [Kotlin](../../examples/kgp/kgp.kt#L97) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L123) · [Kotlin](../../examples/kgp/kgp.kt#L97) · [Rust](../../examples/kgp/kgp.rs)
 
 #### PaymentService.Refund
 
@@ -161,7 +162,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L136) · [Kotlin](../../examples/kgp/kgp.kt#L120) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L141) · [Kotlin](../../examples/kgp/kgp.kt#L120) · [Rust](../../examples/kgp/kgp.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -172,7 +173,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L154) · [Kotlin](../../examples/kgp/kgp.kt#L142) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L159) · [Kotlin](../../examples/kgp/kgp.kt#L142) · [Rust](../../examples/kgp/kgp.rs)
 
 #### PaymentMethodService.Tokenize
 
@@ -196,6 +197,17 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 
 **Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts) · [Kotlin](../../examples/kgp/kgp.kt) · [Rust](../../examples/kgp/kgp.rs)
 
+#### PaymentService.VerifyRedirectResponse
+
+Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
+| **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
+
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L168) · [Kotlin](../../examples/kgp/kgp.kt#L163) · [Rust](../../examples/kgp/kgp.rs)
+
 #### PaymentService.Void
 
 Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
@@ -205,7 +217,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts) · [Kotlin](../../examples/kgp/kgp.kt#L163) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts) · [Kotlin](../../examples/kgp/kgp.kt#L173) · [Rust](../../examples/kgp/kgp.rs)
 
 ### Refunds
 
@@ -218,4 +230,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L145) · [Kotlin](../../examples/kgp/kgp.kt#L130) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L150) · [Kotlin](../../examples/kgp/kgp.kt#L130) · [Rust](../../examples/kgp/kgp.rs)
