@@ -818,6 +818,133 @@
         "error": "This feature is not implemented: setup_mandate flow for paysafe"
       }
     },
+    "tokenize": {
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.country. Paysafe Apple Pay billingContact requires the billing country — Missing required field: billing.address.country. Paysafe Apple Pay billingContact requires the billing country (hyperswitch parity)."
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.country. Paysafe Apple Pay billingContact requires the billing country — Missing required field: billing.address.country. Paysafe Apple Pay billingContact requires the billing country (hyperswitch parity)."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card, ACH, GooglePay, ApplePay, Skrill, Neteller, Interac, and Paysafecard payment methods are supported for PaymentMethodToken"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.test.paysafe.com/paymenthub/v1/paymenthandles",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantRefNum\":\"\",\"amount\":1000,\"settleWithAuth\":true,\"card\":{\"cardNum\":\"4111111111111111\",\"cardExpiry\":{\"month\":\"03\",\"year\":\"2030\"},\"cvv\":\"737\",\"holderName\":\"John Doe\"},\"currencyCode\":\"USD\",\"paymentType\":\"CARD\",\"transactionType\":\"PAYMENT\",\"returnLinks\":[{\"rel\":\"default\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_completed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_failed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_cancelled\",\"href\":\"https://example.com/return\",\"method\":\"GET\"}],\"accountId\":\"probe_acct_no3ds\",\"threeDs\":null,\"profile\":null,\"billingDetails\":null,\"skip3ds\":true}"
+        }
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.test.paysafe.com/paymenthub/v1/paymenthandles",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantRefNum\":\"\",\"amount\":1000,\"settleWithAuth\":true,\"googlePay\":{\"googlePayPaymentToken\":{\"apiVersion\":2,\"apiVersionMinor\":0,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"cardNetwork\":\"VISA\",\"cardDetails\":\"1111\"},\"tokenizationData\":{\"type\":\"PAYMENT_GATEWAY\",\"token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}}}},\"currencyCode\":\"USD\",\"paymentType\":\"CARD\",\"transactionType\":\"PAYMENT\",\"returnLinks\":[{\"rel\":\"default\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_completed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_failed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_cancelled\",\"href\":\"https://example.com/return\",\"method\":\"GET\"}],\"accountId\":\"probe_acct_no3ds\",\"threeDs\":null,\"profile\":null,\"billingDetails\":null}"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.test.paysafe.com/paymenthub/v1/paymenthandles",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantRefNum\":\"\",\"amount\":1000,\"settleWithAuth\":true,\"googlePay\":{\"googlePayPaymentToken\":{\"apiVersion\":2,\"apiVersionMinor\":0,\"paymentMethodData\":{\"type\":\"CARD\",\"description\":\"Visa 1111\",\"info\":{\"cardNetwork\":\"VISA\",\"cardDetails\":\"1111\"},\"tokenizationData\":{\"type\":\"PAYMENT_GATEWAY\",\"decryptedToken\":{\"messageId\":\"00000000-0000-0000-0000-000000000000\",\"messageExpiration\":\"0000000000000\",\"paymentMethodDetails\":{\"authMethod\":\"CRYPTOGRAM_3DS\",\"pan\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"cryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}}}}}},\"currencyCode\":\"USD\",\"paymentType\":\"CARD\",\"transactionType\":\"PAYMENT\",\"returnLinks\":[{\"rel\":\"default\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_completed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_failed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_cancelled\",\"href\":\"https://example.com/return\",\"method\":\"GET\"}],\"accountId\":\"probe_acct_no3ds\",\"threeDs\":null,\"profile\":null,\"billingDetails\":null}"
+        }
+      }
+    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

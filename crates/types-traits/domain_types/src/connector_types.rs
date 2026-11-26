@@ -1938,12 +1938,15 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub recipient_details: Option<RecipientDetails>,
     /// Details about the sender of funds for account-funded transactions.
     pub sender_details: Option<SenderDetails>,
-    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    /// Purpose of payment for the selected connector.
+    pub purpose_of_payment: Option<String>,
+    /// Connector-specific additional details.
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
     /// Merchant business country, used for country-specific connector rules.
     pub business_country: Option<common_enums::CountryAlpha2>,
+    pub merchant_details: Option<crate::frm::frm_types::MerchantDetails>,
     /// Opt in to address verification when billing details are available.
     /// Only `Some(true)` requests AVS; connectors decide how to send it.
     pub enable_avs_check: Option<bool>,
@@ -2642,6 +2645,7 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub enable_partial_authorization: Option<bool>,
     pub payment_channel: Option<PaymentChannel>,
     pub billing_descriptor: Option<BillingDescriptor>,
+    pub merchant_details: Option<crate::frm::frm_types::MerchantDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
@@ -3775,7 +3779,14 @@ impl ForeignTryFrom<grpc_api_types::payments::RequestDetails> for RequestDetails
         Ok(Self {
             method,
             uri: value.uri,
-            headers: value.headers,
+            // HTTP header names are case-insensitive. Callers forward them in whatever case
+            // they received (`Cko-Signature`, `x-signature`), so normalise once here and
+            // connectors look them up in lowercase.
+            headers: value
+                .headers
+                .into_iter()
+                .map(|(name, value)| (name.to_ascii_lowercase(), value))
+                .collect(),
             body: value.body,
             query_params: value.query_params,
         })
@@ -4100,7 +4111,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub recipient_details: Option<RecipientDetails>,
     /// Details about the sender of funds for account-funded transactions.
     pub sender_details: Option<SenderDetails>,
-    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    /// Purpose of payment for the selected connector.
+    pub purpose_of_payment: Option<String>,
+    /// Connector-specific additional details.
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
@@ -4227,7 +4240,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub recipient_details: Option<RecipientDetails>,
     /// Details about the sender of funds for account-funded transactions.
     pub sender_details: Option<SenderDetails>,
-    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    /// Purpose of payment for the selected connector.
+    pub purpose_of_payment: Option<String>,
+    /// Connector-specific additional details.
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
@@ -6931,20 +6946,31 @@ impl SenderDetails {
 /// Connector-specific additional details passed through the payment request.
 #[derive(Debug, Clone)]
 pub struct AdditionalConnectorDetails {
-    /// Checkout.com-specific additional information.
+    /// Checkout.com-specific additional information retained for legacy payloads.
     pub checkout: Option<CheckoutAdditionalInformation>,
-    /// Worldpayxml-specific additional information.
+    /// Worldpayxml-specific additional information retained for legacy payloads.
     pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
-    /// Stripe-specific additional information.
+    /// Stripe-specific additional information retained for legacy payloads.
     pub stripe: Option<StripeAdditionalInformation>,
+    /// Request an SCA exemption when the initial CIT completed 3D Secure.
+    pub request_sca_exemption: Option<bool>,
+    /// Worldpayxml account funding transaction type.
+    pub funding_transaction_type: Option<String>,
+    /// Stripe MIT: fail instead of requesting additional customer authentication.
+    pub error_on_requires_action: Option<bool>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData1).
+    pub user_data1: Option<String>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData2).
+    pub user_data2: Option<String>,
+    /// Merchant-supplied connector-specific user-defined data (e.g. Worldpay RAFT UserData3).
+    pub user_data3: Option<String>,
+    /// Destination wallet to include in the connector payment request.
+    pub ewallet: Option<Secret<String>>,
 }
 
 /// Stripe-specific additional information.
 #[derive(Debug, Clone)]
 pub struct StripeAdditionalInformation {
-    /// For MIT (merchant-initiated) payments: when true, Stripe fails the payment outright
-    /// instead of returning a `requires_action` status, since there's no customer present to
-    /// complete additional authentication.
     pub error_on_requires_action: Option<bool>,
 }
 
@@ -6958,6 +6984,5 @@ pub struct WorldpayxmlAdditionalInformation {
 /// Checkout.com-specific additional information.
 #[derive(Debug, Clone)]
 pub struct CheckoutAdditionalInformation {
-    /// Free-text description of the reason or intent behind the payment.
     pub purpose_of_payment: Option<String>,
 }

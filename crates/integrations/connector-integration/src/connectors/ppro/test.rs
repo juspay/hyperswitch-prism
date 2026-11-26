@@ -1585,6 +1585,7 @@ mod satispay_request_tests {
                 webhook_secret: None,
             },
             request: PaymentsAuthorizeData {
+                purpose_of_payment: None,
                 customer_document_details: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1651,6 +1652,7 @@ mod satispay_request_tests {
                 additional_connector_details: None,
                 customer: None,
                 business_country: None,
+                merchant_details: None,
                 enable_avs_check: None,
                 enable_account_name_verification: None,
             },

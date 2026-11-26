@@ -63,13 +63,19 @@ pub enum CredentialError {
 }
 
 /// PascalCase variant name used by the `ConnectorSpecificConfig` oneof. Proto
-/// field names are all-lowercase, so capitalising the first letter is enough.
+/// field names use snake_case while serde exposes the generated Rust variant
+/// names in UpperCamelCase.
 fn pascal_connector_name(connector: &str) -> String {
-    let mut chars = connector.chars();
-    match chars.next() {
-        None => String::new(),
-        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-    }
+    connector
+        .split('_')
+        .map(|word| {
+            let mut chars = word.chars();
+            chars
+                .next()
+                .map(|first| first.to_uppercase().collect::<String>() + chars.as_str())
+                .unwrap_or_default()
+        })
+        .collect()
 }
 
 /// Unwraps `{"value": "…"}` into the string it holds, recursively. Every other

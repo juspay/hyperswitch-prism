@@ -29,10 +29,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -59,10 +59,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -89,10 +89,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -119,10 +119,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -149,10 +149,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -179,10 +179,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -209,10 +209,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -249,10 +249,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -299,10 +299,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -331,10 +331,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -365,10 +365,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -395,10 +395,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -430,10 +430,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -460,10 +460,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -494,10 +494,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -524,10 +524,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -554,10 +554,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -586,10 +586,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -616,10 +616,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -646,10 +646,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -676,10 +676,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -706,10 +706,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -742,10 +742,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -772,10 +772,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -802,10 +802,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -832,10 +832,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -862,10 +862,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -896,10 +896,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -926,10 +926,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -960,10 +960,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -990,10 +990,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1020,10 +1020,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1052,10 +1052,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1082,10 +1082,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1112,10 +1112,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1142,10 +1142,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1172,10 +1172,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1206,10 +1206,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1249,10 +1249,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1295,10 +1295,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1327,10 +1327,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1357,10 +1357,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1387,10 +1387,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1417,10 +1417,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1447,10 +1447,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1477,10 +1477,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1507,10 +1507,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1537,10 +1537,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1567,10 +1567,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1597,10 +1597,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1627,10 +1627,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1657,10 +1657,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1687,10 +1687,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1717,10 +1717,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1747,10 +1747,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1777,10 +1777,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1810,10 +1810,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1840,10 +1840,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1874,10 +1874,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1904,10 +1904,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1936,10 +1936,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -1968,10 +1968,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2000,10 +2000,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2032,10 +2032,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2064,10 +2064,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2096,10 +2096,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2128,10 +2128,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2158,10 +2158,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2192,10 +2192,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2222,10 +2222,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2252,10 +2252,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2282,10 +2282,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2312,10 +2312,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2342,10 +2342,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2374,10 +2374,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2406,10 +2406,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2444,10 +2444,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2474,10 +2474,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2504,10 +2504,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2534,10 +2534,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2564,10 +2564,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2594,10 +2594,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2624,10 +2624,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2654,10 +2654,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2696,10 +2696,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2726,10 +2726,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2756,10 +2756,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2789,10 +2789,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2819,10 +2819,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2852,10 +2852,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2882,10 +2882,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2912,10 +2912,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2942,10 +2942,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -2972,10 +2972,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3002,10 +3002,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3032,10 +3032,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3062,10 +3062,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3094,10 +3094,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3124,10 +3124,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3154,10 +3154,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3184,10 +3184,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3214,10 +3214,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3246,10 +3246,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3276,10 +3276,10 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3469,10 +3469,10 @@
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3578,10 +3578,10 @@
           },
           "capture_method": "AUTOMATIC",
           "return_url": "https://example.com/return",
-          "connector_order_id": "connector_order_id"
+          "connector_feature_data": "{\"session_id\":\"probe_session_001\"}"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/probe_session_001/confirm",
           "method": "Post",
           "headers": {
             "content-type": "application/json",
@@ -3596,6 +3596,32 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for flywire"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by flywire connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by flywire connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by flywire connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by flywire connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by flywire connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by flywire connector"
       }
     },
     "verify_redirect": {

@@ -506,9 +506,17 @@ fn inquiry_preserves_merchant_reference_despite_gateway_transaction_id() {
     })
     .expect("inquiry transformation");
     match result.response.expect("payment response") {
-        PaymentsResponseData::TransactionResponse { resource_id, .. } => {
+        PaymentsResponseData::TransactionResponse {
+            resource_id,
+            connector_response_reference_id,
+            ..
+        } => {
             assert!(matches!(resource_id,
-            ResponseId::ConnectorTransactionId(id) if id == "original-reference"))
+            ResponseId::ConnectorTransactionId(id) if id == "original-reference"));
+            assert_eq!(
+                connector_response_reference_id.as_deref(),
+                Some("original-reference")
+            );
         }
         other => panic!("unexpected response: {other:?}"),
     }

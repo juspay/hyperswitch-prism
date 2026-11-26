@@ -399,13 +399,7 @@ impl FloatMajorUnit {
         let amount_decimal =
             Decimal::from_f64(self.0).ok_or(ParsingError::FloatToDecimalConversionFailure)?;
 
-        let amount = if currency.is_zero_decimal_currency() {
-            amount_decimal
-        } else if currency.is_three_decimal_currency() {
-            amount_decimal * Decimal::from(1000)
-        } else {
-            amount_decimal * Decimal::from(100)
-        };
+        let amount = amount_decimal * Decimal::from(currency_scale(currency)?);
 
         let amount_i64 = amount
             .to_i64()
@@ -441,13 +435,7 @@ impl StringMajorUnit {
             }
         })?;
 
-        let amount = if currency.is_zero_decimal_currency() {
-            amount_decimal
-        } else if currency.is_three_decimal_currency() {
-            amount_decimal * Decimal::from(1000)
-        } else {
-            amount_decimal * Decimal::from(100)
-        };
+        let amount = amount_decimal * Decimal::from(currency_scale(currency)?);
         let amount_i64 = amount
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;

@@ -2570,12 +2570,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBlik(Box::new(StripeBlik {
                     payment_method_data_type,
-                    code: Secret::new(blik_code.clone().ok_or(
-                        IntegrationError::MissingRequiredField {
+                    code: blik_code
+                        .clone()
+                        .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "blik_code",
                             context: Default::default(),
-                        },
-                    )?),
+                        })?,
                 })),
             )),
             BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(
@@ -7298,12 +7298,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             moto: is_moto,
             on_behalf_of,
-            error_on_requires_action: item
-                .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|details| details.stripe.as_ref())
-                .and_then(|stripe| stripe.error_on_requires_action),
+            error_on_requires_action: item.request.additional_connector_details.as_ref().and_then(
+                |details| {
+                    details.error_on_requires_action.or_else(|| {
+                        details
+                            .stripe
+                            .as_ref()
+                            .and_then(|stripe| stripe.error_on_requires_action)
+                    })
+                },
+            ),
             token_request_three_d_secure: None,
         })
     }

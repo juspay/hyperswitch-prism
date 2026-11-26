@@ -144,6 +144,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         use transformers::RapydWebhookEventType;
         Ok(match event.webhook_type {
             RapydWebhookEventType::PaymentSucceeded
+            | RapydWebhookEventType::PaymentUpdated
             | RapydWebhookEventType::PaymentCompleted
             | RapydWebhookEventType::PaymentCaptured
             | RapydWebhookEventType::PaymentCanceled

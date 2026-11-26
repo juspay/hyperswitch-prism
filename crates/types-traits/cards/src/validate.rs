@@ -309,6 +309,13 @@ where
     }
 }
 
+/// prost exposes no non-deprecated way to build a `DecodeError` from a `Message` impl;
+/// `DecodeError::new` is what custom impls use. Revisit on the next prost major release.
+#[allow(deprecated)]
+fn invalid_value_error(description: &'static str) -> prost::DecodeError {
+    prost::DecodeError::new(description)
+}
+
 impl prost::Message for CardNumber {
     fn encode_raw(&self, buf: &mut impl bytes::BufMut) {
         if !self.0.peek().is_empty() {
@@ -326,7 +333,10 @@ impl prost::Message for CardNumber {
         if tag == 1 {
             let mut temp_string = String::new();
             prost::encoding::string::merge(wire_type, &mut temp_string, buf, ctx)?;
-            *self = Self(StrongSecret::new(temp_string));
+            // Same validation as `FromStr` / serde `Deserialize`: a gRPC request must not
+            // carry a PAN the JSON path would reject.
+            *self = Self::from_str(&temp_string)
+                .map_err(|_| invalid_value_error("invalid card number"))?;
             Ok(())
         } else {
             prost::encoding::skip_field(wire_type, tag, buf, ctx)
@@ -363,7 +373,9 @@ impl prost::Message for NetworkToken {
         if tag == 1 {
             let mut temp_string = String::new();
             prost::encoding::string::merge(wire_type, &mut temp_string, buf, ctx)?;
-            *self = Self(StrongSecret::new(temp_string));
+            // Same validation as `FromStr` / serde `Deserialize`.
+            *self = Self::from_str(&temp_string)
+                .map_err(|_| invalid_value_error("invalid network token"))?;
             Ok(())
         } else {
             prost::encoding::skip_field(wire_type, tag, buf, ctx)

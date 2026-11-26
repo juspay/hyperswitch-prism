@@ -422,6 +422,7 @@ fn payment_flow() -> PaymentFlowData {
 
 fn authorize_request() -> PaymentsAuthorizeData<DefaultPCIHolder> {
     PaymentsAuthorizeData {
+        purpose_of_payment: None,
         payment_method_data: domain_types::payment_method_data::PaymentMethodData::Wallet(
             domain_types::payment_method_data::WalletData::Wero(
                 domain_types::payment_method_data::WeroData {},
@@ -490,6 +491,7 @@ fn authorize_request() -> PaymentsAuthorizeData<DefaultPCIHolder> {
         additional_connector_details: None,
         customer: None,
         business_country: None,
+        merchant_details: None,
         enable_avs_check: None,
         enable_account_name_verification: None,
     }

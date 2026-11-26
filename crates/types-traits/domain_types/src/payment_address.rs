@@ -254,14 +254,14 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (name, code, country): (
+        (name, supplied_iso_code, country): (
             Option<Secret<String>>,
             Option<Secret<String>>,
             Option<common_enums::CountryAlpha2>,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let code = match code {
-            Some(code) => Some(normalize_state_code_iso(code, country)?),
+        let code = match supplied_iso_code.as_ref() {
+            Some(code) => Some(normalize_state_code_iso(code.clone(), country)?),
             None => name.as_ref().and_then(|name| {
                 country.and_then(|country| {
                     let state_name = name.peek();
@@ -547,6 +547,25 @@ impl AddressDetails {
             })
             .transpose()
     }
+
+    /// Prefixes a short subdivision code with the address country when available.
+    pub fn get_optional_country_prefixed_state_code(&self) -> Option<Secret<String>> {
+        let state = self.to_state_code_as_optional().ok().flatten()?;
+        let code = state.peek();
+        match self.get_optional_country() {
+            Some(country)
+                if (1..=3).contains(&code.len())
+                    && code.bytes().all(|byte| byte.is_ascii_alphanumeric()) =>
+            {
+                Some(Secret::new(format!(
+                    "{country}-{}",
+                    code.to_ascii_uppercase()
+                )))
+            }
+            _ => Some(state),
+        }
+    }
+
     pub fn get_optional_zip(&self) -> Option<Secret<String>> {
         self.zip.clone()
     }

@@ -968,8 +968,15 @@ mod tests {
         assert_eq!(connectors, sorted, "connectors should be sorted");
     }
 
+    /// `UCS_ALL_CONNECTORS` is process-global and tests run on parallel threads: every test
+    /// that sets or reads it holds this lock for the whole set / read / restore sequence.
+    static UCS_ALL_CONNECTORS_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn configured_connectors_defaults_to_static_run_list() {
+        let _env_lock = UCS_ALL_CONNECTORS_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let previous = std::env::var("UCS_ALL_CONNECTORS").ok();
         std::env::remove_var("UCS_ALL_CONNECTORS");
 
@@ -1053,6 +1060,9 @@ mod tests {
 
     #[test]
     fn configured_connectors_supports_env_override() {
+        let _env_lock = UCS_ALL_CONNECTORS_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let previous = std::env::var("UCS_ALL_CONNECTORS").ok();
         std::env::set_var("UCS_ALL_CONNECTORS", "stripe, adyen, stripe, ,rapyd");
 
