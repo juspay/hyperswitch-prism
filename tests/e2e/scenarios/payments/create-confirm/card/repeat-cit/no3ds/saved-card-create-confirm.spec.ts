@@ -33,6 +33,7 @@ test.use({ scenario });
 test(
   scenario.title,
   async ({ connector, merchant, payments, report, expected }) => {
+    const card = createCard(connector.card);
     const customer = createCustomer();
     const billing = { address: createAddress(), email: customer.email };
     const browserInfo = createBrowserInfo();
@@ -47,7 +48,7 @@ test(
         capture_method: "automatic",
         payment_method: "card",
         payment_method_type: "credit",
-        payment_method_data: { card: createCard(connector.card) },
+        payment_method_data: { card },
         setup_future_usage: "on_session",
         customer_acceptance: createCustomerAcceptance(),
         customer,
@@ -127,8 +128,6 @@ test(
           confirm: false,
           authentication_type: "no_three_ds",
           capture_method: "automatic",
-          payment_method: "card",
-          payment_method_type: "credit",
           customer_id: customer.id,
           description: "Synthetic saved-card repeat payment",
           merchant_order_reference_id: createReference("order"),
@@ -144,7 +143,9 @@ test(
           repeatIntent.payment_id,
           {
             payment_method: "card",
+            payment_method_type: "credit",
             payment_token: paymentToken,
+            card_cvc: card.card_cvc,
             billing,
             browser_info: browserInfo,
             return_url: testReturnUrl,

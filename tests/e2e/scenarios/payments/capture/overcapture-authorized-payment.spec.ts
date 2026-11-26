@@ -1,7 +1,13 @@
 import { expect } from "@playwright/test";
 import { test } from "../../../framework/fixtures.js";
 import { scenarioFromFile } from "../../catalog.js";
-import { createCard, createCustomer, createReference, testReturnUrl } from "../../../test-data.js";
+import {
+  createBrowserInfo,
+  createCard,
+  createCustomer,
+  createReference,
+  testReturnUrl,
+} from "../../../test-data.js";
 
 const scenario = scenarioFromFile(import.meta.url, {
   title: "Capture more than the authorized card-payment amount",
@@ -30,6 +36,7 @@ test(scenario.title, async ({ connector, merchant, payments, report, expected })
       payment_method: "card",
       payment_method_type: "credit",
       payment_method_data: { card: createCard(connector.card) },
+      browser_info: createBrowserInfo(),
       customer,
       enable_overcapture: true,
       description: "Synthetic overcapture authorization",

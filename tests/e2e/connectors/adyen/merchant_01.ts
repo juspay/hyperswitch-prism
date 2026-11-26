@@ -41,11 +41,6 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
   overrides: {
     "payments/incremental-authorization/increase-authorized-amount": {
       expectations: {
-        "incremental-authorization-initial-fields": {
-          reason:
-            "Adyen's authorization response does not expose an incremental-authorization capability boolean; support is proven by the subsequent amount-update call",
-          patch: { incremental_authorization_allowed: null },
-        },
         "incremental-authorization-capture-fields": {
           reason:
             "Adyen accepts capture asynchronously after the authorization adjustment",

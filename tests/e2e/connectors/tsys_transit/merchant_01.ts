@@ -3,6 +3,10 @@ import type { ScenarioId } from "../../scenarios/catalog.js";
 
 export default connectorFromFile<ScenarioId>(import.meta.url, {
   exclude: {
+    "refunds/reverse/reverse-successful-refund-before-settlement": {
+      reason:
+        "The current TSYS Transit sandbox rejects immediate refund reversal as not allowed; connector-backed certification remains pending.",
+    },
     "payments/create-confirm/card/one-time/external-three-ds/automatic-capture-create-confirm": {
       reason: "External 3DS validation is owned by Stripe using documented sandbox data.",
     },

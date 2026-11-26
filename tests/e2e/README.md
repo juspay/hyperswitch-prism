@@ -178,22 +178,22 @@ represented; it does not mean that Adyen or HS cannot support it.
 | Guest payment, automatic capture (without customer) | ✅ | Inline confirm and automatic capture |
 | One-time payment, manual capture | ✅ | Inline and separate confirmation variants, followed by full capture |
 | One-time payment, automatic capture | ✅ | Inline and separate confirmation variants |
-| Setup mandate, nonzero CIT, manual capture | 🔵 | Executable setup → full-capture request → connector-mandate recurring journey; Adyen capture completion is asynchronous |
+| Setup mandate, nonzero CIT, manual capture | ✅ | Setup → accepted full-capture request → connector-mandate recurring journey; Adyen capture completion is asynchronous |
 | Setup mandate, nonzero CIT, automatic capture | ✅ | Nonzero setup followed by an off-session recurring charge |
-| Setup mandate, zero CIT, manual capture | 🔵 | Executable zero-value setup → connector-mandate recurring journey; no separate capture is sent for a zero-value authorization |
-| Setup mandate, zero CIT, automatic capture | 🔵 | Executable zero-value setup → connector-mandate recurring journey |
-| Repeat CIT using a saved card | 🔵 | Executable Adyen initial CIT → customer payment-method listing → payment-token repeat CIT |
+| Setup mandate, zero CIT, manual capture | ✅ | Zero-value setup → connector-mandate recurring journey; no separate capture is sent for a zero-value authorization |
+| Setup mandate, zero CIT, automatic capture | ✅ | Zero-value setup → connector-mandate recurring journey |
+| Repeat CIT using a saved card | ✅ | Adyen initial CIT → customer payment-method listing → payment-token repeat CIT |
 | Recurring using connector mandate ID | ✅ | Reuses the mandate created by the nonzero setup payment without card data |
-| Recurring using network transaction ID | 🔵 | Executable initial CIT → recorded network reference → card-with-NTI MIT journey; sandbox validation pending |
+| Recurring using network transaction ID | ✅ | Initial CIT → recorded network reference → card-with-NTI MIT journey |
 | Recurring using network-token NTI | 🟡 | Planned recurring-reference journey |
 | Webhook | 🟡 | Planned authenticated payment-status webhook verification |
-| Refund | 🔵 | Validated full refund plus executable Adyen partial-refund submission |
-| Refund reversal | 🔵 | Executable TSYS Transit refund → HS refund-reversal endpoint → recorded reversal metadata |
+| Refund | ✅ | Validated Adyen full- and partial-refund submissions |
+| Refund reversal | 🔵 | Executable scenario exists, but the current TSYS Transit sandbox rejects immediate reversal as not allowed |
 | Full void | ✅ | Voids a manually authorized payment |
-| Incremental authorization | 🔵 | Executable Adyen 6000 authorization → 8000 adjustment → full capture |
-| Partial capture | 🔵 | Executable Adyen 6000 authorization → 2500 capture |
-| Overcapture | 🔵 | Executable Adyen 6000 authorization → 7000 capture |
-| External 3DS | 🔵 | Executable Stripe payment using synthetic merchant-supplied 3DS proof |
+| Incremental authorization | ✅ | Adyen 6000 authorization → 8000 adjustment → accepted full capture |
+| Partial capture | ✅ | Adyen 6000 authorization → accepted 2500 capture |
+| Overcapture | ✅ | Adyen 6000 authorization → accepted 7000 capture |
+| External 3DS | ✅ | Stripe payment using synthetic merchant-supplied 3DS proof |
 | 3DS | ✅ | Completes the real processor-hosted browser challenge and verifies the final charged payment |
 | Wallet connector decryption | 🟡 | Planned Google Pay TEST gateway-token journey; runtime token generation required |
 | Wallet Hyperswitch decryption | 🟡 | Planned Google Pay TEST direct-token journey; runtime test keys required |

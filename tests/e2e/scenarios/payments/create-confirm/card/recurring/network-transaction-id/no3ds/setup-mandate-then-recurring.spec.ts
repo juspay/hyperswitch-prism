@@ -264,7 +264,7 @@ test(
           merchant_connector_id: merchant.merchantConnectorId,
           capture_method: "automatic",
           payment_method: "card",
-          payment_method_type: "credit",
+          payment_method_type: null,
           authentication_type: "no_three_ds",
           amount: 2500,
           net_amount: 2500,
