@@ -1694,6 +1694,15 @@ pub(crate) use expand_imports;
 macro_rules! create_amount_converter_wrapper {
     (connector_name: $connector_name:ident, amount_type: $amount_type:ty) => {
         paste::paste! {
+            $crate::connectors::macros::create_amount_converter_wrapper!(
+                connector_name: $connector_name,
+                amount_type: $amount_type,
+                convertor: common_utils::types::[<$amount_type ForConnector>]
+            );
+        }
+    };
+    (connector_name: $connector_name:ident, amount_type: $amount_type:ty, convertor: $convertor:expr) => {
+        paste::paste! {
             #[derive(Default, Debug, Clone, Copy, PartialEq)]
             pub struct [<$connector_name AmountConvertor>];
 
@@ -1705,7 +1714,7 @@ macro_rules! create_amount_converter_wrapper {
                     error_stack::Report<domain_types::errors::IntegrationError>,
                 > {
                     domain_types::utils::convert_amount(
-                        &common_utils::types::[<$amount_type ForConnector>],
+                        &$convertor,
                         money,
                     ).change_context(domain_types::errors::IntegrationError::InvalidDataFormat {
                         field_name: "amount",
@@ -1728,7 +1737,7 @@ macro_rules! create_amount_converter_wrapper {
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
                     domain_types::utils::convert_back_amount_to_money(
-                        &common_utils::types::[<$amount_type ForConnector>],
+                        &$convertor,
                         amount,
                         currency,
                     )
@@ -1752,8 +1761,8 @@ macro_rules! create_amount_converter_wrapper {
                     Self::Output,
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
-                    <common_utils::types::[<$amount_type ForConnector>] as common_utils::types::AmountConvertor>::convert(
-                        &common_utils::types::[<$amount_type ForConnector>],
+                    common_utils::types::AmountConvertor::convert(
+                        &$convertor,
                         money,
                     )
                 }
@@ -1766,8 +1775,8 @@ macro_rules! create_amount_converter_wrapper {
                     common_utils::types::Money,
                     error_stack::Report<common_utils::errors::ParsingError>,
                 > {
-                    <common_utils::types::[<$amount_type ForConnector>] as common_utils::types::AmountConvertor>::convert_back(
-                        &common_utils::types::[<$amount_type ForConnector>],
+                    common_utils::types::AmountConvertor::convert_back(
+                        &$convertor,
                         amount,
                         currency,
                     )

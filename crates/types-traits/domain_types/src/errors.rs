@@ -1530,6 +1530,7 @@ impl ErrorSwitch<IntegrationError> for common_utils::errors::ParsingError {
             Pe::I64ToDecimalConversionFailure => "amount",
             Pe::StringToDecimalConversionFailure { .. } => "decimal",
             Pe::IntegerOverflow => "integer",
+            Pe::FractionalAmountNotSupported => "amount",
         };
         IntegrationError::InvalidDataFormat {
             field_name,

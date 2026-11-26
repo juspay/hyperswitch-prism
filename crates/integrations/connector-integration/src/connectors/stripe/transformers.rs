@@ -49,7 +49,10 @@ use domain_types::{
         PaymentSynIntegrityObject, RefundIntegrityObject,
     },
     router_response_types::RedirectForm,
-    utils::{get_unimplemented_payment_method_error_message, is_payment_failure},
+    utils::{
+        get_unimplemented_payment_method_error_message, is_payment_failure,
+        MinorUnitInConnectorDecimals,
+    },
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
@@ -68,6 +71,22 @@ use crate::{
         SplitPaymentData,
     },
 };
+
+/// Converts amounts between domain and Stripe, using Stripe's decimal digits for each currency
+pub const STRIPE_AMOUNT_CONVERTOR: MinorUnitInConnectorDecimals =
+    MinorUnitInConnectorDecimals::new(domain_types::connector_types::ConnectorEnum::Stripe);
+
+/// Converts a minor-unit amount in `currency` to the amount Stripe expects
+pub fn to_stripe(
+    amount: MinorUnit,
+    currency: common_enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<IntegrationError>> {
+    STRIPE_AMOUNT_CONVERTOR
+        .convert_minor_unit(amount, currency)
+        .change_context(IntegrationError::AmountConversionFailed {
+            context: Default::default(),
+        })
+}
 
 pub mod auth_headers {
     pub const STRIPE_API_VERSION: &str = "stripe-version";
@@ -389,86 +408,89 @@ pub struct StripeLineItemsData {
     pub line_items: Option<HashMap<String, String>>,
 }
 
-fn create_stripe_line_items_data(l2_l3_data: Option<&L2L3Data>) -> Option<StripeLineItemsData> {
-    l2_l3_data.map(|data| {
-        // Stripe takes tax either at order level or at line-item level, never both.
-        let (line_items, order_tax_amount) = data.get_order_details().map_or(
-            (None, data.get_order_tax_amount()),
-            |order_details| {
-                if order_details.is_empty() {
-                    return (None, data.get_order_tax_amount());
+fn create_stripe_line_items_data(
+    l2_l3_data: Option<&L2L3Data>,
+    currency: common_enums::Currency,
+) -> Result<Option<StripeLineItemsData>, error_stack::Report<IntegrationError>> {
+    let to_stripe = |amount: MinorUnit| to_stripe(amount, currency);
+    l2_l3_data
+        .map(|data| {
+            // Stripe takes tax either at order level or at line-item level, never both.
+            let (line_items, order_tax_amount) = match data.get_order_details() {
+                Some(order_details) if !order_details.is_empty() => {
+                    let mut items_map = HashMap::new();
+                    let mut has_line_item_tax = false;
+
+                    for (index, order_item) in order_details.iter().enumerate() {
+                        items_map.insert(
+                            format!("amount_details[line_items][{index}][product_name]"),
+                            order_item.product_name.clone(),
+                        );
+                        items_map.insert(
+                            format!("amount_details[line_items][{index}][unit_cost]"),
+                            to_stripe(order_item.amount)?.get_amount_as_i64().to_string(),
+                        );
+                        items_map.insert(
+                            format!("amount_details[line_items][{index}][quantity]"),
+                            order_item.quantity.to_string(),
+                        );
+                        if let Some(product_code) = order_item.product_id.as_ref() {
+                            items_map.insert(
+                                format!("amount_details[line_items][{index}][product_code]"),
+                                product_code.clone(),
+                            );
+                        }
+                        if let Some(tax_amount) = order_item.total_tax_amount {
+                            has_line_item_tax = true;
+                            items_map.insert(
+                                format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
+                                to_stripe(tax_amount)?.get_amount_as_i64().to_string(),
+                            );
+                        }
+                        if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
+                            items_map.insert(
+                                format!("amount_details[line_items][{index}][unit_of_measure]"),
+                                unit_of_measure.clone(),
+                            );
+                        }
+                        if let Some(line_discount) = order_item.unit_discount_amount {
+                            items_map.insert(
+                                format!("amount_details[line_items][{index}][discount_amount]"),
+                                to_stripe(line_discount)?.get_amount_as_i64().to_string(),
+                            );
+                        }
+                        if let Some(commodity_code) = order_item.commodity_code.as_ref() {
+                            items_map.insert(
+                                format!("amount_details[line_items][{index}][payment_method_options][card][commodity_code]"),
+                                commodity_code.clone(),
+                            );
+                        }
+                    }
+
+                    let order_tax = if has_line_item_tax {
+                        None
+                    } else {
+                        data.get_order_tax_amount()
+                    };
+                    (Some(items_map), order_tax)
                 }
-                let mut items_map = HashMap::new();
-                let mut has_line_item_tax = false;
+                _ => (None, data.get_order_tax_amount()),
+            };
 
-                for (index, order_item) in order_details.iter().enumerate() {
-                    items_map.insert(
-                        format!("amount_details[line_items][{index}][product_name]"),
-                        order_item.product_name.clone(),
-                    );
-                    items_map.insert(
-                        format!("amount_details[line_items][{index}][unit_cost]"),
-                        order_item.amount.get_amount_as_i64().to_string(),
-                    );
-                    items_map.insert(
-                        format!("amount_details[line_items][{index}][quantity]"),
-                        order_item.quantity.to_string(),
-                    );
-                    if let Some(product_code) = order_item.product_id.as_ref() {
-                        items_map.insert(
-                            format!("amount_details[line_items][{index}][product_code]"),
-                            product_code.clone(),
-                        );
-                    }
-                    if let Some(tax_amount) = order_item.total_tax_amount.as_ref() {
-                        has_line_item_tax = true;
-                        items_map.insert(
-                            format!("amount_details[line_items][{index}][tax][total_tax_amount]"),
-                            tax_amount.get_amount_as_i64().to_string(),
-                        );
-                    }
-                    if let Some(unit_of_measure) = order_item.unit_of_measure.as_ref() {
-                        items_map.insert(
-                            format!("amount_details[line_items][{index}][unit_of_measure]"),
-                            unit_of_measure.clone(),
-                        );
-                    }
-                    if let Some(line_discount) = order_item.unit_discount_amount.as_ref() {
-                        items_map.insert(
-                            format!("amount_details[line_items][{index}][discount_amount]"),
-                            line_discount.get_amount_as_i64().to_string(),
-                        );
-                    }
-                    if let Some(commodity_code) = order_item.commodity_code.as_ref() {
-                        items_map.insert(
-                            format!("amount_details[line_items][{index}][payment_method_options][card][commodity_code]"),
-                            commodity_code.clone(),
-                        );
-                    }
-                }
-
-                let order_tax = if has_line_item_tax {
-                    None
-                } else {
-                    data.get_order_tax_amount()
-                };
-                (Some(items_map), order_tax)
-            },
-        );
-
-        StripeLineItemsData {
-            customer_reference: data
-                .get_customer_id()
-                .map(|id| id.get_string_repr().to_string()),
-            order_reference: data.get_merchant_order_reference_id(),
-            shipping_from_postal_code: data.get_shipping_origin_zip(),
-            shipping_to_postal_code: data.get_shipping_zip(),
-            shipping_amount: data.get_shipping_cost(),
-            order_tax_amount,
-            discount_amount: data.get_discount_amount(),
-            line_items,
-        }
-    })
+            Ok(StripeLineItemsData {
+                customer_reference: data
+                    .get_customer_id()
+                    .map(|id| id.get_string_repr().to_string()),
+                order_reference: data.get_merchant_order_reference_id(),
+                shipping_from_postal_code: data.get_shipping_origin_zip(),
+                shipping_to_postal_code: data.get_shipping_zip(),
+                shipping_amount: data.get_shipping_cost().map(to_stripe).transpose()?,
+                order_tax_amount: order_tax_amount.map(to_stripe).transpose()?,
+                discount_amount: data.get_discount_amount().map(to_stripe).transpose()?,
+                line_items,
+            })
+        })
+        .transpose()
 }
 
 // Field rename is required only in case of serialization as it is passed in the request to the connector.
@@ -3180,16 +3202,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             None
         };
 
+        let currency = item.request.money.currency();
         let charges = match &item.request.split_payments {
             Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
                 match &stripe_split_payment.charge_type {
                     common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         common_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
+                                .map(|fee| to_stripe(fee, currency))
+                                .transpose()?,
                             destination_account_id: None,
                         }),
                         common_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
+                                .map(|fee| to_stripe(fee, currency))
+                                .transpose()?,
                             destination_account_id: Some(Secret::new(
                                 stripe_split_payment.transfer_account_id.clone(),
                             )),
@@ -3205,13 +3234,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(common_enums::PaymentChargeType::Stripe(
                     common_enums::StripeChargeType::Direct,
                 )) => Some(IntentCharges {
-                    application_fee_amount: application_fees, // default to 0 if None
+                    application_fee_amount: application_fees
+                        .map(|fee| to_stripe(fee, currency))
+                        .transpose()?, // default to 0 if None
                     destination_account_id: None,
                 }),
                 Some(common_enums::PaymentChargeType::Stripe(
                     common_enums::StripeChargeType::Destination,
                 )) => Some(IntentCharges {
-                    application_fee_amount: application_fees,
+                    application_fee_amount: application_fees
+                        .map(|fee| to_stripe(fee, currency))
+                        .transpose()?,
                     destination_account_id: transfer_account_id,
                 }),
                 _ => None,
@@ -3305,7 +3338,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges: charges_in,
             line_items: create_stripe_line_items_data(
                 item.resource_common_data.l2_l3_data.as_deref(),
-            ),
+                currency,
+            )?,
             moto: is_moto,
             on_behalf_of,
             error_on_requires_action,
@@ -3960,13 +3994,18 @@ where
             .latest_charge
             .as_ref()
             .and_then(StripeChargeEnum::get_maximum_capturable_amount);
-        let response_currency = item
-            .router_data
-            .resource_common_data
-            .money
-            .as_ref()
-            .map(|money| money.currency())
-            .unwrap_or_default();
+        // Stripe's own currency first: the amounts below are in Stripe's representation of it
+        let response_currency =
+            common_enums::Currency::from_str(item.response.currency.to_uppercase().as_str())
+                .ok()
+                .or_else(|| {
+                    item.router_data
+                        .resource_common_data
+                        .money
+                        .as_ref()
+                        .map(|money| money.currency())
+                })
+                .unwrap_or_default();
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -5618,7 +5657,7 @@ pub(crate) fn build_webhook_dispute_response(
     let amount = domain_types::utils::convert_amount_for_webhook(
         &StringMinorUnitForConnector,
         &domain_types::utils::convert_back_amount_to_money_for_webhook(
-            &common_utils::types::MinorUnitForConnector,
+            &STRIPE_AMOUNT_CONVERTOR,
             amount,
             event_object.currency,
         )?,
@@ -6205,7 +6244,7 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
     fn try_from(
         item: &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let amount = item.request.refund_money.amount();
+        let amount = StripeAmountConvertor::convert(&item.request.refund_money)?;
         match item.request.split_refunds.as_ref() {
             None => Err(IntegrationError::MissingRequiredField {
                 field_name: "split_refunds",
@@ -7190,16 +7229,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             None
         };
 
+        let currency = item.request.money.currency();
         let charges = match &item.request.split_payments {
             Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
                 match &stripe_split_payment.charge_type {
                     common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         common_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
+                                .map(|fee| to_stripe(fee, currency))
+                                .transpose()?,
                             destination_account_id: None,
                         }),
                         common_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
+                                .map(|fee| to_stripe(fee, currency))
+                                .transpose()?,
                             destination_account_id: Some(Secret::new(
                                 stripe_split_payment.transfer_account_id.clone(),
                             )),
@@ -7215,13 +7261,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(common_enums::PaymentChargeType::Stripe(
                     common_enums::StripeChargeType::Direct,
                 )) => Some(IntentCharges {
-                    application_fee_amount: application_fees, // default to 0 if None
+                    application_fee_amount: application_fees
+                        .map(|fee| to_stripe(fee, currency))
+                        .transpose()?, // default to 0 if None
                     destination_account_id: None,
                 }),
                 Some(common_enums::PaymentChargeType::Stripe(
                     common_enums::StripeChargeType::Destination,
                 )) => Some(IntentCharges {
-                    application_fee_amount: application_fees,
+                    application_fee_amount: application_fees
+                        .map(|fee| to_stripe(fee, currency))
+                        .transpose()?,
                     destination_account_id: transfer_account_id,
                 }),
                 _ => None,
@@ -7295,7 +7345,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges: charges_in,
             line_items: create_stripe_line_items_data(
                 item.resource_common_data.l2_l3_data.as_deref(),
-            ),
+                currency,
+            )?,
             moto: is_moto,
             on_behalf_of,
             error_on_requires_action: item.request.additional_connector_details.as_ref().and_then(
