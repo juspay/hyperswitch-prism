@@ -1123,8 +1123,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentMethodServiceTokenizeReq
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         Self {
             integrity_specifications: item.integrity_specifications,
-            // Authorize carries the payment method inline and has no merchant payment-method ID.
-            merchant_payment_method_id: None,
+            merchant_payment_method_id: item.merchant_payment_method_id.clone(),
             amount: item.amount,
             payment_method: item.payment_method.clone(),
             customer: item.customer.clone(),
