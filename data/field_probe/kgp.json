@@ -503,7 +503,7 @@
     "customer_create": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: KGP customer creation is not part of the authorize flow"
+        "error": "This feature is not implemented: KGP customer creation is not implemented by this connector. KGP does not create a customer during every authorization; customer creation is a separate saved-card operation and is currently unsupported."
       }
     },
     "customer_get": {
