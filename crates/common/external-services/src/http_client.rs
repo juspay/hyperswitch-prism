@@ -14,12 +14,11 @@ const MAX_ERROR_SOURCE_DEPTH: usize = 8;
 /// writes the request head, transitions the connection to Busy, then gets EOF
 /// on the read side — producing `is_incomplete_message()`.
 ///
-/// Technically, the request bytes may have reached the server (TCP FIN is a
-/// half-close — the server's recv buffer can still accept data). However, in
-/// practice idle-connection cleanup uses `close()` (not `shutdown(SHUT_WR)`),
-/// which closes both directions and RSTs incoming data. This is why
-/// Hyperswitch has run this same blind retry in production at scale without
-/// double-charge incidents.
+/// The request bytes may already have reached the server: the same error is
+/// produced when a connection is closed after the server acted on the request
+/// (for example by a proxy or load balancer in between). Sending it again can
+/// then apply it twice, so only callers whose request is safe to repeat (a GET)
+/// pass `resend_on_connection_closed`; any other request returns the error.
 ///
 /// The request is cloned via `try_clone()` before the first attempt. If the
 /// body is a stream that cannot be cloned, the retry is skipped and the
@@ -37,6 +36,7 @@ const MAX_ERROR_SOURCE_DEPTH: usize = 8;
 /// already-created client that made the first attempt.
 pub async fn send_request_with_retry(
     request: reqwest::RequestBuilder,
+    resend_on_connection_closed: bool,
     make_retry_client: impl FnOnce() -> Result<reqwest::Client, Report<ApiClientError>>,
 ) -> (Result<reqwest::Response, Report<ApiClientError>>, bool) {
     // Clone the request before sending so we have a backup for retry.
@@ -47,7 +47,9 @@ pub async fn send_request_with_retry(
 
     match response {
         Err(ref error)
-            if error.current_context() == &ApiClientError::ConnectionClosedIncompleteMessage =>
+            if resend_on_connection_closed
+                && error.current_context()
+                    == &ApiClientError::ConnectionClosedIncompleteMessage =>
         {
             match cloned_request {
                 Some(cloned_req) => match make_retry_client() {
@@ -447,22 +449,40 @@ mod tests {
     #[tokio::test]
     async fn retries_once_when_connection_closed_before_message_completed() {
         let (url, seen) = spawn_server(1).await;
-        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url), || {
-            Ok(reqwest::Client::new())
-        })
-        .await;
+        let (response, retried) =
+            send_request_with_retry(reqwest::Client::new().get(&url), true, || {
+                Ok(reqwest::Client::new())
+            })
+            .await;
         assert!(retried, "the request should have been retried");
         assert_eq!(response.unwrap().status(), 200);
         assert_eq!(seen.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test]
+    async fn does_not_resend_when_not_allowed() {
+        let (url, seen) = spawn_server(1).await;
+        let (response, retried) =
+            send_request_with_retry(reqwest::Client::new().post(&url), false, || {
+                Ok(reqwest::Client::new())
+            })
+            .await;
+        assert!(!retried, "the request must not be sent again");
+        assert_eq!(
+            response.unwrap_err().current_context(),
+            &ApiClientError::ConnectionClosedIncompleteMessage
+        );
+        assert_eq!(seen.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
     async fn retries_on_existing_client_when_fresh_retry_client_cannot_be_built() {
         let (url, seen) = spawn_server(usize::MAX).await;
-        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url), || {
-            Err(report!(ApiClientError::ClientConstructionFailed))
-        })
-        .await;
+        let (response, retried) =
+            send_request_with_retry(reqwest::Client::new().get(&url), true, || {
+                Err(report!(ApiClientError::ClientConstructionFailed))
+            })
+            .await;
         assert!(
             retried,
             "the request should have been retried on the existing client"
@@ -479,11 +499,12 @@ mod tests {
         let (url, _) = spawn_server(1).await;
         let factory_called = Arc::new(AtomicUsize::new(0));
         let counter = factory_called.clone();
-        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url), || {
-            counter.fetch_add(1, Ordering::SeqCst);
-            Ok(reqwest::Client::new())
-        })
-        .await;
+        let (response, retried) =
+            send_request_with_retry(reqwest::Client::new().get(&url), true, || {
+                counter.fetch_add(1, Ordering::SeqCst);
+                Ok(reqwest::Client::new())
+            })
+            .await;
         assert!(retried);
         assert_eq!(response.unwrap().status(), 200);
         assert_eq!(factory_called.load(Ordering::SeqCst), 1);
@@ -494,11 +515,12 @@ mod tests {
         let (url, _) = spawn_server(0).await;
         let factory_called = Arc::new(AtomicUsize::new(0));
         let counter = factory_called.clone();
-        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url), || {
-            counter.fetch_add(1, Ordering::SeqCst);
-            Ok(reqwest::Client::new())
-        })
-        .await;
+        let (response, retried) =
+            send_request_with_retry(reqwest::Client::new().get(&url), true, || {
+                counter.fetch_add(1, Ordering::SeqCst);
+                Ok(reqwest::Client::new())
+            })
+            .await;
         assert!(!retried);
         assert_eq!(response.unwrap().status(), 200);
         assert_eq!(
@@ -531,10 +553,11 @@ mod tests {
     #[tokio::test]
     async fn does_not_retry_more_than_once() {
         let (url, seen) = spawn_server(usize::MAX).await;
-        let (response, retried) = send_request_with_retry(reqwest::Client::new().get(&url), || {
-            Ok(reqwest::Client::new())
-        })
-        .await;
+        let (response, retried) =
+            send_request_with_retry(reqwest::Client::new().get(&url), true, || {
+                Ok(reqwest::Client::new())
+            })
+            .await;
         assert!(retried);
         assert_eq!(
             response.unwrap_err().current_context(),
@@ -547,11 +570,12 @@ mod tests {
     async fn request_errors_after_transmission_are_not_retried() {
         let (url, seen) = spawn_server_with_reset(1, true).await;
         let factory_calls = AtomicUsize::new(0);
-        let (response, retried) = send_request_with_retry(reqwest::Client::new().post(url), || {
-            factory_calls.fetch_add(1, Ordering::SeqCst);
-            Ok(reqwest::Client::new())
-        })
-        .await;
+        let (response, retried) =
+            send_request_with_retry(reqwest::Client::new().post(url), true, || {
+                factory_calls.fetch_add(1, Ordering::SeqCst);
+                Ok(reqwest::Client::new())
+            })
+            .await;
         assert!(!retried);
         assert_eq!(factory_calls.load(Ordering::SeqCst), 0);
         assert_eq!(seen.load(Ordering::SeqCst), 1);
@@ -662,10 +686,11 @@ mod transport_diagnostic_tests {
             .finish();
         let _guard = tracing::subscriber::set_default(subscriber);
         let endpoint = responding_socket(b"").await;
-        let (_, retried) = send_request_with_retry(reqwest::Client::new().get(endpoint), || {
-            Err(report!(ApiClientError::ClientConstructionFailed).attach_printable(SECRET))
-        })
-        .await;
+        let (_, retried) =
+            send_request_with_retry(reqwest::Client::new().get(endpoint), true, || {
+                Err(report!(ApiClientError::ClientConstructionFailed).attach_printable(SECRET))
+            })
+            .await;
         assert!(retried);
         let bytes = capture.0.lock().unwrap();
         let log = std::str::from_utf8(&bytes).unwrap();
