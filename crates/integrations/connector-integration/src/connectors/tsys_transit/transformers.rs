@@ -3444,10 +3444,11 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
 
         let void_post_refund_status = map_void_post_refund_status(response);
 
+        // The flow status describes the refund; the response describes its reversal.
         if matches!(void_post_refund_status, RefundStatus::Failure) {
             return Ok(Self {
                 resource_common_data: RefundFlowData {
-                    status: void_post_refund_status,
+                    status: RefundStatus::Success,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
@@ -3482,7 +3483,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
 
         Ok(Self {
             resource_common_data: RefundFlowData {
-                status: void_post_refund_status,
+                status: RefundStatus::Failure,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(RefundsResponseData {
