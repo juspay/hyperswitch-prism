@@ -46,10 +46,9 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as kgp, KgpAuthorizeResponse, KgpCaptureRequest, KgpCaptureResponse, KgpCustomerRequest,
-    KgpCustomerResponse, KgpPaymentsRequest, KgpRefundRequest, KgpRefundResponse,
-    KgpRefundSyncResponse, KgpSyncResponse, KgpToken, KgpTokenRequest, KgpVoidRequest,
-    KgpVoidResponse,
+    self as kgp, KgpAuthorizeResponse, KgpCaptureRequest, KgpCaptureResponse, KgpPaymentsRequest,
+    KgpRefundRequest, KgpRefundResponse, KgpRefundSyncResponse, KgpSyncResponse, KgpToken,
+    KgpTokenRequest, KgpVoidRequest, KgpVoidResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
@@ -109,12 +108,6 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: KgpRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ),
-        (
-            flow: CreateConnectorCustomer,
-            request_body: KgpCustomerRequest,
-            response_body: KgpCustomerResponse,
-            router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
         )
     ],
     amount_converters: [
@@ -136,7 +129,16 @@ macros::create_all_prerequisites!(
             let mut auth = self
                 .get_auth_header(&req.connector_config)
                 .change_context(IntegrationError::FailedToObtainAuthType {
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Configure the KGP api_key with the Omise secret key.".to_string(),
+                        ),
+                        doc_url: Some("https://docs.omise.co/api-authentication".to_string()),
+                        additional_context: Some(
+                            "KGP payment APIs authenticate with HTTP Basic using the secret key."
+                                .to_string(),
+                        ),
+                    },
                 })?;
             header.append(&mut auth);
             Ok(header)
@@ -152,12 +154,32 @@ macros::create_all_prerequisites!(
         {
             let auth = kgp::KgpAuthType::try_from(&req.connector_config).change_context(
                 IntegrationError::FailedToObtainAuthType {
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Configure KGP with both api_key and public_key credentials."
+                                .to_string(),
+                        ),
+                        doc_url: Some("https://docs.omise.co/api-authentication".to_string()),
+                        additional_context: Some(
+                            "KGP tokenization uses the Omise public key against the vault host."
+                                .to_string(),
+                        ),
+                    },
                 },
             )?;
             let public_key = auth.public_key.ok_or_else(|| {
                 IntegrationError::FailedToObtainAuthType {
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Add the Omise public key to the KGP connector configuration."
+                                .to_string(),
+                        ),
+                        doc_url: Some("https://docs.omise.co/api-authentication".to_string()),
+                        additional_context: Some(
+                            "public_key is required for POST /tokens on the Omise vault host."
+                                .to_string(),
+                        ),
+                    },
                 }
             })?;
             let encoded = BASE64_ENGINE.encode(format!("{}:", public_key.peek()));
@@ -187,18 +209,29 @@ macros::create_all_prerequisites!(
             &req.resource_common_data.connectors.kgp.base_url
         }
 
-        /// vault.omise.co — tokenization host. Falls back to the production
-        /// vault host when `secondary_base_url` is not configured.
+        /// vault.omise.co — tokenization host.
         pub fn connector_base_url_vault<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> String {
+        ) -> CustomResult<String, IntegrationError> {
             req.resource_common_data
                 .connectors
                 .kgp
                 .secondary_base_url
                 .clone()
-                .unwrap_or_else(|| "https://vault.omise.co/".to_string())
+                .ok_or_else(|| IntegrationError::FailedToObtainIntegrationUrl {
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Configure kgp.secondary_base_url with the Omise vault API URL."
+                                .to_string(),
+                        ),
+                        doc_url: Some("https://docs.omise.co/tokens-api".to_string()),
+                        additional_context: Some(
+                            "KGP card tokenization requires a separately configured vault host."
+                                .to_string(),
+                        ),
+                    },
+                }.into())
         }
     }
 );
@@ -301,9 +334,48 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// Required by ConnectorServiceTrait; no KGP customer HTTP integration is registered.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        CreateConnectorCustomer,
+        PaymentFlowData,
+        ConnectorCustomerData,
+        ConnectorCustomerResponse,
+    > for Kgp<T>
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            CreateConnectorCustomer,
+            PaymentFlowData,
+            ConnectorCustomerData,
+            ConnectorCustomerResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::NotImplemented(
+            "KGP customer creation is not part of the authorize flow".to_string(),
+            Default::default(),
+        )
+        .into())
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CreateConnectorCustomer for Kgp<T>
+{
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Kgp<T>
 {
+    fn should_do_payment_method_token(
+        &self,
+        payment_method: common_enums::PaymentMethod,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
+    ) -> bool {
+        payment_method == common_enums::PaymentMethod::Card
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -412,8 +484,8 @@ crate::connectors::macros::macro_connector_payout_implementation!(
 );
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
-// The 8 implemented flows (PaymentMethodToken, Authorize, PSync, Capture, Void,
-// Refund, RSync, CreateConnectorCustomer) are removed from
+// The implemented flows (PaymentMethodToken, Authorize, PSync, Capture, Void,
+// Refund, RSync) are removed from
 // `not_implemented` below and have real `macro_connector_implementation!` blocks.
 // Everything else stays stubbed.
 crate::connectors::macros::macro_connector_flow_status_impls!(
@@ -478,7 +550,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}tokens", self.connector_base_url_vault(req)))
+            Ok(format!("{}tokens", self.connector_base_url_vault(req)?))
         }
     }
 );
@@ -523,11 +595,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn validate_psync_reference_id(
         &self,
-        _data: &PaymentsSyncData,
+        data: &PaymentsSyncData,
         _payment_flow_data: &PaymentFlowData,
     ) -> CustomResult<(), IntegrationError> {
-        // PSync looks up the Omise charge by its connector transaction id (`chrg_...`).
-        Ok(())
+        connector_types::validate_psync_connector_transaction_id(data)
     }
 }
 
@@ -556,14 +627,7 @@ macros::macro_connector_implementation!(
             // Pre-Flight Gate §15: never re-derive a lookup key we could have
             // read. A missing connector_transaction_id carrier is a hard
             // MissingRequiredField, not a default / unwrap_or.
-            let connector_payment_id = req
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
-                    context: Default::default(),
-                })?;
+            let connector_payment_id = req.request.get_connector_transaction_id()?;
             Ok(format!(
                 "{}charges/{connector_payment_id}",
                 self.connector_base_url_payments(req)
@@ -601,14 +665,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let id = req
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
-                    context: Default::default(),
-                })?;
+            let id = req.request.get_connector_transaction_id()?;
             Ok(format!(
                 "{}charges/{id}/capture",
                 self.connector_base_url_payments(req)
@@ -728,40 +785,6 @@ macros::macro_connector_implementation!(
                 req.request.connector_transaction_id,
                 req.request.connector_refund_id,
             ))
-        }
-    }
-);
-
-// ----- CreateConnectorCustomer: POST {api}/customers -----
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Kgp<T>
-{
-}
-
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Kgp,
-    curl_request: FormUrlEncoded(KgpCustomerRequest),
-    curl_response: KgpCustomerResponse,
-    flow_name: CreateConnectorCustomer,
-    resource_common_data: PaymentFlowData,
-    flow_request: ConnectorCustomerData,
-    flow_response: ConnectorCustomerResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}customers", self.connector_base_url_payments(req)))
         }
     }
 );

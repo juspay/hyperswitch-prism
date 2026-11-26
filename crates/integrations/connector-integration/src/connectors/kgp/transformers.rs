@@ -15,15 +15,13 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund, Void,
-    },
+    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, Void},
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookReference, RefundsData,
-        RefundsResponseData, ResponseId, WebhookResourceReference,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookReference, RefundsData, RefundsResponseData, ResponseId,
+        WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -37,7 +35,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::Report;
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::KgpRouterData;
@@ -232,40 +230,6 @@ fn authorize_uri_redirect(uri: &str) -> Option<Box<RedirectForm>> {
     }))
 }
 
-/// Resolve the Omise card token / card id for CreateConnectorCustomer.
-///
-/// `CustomerServiceCreateRequest` has no card field, so gRPC callers put the
-/// unused `tokn_…` (or `card_…`) in `connector_feature_data`.
-fn extract_customer_card_token(
-    request: &ConnectorCustomerData,
-    resource_common_data: &PaymentFlowData,
-) -> Option<String> {
-    if let Some(id) = request.preprocessing_id.as_ref().filter(|s| !s.is_empty()) {
-        return Some(id.clone());
-    }
-
-    let feature = resource_common_data.connector_feature_data.as_ref()?;
-    let raw = feature.peek();
-
-    if let Some(map) = raw.as_object() {
-        for key in ["card", "token", "source", "preprocessing_id", "card_token"] {
-            if let Some(value) = map.get(key).and_then(|v| v.as_str()) {
-                if !value.is_empty() {
-                    return Some(value.to_string());
-                }
-            }
-        }
-    }
-
-    if let Some(s) = raw.as_str() {
-        let trimmed = s.trim().trim_matches('"');
-        if trimmed.starts_with("tokn_") || trimmed.starts_with("card_") {
-            return Some(trimmed.to_string());
-        }
-    }
-    None
-}
-
 // ============================================================================
 // SHARED WIRE TYPES
 // ============================================================================
@@ -277,10 +241,10 @@ pub struct KgpCard {
     pub object: Option<String>,
     pub brand: Option<String>,
     pub last_digits: Option<String>,
-    pub name: Option<String>,
-    pub expiration_month: Option<u8>,
-    pub expiration_year: Option<u16>,
-    pub security_code: Option<String>,
+    pub name: Option<Secret<String>>,
+    pub expiration_month: Option<Secret<u8>>,
+    pub expiration_year: Option<Secret<u16>>,
+    pub security_code: Option<Secret<String>>,
     pub created: Option<String>,
 }
 
@@ -422,52 +386,6 @@ pub struct KgpRefundRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub metadata_refund_id: Option<String>,
-    /// Set `true` to also void an uncaptured charge in one call.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub void: Option<bool>,
-}
-
-/// `POST {api}/customers` — create a customer and optionally attach a card.
-///
-/// When `card` is an unused `tokn_…` (or an existing `card_…`), Omise stores it
-/// as the customer's default card — the saved-card path from euler-api-gateway.
-#[derive(Debug, Clone, Serialize)]
-pub struct KgpCustomerRequest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
-    #[serde(
-        rename = "metadata[customer_id]",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub metadata_customer_id: Option<String>,
-    #[serde(rename = "metadata[name]", skip_serializing_if = "Option::is_none")]
-    pub metadata_name: Option<String>,
-}
-
-/// Customer object — CreateConnectorCustomer response.
-///
-/// `default_card` is the `card_…` attached at create time.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct KgpCustomer {
-    pub id: String,
-    pub object: Option<String>,
-    pub email: Option<String>,
-    pub description: Option<String>,
-    pub default_card: Option<String>,
-    pub cards: Option<KgpCardList>,
-    pub created: Option<String>,
-}
-
-pub type KgpCustomerResponse = KgpCustomer;
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct KgpCardList {
-    pub object: Option<String>,
-    pub data: Option<Vec<KgpCard>>,
 }
 
 // ============================================================================
@@ -650,8 +568,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     context: IntegrationErrorContext {
                         suggested_action: Some(
                             "A saved card id (card_…) must be charged against its Omise \
-                             customer (cust_…). Run CreateConnectorCustomer first or pass \
-                             connector_customer on the payment."
+                             customer (cust_…). Pass connector_customer for the customer \
+                             that owns the saved card."
                                 .to_string(),
                         ),
                         doc_url: Some("https://docs.omise.co/charges-api".to_string()),
@@ -1031,7 +949,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             amount: Some(request.refund_money.amount().get_amount_as_i64()),
             metadata_refund_id: Some(request.refund_id.clone()),
-            void: None,
         })
     }
 }
@@ -1128,108 +1045,6 @@ impl TryFrom<ResponseRouterData<KgpRefundSyncResponse, Self>>
     }
 }
 
-// ============================================================================
-// CREATE CONNECTOR CUSTOMER  (POST {api}/customers)
-// ============================================================================
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        KgpRouterData<
-            RouterDataV2<
-                CreateConnectorCustomer,
-                PaymentFlowData,
-                ConnectorCustomerData,
-                ConnectorCustomerResponse,
-            >,
-            T,
-        >,
-    > for KgpCustomerRequest
-{
-    type Error = Report<IntegrationError>;
-    fn try_from(
-        item: KgpRouterData<
-            RouterDataV2<
-                CreateConnectorCustomer,
-                PaymentFlowData,
-                ConnectorCustomerData,
-                ConnectorCustomerResponse,
-            >,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let request = &item.router_data.request;
-
-        // Saved-card attach: an unused `tokn_…` (or existing `card_…`) is stored
-        // as the customer's default card. Carriers, in order:
-        //   1. `preprocessing_id` (internal callers / stripe's `source` pattern)
-        //   2. `connector_feature_data` JSON key `card` / `token` / `source` /
-        //      `preprocessing_id` (gRPC CustomerServiceCreateRequest — the proto
-        //      has no card field, so this is the only public carrier)
-        //   3. `connector_feature_data` as a raw `tokn_…` / `card_…` string
-        let card = extract_customer_card_token(request, &item.router_data.resource_common_data)
-            .map(Secret::new);
-
-        // Omise `email` is a plain form field. `ConnectorCustomerData.email` is
-        // `Option<Secret<Email>>`; unwrap Secret → Email → Secret<String> → String.
-        let email = request.email.as_ref().map(|secret_email| {
-            let email = secret_email.peek().clone();
-            let inner: Secret<String, common_utils::pii::EmailStrategy> = email.expose();
-            inner.expose()
-        });
-
-        Ok(Self {
-            card,
-            description: request.description.clone(),
-            email,
-            metadata_customer_id: request.customer_id.as_ref().map(|id| id.peek().clone()),
-            metadata_name: request.name.as_ref().map(|name| name.peek().clone()),
-        })
-    }
-}
-
-impl TryFrom<ResponseRouterData<KgpCustomerResponse, Self>>
-    for RouterDataV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    >
-{
-    type Error = Report<ConnectorError>;
-    fn try_from(item: ResponseRouterData<KgpCustomerResponse, Self>) -> Result<Self, Self::Error> {
-        let ResponseRouterData {
-            response,
-            router_data,
-            http_code,
-        } = item;
-
-        // Keep the default card id on the request so the caller can store it.
-        let request = if response.default_card.is_some() || response.cards.is_some() {
-            ConnectorCustomerData {
-                preprocessing_id: response.default_card.clone().or_else(|| {
-                    response
-                        .cards
-                        .as_ref()
-                        .and_then(|list| list.data.as_ref())
-                        .and_then(|cards| cards.first())
-                        .and_then(|card| card.id.clone())
-                }),
-                ..router_data.request
-            }
-        } else {
-            router_data.request
-        };
-
-        Ok(Self {
-            response: Ok(ConnectorCustomerResponse {
-                connector_customer_id: response.id.clone(),
-                status_code: http_code,
-            }),
-            request,
-            ..router_data
-        })
-    }
-}
 // ============================================================================
 // WEBHOOKS
 // ============================================================================

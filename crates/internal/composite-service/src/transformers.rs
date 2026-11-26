@@ -246,6 +246,7 @@ impl
         &CompositeAuthorizeRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
+        Option<&PaymentMethodServiceTokenizeResponse>,
         Option<&CustomerServiceCreateResponse>,
         Option<&PaymentServiceCreateOrderResponse>,
         Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
@@ -259,6 +260,7 @@ impl
             item,
             access_token_response,
             session_token_response,
+            payment_method_tokenize_response,
             create_customer_response,
             create_order_response,
             pre_authenticate_response,
@@ -268,6 +270,7 @@ impl
             &CompositeAuthorizeRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
             Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
+            Option<&PaymentMethodServiceTokenizeResponse>,
             Option<&CustomerServiceCreateResponse>,
             Option<&PaymentServiceCreateOrderResponse>,
             Option<&PaymentMethodAuthenticationServicePreAuthenticateResponse>,
@@ -322,7 +325,21 @@ impl
             order_tax_amount: item.order_tax_amount,
             surcharge_amount: None,
             shipping_cost: item.shipping_cost,
-            payment_method: item.payment_method.clone(),
+            payment_method: payment_method_tokenize_response
+                .filter(|response| !response.payment_method_token.is_empty())
+                .map(|response| grpc_api_types::payments::PaymentMethod {
+                    payment_method: Some(
+                        grpc_api_types::payments::payment_method::PaymentMethod::Token(
+                            grpc_api_types::payments::TokenPaymentMethodType {
+                                token: Some(hyperswitch_masking::Secret::new(
+                                    response.payment_method_token.clone(),
+                                )),
+                                token_payment_method_type: None,
+                            },
+                        ),
+                    ),
+                })
+                .or_else(|| item.payment_method.clone()),
             capture_method: item.capture_method,
             customer: item.customer.clone(),
             address: item.address.clone(),
@@ -1091,6 +1108,30 @@ impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceToke
         Self {
             integrity_specifications: item.integrity_specifications,
             merchant_payment_method_id: item.merchant_payment_method_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            return_url: item.return_url.clone(),
+            test_mode: item.test_mode,
+            state: item.state.clone(),
+            split_payments: item.split_payments.clone(),
+            setup_future_usage: item.setup_future_usage,
+            customer_acceptance: item.customer_acceptance.clone(),
+            setup_mandate_details: item.setup_mandate_details.clone(),
+            browser_info: item.browser_info.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentMethodServiceTokenizeRequest {
+    #[allow(deprecated)]
+    fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
+        Self {
+            integrity_specifications: item.integrity_specifications,
+            merchant_payment_method_id: None,
             amount: item.amount,
             payment_method: item.payment_method.clone(),
             customer: item.customer.clone(),
