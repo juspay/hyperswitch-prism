@@ -63,7 +63,7 @@ def _build_authenticate_request():
             ),
         ),
         redirection_response=payment_pb2.RedirectionResponse(  # Redirection Information after DDC step.
-            payload={"Status": "true", "MessageType": "profile.completed", "SessionId": "probe_ddc_session_001"},
+            payload={"SessionId": "probe_ddc_session_001", "Status": "true", "MessageType": "profile.completed"},
         ),
     )
 
