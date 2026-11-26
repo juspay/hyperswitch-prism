@@ -791,11 +791,17 @@ pub struct RapydPaymentsRequest<
     pub amount: StringMajorUnit,
     pub currency: common_enums::Currency,
     pub payment_method: RapydPaymentMethodData<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<RapydPaymentMethodOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_reference_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capture: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub complete_payment_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_payment_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_details: Option<RapydClientDetails>,
@@ -983,8 +989,11 @@ pub fn build_external_3ds_options(
 pub struct PaymentMethod<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(rename = "type")]
     pub pm_type: RapydPaymentMethodType,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fields: Option<RapydPaymentMethodFields<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Address>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub digital_wallet: Option<RapydWallet>,
 }
 
@@ -2022,8 +2031,11 @@ where
 // Capture Request
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
     amount: Option<StringMajorUnit>,
-    receipt_email: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    receipt_email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     statement_descriptor: Option<String>,
 }
 
@@ -2065,7 +2077,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<common_enums::Currency>,
 }
 
