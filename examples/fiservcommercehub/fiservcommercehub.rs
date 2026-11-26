@@ -98,7 +98,7 @@ pub fn build_authenticate_request() -> PaymentMethodAuthenticationServiceAuthent
             ..Default::default()
         }),
         redirection_response: Some(RedirectionResponse {  // Redirection Information after DDC step.
-            payload: [("Status".to_string(), "true".to_string()) ,("MessageType".to_string(), "profile.completed".to_string()) ,("SessionId".to_string(), "probe_ddc_session_001".to_string())].into_iter().collect::<HashMap<_, _>>(),
+            payload: [("MessageType".to_string(), "profile.completed".to_string()) ,("SessionId".to_string(), "probe_ddc_session_001".to_string()) ,("Status".to_string(), "true".to_string())].into_iter().collect::<HashMap<_, _>>(),
             ..Default::default()
         }),
         ..Default::default()
