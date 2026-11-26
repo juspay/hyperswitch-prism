@@ -1,6 +1,6 @@
 # Connector override contract
 
-For a compile-checked, non-runnable example containing every currently
+For a compile-checked example containing every currently
 supported connector-definition field, see [`examples/connector.ts`](examples/connector.ts).
 It lives outside the automatically discovered `connectors/` directory. Copy
 only justified differences into a real connector rather than duplicating the
@@ -9,16 +9,20 @@ whole example.
 This document is the implementation contract for connector-specific differences.
 The shared scenario remains the source of truth for the journey, API-call order,
 base requests, and business assertions. A connector definition contains data
-only; it must not contain callbacks, HTTP calls, polling, or assertions.
+only; it must not contain callbacks, HTTP calls, polling, or assertions. A
+processor-hosted 3DS test challenge may declare synthetic challenge values and
+selectors in `threeDsChallenge`; the shared scenario still owns navigation,
+interaction order and final payment assertions.
 
 The framework implements this contract for every operation it currently exposes.
 Add an operation key only when its shared operation method is implemented; do
 not add speculative configuration for endpoints the suite does not call.
 
 Every synthetic merchant variant under `connectors/<connector>/merchant_XX.ts`
-explicitly lists each catalog scenario in `run` or excludes it with a non-empty
-reason. `run` is participation, not an override; keep overrides only for genuine
-request or expectation differences. A variant name never maps to a real merchant.
+runs every implemented catalog scenario by default. Use `exclude` with a
+non-empty reason only when the variant cannot run a scenario, and keep overrides
+only for genuine request or expectation differences. An override and exclusion
+cannot target the same scenario. A variant name never maps to a real merchant.
 
 ## Identify calls, not only operations
 
@@ -41,7 +45,7 @@ Group call IDs under their operation in connector data:
 
 ```ts
 overrides: {
-  "payments/create-confirm/card/recurring/connector-mandate/no3ds/setup-then-recurring": {
+  "payments/create-confirm/card/recurring/connector-mandate/no3ds/nonzero-amount-setup-mandate-then-recurring": {
     requests: {
       createPayment: {
         "mandate-setup": {

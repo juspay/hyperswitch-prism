@@ -15,6 +15,43 @@ CONNECTOR_AUTH_FILE_PATH=/path/to/connector-auth.json npm test
 
 Open the HTML report with `npx playwright show-report`. Stop the isolated stack with `npm run stack:down`; database volumes are retained.
 
+### Use locally built HS and UCS
+
+Connector developers can run the same scenarios against services built from
+their local source without changing the framework or building test-specific
+images:
+
+1. Start UCS locally.
+2. Configure the local HS process to use that UCS endpoint, then start HS and
+   its database.
+3. From `tests/e2e`, run:
+
+```sh
+CONNECTOR_AUTH_FILE_PATH=/absolute/path/to/sandbox-credentials.json \
+  npm run test:local -- --project adyen/merchant_01
+```
+
+The default targets are HS at `127.0.0.1:8080` and PostgreSQL at
+`127.0.0.1:15432`. Override ports without changing source:
+
+```sh
+HS_PORT=9090 HS_DB_PORT=5433 \
+CONNECTOR_AUTH_FILE_PATH=/absolute/path/to/sandbox-credentials.json \
+  npm run test:local -- --project adyen/merchant_01
+```
+
+For non-default local database credentials, set `HS_BASE_URL`,
+`HS_DATABASE_URL`, and, when required, `HS_ADMIN_API_KEY`. The tests
+intentionally accept no UCS URL: payment calls must enter through HS, and the
+developer's HS configuration owns the HS-to-UCS connection. Pointing the test
+runner directly at UCS would bypass the integration being tested.
+
+`test:local` is a guard around the normal Playwright command. It accepts only
+loopback HS and database addresses, requires an absolute credential-file path,
+rejects `UCS_ENVIRONMENT=production`, and refuses to run when `CI` is enabled.
+It does not start or stop either server, read or copy credential contents, or
+alter the existing `npm test`, `test:s3`, and Compose/Jenkins paths.
+
 `HS_IMAGE` and `UCS_IMAGE` select container images. Defaults are pinned to tested immutable digests in `stack/stack.mjs`; supporting service images and the gRPC health probe are also pinned. Update pins deliberately and rerun the sandbox scenario. The versioned Diesel installer is checked against its recorded SHA-256 before execution; that installer also verifies the platform binary checksum. Configuration and migrations come from the matching Hyperswitch source revision, cached after the first run. `HS_SOURCE_DIR` can supply an existing matching checkout; `HS_REF` can explicitly select its revision. Use reviewed versions or digests for image overrides in Jenkins.
 
 HS uses its supported `ROUTER__...` environment overrides; upstream TOML is unchanged. The UCS wrapper adds the standard gRPC health probe, and Compose starts HS after UCS is healthy. Redis is internal to the Compose network; PostgreSQL binds to loopback on `HS_DB_PORT` (default `15432`). `HS_PORT` sets the local HS port (default `8080`).
@@ -114,7 +151,54 @@ Use native Playwright `expect` for equality, partial nested objects, arrays, ran
 
 Choose `toMatchObject` for partial nested objects and `toEqual` for exact object/array equality. A range can use `report.check("Amount received > 0", { actual: response.amount_received, expected: 0 }, ({ actual, expected }) => expect(actual).toBeGreaterThan(expected))`. Expected/actual values are explicitly selected for the report: do not attach entire payment responses, credentials or card data. Use boolean presence checks for sensitive references. The scenario still owns all matching logic.
 
-Only `scenarios/payments/create-confirm/card/one-time/no3ds/create-confirm.spec.ts` is implemented. Files ending in `.planned.ts` reserve agreed scenario names and locations but are not executable tests or catalog entries. The current sequence is:
+Twenty-one shared specs are implemented: six one-time No3DS journeys, browser
+3DS and external 3DS, three connector-mandate variants, card-with-NTI recurring,
+saved-card repeat CIT, full void, partial capture, overcapture, incremental
+authorization, forced payment synchronization, full and partial refund, and
+refund reversal. Manual-capture journeys submit a full capture and assert its
+response; Adyen reports manual capture asynchronously, so this suite does not
+claim settlement before its completion webhook. Adyen explicitly excludes
+PSync because its redirect-completion sync requires customer-returned encoded
+data. Other connector exclusions document unsupported or not-yet-validated
+behavior. Files ending in `.planned.ts` reserve agreed scenario names and
+locations but are not executable tests or catalog entries. The comprehensive
+automatic inline-confirmation sequence is:
+
+### Coverage matrix
+
+`✅` means an executable scenario passed against its owning sandbox connector in
+this change. `🔵` means executable coverage has been added but not yet validated
+against its owning sandbox connector. `🟡` means the agreed scenario has a `.planned.ts`
+placeholder but is not executable coverage. `❌` means the scenario is not yet
+represented; it does not mean that Adyen or HS cannot support it.
+
+| Journey | Status | Current coverage |
+| --- | :---: | --- |
+| Guest payment, manual capture (without customer) | ✅ | Authorize without a customer, then fully capture |
+| Guest payment, automatic capture (without customer) | ✅ | Inline confirm and automatic capture |
+| One-time payment, manual capture | ✅ | Inline and separate confirmation variants, followed by full capture |
+| One-time payment, automatic capture | ✅ | Inline and separate confirmation variants |
+| Setup mandate, nonzero CIT, manual capture | ✅ | Setup → accepted full-capture request → connector-mandate recurring journey; Adyen capture completion is asynchronous |
+| Setup mandate, nonzero CIT, automatic capture | ✅ | Nonzero setup followed by an off-session recurring charge |
+| Setup mandate, zero CIT, manual capture | ✅ | Zero-value setup → connector-mandate recurring journey; no separate capture is sent for a zero-value authorization |
+| Setup mandate, zero CIT, automatic capture | ✅ | Zero-value setup → connector-mandate recurring journey |
+| Repeat CIT using a saved card | ✅ | Adyen initial CIT → customer payment-method listing → payment-token repeat CIT |
+| Recurring using connector mandate ID | ✅ | Reuses the mandate created by the nonzero setup payment without card data |
+| Recurring using network transaction ID | ✅ | Initial CIT → recorded network reference → card-with-NTI MIT journey |
+| Recurring using network-token NTI | 🟡 | Planned recurring-reference journey |
+| Webhook | 🟡 | Planned authenticated payment-status webhook verification |
+| Refund | ✅ | Validated Adyen full- and partial-refund submissions |
+| Refund reversal | 🔵 | Executable scenario exists, but the current TSYS Transit sandbox rejects immediate reversal as not allowed |
+| Full void | ✅ | Voids a manually authorized payment |
+| Incremental authorization | ✅ | Adyen 6000 authorization → 8000 adjustment → accepted full capture |
+| Partial capture | ✅ | Adyen 6000 authorization → accepted 2500 capture |
+| Overcapture | ✅ | Adyen 6000 authorization → accepted 7000 capture |
+| External 3DS | ✅ | Stripe payment using synthetic merchant-supplied 3DS proof |
+| 3DS | ✅ | Completes the real processor-hosted browser challenge and verifies the final charged payment |
+| Wallet connector decryption | 🟡 | Planned Google Pay TEST gateway-token journey; runtime token generation required |
+| Wallet Hyperswitch decryption | 🟡 | Planned Google Pay TEST direct-token journey; runtime test keys required |
+| Wallet merchant decryption | 🟡 | Planned harness decryption of a fresh Google Pay TEST token |
+| Partial void | 🟡 | Planned partial void of an authorized payment |
 
 ```text
 POST /payments with confirm:true
@@ -123,7 +207,7 @@ Read the payment and its active attempt from the test HS database
   -> check gateway, attempt status, connector transaction ID presence and customer record existence
 ```
 
-`payments.readRecordedPayment(payment.payment_id)` returns the recorded `gateway`, `attemptStatus`, `connectorTransactionIdPresent`, and `customerRecordExists`. Customer existence is checked against the payment's merchant and customer ID; customer contact data is not read. The boolean is computed from `connector_transaction_id IS NOT NULL AND connector_transaction_id <> ''`; the identifier itself is not returned. Status is asserted in the spec rather than used to filter the query. The connection uses a read-only session; an existing stack should also supply SELECT-only credentials through `HS_DATABASE_URL` for least privilege. The local default remains the stack's database account.
+`payments.readRecordedPayment(payment.payment_id)` returns the recorded `gateway`, `attemptStatus`, `connectorTransactionIdPresent`, and `customerRecordExists`. `payments.readRecordedMandate(mandateId)` returns only mandate status/type, connector name, and boolean presence checks for processor and payment-method references. Customer contact data and generated reference values are not read into reports. Status is asserted in the spec rather than used to filter the query. Both queries use a read-only session; an existing stack should also supply SELECT-only credentials through `HS_DATABASE_URL` for least privilege. The local default remains the stack's database account.
 
 The database read does not trigger or prove a fresh processor PSync call. It requires the corresponding HS database schema.
 
@@ -134,41 +218,50 @@ Organize scenarios by resource, operation under test, payment method, and releva
 ```text
 scenarios/
 ├── payments/
+│   ├── cancel/
+│   │   ├── full-void-authorized-payment.spec.ts
+│   │   └── partial-void-authorized-payment.planned.ts
+│   ├── capture/
+│   │   ├── overcapture-authorized-payment.spec.ts
+│   │   └── partial-capture-authorized-payment.spec.ts
 │   ├── create-confirm/
 │   │   ├── card/
 │   │   │   ├── one-time/
 │   │   │   │   ├── no3ds/
-│   │   │   │   │   ├── create-confirm.spec.ts
-│   │   │   │   │   ├── automatic-capture-create-then-confirm.planned.ts
-│   │   │   │   │   ├── manual-capture-create-confirm.planned.ts
-│   │   │   │   │   └── manual-capture-create-then-confirm.planned.ts
+│   │   │   │   │   ├── automatic-capture-create-confirm.spec.ts
+│   │   │   │   │   ├── automatic-capture-create-then-confirm.spec.ts
+│   │   │   │   │   ├── guest-automatic-capture-create-confirm.spec.ts
+│   │   │   │   │   ├── guest-manual-capture-create-confirm.spec.ts
+│   │   │   │   │   ├── manual-capture-create-confirm.spec.ts
+│   │   │   │   │   └── manual-capture-create-then-confirm.spec.ts
+│   │   │   │   ├── external-three-ds/
+│   │   │   │   │   └── automatic-capture-create-confirm.spec.ts
 │   │   │   │   └── three-ds/
+│   │   │   │       └── automatic-capture-create-confirm.spec.ts
 │   │   │   └── recurring/
 │   │   │       ├── connector-mandate/
-│   │   │       │   ├── no3ds/
-│   │   │       │   │   ├── zero-amount-setup-mandate-then-recurring.planned.ts
-│   │   │       │   │   └── nonzero-amount-setup-mandate-then-recurring.planned.ts
-│   │   │       │   └── three-ds/
+│   │   │           └── no3ds/
+│   │   │               ├── nonzero-amount-manual-capture-setup-mandate-then-recurring.spec.ts
+│   │   │               ├── nonzero-amount-setup-mandate-then-recurring.spec.ts
+│   │   │               └── zero-amount-setup-mandate-then-recurring.spec.ts
 │   │   │       └── network-transaction-id/
-│   │   │           ├── no3ds/
-│   │   │           └── three-ds/
+│   │   │           └── no3ds/
+│   │   │               └── setup-mandate-then-recurring.spec.ts
 │   │   └── wallet/
-│   │       ├── apple-pay/
-│   │       ├── google-pay/
-│   │       └── paypal/
-│   ├── retrieve/
-│   ├── capture/
-│   │   └── full-capture.planned.ts
-│   └── cancel/
-│       └── cancel-authorized-payment.planned.ts
+│   ├── incremental-authorization/
+│   │   └── increase-authorized-amount.spec.ts
+│   └── retrieve/
+│       └── force-sync-payment.spec.ts
 └── refunds/
     ├── create/
-    │   └── full-refund-after-automatic-capture.planned.ts
+    │   ├── full-refund-captured-payment.spec.ts
+    │   └── partial-refund-after-capture.spec.ts
+    ├── reverse/
+    │   └── reverse-successful-refund-before-settlement.spec.ts
     └── sync/
 ```
 
-
-`create-confirm.spec.ts` exercises a fully populated one-time inline-confirmation request. It uses automatic capture for immediate success; it is not a dedicated capture-mode test. Mutually exclusive journeys such as mandate setup, manual capture and SDK checkout have separate specs.
+`automatic-capture-create-confirm.spec.ts` exercises a fully populated one-time inline-confirmation request. Manual-capture specs verify the authorized state and then perform a full capture in the same journey. Mutually exclusive journeys such as mandate setup and SDK checkout have separate specs.
 
 Order item `amount` is per unit: the sum of `amount * quantity` must equal the payment amount. The scenario sends two units at 3000 minor units each and checks the returned item fields. Inline customer creation supplies a fresh customer ID; processor-side customer creation is connector-dependent and is not universally required.
 
@@ -178,21 +271,24 @@ Recurring specs belong under their reference mechanism and mandate-setup authent
 
 Later operations have separate directories. Their specs declare required payment state and history, including authentication where relevant, rather than repeating every authorization dimension. Keep capture, cancel, retrieve and refund scenarios flat until implemented method-specific behavior warrants grouping. Wallets use wallet-specific variations instead of universally inheriting card's authentication tree.
 
-Payment retrieval and forced synchronization share `payments/retrieve/`, following HS's GET payment endpoint and its `force_sync` option. This directory remains empty until those dedicated scenarios are implemented.
+Payment retrieval and forced synchronization share `payments/retrieve/`, following HS's GET payment endpoint and its `force_sync` option. Refund submission is separate from refund synchronization: a connector may accept an asynchronous refund without supporting the HS refund-sync operation.
 
 SDK-driven journeys can share these same payment groupings. Make SDK execution explicit in the filename, for example `automatic-capture-create-then-confirm-with-sdk.spec.ts`, and exercise the actual browser checkout. Reuse shared setup, API operations and checks; keep browser interactions and the journey visible in the spec. SDK setup and implementation will be introduced with the first such scenario.
 
-Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it and add its metadata and setup requirements under the identical path key in `scenarios/catalog.ts`. The spec imports the catalog-bound resolver and calls `scenarioFromFile(import.meta.url)`; the framework derives its ID from the file path and fails discovery when the catalog key is absent or different.
+Planned files and `.gitkeep` directories are extension placeholders, not implemented coverage. Rename a planned file to `.spec.ts` only when implementing it and add its canonical path to `scenarioIds` in `scenarios/catalog.ts`. The spec declares its own metadata and connector-account requirements using `scenarioFromFile(import.meta.url, { title, description, verifies, requirements })`. The framework derives its ID from the file path and fails discovery when the catalog entry is absent or different; blank metadata also fails registration.
 
-The planned inventory also reserves guest card payments, saved-card repeat CIT, standalone mandate-setup CIT, later payment operations, refunds, network-token recurring, and webhook verification. The implemented one-time create-confirm spec already covers an automatic-capture payment with a customer; its existing manual-capture and full-refund placeholders are not duplicated. The zero-amount/manual-capture combination and the meaning of partial void and reversal must be checked against the HS API and connector behavior before implementing their placeholders. Their presence does not assert API support.
+The remaining planned inventory reserves standalone mandate-setup CIT, partial
+void, network-token recurring and webhook verification. Wallet decryption modes
+require separate executable scenarios plus approved Google Pay TEST token and
+key material. Planned-file presence does not assert API or connector support.
 
+Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `refunds`, `expected`, `report`, and Playwright's `page` for actual browser journeys.
 
-Follow [CONTRIBUTING.md](CONTRIBUTING.md) for the reference pattern, file boundaries, and review checklist. Before implementing connector differences, follow [CONNECTOR_OVERRIDES.md](CONNECTOR_OVERRIDES.md). The supported public fixture API is `test`, `connector`, `scenario`, `merchant` identifiers, `payments`, `expected`, and `report`.
-
-Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario metadata only. Playwright runs every scenario for each discovered synthetic merchant variant. Each variant must list the scenario in `run` or exclude it with a reason; a newly added scenario fails discovery until every variant makes that choice. Keep merchant differences in `connectors/`; do not copy scenarios into connector directories. A variant name such as `merchant_01` is only a synthetic configuration label: setup creates a fresh merchant for every test.
+Scenarios belong to the shared superset under `scenarios/`. `scenarios/catalog.ts` contains implemented scenario IDs only; each spec owns the metadata displayed in reports. Playwright runs every implemented scenario for each discovered synthetic merchant variant by default. A variant may exclude a scenario only with a nonempty reason. Keep merchant differences in `connectors/`; do not copy scenarios into connector directories. A variant name such as `merchant_01` is only a synthetic configuration label: setup creates a fresh merchant for every test.
 
 - Add one default-exported synthetic merchant definition under `connectors/<connector-id>/merchant_01.ts`; the folder becomes the connector ID and the file becomes the variant name. Add `merchant_02.ts` only for a distinct synthetic behavior. Never document a mapping to a real merchant.
-- List each implemented scenario in `run` or `exclude` with a nonempty reason. Override only selected runnable scenarios.
+- Do not maintain a scenario allowlist. Newly implemented catalog scenarios run for every variant automatically; exclude only a scenario the variant cannot run, with a nonempty reason.
+- Override only the scenarios with genuine request or exact-expectation differences. A scenario cannot be both overridden and excluded.
 - Use the shared sandbox card by default; supply optional `card` field overrides only when required by the connector's sandbox.
 - Exclude an unsupported scenario explicitly with a nonempty reason. Exclusions appear as skipped tests.
 - Add a new shared scenario for a new payment journey. Its function owns the ordered calls and expected results.
@@ -202,7 +298,7 @@ Connector overrides are ordinary data, keyed by shared scenario ID:
 
 ```ts
 overrides: {
-  "payments/create-confirm/card/one-time/no3ds/create-confirm": {
+  "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm": {
     requests: {
       createPayment: {
         "initial-payment": {
@@ -234,22 +330,22 @@ Operations apply request overrides by stable call ID. They omit configured paths
 | File | Responsibility |
 | --- | --- |
 | `test-data.ts` | Reusable test-data factories and a default sandbox card; no API calls or shared mutable response state. |
-| `scenarios/catalog.ts` | Define metadata and connector-account setup requirements for implemented scenarios; planned scenarios are absent. |
+| `scenarios/catalog.ts` | List canonical IDs for typed overrides/exclusions; metadata and setup requirements live in specs. |
 | `scenarios/**/*.spec.ts` | Own the complete journey, request data, use of responses, and expected results. |
 | `scenarios/**/*.planned.ts` | Reserve an agreed scenario name and location without registering executable coverage. |
-| `connectors/<id>/merchant_XX.ts` | Define one automatically discovered synthetic merchant variant using `connectorFromFile`, explicit runnable scenarios, optional overrides and reasoned exclusions. |
+| `connectors/<id>/merchant_XX.ts` | Define one automatically discovered synthetic merchant variant using `connectorFromFile`, with optional overrides and reasoned exclusions. All other implemented scenarios run automatically. |
 | `examples/connector.ts` | Compile-checked reference for all supported connector configuration forms; never discovered or executed. |
 | `framework/connector-registry.ts` | Discover connector modules and validate duplicate IDs, scenario references, overrides and exclusions. |
 | `framework/connector.ts` | Derive and brand connector and synthetic merchant variant IDs from the module path. |
-| `framework/types.ts` | Define scenario metadata and data-only connector configuration types. |
+| `framework/types.ts` | Define scenario metadata and data-only connector configuration types, including processor-hosted 3DS challenge data. |
 | `framework/scenario.ts` | Build the catalog-bound resolver that derives a branded scenario ID from the executing spec path. |
 | `framework/fixtures.ts` | Standard Playwright fixtures apply exclusions, provision context, and release resources. Export a typed public API without internal HTTP/keys/polling. No payment sequence. |
-| `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose recorded-payment reads. |
+| `framework/payment-operations.ts` | Execute individual payment operations and return responses; expose recorded-payment and mandate reads. |
 | `framework/merchant-setup.ts` | Configure UCS and provision the merchant, API key, profile, connector account, and routing rule. |
 | `framework/hyperswitch-client.ts` | Send authenticated HS HTTP requests and handle transport/HTTP errors. |
 | `framework/ucs-audit.ts` | Correlate and attach UCS's existing masked structured events; never attach raw logs. |
 | `framework/report.ts` | Group API steps, attach selected expected/actual values around native assertions, then attach correlated audit evidence, including on failure. |
-| `framework/payment-records.ts` | Read the payment gateway, active-attempt status, connector transaction ID presence and associated customer record existence from the dedicated test database. |
+| `framework/payment-records.ts` | Read payment and mandate state from the dedicated test database. Generated references may be returned only for immediate use by a journey; reports must expose presence/equality booleans, never their values. |
 | `framework/connector-credentials.ts` | Load external sandbox credentials. |
 | `framework/configuration.ts` | Resolve runtime URLs and options. |
 | `stack/compose.yml` | Configure local services and readiness dependencies. |

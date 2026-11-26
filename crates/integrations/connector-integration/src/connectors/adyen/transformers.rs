@@ -4690,6 +4690,7 @@ impl<F, Req, T>
         Option<common_enums::CaptureMethod>,
         bool, // is_multiple_capture_psync_flow
         Option<common_enums::PaymentMethodType>,
+        Option<bool>, // request_incremental_authorization
     )> for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 where
     F: Clone,
@@ -4699,11 +4700,18 @@ where
     type Error = error_stack::Report<ConnectorError>;
 
     fn foreign_try_from(
-        (value, capture_method, is_multiple_capture_psync_flow, payment_method_type): (
+        (
+            value,
+            capture_method,
+            is_multiple_capture_psync_flow,
+            payment_method_type,
+            request_incremental_authorization,
+        ): (
             ResponseRouterData<AdyenPaymentResponse, AdyenRouterData<Self, T>>,
             Option<common_enums::CaptureMethod>,
             bool,
             Option<common_enums::PaymentMethodType>,
+            Option<bool>,
         ),
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
@@ -4716,7 +4724,7 @@ where
         let is_manual_capture = is_manual_capture(capture_method);
         let pmt = payment_method_type;
 
-        let adyen_payments_response_data = match response {
+        let mut adyen_payments_response_data = match response {
             AdyenPaymentResponse::Response(response) => {
                 get_adyen_response(*response, is_manual_capture, http_code, pmt)?
             }
@@ -4739,6 +4747,14 @@ where
                 http_code,
             )?,
         };
+
+        if let PaymentsResponseData::TransactionResponse {
+            incremental_authorization_allowed,
+            ..
+        } = &mut adyen_payments_response_data.payments_response_data
+        {
+            *incremental_authorization_allowed = request_incremental_authorization;
+        }
 
         let amount_captured = match adyen_payments_response_data.status {
             AttemptStatus::Charged
@@ -4792,11 +4808,17 @@ where
     ) -> Result<Self, Self::Error> {
         let capture_method = value.router_data.router_data.request.capture_method;
         let payment_method_type = value.router_data.router_data.request.payment_method_type;
+        let request_incremental_authorization = value
+            .router_data
+            .router_data
+            .request
+            .request_incremental_authorization;
         Self::foreign_try_from((
             value,
             capture_method,
             false, // is_multiple_capture_psync_flow = false for authorize
             payment_method_type,
+            request_incremental_authorization,
         ))
     }
 }
@@ -4834,6 +4856,7 @@ where
             capture_method,
             is_multiple_capture_psync_flow,
             payment_method_type,
+            None,
         ))
     }
 }

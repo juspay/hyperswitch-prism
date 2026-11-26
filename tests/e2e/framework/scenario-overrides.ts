@@ -6,7 +6,7 @@ import type {
   ScenarioOverrides,
 } from "./types.js";
 
-type RequestOperation = "createPayment";
+type RequestOperation = keyof NonNullable<ScenarioOverrides["requests"]>;
 
 export class ScenarioOverrideResolver {
   private readonly consumed = new Set<string>();
@@ -46,7 +46,6 @@ export class ScenarioOverrideResolver {
       throw new Error(`Unused connector overrides: ${unused.join(", ")}`);
     }
   }
-
 }
 
 export function applyRequestOverride(
@@ -86,9 +85,10 @@ function mergeObjects(base: JsonObject, patch: JsonObject): JsonObject {
   const merged = cloneObject(base);
   for (const [field, value] of Object.entries(patch)) {
     const existing = merged[field];
-    merged[field] = isObject(existing) && isObject(value)
-      ? mergeObjects(existing, value)
-      : cloneValue(value);
+    merged[field] =
+      isObject(existing) && isObject(value)
+        ? mergeObjects(existing, value)
+        : cloneValue(value);
   }
   return merged;
 }
@@ -112,14 +112,17 @@ function isObject(value: JsonValue | undefined): value is JsonObject {
 function validateConfiguration(overrides: ScenarioOverrides): void {
   for (const [operation, calls] of Object.entries(overrides.requests ?? {})) {
     for (const [callId, configured] of Object.entries(calls ?? {})) {
-      if (!callId.trim()) throw new Error(`request:${operation} has an empty call ID`);
+      if (!callId.trim())
+        throw new Error(`request:${operation} has an empty call ID`);
       validateReason(configured.reason, `request:${operation}:${callId}`);
-      if (!configured.patch && !(configured.omit?.length)) {
+      if (!configured.patch && !configured.omit?.length) {
         throw new Error(`request:${operation}:${callId} has no patch or omit`);
       }
       for (const path of configured.omit ?? []) {
         if (!path.length || path.some((part) => !part)) {
-          throw new Error(`request:${operation}:${callId} contains an empty omit path`);
+          throw new Error(
+            `request:${operation}:${callId} contains an empty omit path`,
+          );
         }
       }
       validateJson(configured.patch, `request:${operation}:${callId}.patch`);
@@ -154,7 +157,8 @@ function validateJson(value: unknown, label: string): void {
     return;
   }
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error(`${label} must contain finite numbers`);
+    if (!Number.isFinite(value))
+      throw new Error(`${label} must contain finite numbers`);
     return;
   }
   if (Array.isArray(value)) {
@@ -167,7 +171,8 @@ function validateJson(value: unknown, label: string): void {
       throw new Error(`${label} must contain plain JSON objects only`);
     }
     Object.entries(value).forEach(([field, item]) =>
-      validateJson(item, `${label}.${field}`));
+      validateJson(item, `${label}.${field}`),
+    );
     return;
   }
   throw new Error(`${label} must contain JSON data only`);

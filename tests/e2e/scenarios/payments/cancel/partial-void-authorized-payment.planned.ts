@@ -1,1 +1,6 @@
-/** Planned scenario: Validate the HS and connector contract for a partial void before implementation. Not executable coverage. */
+/**
+ * Planned scenario: partially reverse an authorization. HS v1 cancel currently
+ * accepts no amount, so connector support alone cannot make this an honest
+ * end-to-end partial-void test. Keep it non-executable until HS exposes the
+ * amount contract or defines partial-capture-then-cancel as the API journey.
+ */

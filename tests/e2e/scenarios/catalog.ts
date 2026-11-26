@@ -1,30 +1,31 @@
-import {
-  createScenarioResolver,
-  defineScenarios,
-} from "../framework/scenario.js";
+import { createScenarioResolver } from "../framework/scenario.js";
 
-export const scenarios = defineScenarios({
-  "payments/create-confirm/card/one-time/no3ds/create-confirm": {
-    title:
-      "One-time No3DS card payment — create and confirm with customer and order details",
-    description:
-      "Create and confirm a one-time No3DS card payment with a new customer, billing, shipping and order details in one API request. Verify succeeded status, the full amount received and the recorded charged attempt through UCS.",
-    verifies:
-      "Verify customer creation and association, request details preserved in the response, full amount received with nothing left capturable, merchant and profile ownership, one attempt, no errors or mandate setup, and a recorded UCS gateway and connector transaction ID.",
-    requirements: {
-      connectorAccount: {
-        paymentMethodsEnabled: [
-          {
-            payment_method: "card",
-            payment_method_types: [{ payment_method_type: "credit" }],
-          },
-        ],
-      },
-    },
-  },
-});
+/** Canonical IDs only. Each executable spec owns its metadata and setup requirements. */
+export const scenarioIds = [
+  "payments/cancel/full-void-authorized-payment",
+  "payments/capture/overcapture-authorized-payment",
+  "payments/capture/partial-capture-authorized-payment",
+  "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-confirm",
+  "payments/create-confirm/card/one-time/no3ds/automatic-capture-create-then-confirm",
+  "payments/create-confirm/card/one-time/no3ds/manual-capture-create-confirm",
+  "payments/create-confirm/card/one-time/no3ds/manual-capture-create-then-confirm",
+  "payments/create-confirm/card/one-time/no3ds/guest-automatic-capture-create-confirm",
+  "payments/create-confirm/card/one-time/no3ds/guest-manual-capture-create-confirm",
+  "payments/create-confirm/card/one-time/three-ds/automatic-capture-create-confirm",
+  "payments/create-confirm/card/one-time/external-three-ds/automatic-capture-create-confirm",
+  "payments/create-confirm/card/recurring/connector-mandate/no3ds/nonzero-amount-manual-capture-setup-mandate-then-recurring",
+  "payments/create-confirm/card/recurring/connector-mandate/no3ds/nonzero-amount-setup-mandate-then-recurring",
+  "payments/create-confirm/card/recurring/connector-mandate/no3ds/zero-amount-setup-mandate-then-recurring",
+  "payments/create-confirm/card/recurring/network-transaction-id/no3ds/setup-mandate-then-recurring",
+  "payments/create-confirm/card/repeat-cit/no3ds/saved-card-create-confirm",
+  "payments/incremental-authorization/increase-authorized-amount",
+  "payments/retrieve/force-sync-payment",
+  "refunds/create/full-refund-captured-payment",
+  "refunds/create/partial-refund-after-capture",
+  "refunds/reverse/reverse-successful-refund-before-settlement",
+] as const;
 
-export type ScenarioId = keyof typeof scenarios;
+export type ScenarioId = (typeof scenarioIds)[number];
 
-/** The only supported constructor for executable scenarios. */
-export const scenarioFromFile = createScenarioResolver(scenarios);
+/** Binds spec declarations to the typed inventory and their physical paths. */
+export const scenarioFromFile = createScenarioResolver(scenarioIds);
