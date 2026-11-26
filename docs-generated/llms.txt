@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 125
+# Connectors: 126
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 125
+  total_connectors: 126
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -506,8 +506,8 @@ examples_python: examples/juspay/juspay.py
 connector_id: kgp
 doc: docs/connectors/kgp.md
 scenarios: none
-payment_methods: none
-flows: capture, customer_create, get, parse_event, refund, refund_get, token_authorize, void
+payment_methods: Card
+flows: capture, get, parse_event, refund, refund_get, token_authorize, tokenize, void
 examples_python: none
 
 ## Kount

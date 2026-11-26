@@ -120,12 +120,12 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [CustomerService.Create](#customerservicecreate) | Customers | `CustomerServiceCreateRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.TokenAuthorize](#paymentservicetokenauthorize) | Payments | `PaymentServiceTokenAuthorizeRequest` |
+| [PaymentMethodService.Tokenize](#paymentmethodservicetokenize) | Payments | `PaymentMethodServiceTokenizeRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -139,7 +139,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L118) · [Kotlin](../../examples/kgp/kgp.kt#L88) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L109) · [Kotlin](../../examples/kgp/kgp.kt#L87) · [Rust](../../examples/kgp/kgp.rs)
 
 #### PaymentService.Get
 
@@ -150,7 +150,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L136) · [Kotlin](../../examples/kgp/kgp.kt#L111) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L118) · [Kotlin](../../examples/kgp/kgp.kt#L97) · [Rust](../../examples/kgp/kgp.rs)
 
 #### PaymentService.Refund
 
@@ -161,7 +161,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L154) · [Kotlin](../../examples/kgp/kgp.kt#L134) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L136) · [Kotlin](../../examples/kgp/kgp.kt#L120) · [Rust](../../examples/kgp/kgp.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -172,7 +172,29 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L172) · [Kotlin](../../examples/kgp/kgp.kt#L156) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L154) · [Kotlin](../../examples/kgp/kgp.kt#L142) · [Rust](../../examples/kgp/kgp.rs)
+
+#### PaymentMethodService.Tokenize
+
+Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentMethodServiceTokenizeRequest` |
+| **Response** | `PaymentMethodServiceTokenizeResponse` |
+
+**Supported payment method types:**
+
+| Payment Method | Supported |
+|----------------|:---------:|
+| Card | ✓ |
+| Apple Pay | x |
+| Apple Pay Dec | x |
+| Apple Pay SDK | x |
+| Google Pay | x |
+| Google Pay Dec | x |
+
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts) · [Kotlin](../../examples/kgp/kgp.kt) · [Rust](../../examples/kgp/kgp.rs)
 
 #### PaymentService.Void
 
@@ -183,7 +205,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts) · [Kotlin](../../examples/kgp/kgp.kt#L177) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts) · [Kotlin](../../examples/kgp/kgp.kt#L163) · [Rust](../../examples/kgp/kgp.rs)
 
 ### Refunds
 
@@ -196,17 +218,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L163) · [Kotlin](../../examples/kgp/kgp.kt#L144) · [Rust](../../examples/kgp/kgp.rs)
-
-### Customers
-
-#### CustomerService.Create
-
-Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-
-| | Message |
-|---|---------|
-| **Request** | `CustomerServiceCreateRequest` |
-| **Response** | `CustomerServiceCreateResponse` |
-
-**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L127) · [Kotlin](../../examples/kgp/kgp.kt#L98) · [Rust](../../examples/kgp/kgp.rs)
+**Examples:** [Python](../../examples/kgp/kgp.py) · [TypeScript](../../examples/kgp/kgp.ts#L145) · [Kotlin](../../examples/kgp/kgp.kt#L130) · [Rust](../../examples/kgp/kgp.rs)

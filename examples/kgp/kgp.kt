@@ -11,7 +11,6 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.CustomerClient
 import payments.EventClient
 import payments.RefundClient
 import payments.CaptureMethod
@@ -24,7 +23,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.KgpConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "customer_create", "get", "parse_event", "refund", "refund_get", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "get", "parse_event", "refund", "refund_get", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -92,19 +91,6 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
     println("Done: ${response.status.name}")
-}
-
-// Flow: CustomerService.Create
-fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = CustomerClient(config)
-    val request = CustomerServiceCreateRequest.newBuilder().apply {
-        merchantCustomerId = "cust_probe_123"  // Identification.
-        customerName = "John Doe"  // Name of the customer.
-        emailBuilder.value = "test@example.com"  // Email address of the customer.
-        phoneNumberBuilder.value = "4155552671"  // Phone number of the customer.
-    }.build()
-    val response = client.customer_create(request)
-    println("Customer: ${response.connectorCustomerId}")
 }
 
 // Flow: PaymentService.Get
@@ -189,13 +175,12 @@ fun main(args: Array<String>) {
     val flow = args.firstOrNull() ?: "capture"
     when (flow) {
         "capture" -> capture(txnId)
-        "customerCreate" -> customerCreate(txnId)
         "get" -> get(txnId)
         "parseEvent" -> parseEvent(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, customerCreate, get, parseEvent, refund, refundGet, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, parseEvent, refund, refundGet, tokenAuthorize, void")
     }
 }

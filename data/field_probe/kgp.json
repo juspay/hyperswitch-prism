@@ -502,23 +502,8 @@
     },
     "customer_create": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_customer_id": "cust_probe_123",
-          "customer_name": "John Doe",
-          "email": "test@example.com",
-          "phone_number": "4155552671"
-        },
-        "sample": {
-          "url": "https://api.omise.co/customers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "email=test%40example.com&metadata%5Bcustomer_id%5D=cust_probe_123&metadata%5Bname%5D=John+Doe"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: KGP customer creation is not part of the authorize flow"
       }
     },
     "customer_get": {
@@ -744,6 +729,59 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for kgp"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Kgp (Omise) tokenization only supports cards is not supported by kgp. Omise Tokens API accepts only raw card details."
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Kgp (Omise) tokenization only supports cards is not supported by kgp. Omise Tokens API accepts only raw card details."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Kgp (Omise) tokenization only supports cards is not supported by kgp. Omise Tokens API accepts only raw card details."
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://vault.omise.co/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "card%5Bname%5D=John+Doe&card%5Bnumber%5D=4111111111111111&card%5Bexpiration_month%5D=03&card%5Bexpiration_year%5D=2030&card%5Bsecurity_code%5D=737"
+        }
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Kgp (Omise) tokenization only supports cards is not supported by kgp. Omise Tokens API accepts only raw card details."
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Kgp (Omise) tokenization only supports cards is not supported by kgp. Omise Tokens API accepts only raw card details."
       }
     },
     "verify_redirect": {
