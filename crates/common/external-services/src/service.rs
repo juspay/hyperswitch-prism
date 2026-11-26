@@ -928,11 +928,11 @@ where
                 _ => updated_router_data,
             };
             connector_request = connector_request.map(|mut req| {
+                req.add_header(
+                    consts::X_REQUEST_ID,
+                    Maskable::Masked(Secret::new(event_params.request_id.to_string())),
+                );
                 if event_params.shadow_mode {
-                    req.add_header(
-                        consts::X_REQUEST_ID,
-                        Maskable::Masked(Secret::new(event_params.request_id.to_string())),
-                    );
                     req.add_header(
                         consts::X_SOURCE_NAME,
                         Maskable::Masked(Secret::new(consts::X_CONNECTOR_SERVICE.to_string())),
