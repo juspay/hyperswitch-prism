@@ -129,7 +129,7 @@ test(
           capture_method: "automatic",
           payment_method: "card",
           payment_method_type: "credit",
-          customer: { id: customer.id },
+          customer_id: customer.id,
           description: "Synthetic saved-card repeat payment",
           merchant_order_reference_id: createReference("order"),
           return_url: testReturnUrl,

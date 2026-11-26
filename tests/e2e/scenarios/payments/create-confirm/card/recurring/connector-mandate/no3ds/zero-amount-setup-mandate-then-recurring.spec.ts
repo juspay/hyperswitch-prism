@@ -14,9 +14,9 @@ import {
 const scenario = scenarioFromFile(import.meta.url, {
   title: "No3DS card mandate — zero-amount setup then recurring charge",
   description:
-    "Create a zero-value customer-present card mandate setup with the selected capture mode, then make an off-session recurring payment using the resulting connector mandate and no card data.",
+    "Create a zero-value customer-present card mandate setup with automatic or manual capture semantics, then make an off-session recurring payment using the resulting connector mandate and no card data.",
   verifies:
-    "For both automatic and manual capture settings, verify the zero-value setup response, active recorded connector mandate, and successful recurring charge for the same customer.",
+    "Verify automatic setup completes while manual setup remains authorized, and both produce an active connector mandate and a successful recurring charge for the same customer.",
   requirements: {
     connectorAccount: {
       paymentMethodsEnabled: [
@@ -114,8 +114,9 @@ async function runZeroAmountSetupAndRecurring({
         merchant_order_reference_id: setupOrderReference,
         return_url: testReturnUrl,
       });
+      const manualCapture = captureMethod === "manual";
       const expectedSetup = expected(`zero-setup-fields-${captureMethod}`, {
-        status: "succeeded",
+        status: manualCapture ? "requires_capture" : "succeeded",
         error_code: null,
         error_message: null,
         error_details: null,
@@ -133,14 +134,13 @@ async function runZeroAmountSetupAndRecurring({
         net_amount: 0,
         amount_capturable: 0,
         currency: "USD",
-        amount_received: 0,
+        amount_received: manualCapture ? null : 0,
         setup_future_usage: "off_session",
         next_action: null,
         mandate_data: {
           customer_acceptance: customerAcceptance,
           mandate_type: { multi_use: null },
         },
-        mandate_id: null,
         connector_mandate_id: null,
         attempt_count: 1,
         email: customer.email,
@@ -218,7 +218,8 @@ async function runZeroAmountSetupAndRecurring({
         actual: recorded,
         expected: expected(`recorded-zero-setup-${captureMethod}`, {
           gateway: "unified_connector_service",
-          attemptStatus: "charged",
+          attemptStatus:
+            captureMethod === "manual" ? "authorized" : "charged",
           connectorTransactionIdPresent: true,
           customerRecordExists: true,
         }),

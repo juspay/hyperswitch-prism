@@ -169,6 +169,15 @@ export default connectorFromFile<ScenarioId>(import.meta.url, {
       },
     },
     "refunds/create/partial-refund-after-capture": {
+      requests: {
+        createRefund: {
+          "partial-refund": {
+            reason:
+              "Adyen accepts only its documented refund-reason enumeration",
+            patch: { reason: "CUSTOMER REQUEST" },
+          },
+        },
+      },
       expectations: {
         "partial-refund-submission-fields": {
           reason:

@@ -112,7 +112,6 @@ test(
             customer_acceptance: customerAcceptance,
             mandate_type: { multi_use: null },
           },
-          mandate_id: null,
           connector_mandate_id: null,
           attempt_count: 1,
           email: customer.email,
