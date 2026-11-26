@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   authorize:
-    uses: ./.github/workflows/authorize-release.yml
+    uses: $/.github/workflows/authorize-release.yml
     # The membership check authenticates with a GitHub app token minted
     # from the secrets below and never uses GITHUB_TOKEN.
     permissions: {}
@@ -30,19 +30,22 @@ jobs:
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v2.2.2
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          repositories: ${{ github.event.repository.name }}
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
         with:
+          persist-credentials: false
           fetch-depth: 0
           token: ${{ steps.generate_app_token.outputs.token }}
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: git-cliff
           checksum: true
@@ -140,10 +143,13 @@ jobs:
 
       - name: Push created commit and tag
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
           # Stage, commit and tag the changelog
           git add CHANGELOG.md
           git commit --message "chore(version): ${NEXT_TAG}"
           git tag --message "$(git show --no-patch --format=%s HEAD)" "${NEXT_TAG}" HEAD
-          git push
-          git push --tags
+          PUSH_URL="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "${PUSH_URL}"
+          git push "${PUSH_URL}" --tags
