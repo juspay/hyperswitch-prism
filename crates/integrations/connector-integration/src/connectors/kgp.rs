@@ -265,11 +265,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth = kgp::KgpAuthType::try_from(auth_type).change_context(
-            IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
-            },
-        )?;
+        let auth =
+            kgp::KgpAuthType::try_from(auth_type)
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Configure KGP with an Omise secret key in api_key and a public key in \
+                         public_key."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.omise.co/api-authentication".to_string()),
+                    additional_context: Some(
+                        "KGP charge, capture, void, and refund requests use the secret key for \
+                         HTTP Basic authentication."
+                            .to_string(),
+                    ),
+                },
+            })?;
         // HTTP Basic with empty password: base64("<secret_key>:")
         let encoded = BASE64_ENGINE.encode(format!("{}:", auth.secret_key.peek()));
         Ok(vec![(
@@ -353,8 +365,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> CustomResult<String, IntegrationError> {
         Err(IntegrationError::NotImplemented(
-            "KGP customer creation is not part of the authorize flow".to_string(),
-            Default::default(),
+            "KGP customer creation is not implemented by this connector".to_string(),
+            errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "Do not invoke CreateConnectorCustomer for KGP. Authorize with an Omise \
+                     one-time token, or pass an existing Omise customer and saved card pair."
+                        .to_string(),
+                ),
+                doc_url: Some("https://docs.omise.co/customers-api".to_string()),
+                additional_context: Some(
+                    "KGP does not create a customer during every authorization; customer \
+                     creation is a separate saved-card operation and is currently unsupported."
+                        .to_string(),
+                ),
+            },
         )
         .into())
     }
