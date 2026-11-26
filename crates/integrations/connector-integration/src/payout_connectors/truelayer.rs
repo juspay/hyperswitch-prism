@@ -94,13 +94,17 @@ impl TruelayerPayouts {
             }
         })?;
         let metadata = truelayer::TruelayerPayoutMetadata::try_from(&req.connector_config)?;
-        // Derived from the payout reference so a retried transfer reuses the same key.
+        let request_reference = truelayer::payout_request_reference(
+            req.resource_common_data.merchant_request_id.as_deref(),
+            &req.resource_common_data.connector_request_reference_id,
+        )?;
+        // A stable, nonempty per-operation reference keeps retries idempotent.
         let idempotency_key = uuid::Uuid::new_v5(
             &uuid::Uuid::NAMESPACE_OID,
             format!(
                 "truelayer-payout:{}:{}",
                 req.resource_common_data.merchant_id.get_string_repr(),
-                req.resource_common_data.connector_request_reference_id
+                request_reference
             )
             .as_bytes(),
         )
