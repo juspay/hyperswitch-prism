@@ -94,7 +94,21 @@ impl TruelayerPayouts {
             }
         })?;
         let metadata = truelayer::TruelayerPayoutMetadata::try_from(&req.connector_config)?;
-        let idempotency_key = common_utils::fp_utils::generate_uuid_v4();
+        let request_reference = truelayer::payout_request_reference(
+            req.resource_common_data.merchant_request_id.as_deref(),
+            &req.resource_common_data.connector_request_reference_id,
+        )?;
+        // A stable, nonempty per-operation reference keeps retries idempotent.
+        let idempotency_key = uuid::Uuid::new_v5(
+            &uuid::Uuid::NAMESPACE_OID,
+            format!(
+                "truelayer-payout:{}:{}",
+                req.resource_common_data.merchant_id.get_string_repr(),
+                request_reference
+            )
+            .as_bytes(),
+        )
+        .to_string();
         let request_body = self
             .get_request_body(req)?
             .map(|body| body.content.get_inner_value().expose().clone());

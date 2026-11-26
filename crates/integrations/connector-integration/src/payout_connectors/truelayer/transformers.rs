@@ -224,6 +224,23 @@ pub struct TruelayerPayoutRequest {
     beneficiary: TruelayerBeneficiary,
 }
 
+// Use the same per-operation reference in the body and the idempotency key.
+pub(super) fn payout_request_reference<'a>(
+    merchant_request_id: Option<&'a str>,
+    payout_reference: &'a str,
+) -> CustomResult<&'a str, IntegrationError> {
+    merchant_request_id
+        .filter(|reference| !reference.trim().is_empty())
+        .or_else(|| (!payout_reference.trim().is_empty()).then_some(payout_reference))
+        .ok_or_else(|| {
+            IntegrationError::MissingRequiredField {
+                field_name: "merchant_request_id or merchant_payout_id",
+                context: Default::default(),
+            }
+            .into()
+        })
+}
+
 #[derive(Debug, Serialize, PartialEq)]
 pub struct TruelayerPayoutRequestMetadata {
     reference_id: Option<String>,
@@ -292,11 +309,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Send + Sync + 'static + Seria
         let metadata = TruelayerPayoutMetadata::try_from(&req.connector_config)?;
         let request_metadata = Some(TruelayerPayoutRequestMetadata {
             reference_id: Some(
-                req.resource_common_data
-                    .merchant_request_id
-                    .as_ref()
-                    .unwrap_or(&req.resource_common_data.connector_request_reference_id)
-                    .clone(),
+                payout_request_reference(
+                    req.resource_common_data.merchant_request_id.as_deref(),
+                    &req.resource_common_data.connector_request_reference_id,
+                )?
+                .to_string(),
             ),
         });
 
