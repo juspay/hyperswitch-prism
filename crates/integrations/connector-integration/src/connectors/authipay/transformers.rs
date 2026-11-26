@@ -496,7 +496,7 @@ fn extract_network_fields(
 // ===== STATUS MAPPING FUNCTION =====
 // CRITICAL: This checks BOTH transactionResult AND transactionStatus, AND considers transactionType
 
-fn map_status(
+pub(super) fn map_status(
     authipay_status: Option<AuthipayPaymentStatus>,
     authipay_result: Option<AuthipayPaymentResult>,
     authipay_state: Option<AuthipayTransactionState>,
@@ -514,10 +514,13 @@ fn map_status(
                 }
             }
             AuthipayTransactionState::Captured | AuthipayTransactionState::Settled => {
-                // Only trust CAPTURED/SETTLED if transaction type matches
+                // Only trust CAPTURED/SETTLED if transaction type matches. A PSync on the
+                // original PREAUTH id reports PREAUTH + CAPTURED once it has been captured.
                 if matches!(
                     transaction_type,
-                    AuthipayTransactionType::Sale | AuthipayTransactionType::Postauth
+                    AuthipayTransactionType::Sale
+                        | AuthipayTransactionType::Postauth
+                        | AuthipayTransactionType::Preauth
                 ) {
                     return AttemptStatus::Charged;
                 }
