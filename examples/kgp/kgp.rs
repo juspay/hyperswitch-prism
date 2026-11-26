@@ -124,6 +124,13 @@ pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
     }
 }
 
+#[allow(dead_code)]
+pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
+    PaymentServiceVerifyRedirectResponseRequest {
+        ..Default::default()
+    }
+}
+
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
     PaymentServiceVoidRequest {
         merchant_void_id: Some("probe_void_001".to_string()), // Identification.

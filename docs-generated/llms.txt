@@ -507,7 +507,7 @@ connector_id: kgp
 doc: docs/connectors/kgp.md
 scenarios: none
 payment_methods: Card
-flows: capture, get, parse_event, refund, refund_get, token_authorize, tokenize, void
+flows: capture, get, parse_event, refund, refund_get, token_authorize, tokenize, verify_redirect, void
 examples_python: none
 
 ## Kount

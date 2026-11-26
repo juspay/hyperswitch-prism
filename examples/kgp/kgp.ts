@@ -96,6 +96,11 @@ function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeReque
     };
 }
 
+function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectResponseRequest {
+    return {
+    };
+}
+
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
@@ -159,6 +164,15 @@ async function tokenAuthorize(merchantTransactionId: string, config: types.IConn
     return tokenResponse;
 }
 
+// Flow: PaymentService.VerifyRedirectResponse
+async function verifyRedirect(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const verifyResponse = await paymentClient.verifyRedirectResponse(_buildVerifyRedirectRequest());
+
+    return verifyResponse;
+}
+
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -171,7 +185,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, parseEvent, refund, refundGet, tokenAuthorize, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    capture, get, parseEvent, refund, refundGet, tokenAuthorize, verifyRedirect, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVerifyRedirectRequest, _buildVoidRequest
 };
 
 // CLI runner
