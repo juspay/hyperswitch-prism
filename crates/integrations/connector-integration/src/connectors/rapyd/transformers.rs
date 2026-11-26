@@ -2034,7 +2034,7 @@ pub struct CaptureRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     amount: Option<StringMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    receipt_email: Option<Secret<String>>,
+    receipt_email: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     statement_descriptor: Option<String>,
 }
