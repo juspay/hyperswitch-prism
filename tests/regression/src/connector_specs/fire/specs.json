@@ -1,0 +1,32 @@
+{
+  "connector": "fire",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/Refund",
+    "RefundService/Get"
+  ],
+  "supported_payment_methods": [
+    "open_banking"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Get": {
+      "sync_payment": "PaymentService/Get depends on a CHARGED card payment (no3ds_auto_capture_credit_card); FIRE only supports open_banking payments and the PSU's ASPSP browser/app redirect cannot be driven by automated CI, so no completed transaction is available to sync.",
+      "sync_payment_with_handle_response": "same as sync_payment",
+      "sync_upi_collect": "FIRE does not support UPI payments.",
+      "sync_upi_intent": "FIRE does not support UPI payments.",
+      "sync_upi_qr": "FIRE does not support UPI payments."
+    },
+    "PaymentService/Refund": {
+      "refund_full_amount": "FIRE Bank Pay refunds are only accepted against SETTLED payments; an open-banking payment reaches SETTLED only after the PSU completes the ASPSP browser/app redirect, which automated CI cannot drive. No SETTLED payment is available to refund.",
+      "refund_partial_amount": "same as refund_full_amount",
+      "refund_with_reason": "same as refund_full_amount"
+    },
+    "RefundService/Get": {
+      "refund_sync": "RefundService/Get depends on a completed FIRE refund, which first requires a SETTLED open-banking payment; the PSU's ASPSP browser/app redirect cannot be driven by automated CI, so no refund is available to sync.",
+      "refund_sync_with_reason": "same as refund_sync",
+      "RefundService/Get": "same as refund_sync"
+    }
+  }
+}

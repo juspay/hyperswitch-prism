@@ -942,5 +942,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             secret_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Fire => ConnectorSpecificConfig::Fire {
+            client_id: k(),
+            client_key: k(),
+            refresh_token: k(),
+            ican_to: k(),
+            base_url: None,
+            webhook_secret: None,
+        },
     }
 }

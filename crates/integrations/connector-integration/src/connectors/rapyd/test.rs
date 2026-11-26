@@ -490,6 +490,7 @@ fn webhook_dispatch_returns_the_correct_public_response() -> TestResult {
             true,
             None,
             None,
+            true,
         )?;
         if parsed.event_type != Some(response.event_type) {
             return Err("parsed and processed webhook event types differ".into());

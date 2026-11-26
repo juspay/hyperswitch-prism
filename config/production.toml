@@ -31,6 +31,9 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+# fire: base_url = API host, secondary_base_url = Bank Pay hosted payment page host
+fire.base_url = "https://api.fire.com"
+fire.secondary_base_url = "https://securebankpay.com"
 revpay.base_url = "https://mpg.revpay.com.my"
 betterpayment.base_url = "https://api.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"
@@ -227,7 +230,7 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
-connectors_with_webhook_source_verification_call = "paypal, truelayer"
+connectors_with_webhook_source_verification_call = "paypal, truelayer, fire"
 
 [connector_response_masking]
 enabled = false

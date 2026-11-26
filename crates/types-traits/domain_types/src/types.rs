@@ -482,6 +482,7 @@ pub struct Connectors {
     pub ecommpay: ConnectorParams,
     pub payhound: ConnectorParams,
     pub revpay: ConnectorParams,
+    pub fire: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -1011,6 +1012,9 @@ impl Connectors {
             }
             ConnectorEnum::Xendit => {
                 patched.xendit.apply(params_patch);
+            }
+            ConnectorEnum::Fire => {
+                patched.fire.apply(params_patch);
             }
         }
 
@@ -4073,6 +4077,9 @@ pub struct AuthorizationRequest {
     pub enable_avs_check: Option<bool>,
     /// Opt-in for account name verification.
     pub enable_account_name_verification: Option<bool>,
+    /// Payment-request expiry, in Unix epoch seconds, for connectors that support
+    /// an expiry on the payment request (e.g. Fire).
+    pub payment_expiry: Option<i64>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -4209,6 +4216,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             merchant_details: req.merchant_details.map(ForeignFrom::foreign_from),
             enable_avs_check: req.enable_avs_check,
             enable_account_name_verification: req.enable_account_name_verification,
+            payment_expiry: req.payment_expiry,
         }
     }
 }
@@ -4292,6 +4300,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             merchant_details: None,
             enable_avs_check: req.enable_avs_check,
             enable_account_name_verification: None,
+            payment_expiry: None,
         }
     }
 }
@@ -5986,6 +5995,7 @@ impl<
             merchant_details: value.merchant_details,
             enable_avs_check: value.enable_avs_check,
             enable_account_name_verification: value.enable_account_name_verification,
+            payment_expiry: value.payment_expiry,
             tokenization,
             mit_category: value.mit_category,
             domain_data: value
@@ -19036,6 +19046,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             grpc_api_types::payments::BankNames::AlliedIrishBankCorporate => {
                 Ok(Self::AlliedIrishBankCorporate)
             }
+            grpc_api_types::payments::BankNames::AlliedIrishBankUk => Ok(Self::AlliedIrishBankUk),
             grpc_api_types::payments::BankNames::AltoAdige => Ok(Self::AltoAdige),
             grpc_api_types::payments::BankNames::AltoAdigeBancaSuedtirolBank => {
                 Ok(Self::AltoAdigeBancaSuedtirolBank)
@@ -19186,6 +19197,9 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
                 Ok(Self::BankOfIrelandBusiness)
             }
             grpc_api_types::payments::BankNames::BankOfIrelandUk => Ok(Self::BankOfIrelandUk),
+            grpc_api_types::payments::BankNames::BankOfIrelandUkBusiness => {
+                Ok(Self::BankOfIrelandUkBusiness)
+            }
             grpc_api_types::payments::BankNames::BankOfScotlandBusiness => {
                 Ok(Self::BankOfScotlandBusiness)
             }
@@ -20117,6 +20131,7 @@ impl ForeignFrom<common_enums::BankNames> for grpc_api_types::payments::BankName
             common_enums::BankNames::AllianzBanque => Self::AllianzBanque,
             common_enums::BankNames::AlliedIrishBank => Self::AlliedIrishBank,
             common_enums::BankNames::AlliedIrishBankCorporate => Self::AlliedIrishBankCorporate,
+            common_enums::BankNames::AlliedIrishBankUk => Self::AlliedIrishBankUk,
             common_enums::BankNames::AltoAdige => Self::AltoAdige,
             common_enums::BankNames::AltoAdigeBancaSuedtirolBank => {
                 Self::AltoAdigeBancaSuedtirolBank
@@ -20215,6 +20230,7 @@ impl ForeignFrom<common_enums::BankNames> for grpc_api_types::payments::BankName
             common_enums::BankNames::BankOfIreland => Self::BankOfIreland,
             common_enums::BankNames::BankOfIrelandBusiness => Self::BankOfIrelandBusiness,
             common_enums::BankNames::BankOfIrelandUk => Self::BankOfIrelandUk,
+            common_enums::BankNames::BankOfIrelandUkBusiness => Self::BankOfIrelandUkBusiness,
             common_enums::BankNames::BankOfScotlandBusiness => Self::BankOfScotlandBusiness,
             common_enums::BankNames::Bankinter => Self::Bankinter,
             common_enums::BankNames::BanqueDeSavoie => Self::BanqueDeSavoie,
@@ -22319,6 +22335,7 @@ pub fn tokenized_authorize_to_base(
         merchant_details: None,
         enable_avs_check: v.enable_avs_check,
         enable_account_name_verification: None,
+        payment_expiry: None,
         risk_assessment_data: None,
     }
 }
@@ -22524,6 +22541,7 @@ pub fn proxied_authorize_to_base(
         merchant_details: None,
         enable_avs_check: v.enable_avs_check,
         enable_account_name_verification: None,
+        payment_expiry: None,
         risk_assessment_data: None,
         purpose_of_payment: None,
     })

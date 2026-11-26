@@ -1205,6 +1205,16 @@ pub enum ConnectorSpecificConfig {
         key_index: Secret<String>,
         base_url: Option<String>,
     },
+    Fire {
+        client_id: Secret<String>,
+        client_key: Secret<String>,
+        refresh_token: Secret<String>,
+        ican_to: Secret<String>,
+        base_url: Option<String>,
+        /// Preprod (HS256) webhook signing secret; production webhooks are
+        /// RS256 (verified against the vendor JWKS) and need no secret.
+        webhook_secret: Option<Secret<String>>,
+    },
 }
 
 /// Config-patch key for a `ConnectorSpecificConfig` variant.
@@ -1673,6 +1683,14 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 merchant_key,
                 key_index
+            },
+            Fire {
+                client_id,
+                client_key,
+                refresh_token,
+                ican_to,
+                base_url,
+                webhook_secret
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -2237,6 +2255,14 @@ impl ConnectorSpecificConfig {
                     merchant_id,
                     merchant_key,
                     key_index
+                },
+                Fire {
+                    client_id,
+                    client_key,
+                    refresh_token,
+                    ican_to,
+                    base_url,
+                    webhook_secret
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -3090,6 +3116,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                     .key_index
                     .unwrap_or_else(|| Secret::new("1".to_string())),
                 base_url: revpay.base_url,
+            }),
+            AuthType::Fire(fire) => Ok(Self::Fire {
+                client_id: fire.client_id.ok_or_else(err)?,
+                client_key: fire.client_key.ok_or_else(err)?,
+                refresh_token: fire.refresh_token.ok_or_else(err)?,
+                ican_to: fire.ican_to.ok_or_else(err)?,
+                base_url: fire.base_url,
+                webhook_secret: fire.webhook_secret,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -4602,6 +4636,22 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         merchant_key: key1.clone(),
                         key_index: api_secret.clone(),
                         base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Fire => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Fire {
+                        client_id: api_key.clone(),
+                        client_key: key1.clone(),
+                        refresh_token: api_secret.clone(),
+                        ican_to: key2.clone(),
+                        base_url: None,
+                        webhook_secret: None,
                     }),
                     _ => Err(err().into()),
                 },

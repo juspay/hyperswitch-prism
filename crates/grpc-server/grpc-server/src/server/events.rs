@@ -236,7 +236,12 @@ impl EventService for EventServiceImpl {
                         .requires_external_webhook_verification(config
                             .webhook_source_verification_call
                             .connectors_with_webhook_source_verification_call
-                            .as_ref());
+                            .as_ref())
+                        && connector_data
+                            .connector
+                            .requires_external_webhook_verification_for_body(
+                                &request_details.body,
+                            );
 
                     let source_verified = if requires_external_verification {
                         verify_webhook_source_external(
@@ -281,6 +286,7 @@ impl EventService for EventServiceImpl {
                         source_verified,
                         payload.merchant_event_id,
                         event_context,
+                        config.common.return_typed_connector_data,
                     )
                     .to_grpc_error()?;
 

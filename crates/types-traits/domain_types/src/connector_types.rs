@@ -183,6 +183,7 @@ pub enum ConnectorEnum {
     Ecommpay,
     Payhound,
     Revpay,
+    Fire,
 }
 
 // snake case for enum variants
@@ -1806,6 +1807,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub enable_avs_check: Option<bool>,
     /// Opt in to account name verification for supported connectors.
     pub enable_account_name_verification: Option<bool>,
+    /// Payment-request expiry, in Unix epoch seconds, for connectors that
+    /// support an expiry on the payment request (e.g. Fire).
+    pub payment_expiry: Option<i64>,
 }
 
 /// A request sets up a mandate with the customer present when the shopper has
@@ -6663,6 +6667,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
             AuthType::Payhound(_) => Ok(Self::Payment(ConnectorEnum::Payhound)),
             AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
+            AuthType::Fire(_) => Ok(Self::Payment(ConnectorEnum::Fire)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {
