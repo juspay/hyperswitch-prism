@@ -3666,13 +3666,9 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                         .into());
                     }
                 },
-                None => {
-                    return Err(ConnectorError::response_handling_failed_with_context(
-                        item.http_code,
-                        Some("Checkout PSync: capture_method absent on payment intent".to_string()),
-                    )
-                    .into());
-                }
+                None => CheckoutMeta {
+                    psync_flow: CheckoutPaymentIntent::Capture,
+                },
             },
         };
 

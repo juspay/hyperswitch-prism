@@ -43,6 +43,7 @@ use interfaces::{
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
+mod test;
 pub mod transformers;
 use base64::Engine;
 use error_stack::{Report, ResultExt};

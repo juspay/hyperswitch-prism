@@ -1771,10 +1771,10 @@ fn get_attempt_status(item: TruelayerPaymentStatus) -> AttemptStatus {
         }
         TruelayerPaymentStatus::Settled => AttemptStatus::Charged,
         TruelayerPaymentStatus::AuthorizationRequired => AttemptStatus::AuthenticationPending,
-        TruelayerPaymentStatus::Failed | TruelayerPaymentStatus::AttemptFailed => {
-            AttemptStatus::Failure
+        TruelayerPaymentStatus::Failed => AttemptStatus::Failure,
+        TruelayerPaymentStatus::Authorizing | TruelayerPaymentStatus::AttemptFailed => {
+            AttemptStatus::Pending
         }
-        TruelayerPaymentStatus::Authorizing => AttemptStatus::Pending,
     }
 }
 
@@ -1929,9 +1929,12 @@ pub fn get_webhook_event(
     event: TruelayerWebhookEventType,
 ) -> domain_types::connector_types::EventType {
     match event {
+        // Same status PSync reports for `authorized` / `executed` (see get_attempt_status).
         TruelayerWebhookEventType::PaymentExecuted
-        | TruelayerWebhookEventType::PaymentAuthorized
-        | TruelayerWebhookEventType::PaymentCreditable
+        | TruelayerWebhookEventType::PaymentAuthorized => {
+            domain_types::connector_types::EventType::PaymentIntentAuthorizationSuccess
+        }
+        TruelayerWebhookEventType::PaymentCreditable
         | TruelayerWebhookEventType::PaymentFundsReceived
         | TruelayerWebhookEventType::PaymentSettlementStalled => {
             domain_types::connector_types::EventType::PaymentIntentProcessing
@@ -1967,11 +1970,13 @@ pub fn get_truelayer_payment_webhook_status(
     event: TruelayerWebhookEventType,
 ) -> Result<AttemptStatus, WebhookError> {
     match event {
-        TruelayerWebhookEventType::PaymentAuthorized => Ok(AttemptStatus::Authorized),
+        // Matches PSync's mapping of `authorized` / `executed`, so a webhook delivered
+        // after a PSync never regresses Authorized -> Pending.
+        TruelayerWebhookEventType::PaymentAuthorized
+        | TruelayerWebhookEventType::PaymentExecuted => Ok(AttemptStatus::Authorized),
         TruelayerWebhookEventType::PaymentCreditable
         | TruelayerWebhookEventType::PaymentFundsReceived
-        | TruelayerWebhookEventType::PaymentSettlementStalled
-        | TruelayerWebhookEventType::PaymentExecuted => Ok(AttemptStatus::Pending),
+        | TruelayerWebhookEventType::PaymentSettlementStalled => Ok(AttemptStatus::Pending),
         TruelayerWebhookEventType::PaymentSettled => Ok(AttemptStatus::Charged),
         TruelayerWebhookEventType::PaymentFailed => Ok(AttemptStatus::Failure),
         TruelayerWebhookEventType::PaymentReversed => Ok(AttemptStatus::Voided),

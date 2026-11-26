@@ -5699,11 +5699,12 @@ impl ForeignTryFrom<&Response> for ErrorResponse {
                 res.status_code,
                 "cybersource: 5xx response body did not match the expected server-error format.",
             ))?;
-        let attempt_status = match response.reason {
-            Some(Reason::SystemError) => {
-                Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure))
-            }
-            Some(Reason::ServerTimeout)
+        // A 5xx is a processing fault: the authorization may or may not exist at Cybersource,
+        // so the outcome is left unknown (like the timeouts) rather than terminally failed,
+        // which would invite a retry and a possible double charge.
+        let attempt_status: Option<FlowStatus> = match response.reason {
+            Some(Reason::SystemError)
+            | Some(Reason::ServerTimeout)
             | Some(Reason::ServiceTimeout)
             | Some(Reason::Unknown)
             | None => None,
