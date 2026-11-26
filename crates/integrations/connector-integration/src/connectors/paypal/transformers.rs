@@ -598,14 +598,40 @@ pub enum PaypalStoredCredentialUsage {
     Subsequent,
 }
 
-/// PayPal requires `date` here for Mastercard (and documents it for Discover). No field
-/// carries the original transaction date to prism yet, so those MITs surface PayPal's
-/// MISSING_REQUIRED_PARAMETER error.
+/// PayPal requires `date` here for Mastercard (and documents it for Discover).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalPreviousNetworkTransactionReference {
     id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     network: Option<PaypalCardBrand>,
+}
+
+/// Length of the Banknet reference that starts a Mastercard trace id. The trace id is the
+/// Banknet reference followed by the MMDD settlement date.
+const MASTERCARD_BANKNET_REFERENCE_LEN: usize = 9;
+
+impl PaypalPreviousNetworkTransactionReference {
+    /// Splits a Mastercard trace id back into PayPal's `id` and `date`. Other NTIs are sent as is.
+    fn new(network_transaction_id: &str, network: Option<PaypalCardBrand>) -> Self {
+        let trace_id = network_transaction_id.trim();
+        let (id, date) = match trace_id.split_at_checked(MASTERCARD_BANKNET_REFERENCE_LEN) {
+            Some((reference, date))
+                if matches!(network, Some(PaypalCardBrand::Mastercard))
+                    && date.len() == 4
+                    && date.bytes().all(|byte| byte.is_ascii_digit()) =>
+            {
+                (reference, Some(date.to_owned()))
+            }
+            _ => (network_transaction_id, None),
+        };
+        Self {
+            id: Secret::new(id.to_owned()),
+            date,
+            network,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2126,6 +2152,23 @@ pub enum PaypalIncrementalStatus {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaypalNetworkTransactionReference {
     id: String,
+    date: Option<String>,
+    network: Option<String>,
+}
+
+impl PaypalNetworkTransactionReference {
+    /// PayPal returns a Mastercard reference as separate `id` and MMDD `date`; join them into
+    /// the standard trace id so the NTI carries the date a later MIT needs.
+    fn network_transaction_id(&self) -> String {
+        match (self.network.as_deref(), &self.date) {
+            (Some("MASTERCARD"), Some(date))
+                if self.id.len() == MASTERCARD_BANKNET_REFERENCE_LEN =>
+            {
+                format!("{}{date}", self.id)
+            }
+            _ => self.id.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2648,7 +2691,7 @@ where
         let network_txn_id = payment_collection_item
             .network_transaction_reference
             .as_ref()
-            .map(|reference| reference.id.clone());
+            .map(PaypalNetworkTransactionReference::network_transaction_id);
 
         match utils::is_payment_failure(status) {
             true => {
@@ -4058,13 +4101,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(nti) => match &request.payment_method_data {
                 PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
-                    let previous_reference = PaypalPreviousNetworkTransactionReference {
-                        id: Secret::new(nti.network_transaction_id.clone()),
-                        network: PaypalCardBrand::resolve(
+                    let previous_reference = PaypalPreviousNetworkTransactionReference::new(
+                        &nti.network_transaction_id,
+                        PaypalCardBrand::resolve(
                             card.card_network.as_ref(),
                             card.get_card_issuer().ok(),
                         ),
-                    };
+                    );
                     PaymentSourceItem::Card(CardRequest::CardRequestStruct(Box::new(
                         CardRequestStruct {
                             billing_address: get_address_info(
@@ -4103,13 +4146,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             MandateReferenceId::NetworkTokenWithNTI(nti) => match &request.payment_method_data {
                 PaymentMethodData::NetworkToken(token) => {
-                    let previous_reference = PaypalPreviousNetworkTransactionReference {
-                        id: Secret::new(nti.network_transaction_id.clone()),
-                        network: PaypalCardBrand::resolve(
+                    let previous_reference = PaypalPreviousNetworkTransactionReference::new(
+                        &nti.network_transaction_id,
+                        PaypalCardBrand::resolve(
                             token.card_network.as_ref(),
                             token.get_card_issuer().ok(),
                         ),
-                    };
+                    );
                     PaymentSourceItem::Card(CardRequest::CardRequestStruct(Box::new(
                         CardRequestStruct {
                             billing_address: get_address_info(
