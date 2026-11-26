@@ -1110,25 +1110,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card_data) => {
                 let auth: TsysAuthType = TsysAuthType::try_from(&item.connector_config)?;
 
-                // TSYS requires a non-zero amount even for authorization, and the
-                // SetupMandate authorization is never voided. Require the caller's
-                // amount instead of placing a hidden 1-minor-unit hold on the card.
-                let money = item
-                    .request
-                    .money
-                    .clone()
-                    .filter(|money| money.amount().get_amount_as_i64() > 0)
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Send a non-zero amount for TSYS SetupMandate; it is authorized on the card"
-                                    .to_string(),
-                            ),
-                            doc_url: None,
-                            additional_context: None,
-                        },
-                    })?;
+                // Preserve the caller's amount instead of inventing a 1-minor-unit hold.
+                let money =
+                    item.request
+                        .money
+                        .clone()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "amount",
+                            context: IntegrationErrorContext {
+                                suggested_action: Some(
+                                    "Send the intended authorization amount for TSYS SetupMandate"
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                                additional_context: None,
+                            },
+                        })?;
                 let transaction_amount = item_data
                     .connector
                     .amount_converter
