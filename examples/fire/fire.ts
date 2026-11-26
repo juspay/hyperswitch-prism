@@ -19,8 +19,8 @@ const _defaultConfig: types.IConnectorConfig = {
             clientKey: { value: 'YOUR_CLIENT_KEY' },
             refreshToken: { value: 'YOUR_REFRESH_TOKEN' },
             icanTo: { value: 'YOUR_ICAN_TO' },
-            baseUrl: 'YOUR_BASE_URL',
             webhookSecret: { value: 'YOUR_WEBHOOK_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
         }
     },
 };

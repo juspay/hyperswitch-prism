@@ -482,7 +482,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"clientId\":\"probe_key\",\"clientSecret\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"refreshToken\":\"probe_key\",\"nonce\":1795704534975587,\"grantType\":\"AccessToken\"}"
+          "body": "{\"clientId\":\"probe_key\",\"clientSecret\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"refreshToken\":\"probe_key\",\"nonce\":1795706076953003,\"grantType\":\"AccessToken\"}"
         }
       }
     },
@@ -632,14 +632,14 @@
     },
     "refund": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: FIRE Open Banking does not support USD"
+        "status": "error",
+        "error": "Stuck on field: access_token — Missing required field: access_token"
       }
     },
     "refund_get": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: access_token — Missing required field: access_token"
+        "error": "Stuck on field: connector_feature_data.payment_request_code — Missing required field: connector_feature_data.payment_request_code"
       }
     },
     "reverse": {

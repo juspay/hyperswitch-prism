@@ -28,8 +28,8 @@ config = sdk_config_pb2.ConnectorConfig(
             client_key=payment_methods_pb2.SecretString(value="YOUR_CLIENT_KEY"),
             refresh_token=payment_methods_pb2.SecretString(value="YOUR_REFRESH_TOKEN"),
             ican_to=payment_methods_pb2.SecretString(value="YOUR_ICAN_TO"),
-            base_url="YOUR_BASE_URL",
             webhook_secret=payment_methods_pb2.SecretString(value="YOUR_WEBHOOK_SECRET"),
+            base_url="YOUR_BASE_URL",
         ),
     ),
 )
@@ -56,8 +56,8 @@ const config = ConnectorConfig.create({
             clientKey: { value: 'YOUR_CLIENT_KEY' },
             refreshToken: { value: 'YOUR_REFRESH_TOKEN' },
             icanTo: { value: 'YOUR_ICAN_TO' },
-            baseUrl: 'YOUR_BASE_URL',
             webhookSecret: { value: 'YOUR_WEBHOOK_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
         }
     },
 });
@@ -80,8 +80,8 @@ val config = ConnectorConfig.newBuilder()
                 .setClientKey(SecretString.newBuilder().setValue("YOUR_CLIENT_KEY").build())
                 .setRefreshToken(SecretString.newBuilder().setValue("YOUR_REFRESH_TOKEN").build())
                 .setIcanTo(SecretString.newBuilder().setValue("YOUR_ICAN_TO").build())
-                .setBaseUrl("YOUR_BASE_URL")
                 .setWebhookSecret(SecretString.newBuilder().setValue("YOUR_WEBHOOK_SECRET").build())
+                .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
     )
@@ -106,8 +106,8 @@ let config = ConnectorConfig {
                 client_key: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_KEY".to_string())),  // Authentication credential
                 refresh_token: Some(hyperswitch_masking::Secret::new("YOUR_REFRESH_TOKEN".to_string())),  // Authentication credential
                 ican_to: Some(hyperswitch_masking::Secret::new("YOUR_ICAN_TO".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 webhook_secret: Some(hyperswitch_masking::Secret::new("YOUR_WEBHOOK_SECRET".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
         }),

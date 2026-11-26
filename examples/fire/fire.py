@@ -22,8 +22,8 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             client_key=payment_methods_pb2.SecretString(value="YOUR_CLIENT_KEY"),
             refresh_token=payment_methods_pb2.SecretString(value="YOUR_REFRESH_TOKEN"),
             ican_to=payment_methods_pb2.SecretString(value="YOUR_ICAN_TO"),
-            base_url="YOUR_BASE_URL",
             webhook_secret=payment_methods_pb2.SecretString(value="YOUR_WEBHOOK_SECRET"),
+            base_url="YOUR_BASE_URL",
         ),
     ),
 )

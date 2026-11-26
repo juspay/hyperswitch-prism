@@ -28,10 +28,10 @@ fn build_client() -> ConnectorClient {
                     "YOUR_REFRESH_TOKEN".to_string(),
                 )), // Authentication credential
                 ican_to: Some(hyperswitch_masking::Secret::new("YOUR_ICAN_TO".to_string())), // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 webhook_secret: Some(hyperswitch_masking::Secret::new(
                     "YOUR_WEBHOOK_SECRET".to_string(),
                 )), // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
             })),
         }),
