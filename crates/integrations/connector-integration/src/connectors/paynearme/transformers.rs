@@ -37,7 +37,10 @@
 //! [`apple_pay_not_supported`] and [`google_pay_not_supported`]).
 
 use common_enums::{AttemptStatus, AuthenticationType, Currency, FutureUsage, RefundStatus};
-use common_utils::{crypto::SignMessage, types::StringMajorUnit};
+use common_utils::{
+    crypto::SignMessage,
+    types::{FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit},
+};
 use domain_types::{
     connector_flow::{
         Authorize, CreateOrder, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
@@ -224,9 +227,8 @@ pub(super) fn paynearme_string_to_sign(
 ///
 /// The signature is computed over **exactly** the map that will be serialised, so
 /// the request struct is built with an empty `signature` first, signed, and only
-/// then emitted. Every request field is therefore typed `String` (or a
-/// string-serialising newtype such as [`StringMajorUnit`]) so that serialisation
-/// and signing agree byte for byte.
+/// then emitted. Strings retain their contents and numeric fields use their JSON
+/// representation so that serialisation and signing agree.
 pub fn paynearme_signature<R: Serialize>(
     api_secret_key: &Secret<String>,
     request: &R,
@@ -1068,7 +1070,7 @@ pub struct PaynearmeRefundRequest {
     pub signature: Secret<String>,
     pub pnm_payment_identifier: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub refund_amount: Option<StringMajorUnit>,
+    pub refund_amount: Option<FloatMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_currency: Option<Currency>,
 }
@@ -1091,7 +1093,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 (None, None)
             } else {
                 (
-                    Some(PaynearmeAmountConvertor::convert(&request.refund_money)?),
+                    Some(domain_types::utils::convert_amount(
+                        &FloatMajorUnitForConnector,
+                        &request.refund_money,
+                    )?),
                     Some(currency),
                 )
             };

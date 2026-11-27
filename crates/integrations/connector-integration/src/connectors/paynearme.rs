@@ -114,8 +114,8 @@ const CANCEL_PAYMENT_PATH: &str = "/cancel_payment";
 const REFUND_PAYMENT_PATH: &str = "/refund_payment";
 const MAKE_PAYMENT_PATH: &str = "/make_payment";
 
-// Amounts are sent as decimal strings in base units ("500", "504.99"); the HMAC
-// signature is computed over the string values, so nothing may be numeric.
+// Order and payment amounts use major-unit strings. Partial refunds use a numeric
+// major-unit amount and select that converter in the refund transformer.
 macros::create_amount_converter_wrapper!(connector_name: Paynearme, amount_type: StringMajorUnit);
 
 // ===== MACRO PREREQUISITES =====
