@@ -496,6 +496,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 
+    /// EPG counts only `201` as a delivered notification; anything else is retried and, after
+    /// four retries, the webhook is disabled until Elavon support re-enables it.
+    /// https://developer.elavon.com/products/elavon-payment-gateway/v1/webhook-notifications
+    fn get_webhook_api_response(
+        &self,
+        _request: RequestDetails,
+        _error_kind: Option<interfaces::webhooks::IncomingWebhookFlowError>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> CustomResult<interfaces::api::EventAckResponse, WebhookError> {
+        Ok(interfaces::api::EventAckResponse {
+            status_code: 201,
+            headers: vec![],
+            body: None,
+        })
+    }
+
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"href":"https://api.sandbox.elavonpayments.com/notifications/j8t32fd7p29twgyj2fcb6dd4fdpw","id":"j8t32fd7p29twgyj2fcb6dd4fdpw","merchant":"https://api.sandbox.elavonpayments.com/merchants/3x7gwcy33vb84hb732pr44fvfkqh","createdAt":"2023-10-31T20:59:45.210Z","eventType":"saleDeclined","resourceType":"transaction","resource":"https://api.sandbox.elavonpayments.com/transactions/ch7g7gmmxfgyvq7thkrm3ccdk3gy"}"#
     }
