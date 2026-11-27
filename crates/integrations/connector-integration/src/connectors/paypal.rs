@@ -1,3 +1,4 @@
+mod test;
 pub mod transformers;
 
 use base64::Engine;
@@ -185,6 +186,64 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(get_paypal_event_type(payload.event_type, outcome_code))
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<
+        Option<domain_types::connector_types::WebhookResourceReference>,
+        error_stack::Report<WebhookError>,
+    > {
+        use domain_types::connector_types::{
+            DisputeWebhookReference, PaymentWebhookReference, RefundWebhookReference,
+            WebhookResourceReference,
+        };
+
+        let details: paypal::PaypalWebhooksBody =
+            request
+                .body
+                .parse_struct("PaypalWebhooksBody")
+                .change_context(WebhookError::WebhookReferenceIdNotFound)?;
+
+        // Same ids the process_*_webhook handlers return for each resource shape.
+        let reference = match details.resource {
+            paypal::PaypalResource::PaypalCardWebhooks(resource) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(
+                        resource.supplementary_data.related_ids.order_id,
+                    ),
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                })
+            }
+            paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(resource.id),
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                })
+            }
+            paypal::PaypalResource::PaypalRefundWebhooks(resource) => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(resource.id),
+                    merchant_refund_id: None,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: None,
+                })
+            }
+            paypal::PaypalResource::PaypalDisputeWebhooks(resource) => {
+                WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    connector_dispute_id: Some(resource.dispute_id),
+                    connector_transaction_id: resource
+                        .disputed_transactions
+                        .into_iter()
+                        .next()
+                        .map(|transaction| transaction.seller_transaction_id),
+                })
+            }
+        };
+        Ok(Some(reference))
+    }
+
     fn process_payment_webhook(
         &self,
         request: RequestDetails,
@@ -259,6 +318,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 paypal::PaypalResource::PaypalRefundWebhooks(resource),
                 paypal::PaypalWebhookEventType::PaymentCaptureRefunded,
             ) => (Some(resource.id), common_enums::RefundStatus::Success),
+            (
+                paypal::PaypalResource::PaypalRefundWebhooks(resource),
+                paypal::PaypalWebhookEventType::PaymentRefundFailed,
+            ) => (Some(resource.id), common_enums::RefundStatus::Failure),
             (paypal::PaypalResource::PaypalRefundWebhooks(resource), _) => {
                 (Some(resource.id), common_enums::RefundStatus::Pending)
             }
@@ -386,8 +449,12 @@ fn get_paypal_event_type(
         | paypal::PaypalWebhookEventType::CheckoutOrderCompleted => E::PaymentIntentSuccess,
         paypal::PaypalWebhookEventType::PaymentCapturePending
         | paypal::PaypalWebhookEventType::CheckoutOrderProcessed => E::PaymentIntentProcessing,
-        paypal::PaypalWebhookEventType::PaymentCaptureDeclined => E::PaymentIntentFailure,
+        paypal::PaypalWebhookEventType::PaymentCaptureDeclined
+        | paypal::PaypalWebhookEventType::PaymentCaptureDenied => E::PaymentIntentFailure,
+        paypal::PaypalWebhookEventType::PaymentAuthorizationVoided => E::PaymentIntentCancelled,
         paypal::PaypalWebhookEventType::PaymentCaptureRefunded => E::RefundSuccess,
+        paypal::PaypalWebhookEventType::PaymentRefundPending => E::RefundProcessing,
+        paypal::PaypalWebhookEventType::PaymentRefundFailed => E::RefundFailure,
         paypal::PaypalWebhookEventType::CustomerDisputeCreated => E::DisputeOpened,
         paypal::PaypalWebhookEventType::RiskDisputeCreated => E::DisputeAccepted,
         paypal::PaypalWebhookEventType::CustomerDisputeResolved => outcome
@@ -410,7 +477,9 @@ fn get_paypal_payment_webhook_status(event: paypal::PaypalWebhookEventType) -> A
         | paypal::PaypalWebhookEventType::CheckoutOrderCompleted => AttemptStatus::Charged,
         paypal::PaypalWebhookEventType::PaymentCapturePending
         | paypal::PaypalWebhookEventType::CheckoutOrderProcessed => AttemptStatus::Pending,
-        paypal::PaypalWebhookEventType::PaymentCaptureDeclined => AttemptStatus::Failure,
+        paypal::PaypalWebhookEventType::PaymentCaptureDeclined
+        | paypal::PaypalWebhookEventType::PaymentCaptureDenied => AttemptStatus::Failure,
+        paypal::PaypalWebhookEventType::PaymentAuthorizationVoided => AttemptStatus::Voided,
         _ => AttemptStatus::Pending,
     }
 }

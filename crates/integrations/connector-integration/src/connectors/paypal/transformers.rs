@@ -4245,8 +4245,16 @@ pub enum PaypalWebhookEventType {
     PaymentCapturePending,
     #[serde(rename = "PAYMENT.CAPTURE.DECLINED")]
     PaymentCaptureDeclined,
+    #[serde(rename = "PAYMENT.CAPTURE.DENIED")]
+    PaymentCaptureDenied,
     #[serde(rename = "PAYMENT.CAPTURE.REFUNDED")]
     PaymentCaptureRefunded,
+    #[serde(rename = "PAYMENT.AUTHORIZATION.VOIDED")]
+    PaymentAuthorizationVoided,
+    #[serde(rename = "PAYMENT.REFUND.PENDING")]
+    PaymentRefundPending,
+    #[serde(rename = "PAYMENT.REFUND.FAILED")]
+    PaymentRefundFailed,
 
     #[serde(rename = "CHECKOUT.ORDER.COMPLETED")]
     CheckoutOrderCompleted,
