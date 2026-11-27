@@ -5076,6 +5076,11 @@ impl<F> TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             true,
         );
+        let status = if status == common_enums::AttemptStatus::Failure {
+            common_enums::AttemptStatus::CaptureFailed
+        } else {
+            status
+        };
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
@@ -5103,6 +5108,11 @@ impl<F> TryFrom<ResponseRouterData<CybersourcePaymentsResponse, Self>>
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             false,
         );
+        let status = if status == common_enums::AttemptStatus::Failure {
+            common_enums::AttemptStatus::VoidFailed
+        } else {
+            status
+        };
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         Ok(Self {
