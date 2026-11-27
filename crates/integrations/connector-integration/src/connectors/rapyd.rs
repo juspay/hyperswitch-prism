@@ -49,7 +49,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, utils, with_error_response_body};
+use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
@@ -149,8 +149,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | RapydWebhookEventType::PaymentCaptured
             | RapydWebhookEventType::PaymentCanceled
             | RapydWebhookEventType::PaymentExpired
-            | RapydWebhookEventType::PaymentFailed
-            | RapydWebhookEventType::CardAddedFailure => {
+            | RapydWebhookEventType::PaymentFailed => {
                 let data = event.payment_data()?;
                 Some(WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(data.id),
@@ -424,17 +423,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     &response_data,
                     "typed_connector_response",
                 );
-                let attempt_status = (res.status_code == 400
-                    && response_data.status.error_code == "INVALID_PAYMENT_METHOD")
-                    .then_some(domain_types::router_data::FlowStatus::Payment(
-                        common_enums::AttemptStatus::Failure,
-                    ));
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response_data.status.error_code,
                     message: response_data.status.status.unwrap_or_default(),
                     reason: response_data.status.message,
-                    attempt_status,
+                    attempt_status: None,
                     connector_transaction_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
@@ -665,16 +659,6 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let id = req.request.get_connector_transaction_id()?;
-            if id.starts_with("card_") {
-                let customer = req.request.connector_feature_data.as_ref()
-                    .and_then(|value| value.peek().get("customer_id"))
-                    .and_then(serde_json::Value::as_str).filter(|id| id.starts_with("cus_"))
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "connector_feature_data.customer_id",
-                        context: utils::integration_ctx("The registration customer ID is missing", "Pass the connector feature data returned by SetupMandate."),
-                    })?;
-                return Ok(format!("{}/v1/customers/{}/payment_methods/{}", self.connector_base_url_payments(req), urlencoding::encode(customer), urlencoding::encode(&id)));
-            }
             Ok(format!("{}/v1/payments/{}", self.connector_base_url_payments(req), id))
         }
     }
