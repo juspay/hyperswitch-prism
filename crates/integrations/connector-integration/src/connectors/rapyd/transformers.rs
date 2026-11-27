@@ -2526,50 +2526,120 @@ impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
 // ============================================================================
 // SetupMandate (zero-amount card verification) — Rapyd
 // ============================================================================
-// Rapyd has no dedicated mandate endpoint. To capture a reusable card token
-// we call POST /v1/payments with `save_payment_method: true` plus an inline
-// `customer: { name, email }` object so Rapyd creates `cus_*` in the same
-// call and attaches a reusable `card_*` to it.
-//
-/// SetupMandate request – reuses the `/v1/payments` shape but asks Rapyd
-/// to save the card under a newly-created customer.
-pub type RapydSetupMandateRequest<T> = RapydPaymentsRequest<T>;
+// Reuse the card and authentication builders, but send only registration fields.
+type RapydSetupRouterData<T> = RapydRouterData<
+    RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+    T,
+>;
 
-/// SetupMandate response – structurally identical to `RapydPaymentsResponse`
-/// but defined as a distinct type so the SetupMandate `TryFrom` does
-/// not collide with the blanket Authorize-style conversion (E0119).
+#[derive(Debug, Serialize)]
+pub struct RapydSetupMandateRequest<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+> {
+    name: Secret<String>,
+    email: Email,
+    payment_method: RapydSetupPaymentMethod<T>,
+    payment_method_options: Option<RapydPaymentMethodOptions>,
+}
+
+#[derive(Debug, Serialize)]
+struct RapydSetupPaymentMethod<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+> {
+    #[serde(rename = "type")]
+    pm_type: RapydPaymentMethodType,
+    fields: Option<RapydPaymentMethodFields<T>>,
+    complete_payment_url: Option<String>,
+    error_payment_url: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RapydSetupMandateResponse {
     pub status: Status,
-    pub data: Option<ResponseData>,
+    pub data: Option<RapydSetupCustomer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RapydSetupCustomer {
+    id: String,
+    payment_methods: RapydSetupCards,
+    #[serde(default, deserialize_with = "deserialize_network_reference_id")]
+    network_reference_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RapydSetupCards {
+    data: Vec<RapydSetupCard>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RapydSetupCard {
+    id: Option<String>,
+    next_action: NextAction,
+    redirect_url: Option<Url>,
+    #[serde(default, deserialize_with = "deserialize_network_reference_id")]
+    network_reference_id: Option<Secret<String>>,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        RapydRouterData<
-            RouterDataV2<
-                SetupMandate,
-                PaymentFlowData,
-                SetupMandateRequestData<T>,
-                PaymentsResponseData,
-            >,
-            T,
-        >,
-    > for RapydSetupMandateRequest<T>
+    TryFrom<RapydSetupRouterData<T>> for RapydSetupMandateRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(
-        item: RapydRouterData<
-            RouterDataV2<
-                SetupMandate,
-                PaymentFlowData,
-                SetupMandateRequestData<T>,
-                PaymentsResponseData,
-            >,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: RapydSetupRouterData<T>) -> Result<Self, Self::Error> {
+        if item.router_data.resource_common_data.auth_type
+            == common_enums::AuthenticationType::NoThreeDs
+            && item.router_data.request.authentication_data.is_none()
+        {
+            return Err(IntegrationError::NotSupported {
+                message: "SetupMandate without 3DS".to_owned(),
+                connector: "rapyd",
+                context: utils::integration_ctx(
+                    "Rapyd requires 3DS during card registration",
+                    "Request hosted 3DS or provide external authentication data.",
+                ),
+            }
+            .into());
+        }
+        let payment = RapydPaymentsRequest::try_from(item)?;
+        let customer = payment
+            .customer
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "customer",
+                context: utils::integration_ctx(
+                    "The registration customer is missing",
+                    "Provide the customer name and email.",
+                ),
+            })?;
+        let RapydPaymentMethodData::PaymentMethod(card) = payment.payment_method else {
+            return Err(IntegrationError::RequestEncodingFailed {
+                context: utils::integration_ctx(
+                    "The setup payment method is not a card",
+                    "Use a card for SetupMandate.",
+                ),
+            }
+            .into());
+        };
+        Ok(Self {
+            name: customer.name,
+            email: customer.email,
+            payment_method: RapydSetupPaymentMethod {
+                pm_type: card.pm_type,
+                fields: card.fields,
+                complete_payment_url: payment.complete_payment_url,
+                error_payment_url: payment.error_payment_url,
+            },
+            payment_method_options: payment.payment_method_options,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<RapydSetupRouterData<T>> for RapydPaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(item: RapydSetupRouterData<T>) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         let request = &router_data.request;
 
@@ -2765,29 +2835,63 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn try_from(
         item: ResponseRouterData<RapydSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let mapped = Self::try_from(ResponseRouterData {
-            response: RapydPaymentsResponse {
-                status: item.response.status,
-                data: item.response.data,
-            },
-            router_data: item.router_data,
-            http_code: item.http_code,
-        })?;
-        if mapped.resource_common_data.status != common_enums::AttemptStatus::Authorized
-            || !matches!(
-                &mapped.response,
-                Ok(PaymentsResponseData::TransactionResponse { .. })
-            )
+        if item.response.status.status.as_deref() != Some("SUCCESS")
+            || !item.response.status.error_code.is_empty()
         {
-            return Ok(mapped);
+            return Ok(Self {
+                response: Err(item.response.status.to_error_response(item.http_code)),
+                ..item.router_data
+            });
         }
-        // A successful zero-value verification has no funds to capture.
+        let customer = item.response.data.ok_or_else(|| {
+            utils::response_handling_fail(item.http_code, "Missing registration customer")
+        })?;
+        let card = customer
+            .payment_methods
+            .data
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                utils::response_handling_fail(item.http_code, "Missing registration card")
+            })?;
+        let status = if card.next_action == NextAction::ThreedsVerification {
+            common_enums::AttemptStatus::AuthenticationPending
+        } else {
+            item.router_data.resource_common_data.status
+        };
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                status: common_enums::AttemptStatus::Charged,
-                ..mapped.resource_common_data
+                status,
+                connector_customer: Some(customer.id.clone()),
+                ..item.router_data.resource_common_data
             },
-            ..mapped
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                // A customer response contains no payment transaction ID.
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: card
+                    .redirect_url
+                    .map(|url| Box::new(RedirectForm::from((url, Method::Get)))),
+                mandate_reference: card.id.map(|card_id| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(card_id),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    })
+                }),
+                connector_metadata: None,
+                network_txn_id: card
+                    .network_reference_id
+                    .or(customer.network_reference_id)
+                    .map(ExposeInterface::expose),
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
+            }),
+            ..item.router_data
         })
     }
 }

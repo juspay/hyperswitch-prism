@@ -829,9 +829,7 @@ macros::macro_connector_implementation!(
     }
 );
 
-// SetupMandate flow – reuses the standard `/v1/payments` endpoint for
-// card-on-file verification. The saved payment method ID is surfaced as the
-// connector_mandate_id for subsequent RepeatPayment (MIT) calls.
+// Register the card through the customer endpoint for hosted or external 3DS.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Rapyd,
@@ -885,11 +883,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Reuse /v1/payments — `save_payment_method: true` + inline customer
-            // object in the body yields a reusable `card_*` token without
-            // requiring the complete_payment_url whitelist that the
-            // /v1/customers endpoint enforces on sandbox accounts.
-            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+            Ok(format!("{}/v1/customers", self.connector_base_url_payments(req)))
         }
     }
 );
