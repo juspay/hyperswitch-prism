@@ -99,7 +99,17 @@ impl TryFrom<&ConnectorSpecificConfig> for FireAuthType {
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext::default()
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Fire requires ConnectorSpecificConfig::Fire with client_id, \
+                             client_key, refresh_token and ican_to"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Pass Fire credentials in the Fire connector config".to_string(),
+                        ),
+                        ..Default::default()
+                    }
                 }
             )),
         }
@@ -147,7 +157,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let preimage = format!("{nonce}{}", auth.client_key.expose());
         let digest = Sha256.generate_digest(preimage.as_bytes()).change_context(
             IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Fire access-token request: failed to compute SHA-256 of nonce + \
+                         client_key for clientSecret"
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.fire.com/reference/authenticate".to_string()),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -165,7 +183,13 @@ fn next_nonce() -> Result<i64, IntegrationError> {
     let timestamp = common_utils::date_time::now_unix_micros();
     let timestamp =
         i64::try_from(timestamp).map_err(|_| IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Fire access-token nonce: current Unix time in microseconds ({timestamp}) \
+                     does not fit in i64"
+                )),
+                ..Default::default()
+            },
         })?;
 
     // Microsecond Unix time is practically unique across hosts. The atomic
@@ -179,7 +203,14 @@ fn next_nonce() -> Result<i64, IntegrationError> {
             previous
                 .checked_add(1)
                 .ok_or_else(|| IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Fire access-token nonce overflowed i64 while advancing past the \
+                             last issued nonce"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 })?
         };
         match LAST_NONCE.compare_exchange(previous, candidate, Ordering::AcqRel, Ordering::Acquire)
@@ -371,7 +402,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = FireAuthType::try_from(&item.router_data.connector_config)?;
         let ican_to = auth.ican_to.expose().parse::<i64>().map_err(|_| {
             IntegrationError::RequestEncodingFailed {
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Fire ican_to (destination account ID) must be an integer".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set ican_to in the Fire connector config to the numeric ICAN of the \
+                         receiving Fire account"
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.fire.com/reference/newpaymentrequest".to_string()),
+                },
             }
         })?;
         let currency = item.router_data.request.currency;
@@ -389,7 +430,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_description()
             .change_context(IntegrationError::MissingRequiredField {
                 field_name: "description",
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Fire requires a description; it is sent as both myRef and description \
+                         on the payment request"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Pass a non-empty description that is unique per payment request"
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.fire.com/reference/newpaymentrequest".to_string()),
+                },
             })?;
         // Optional payment-request expiry (RFC 3339 date-time). Sent via the
         // first-class `payment_expiry` field (Unix epoch seconds, formatted to
@@ -909,7 +961,14 @@ fn fire_aspsp_uuid<T: PaymentMethodDataTypes>(
         _ => {
             return Err(IntegrationError::not_implemented(
                 "FIRE supports Open Banking payment methods only",
-                IntegrationErrorContext::default(),
+                IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use BankRedirect::OpenBankingUk, BankRedirect::OpenBanking or \
+                         OpenBanking::OpenBankingPIS"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             ));
         }
     };
@@ -933,7 +992,14 @@ fn fire_aspsp_uuid<T: PaymentMethodDataTypes>(
         _ => {
             return Err(IntegrationError::not_implemented(
                 format!("FIRE does not support {issuer:?} as an ASPSP"),
-                IntegrationErrorContext::default(),
+                IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use a supported bank (AIB, Bank of Ireland, Bank of Scotland, Barclays) \
+                         or omit the issuer to let the payer pick their bank on Fire's hosted page"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             ));
         }
     };
@@ -1575,16 +1641,30 @@ impl TryFrom<ResponseRouterData<FireJwks, Self>>
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: ResponseRouterData<FireJwks, Self>) -> Result<Self, Self::Error> {
-        let invalid_format = |field_name: &'static str| IntegrationError::InvalidDataFormat {
-            field_name,
-            context: IntegrationErrorContext::default(),
-        };
+        let invalid_format =
+            |field_name: &'static str, detail: &str| IntegrationError::InvalidDataFormat {
+                field_name,
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Fire webhook verification: {detail}")),
+                    ..Default::default()
+                },
+            };
 
         let jwt = std::str::from_utf8(item.router_data.request.webhook_body.as_slice())
-            .change_context(invalid_format("webhook_body"))?;
-        let header = decode_header(jwt).change_context(invalid_format("jwt_header"))?;
+            .change_context(invalid_format(
+                "webhook_body",
+                "body is not valid UTF-8; Fire sends the webhook as a raw JWT string",
+            ))?;
+        let header = decode_header(jwt).change_context(invalid_format(
+            "jwt_header",
+            "body is not a decodable JWT (expected header.payload.signature)",
+        ))?;
         if header.alg != Algorithm::RS256 {
-            return Err(invalid_format("jwt_alg").into());
+            return Err(invalid_format(
+                "jwt_alg",
+                &format!("JWT alg is {:?}; Fire webhooks must be RS256", header.alg),
+            )
+            .into());
         }
         let jwk = if let Some(kid) = header.kid.as_deref() {
             item.response
@@ -1597,17 +1677,26 @@ impl TryFrom<ResponseRouterData<FireJwks, Self>>
                 .iter()
                 .find(|key| key.kty.as_deref() == Some("RSA"))
         }
-        .ok_or_else(|| invalid_format("jwks"))?;
-        let modulus = jwk
-            .n
-            .as_deref()
-            .ok_or_else(|| invalid_format("jwk_modulus"))?;
-        let exponent = jwk
-            .e
-            .as_deref()
-            .ok_or_else(|| invalid_format("jwk_exponent"))?;
-        let decoding_key = DecodingKey::from_rsa_components(modulus, exponent)
-            .change_context(invalid_format("jwk"))?;
+        .ok_or_else(|| {
+            invalid_format(
+                "jwks",
+                &format!(
+                    "no RSA key in Fire's JWKS matches the JWT kid {:?}",
+                    header.kid
+                ),
+            )
+        })?;
+        let modulus = jwk.n.as_deref().ok_or_else(|| {
+            invalid_format("jwk_modulus", "matched JWKS RSA key has no modulus (n)")
+        })?;
+        let exponent = jwk.e.as_deref().ok_or_else(|| {
+            invalid_format("jwk_exponent", "matched JWKS RSA key has no exponent (e)")
+        })?;
+        let decoding_key =
+            DecodingKey::from_rsa_components(modulus, exponent).change_context(invalid_format(
+                "jwk",
+                "matched JWKS RSA key has an invalid modulus/exponent encoding",
+            ))?;
         let mut validation = Validation::new(Algorithm::RS256);
         // Fire's webhook JWTs are not documented to carry `exp`; the RS256
         // signature against the vendor JWKS is the trust anchor here.

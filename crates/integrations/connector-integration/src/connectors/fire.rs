@@ -394,7 +394,19 @@ macros::macro_connector_implementation!(
             if req.request.connector_refund_id.is_empty() && !has_merchant_refund_id {
                 return Err(errors::IntegrationError::MissingRequiredField {
                     field_name: "connector_refund_id",
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Fire RSync finds the refund by Fire refund UUID or by myRef \
+                             (merchant refund id); neither was provided"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Pass connector_refund_id from the Refund response, or the merchant \
+                             refund_id"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }
                 .into());
             }
