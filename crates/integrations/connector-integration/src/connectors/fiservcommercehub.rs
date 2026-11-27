@@ -580,12 +580,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             }
         };
 
-        let connector_transaction_id = response
-            .gateway_response
-            .as_ref()
-            .and_then(|gr| gr.transaction_processing_details.as_ref())
-            .and_then(|tpd| tpd.transaction_id.clone());
-
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
@@ -594,7 +588,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             message,
             reason,
             attempt_status: None,
-            connector_transaction_id,
+            // An error's transaction ID identifies the failed request, not the
+            // payment or refund the request referenced.
+            connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -882,21 +878,6 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
-        fn get_error_response_v2(
-            &self,
-            res: Response,
-            event_builder: Option<&mut events::Event>,
-            connector_config: &ConnectorSpecificConfig,
-        ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-            let mut error_response =
-                self.build_error_response(res, event_builder, connector_config)?;
-
-            // An inquiry error's transaction ID identifies the failed inquiry,
-            // not the original payment being synchronized.
-            error_response.connector_transaction_id = None;
-            Ok(error_response)
-        }
-
         fn get_headers(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
