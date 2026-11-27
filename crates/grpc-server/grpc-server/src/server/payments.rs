@@ -907,7 +907,27 @@ impl PaymentService for Payments {
             Box::pin(async move {
                 let metadata_payload = request_data.extracted_metadata;
                 let metadata = &request_data.masked_metadata;
-                let proto_payload = request_data.payload;
+                let mut proto_payload = request_data.payload;
+
+                // After a redirect (e.g. 3DS), the caller completes the order the connector already
+                // holds and has no payment method to send. Only connectors that declare they never
+                // read it on this path get a stand-in; everyone else still gets MISSING_REQUIRED_FIELD.
+                // CardRedirect is the only variant that carries no instrument data.
+                if proto_payload.payment_method.is_none()
+                    && proto_payload.connector_order_id.is_some()
+                    && ConnectorData::<DefaultPCIHolder>::from_connector_variant(&metadata_payload.connector)
+                        .is_some_and(|data| data.connector.completes_held_order_without_payment_method())
+                {
+                    proto_payload.payment_method = Some(grpc_api_types::payments::PaymentMethod {
+                        payment_method: Some(
+                            grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(
+                                grpc_api_types::payments::CardRedirect {
+                                    r#type: grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect.into(),
+                                },
+                            ),
+                        ),
+                    });
+                }
                 // Convert proto request to intermediate type
                 let payload: AuthorizationRequest = proto_payload.clone().into();
 
