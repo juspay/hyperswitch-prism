@@ -57,17 +57,23 @@ fn checkout_base(sandbox: bool) -> &'static str {
     }
 }
 
-fn revolut_pay_redirect(token: &str, key: &str, return_url: &str, sandbox: bool) -> String {
-    let mut url = url::Url::parse(checkout_base(sandbox)).expect("constant checkout URL");
+fn revolut_pay_redirect(
+    token: &str,
+    key: &str,
+    return_url: &str,
+    sandbox: bool,
+) -> Result<String, error_stack::Report<ConnectorError>> {
+    let mut url = url::Url::parse(checkout_base(sandbox))
+        .change_context(ConnectorError::response_handling_failed_http_status_unknown())?;
     url.path_segments_mut()
-        .expect("hierarchical URL")
+        .map_err(|_| ConnectorError::response_handling_failed_http_status_unknown())?
         .extend(["revolut-pay", "order", token]);
     url.query_pairs_mut()
         .append_pair("publicToken", key)
         .append_pair("redirectUrls.success", return_url)
         .append_pair("redirectUrls.failure", return_url)
         .append_pair("redirectUrls.cancel", return_url);
-    url.to_string()
+    Ok(url.to_string())
 }
 
 impl RevolutOrderOptions {
@@ -800,9 +806,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let options =
             RevolutOrderOptions::parse(item.router_data.request.connector_feature_data.as_ref())
                 .change_context(ConnectorError::response_handling_failed_http_status_unknown())?;
-        let mut metadata = order_metadata(&response).unwrap_or_else(|| serde_json::json!({}));
-        metadata["order_id"] = serde_json::json!(response.id);
-        metadata["order_token"] = serde_json::json!(response.token.peek());
+        let mut metadata: serde_json::Map<String, serde_json::Value> = order_metadata(&response)
+            .map(serde_json::from_value)
+            .transpose()
+            .change_context(ConnectorError::response_handling_failed_http_status_unknown())?
+            .unwrap_or_default();
+        metadata.insert("order_id".into(), serde_json::json!(response.id));
+        metadata.insert(
+            "order_token".into(),
+            serde_json::json!(response.token.peek()),
+        );
         let public_key = match &item.router_data.connector_config {
             ConnectorSpecificConfig::Revolut { public_key, .. } => public_key.as_ref(),
             _ => None,
@@ -813,8 +826,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .test_mode
             .unwrap_or(false);
         if let Some(key) = public_key {
-            metadata["public_key"] = serde_json::json!(key.peek());
-            metadata["checkout_base_url"] = serde_json::json!(checkout_base(sandbox));
+            metadata.insert("public_key".into(), serde_json::json!(key.peek()));
+            metadata.insert(
+                "checkout_base_url".into(),
+                serde_json::json!(checkout_base(sandbox)),
+            );
         }
         let status = match response.state {
             RevolutOrderState::Authorised => AttemptStatus::Authorized,
@@ -842,7 +858,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             key.peek(),
                             return_url,
                             sandbox,
-                        ),
+                        )?,
                     }))
                 }
                 RevolutCheckoutMode::Sdk => None,
@@ -862,7 +878,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
-                connector_metadata: Some(metadata),
+                connector_metadata: Some(serde_json::Value::Object(metadata)),
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: merchant_reference,
@@ -1413,7 +1429,8 @@ mod tests {
     fn dedicated_redirect_encodes_tokens_and_callbacks_and_uses_correct_environment() {
         for sandbox in [true, false] {
             let callback = "https://merchant.example/return?attempt=1&next=/orders";
-            let link = revolut_pay_redirect("token/with?reserved", "pk_+&", callback, sandbox);
+            let link =
+                revolut_pay_redirect("token/with?reserved", "pk_+&", callback, sandbox).unwrap();
             let parsed = url::Url::parse(&link).unwrap();
             assert_eq!(
                 parsed.host_str(),
