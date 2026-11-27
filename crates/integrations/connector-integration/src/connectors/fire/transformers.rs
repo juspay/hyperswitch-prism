@@ -550,18 +550,42 @@ pub(crate) fn payment_request_code_from_feature_data(
     feature_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     const FIELD: &str = "connector_feature_data.payment_request_code";
-    let code = feature_data
+    let value = feature_data
         .and_then(|value| value.peek().as_object())
         .and_then(|object| object.get("payment_request_code"))
-        .and_then(serde_json::Value::as_str)
         .ok_or(IntegrationError::MissingRequiredField {
             field_name: FIELD,
-            context: IntegrationErrorContext::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Fire requires the payment_request_code returned by Authorize in \
+                     connector_feature_data"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Persist connector_feature_data from the Authorize response and pass it \
+                     on subsequent PSync/Refund calls"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
+    let code = value.as_str().ok_or(IntegrationError::InvalidDataFormat {
+        field_name: FIELD,
+        context: IntegrationErrorContext {
+            additional_context: Some("payment_request_code must be a JSON string".to_string()),
+            ..Default::default()
+        },
+    })?;
     if code.len() != 8 || !code.bytes().all(|byte| byte.is_ascii_alphanumeric()) {
         return Err(IntegrationError::InvalidDataFormat {
             field_name: FIELD,
-            context: IntegrationErrorContext::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "payment_request_code must be 8 ASCII alphanumeric characters, got {} characters",
+                    code.len()
+                )),
+                ..Default::default()
+            },
         }
         .into());
     }
@@ -578,11 +602,6 @@ impl TryFrom<ResponseRouterData<FirePaymentAttemptsResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response_error =
             || crate::utils::response_handling_fail_for_connector(item.http_code, "fire");
-        let expected_code = payment_request_code_from_feature_data(
-            item.router_data.request.connector_feature_data.as_ref(),
-        )
-        .change_context(response_error())?;
-
         // The list also carries refund entries for this payment request;
         // only payment attempts decide the payment status.
         let attempts: Vec<FirePaymentAttempt> = item
@@ -597,125 +616,119 @@ impl TryFrom<ResponseRouterData<FirePaymentAttemptsResponse, Self>>
             })
             .collect();
 
-        if attempts.is_empty() {
-            let status = AttemptStatus::Pending;
-            return Ok(Self {
-                response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: item.router_data.request.connector_transaction_id.clone(),
+        let http_code = item.http_code;
+        let mut router_data = item.router_data;
+        // `payment_request_code` was already validated when building the
+        // request URL; echo the caller's feature data back unchanged.
+        let connector_metadata = router_data
+            .request
+            .connector_feature_data
+            .as_ref()
+            .map(|data| data.peek().clone());
+
+        let (status, raw_connector_status, settlement_status, response) = if attempts.is_empty() {
+            // No payment attempt yet: the payer has not completed the bank
+            // journey, so the payment stays pending.
+            (
+                AttemptStatus::Pending,
+                Some(RawConnectorStatus {
+                    code: Some(FIRE_PAYMENT_NOT_ATTEMPTED.to_string()),
+                    message: None,
+                    reason: None,
+                }),
+                SettlementStatus::Unspecified,
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: router_data.request.connector_transaction_id.clone(),
                     redirection_data: None,
-                    connector_metadata: Some(serde_json::json!({
-                        "payment_request_code": expected_code
-                    })),
+                    connector_metadata,
                     mandate_reference: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     splits: None,
-                    status_code: item.http_code,
+                    status_code: http_code,
                     payment_account_reference: None,
                 }),
-                resource_common_data: PaymentFlowData {
-                    status,
-                    raw_connector_status: Some(RawConnectorStatus {
-                        code: Some(FIRE_PAYMENT_NOT_ATTEMPTED.to_string()),
-                        message: None,
-                        reason: None,
-                    }),
-                    settlement_status: Some(SettlementStatus::Unspecified),
-                    ..item.router_data.resource_common_data
-                },
-                ..item.router_data
-            });
-        }
+            )
+        } else {
+            let selected = select_payment_attempt(attempts).ok_or_else(response_error)?;
+            // Integrity: `orderDetails.orderId` must echo the merchant transaction
+            // id, and currency and `amountBeforeCharges` must match the original
+            // payment. `paymentRequestCode` is only the lookup key and
+            // `paymentUuid` can change between attempts, so neither is compared.
+            if selected.order_details.order_id
+                != router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+            {
+                return Err(fire_integrity_error(
+                    http_code,
+                    "orderId",
+                    Some(selected.payment_uuid.clone()),
+                ));
+            }
+            let currency =
+                Currency::from_str(&selected.currency.code).change_context(response_error())?;
+            if currency != router_data.request.money.currency() {
+                return Err(fire_integrity_error(
+                    http_code,
+                    "currency",
+                    Some(selected.payment_uuid.clone()),
+                ));
+            }
+            if selected.amount_before_charges != router_data.request.money.amount() {
+                return Err(fire_integrity_error(
+                    http_code,
+                    "amountBeforeCharges",
+                    Some(selected.payment_uuid.clone()),
+                ));
+            }
 
-        let selected = select_payment_attempt(attempts).ok_or_else(response_error)?;
-        // Integrity: `orderDetails.orderId` must echo the merchant transaction
-        // id, and currency and `amountBeforeCharges` must match the original
-        // payment. `paymentRequestCode` is only the lookup key and
-        // `paymentUuid` can change between attempts, so neither is compared.
-        let actual_order_id = item
-            .router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .as_str();
-        if selected.order_details.order_id != actual_order_id {
-            return Err(fire_integrity_error(
-                item.http_code,
-                "orderId",
-                Some(selected.payment_uuid.clone()),
-            ));
-        }
-        let currency =
-            Currency::from_str(&selected.currency.code).change_context(response_error())?;
-        if currency != item.router_data.request.money.currency() {
-            return Err(fire_integrity_error(
-                item.http_code,
-                "currency",
-                Some(selected.payment_uuid.clone()),
-            ));
-        }
-        if selected.amount_before_charges != item.router_data.request.money.amount() {
-            return Err(fire_integrity_error(
-                item.http_code,
-                "amountBeforeCharges",
-                Some(selected.payment_uuid.clone()),
-            ));
-        }
-
-        let raw_connector_status = fire_raw_connector_status(&selected.status);
-        let status = selected.status.attempt_status();
-        let settlement_status = fire_settlement_status(&selected.status);
-        if domain_types::utils::is_payment_failure(status) {
-            return Ok(Self {
-                response: Err(ErrorResponse {
+            let raw_connector_status = fire_raw_connector_status(&selected.status);
+            let status = selected.status.attempt_status();
+            let settlement_status = fire_settlement_status(&selected.status);
+            let response = if domain_types::utils::is_payment_failure(status) {
+                Err(ErrorResponse {
                     code: FIRE_PAYMENT_NOT_AUTHORISED.to_string(),
                     message: NO_ERROR_MESSAGE.to_string(),
-                    status_code: item.http_code,
+                    status_code: http_code,
                     attempt_status: Some(FlowStatus::Payment(status)),
-                    connector_transaction_id: Some(selected.payment_uuid.clone()),
+                    connector_transaction_id: Some(selected.payment_uuid),
                     ..Default::default()
-                }),
-                resource_common_data: PaymentFlowData {
-                    status,
-                    raw_connector_status,
-                    settlement_status: Some(settlement_status),
-                    ..item.router_data.resource_common_data
-                },
-                ..item.router_data
-            });
-        }
+                })
+            } else {
+                router_data.request.integrity_object = Some(PaymentSynIntegrityObject {
+                    amount: selected.amount_before_charges,
+                    currency,
+                });
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(selected.payment_uuid),
+                    redirection_data: None,
+                    connector_metadata,
+                    mandate_reference: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    // FIRE echoes the merchant transaction id in
+                    // `orderDetails.orderId` (already integrity-checked above).
+                    connector_response_reference_id: Some(selected.order_details.order_id),
+                    incremental_authorization_allowed: None,
+                    splits: None,
+                    status_code: http_code,
+                    payment_account_reference: None,
+                })
+            };
+            (status, raw_connector_status, settlement_status, response)
+        };
 
-        let mut router_data = item.router_data;
-        router_data.request.integrity_object = Some(PaymentSynIntegrityObject {
-            amount: selected.amount_before_charges,
-            currency,
-        });
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(selected.payment_uuid),
-                redirection_data: None,
-                connector_metadata: Some(serde_json::json!({
-                    "payment_request_code": expected_code
-                })),
-                mandate_reference: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                // FIRE echoes the merchant transaction id in
-                // `orderDetails.orderId` (already integrity-checked above).
-                connector_response_reference_id: Some(selected.order_details.order_id),
-                incremental_authorization_allowed: None,
-                splits: None,
-                status_code: item.http_code,
-                payment_account_reference: None,
-            }),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_status,
                 settlement_status: Some(settlement_status),
                 ..router_data.resource_common_data
             },
-            request: router_data.request,
             ..router_data
         })
     }
@@ -1025,7 +1038,7 @@ impl FireRefundStatus {
 pub struct FireRefundResponse {
     #[serde(default)]
     status: Option<FireRefundStatus>,
-    refund_request_uuid: Option<String>,
+    refund_request_uuid: String,
     payment_uuid: Option<String>,
 }
 
@@ -1043,51 +1056,33 @@ impl TryFrom<ResponseRouterData<FireRefundResponse, Self>>
             .as_ref()
             .and_then(fire_raw_connector_status);
         // FIRE reports two refund statuses: RECEIVED (terminal success) and
-        // REJECTED (terminal failure). A missing or unrecognized status must
-        // not fail the call - FIRE accepted the request, and erroring here
-        // invites a duplicate refund on retry - so it stays pending for
-        // RSync or the webhook to reconcile.
+        // REJECTED (terminal failure). A missing or unrecognized status stays
+        // pending for RSync or the webhook to reconcile.
         let refund_status = item
             .response
             .status
             .as_ref()
             .map_or(RefundStatus::Pending, FireRefundStatus::refund_status);
-        if refund_status == RefundStatus::Failure {
-            return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: FIRE_REFUND_REJECTED.to_string(),
-                    message: "FIRE rejected the refund request".to_string(),
-                    reason: None,
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Refund(refund_status)),
-                    ..Default::default()
-                }),
-                resource_common_data: RefundFlowData {
-                    raw_connector_status,
-                    ..item.router_data.resource_common_data
-                },
-                ..item.router_data
-            });
-        }
-
-        // FIRE accepted the refund, so a missing `refundRequestUuid` must not
-        // fail the call (a retry would create a duplicate refund). Fall back to
-        // our own refund reference and keep the refund pending until a webhook
-        // or manual reconciliation confirms it.
-        let (connector_refund_id, refund_status) = match item.response.refund_request_uuid {
-            Some(refund_request_uuid) => (refund_request_uuid, refund_status),
-            None => (
-                item.router_data.request.refund_id.clone(),
-                RefundStatus::Pending,
-            ),
-        };
-        Ok(Self {
-            response: Ok(RefundsResponseData {
+        let connector_refund_id = item.response.refund_request_uuid;
+        let response = if refund_status == RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: FIRE_REFUND_REJECTED.to_string(),
+                message: "FIRE rejected the refund request".to_string(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Refund(refund_status)),
+                ..Default::default()
+            })
+        } else {
+            Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
-            }),
+            })
+        };
+        Ok(Self {
+            response,
             resource_common_data: RefundFlowData {
                 raw_connector_status,
                 ..item.router_data.resource_common_data
@@ -1108,10 +1103,9 @@ impl TryFrom<ResponseRouterData<FireRefundResponse, Self>>
 //   1. its FIRE uuid — `refundRequestUuid` (or, when absent, `paymentUuid`)
 //      equal to connector_refund_id, the uuid the Refund call returned; else
 //   2. its `myRef`, which the Refund call set to the merchant refund id.
-//      This covers a connector_refund_id that is not a FIRE uuid: the Refund
-//      response omitted `refundRequestUuid` (the Refund flow then stores the
-//      merchant refund id), or the caller synced without one (RefundSyncData
-//      falls back to the merchant refund id).
+//      This covers a connector_refund_id that is not a FIRE uuid, e.g. the
+//      caller synced without one (RefundSyncData falls back to the merchant
+//      refund id), or is recovering a Refund call that timed out or failed.
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1210,30 +1204,25 @@ impl TryFrom<ResponseRouterData<FireRefundSyncResponse, Self>>
             None => (RefundStatus::Pending, None),
         };
 
-        if refund_status == RefundStatus::Failure {
-            return Ok(Self {
-                response: Err(ErrorResponse {
-                    code: FIRE_REFUND_REJECTED.to_string(),
-                    message: "FIRE rejected the refund request".to_string(),
-                    reason: None,
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Refund(refund_status)),
-                    ..Default::default()
-                }),
-                resource_common_data: RefundFlowData {
-                    raw_connector_status,
-                    ..item.router_data.resource_common_data
-                },
-                ..item.router_data
-            });
-        }
-        Ok(Self {
-            response: Ok(RefundsResponseData {
+        let response = if refund_status == RefundStatus::Failure {
+            Err(ErrorResponse {
+                code: FIRE_REFUND_REJECTED.to_string(),
+                message: "FIRE rejected the refund request".to_string(),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Refund(refund_status)),
+                ..Default::default()
+            })
+        } else {
+            Ok(RefundsResponseData {
                 connector_refund_id: resolved_refund_id,
                 refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
-            }),
+            })
+        };
+        Ok(Self {
+            response,
             resource_common_data: RefundFlowData {
                 raw_connector_status,
                 ..item.router_data.resource_common_data
