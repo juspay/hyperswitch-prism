@@ -6495,7 +6495,7 @@ message ConnectorSpecificConfig {
     // REVPAY = 158
     RevpayConfig revpay = 169;
     // PAYNAMICS = 159
-    PaynamicsConfig paynamics = 171;
+    PaynamicsConfig paynamics = 170;
   }
 }
 
