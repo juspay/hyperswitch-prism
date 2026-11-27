@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.27.0
+
+### Bug Fixes
+
+- **connector:** [Rapyd] Omit absent optional request fields ([#2952](https://github.com/juspay/connector-service/pull/2952)) ([`bc55174`](https://github.com/juspay/connector-service/commit/bc551749517d26a3941d2bd4082cba857cb340f0))
+
+### Miscellaneous Tasks
+
+- **connector:** Silverflow, paypal, authorizedotnet, truelayer, trustly, checkout, nuvei, authipay, cybersource ([#2953](https://github.com/juspay/connector-service/pull/2953)) ([`b4ed765`](https://github.com/juspay/connector-service/commit/b4ed765c03699024311b3fa62d50ed2f94bfebc1))
+
+**Full Changelog:** [`2026.11.26.0...2026.11.27.0`](https://github.com/juspay/connector-service/compare/2026.11.26.0...2026.11.27.0)
+
+- - -
+
 ## 2026.11.26.0
 
 ### Features
