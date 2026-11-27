@@ -1045,6 +1045,7 @@ pub struct ProxyConfig {
     /// Total timeout (seconds) for a single connector API call.
     pub connector_request_timeout: Option<u64>,
     /// Host names that should bypass the proxy.
+    #[patch(ignore)]
     pub bypass_hosts: Vec<String>,
     /// Complete request URLs that should bypass the proxy.
     pub bypass_urls: Vec<String>,
