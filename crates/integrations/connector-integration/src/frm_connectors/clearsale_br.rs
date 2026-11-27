@@ -194,30 +194,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: clearsale::ClearSaleErrorResponse = res
-            .response
-            .parse_struct("ClearSaleErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
-                    http_status_code: Some(res.status_code),
-                    additional_context: Some(
-                        "failed to parse the ClearSale error body as ClearSaleErrorResponse"
-                            .to_owned(),
-                    ),
-                },
-            })?;
+        let response = clearsale::ClearSaleErrorResponse::from_response_body(&res.response);
 
         with_error_response_body!(event_builder, response);
 
         let message = response.message();
+        let reason = response.reason();
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
-            // ClearSale error bodies carry only a message; the HTTP status is
-            // the only machine-readable code, so it doubles as the error code.
             status_code: res.status_code,
             code: res.status_code.to_string(),
-            reason: Some(message.clone()),
+            reason,
             message,
             attempt_status: None,
             connector_transaction_id: None,
