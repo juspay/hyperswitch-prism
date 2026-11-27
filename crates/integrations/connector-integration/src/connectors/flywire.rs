@@ -505,10 +505,10 @@ macros::create_all_prerequisites!(
 // Authenticate — creates the hosted-checkout session on Flywire.
 // POST {base}/payments/v1/checkout/sessions
 //
-// Returns the session UUID as `connector_transaction_id` and the iframe HTML
-// as `redirection_data`. The caller renders the iframe; after the customer pays
+// Returns the session UUID in `connector_feature_data` and the iframe HTML
+// as `redirection_data`. The caller renders the iframe; after form submission
 // they are redirected back and a second CompositeAuthorize call (with
-// connector_order_id = session_id) triggers the Authorize (confirm) step.
+// connector_feature_data.session_id) triggers the Authorize (confirm) step.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Flywire,
@@ -541,8 +541,8 @@ macros::macro_connector_implementation!(
 // Authorize — confirms the checkout session and returns the Flywire payment_id.
 // POST {base}/payments/v1/checkout/sessions/{session_id}/confirm  (empty body)
 //
-// The session_id is read from `resource_common_data.connector_order_id`,
-// which was set by the prior CreateOrder call. Flywire's /confirm endpoint
+// The session_id is read from `connector_feature_data`, independently of the
+// payment ID returned by webhooks. Flywire's /confirm endpoint
 // is one-shot — subsequent calls return 404.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -570,21 +570,24 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url(req);
             let session_id = req
                 .resource_common_data
-                .connector_order_id
-                .clone()
+                .connector_feature_data
+                .as_ref()
+                .and_then(|data| data.peek().get("session_id"))
+                .and_then(serde_json::Value::as_str)
+                .filter(|session_id| !session_id.is_empty())
                 .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "connector_order_id (Flywire session id; call CreateOrder first)",
+                    field_name: "connector_feature_data.session_id",
                     context: domain_types::errors::IntegrationErrorContext {
                         suggested_action: Some(
-                            "Run the Authenticate (CreateOrder) step first so the checkout \
-                             session id is stored in connector_order_id before confirming."
+                            "Persist connector_feature_data from Authenticate and pass it \
+                             back when confirming the checkout session."
                                 .to_string(),
                         ),
                         doc_url: Some(
                             "https://developers.flywire.com/docs/checkout-session".to_string(),
                         ),
                         additional_context: Some(
-                            "connector_order_id was None while building the /confirm URL."
+                            "No checkout session ID was provided in connector_feature_data."
                                 .to_string(),
                         ),
                     },

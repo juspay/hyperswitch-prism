@@ -1055,12 +1055,20 @@ pub fn extract_returned_bank_details(
 
 pub fn verify_webhook_signature(
     webhook_body: TrustlyWebhookBody,
+    raw_body: &[u8],
     public_key: Vec<u8>,
 ) -> error_stack::Result<bool, errors::WebhookError> {
     let method = webhook_body.method;
     let uuid = webhook_body.params.uuid;
-    let data = &webhook_body.params.data;
     let signature = &webhook_body.params.signature;
+    // Trustly signs the `data` object as sent. Rebuilding it from `TrustlyWebhookData` would
+    // drop fields the struct does not model and change the plaintext, so use the raw JSON.
+    let raw_value: serde_json::Value = serde_json::from_slice(raw_body)
+        .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+    let data = raw_value
+        .get("params")
+        .and_then(|params| params.get("data"))
+        .ok_or(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
     let pem_bytes = general_purpose::STANDARD
         .decode(&public_key)
@@ -1089,7 +1097,7 @@ pub fn verify_webhook_signature(
         (Algorithm::SHA1, signature.as_str())
     };
 
-    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+    let plaintext = format!("{}{}{}", method.as_str(), uuid, serialize_value(data));
 
     let signature_bytes = general_purpose::STANDARD
         .decode(signature_b64)
@@ -1145,6 +1153,7 @@ pub fn is_payout_webhook_event(event: &TrustlyWebhookMethod, message_id: &str) -
         TrustlyWebhookMethod::PayoutConfirmation
             | TrustlyWebhookMethod::PayoutFailed
             | TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Debit
             | TrustlyWebhookMethod::Cancel
     ) && is_payout_message_id(message_id)
 }
@@ -1160,8 +1169,11 @@ pub fn get_webhook_event(
         (TrustlyWebhookMethod::Credit, false) => {
             domain_types::connector_types::EventType::PayoutReversed
         }
-        (TrustlyWebhookMethod::Debit, _) => {
+        (TrustlyWebhookMethod::Debit, true) => {
             domain_types::connector_types::EventType::PaymentIntentFailure
+        }
+        (TrustlyWebhookMethod::Debit, false) => {
+            domain_types::connector_types::EventType::PayoutProcessing
         }
         (TrustlyWebhookMethod::Cancel, true) => {
             domain_types::connector_types::EventType::PaymentIntentCancelled
@@ -1240,10 +1252,11 @@ pub fn get_trustly_payout_webhook_status(
         TrustlyWebhookMethod::PayoutConfirmation => Ok(common_enums::PayoutStatus::Success),
         TrustlyWebhookMethod::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
         TrustlyWebhookMethod::Credit => Ok(common_enums::PayoutStatus::Reversed),
+        TrustlyWebhookMethod::Debit => Ok(common_enums::PayoutStatus::Initiated),
         TrustlyWebhookMethod::Cancel => Ok(common_enums::PayoutStatus::Cancelled),
-        TrustlyWebhookMethod::Debit
-        | TrustlyWebhookMethod::Account
-        | TrustlyWebhookMethod::Pending => Err(unexpected_webhook_event(event, "payout")),
+        TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => {
+            Err(unexpected_webhook_event(event, "payout"))
+        }
     }
 }
 

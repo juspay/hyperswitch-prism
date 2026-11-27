@@ -24,9 +24,14 @@ use hyperswitch_masking::{ExposeInterface, Secret};
 
 impl ForeignFrom<grpc_api_types::payments::MerchantDetails> for MerchantDetails {
     fn foreign_from(value: grpc_api_types::payments::MerchantDetails) -> Self {
+        let merchant_country_code = match value.merchant_country_code() {
+            grpc_api_types::payments::CountryAlpha2::Unspecified => None,
+            country => common_enums::CountryAlpha2::foreign_try_from(country).ok(),
+        };
         Self {
             merchant_id: value.merchant_id,
             merchant_category_code: value.merchant_category_code,
+            merchant_country_code,
         }
     }
 }

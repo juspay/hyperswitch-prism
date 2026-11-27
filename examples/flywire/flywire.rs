@@ -80,7 +80,9 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         }),
         auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
-        connector_order_id: Some("connector_order_id".to_string()), // Send the connector order identifier here if an order was created before authorize.
+        connector_feature_data: Some(Secret::new(
+            "{\"session_id\":\"probe_session_001\"}".to_string(),
+        )), // Connector-specific feature data for the transaction.
         ..Default::default()
     }
 }
@@ -151,7 +153,9 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
         capture_method: Some(CaptureMethod::Automatic.into()),
         auth_type: AuthenticationType::NoThreeDs.into(),
         return_url: Some("https://example.com/return".to_string()),
-        connector_order_id: Some("connector_order_id".to_string()), // Send the connector order identifier here if an order was created before authorize.
+        connector_feature_data: Some(Secret::new(
+            "{\"session_id\":\"probe_session_001\"}".to_string(),
+        )),
         ..Default::default()
     }
 }
@@ -195,7 +199,9 @@ pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
         }),
         capture_method: Some(CaptureMethod::Automatic.into()),
         return_url: Some("https://example.com/return".to_string()),
-        connector_order_id: Some("connector_order_id".to_string()), // Send the connector order identifier here if an order was created before authorize.
+        connector_feature_data: Some(Secret::new(
+            "{\"session_id\":\"probe_session_001\"}".to_string(),
+        )),
         ..Default::default()
     }
 }

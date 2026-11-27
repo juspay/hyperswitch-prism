@@ -156,6 +156,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -261,6 +262,7 @@ mod tests {
                     recipient_details: None,
                     sender_details: None,
                     business_country: None,
+                    merchant_details: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
                     additional_connector_details: None,
@@ -391,6 +393,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                purpose_of_payment: None,
                     risk_assessment_data: None,
                     split_settlement: None,
                     customer_document_details: None,
@@ -453,6 +456,7 @@ mod tests {
                     recipient_details: None,
                     sender_details: None,
                     business_country: None,
+                    merchant_details: None,
                     enable_avs_check: None,
                     enable_account_name_verification: None,
                     additional_connector_details: None,

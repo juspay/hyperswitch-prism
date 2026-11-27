@@ -109,7 +109,7 @@ macros::create_all_prerequisites!(
 
             Ok(vec![(
                 headers::AUTHORIZATION.to_string(),
-                format!("Basic {encoded}").into(),
+                format!("Basic {encoded}").into_masked(),
             )])
         }
     }
