@@ -328,7 +328,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     domain_types::connector_types::RefundWebhookReference {
                         connector_refund_id: Some(order_id.clone()),
                         merchant_refund_id: None,
-                        connector_transaction_id: Some(order_id),
+                        connector_transaction_id: None,
                         merchant_transaction_id: None,
                     },
                 ),
