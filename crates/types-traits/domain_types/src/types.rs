@@ -6992,7 +6992,10 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
-            attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
+            attempt_id: metadata
+                .get_raw(consts::X_RESOURCE_ID)
+                .filter(|id| !id.is_empty())
+                .unwrap_or_else(|| "IRRELEVANT_ATTEMPT_ID".to_string()),
             status: common_enums::AttemptStatus::Unspecified,
             // Unmapped or absent payment method data keeps the previous Card default.
             payment_method: value

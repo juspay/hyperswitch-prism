@@ -141,9 +141,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookReferenceIdNotFound)?;
+        if let Some(setup) = transformers::setup_webhook(&event)? {
+            return Ok(Some(WebhookResourceReference::Payment(
+                PaymentWebhookReference {
+                    connector_transaction_id: Some(setup.reference()),
+                    merchant_transaction_id: None,
+                    connector_preprocessing_id: None,
+                },
+            )));
+        }
         use transformers::RapydWebhookEventType;
         Ok(match event.webhook_type {
-            RapydWebhookEventType::PaymentSucceeded
+            RapydWebhookEventType::PaymentUpdated
+            | RapydWebhookEventType::PaymentSucceeded
             | RapydWebhookEventType::PaymentCompleted
             | RapydWebhookEventType::PaymentCaptured
             | RapydWebhookEventType::PaymentCanceled
@@ -175,7 +185,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_transaction_id: Some(data.original_transaction_id),
                 }))
             }
-            RapydWebhookEventType::Unknown => None,
+            RapydWebhookEventType::Unknown
+            | RapydWebhookEventType::CardAddedSuccessfully
+            | RapydWebhookEventType::CardAddedFailure => None,
         })
     }
 
@@ -190,6 +202,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        if let Some(setup) = transformers::setup_webhook(&event)? {
+            return Ok(setup.into_response(&request.body));
+        }
         event.payment_data()?.into_response(&request.body)
     }
 
@@ -657,6 +672,9 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
+            if let Some(url) = transformers::setup_sync_url(&req.request, self.connector_base_url_payments(req))? {
+                return Ok(url);
+            }
             let id = req.request.get_connector_transaction_id()?;
             Ok(format!("{}/v1/payments/{}", self.connector_base_url_payments(req), id))
         }
@@ -828,9 +846,7 @@ macros::macro_connector_implementation!(
     }
 );
 
-// SetupMandate flow – reuses the standard `/v1/payments` endpoint for
-// card-on-file verification. The saved payment method ID is surfaced as the
-// connector_mandate_id for subsequent RepeatPayment (MIT) calls.
+// Register and verify the card without a separate customer flow or payment.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Rapyd,
@@ -884,11 +900,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Reuse /v1/payments — `save_payment_method: true` + inline customer
-            // object in the body yields a reusable `card_*` token without
-            // requiring the complete_payment_url whitelist that the
-            // /v1/customers endpoint enforces on sandbox accounts.
-            Ok(format!("{}/v1/payments", self.connector_base_url_payments(req)))
+            let path = match req.resource_common_data.connector_customer.as_deref() {
+                Some(customer) if !customer.is_empty() => format!(
+                    "/v1/customers/{}/payment_methods", urlencoding::encode(customer)
+                ),
+                _ => "/v1/customers".to_string(),
+            };
+            Ok(format!("{}{path}", self.connector_base_url_payments(req)))
         }
     }
 );
