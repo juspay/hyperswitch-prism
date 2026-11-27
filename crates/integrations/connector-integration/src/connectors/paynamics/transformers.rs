@@ -42,24 +42,12 @@ impl TryFrom<&ConnectorSpecificConfig> for PaynamicsAuthType {
                 username,
                 password,
                 ..
-            } => {
-                for (field_name, value) in [
-                    ("connector_config.merchant_id", merchant_id.peek()),
-                    ("connector_config.merchant_key", merchant_key.peek()),
-                    ("connector_config.username", username.peek()),
-                    ("connector_config.password", password.peek()),
-                ] {
-                    if value.is_empty() {
-                        return Err(domain_types::utils::missing_field_err(field_name)());
-                    }
-                }
-                Ok(Self {
-                    merchant_id: merchant_id.clone(),
-                    merchant_key: merchant_key.clone(),
-                    username: username.clone(),
-                    password: password.clone(),
-                })
-            }
+            } => Ok(Self {
+                merchant_id: merchant_id.clone(),
+                merchant_key: merchant_key.clone(),
+                username: username.clone(),
+                password: password.clone(),
+            }),
             _ => Err(errors::IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
             }
