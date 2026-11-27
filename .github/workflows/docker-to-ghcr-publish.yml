@@ -2,7 +2,7 @@ name: Docker Build and Push to GHCR
 
 on:
   workflow_dispatch:
-  
+
   # Automatically run when nightly (CalVer), hotfix, or stable (SemVer) tags
   # are created, e.g. 2025.12.03.0, 2025.12.03.0-hotfix1, v1.2.3. In GitHub
   # filter patterns `+` means "one or more of the preceding character", so
@@ -65,13 +65,15 @@ jobs:
       version: ${{ steps.set-outputs.outputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3.12.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -106,7 +108,7 @@ jobs:
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v5.10.0
         with:
           images: ghcr.io/${{ github.repository }}
           flavor: |
@@ -116,7 +118,7 @@ jobs:
             type=raw,value=${{ env.VERSION }}
 
       - name: Build Docker image (Dockerfile)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v5.4.0
         with:
           context: .
           file: Dockerfile
@@ -132,7 +134,7 @@ jobs:
         env:
           CARGO_INCREMENTAL: "0"
           SCCACHE_ENABLE: "true"
-      
+
       - name: Set job outputs
         id: set-outputs
         run: echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
@@ -151,9 +153,8 @@ jobs:
       VERSION: ${{ needs.build-and-push-dockerfile.outputs.version }}
       REPO: ${{ github.repository }}
     steps:
-
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -176,7 +177,7 @@ jobs:
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v3.0.0
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.digest.outputs.digest }}

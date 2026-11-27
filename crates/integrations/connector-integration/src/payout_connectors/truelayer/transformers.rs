@@ -432,8 +432,9 @@ impl From<TruelayerPayoutStatus> for PayoutStatus {
         match status {
             TruelayerPayoutStatus::Pending
             | TruelayerPayoutStatus::AuthorizationRequired
-            | TruelayerPayoutStatus::Authorizing => Self::Pending,
-            TruelayerPayoutStatus::Authorized | TruelayerPayoutStatus::Executed => Self::Success,
+            | TruelayerPayoutStatus::Authorizing
+            | TruelayerPayoutStatus::Authorized => Self::Pending,
+            TruelayerPayoutStatus::Executed => Self::Success,
             TruelayerPayoutStatus::Failed => Self::Failure,
         }
     }

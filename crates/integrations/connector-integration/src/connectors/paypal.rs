@@ -171,13 +171,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         let outcome_code = match payload.event_type {
-            paypal::PaypalWebhookEventType::CustomerDisputeResolved => Some(
-                request
+            paypal::PaypalWebhookEventType::CustomerDisputeResolved => {
+                let details: paypal::PaypalWebhooksBody = request
                     .body
-                    .parse_struct::<paypal::DisputeOutcome>("PaypalDisputeOutcome")
-                    .change_context(WebhookError::WebhookEventTypeNotFound)?
-                    .outcome_code,
-            ),
+                    .parse_struct("PaypalWebhooksBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                get_paypal_dispute_outcome(details.resource)?
+            }
             _ => None,
         };
 
@@ -428,6 +429,19 @@ fn get_paypal_dispute_status_from_outcome(
         paypal::OutcomeCode::ResolvedWithPayout => common_enums::DisputeStatus::DisputeCancelled,
     }
 }
+
+fn get_paypal_dispute_outcome(
+    resource: paypal::PaypalResource,
+) -> Result<Option<paypal::OutcomeCode>, error_stack::Report<WebhookError>> {
+    match resource {
+        paypal::PaypalResource::PaypalDisputeWebhooks(dispute) => {
+            Ok(dispute.dispute_outcome.map(|outcome| outcome.outcome_code))
+        }
+        _ => Err(report!(WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Expected PayPal dispute webhook resource")),
+    }
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Paypal<T>
 {
@@ -1031,9 +1045,19 @@ macros::macro_connector_implementation!(
             let connector_metadata = req.resource_common_data.connector_feature_data
                 .as_ref()
                 .map(|secret| secret.clone().expose());
+            // PayPal replays the stored response for a repeated PayPal-Request-Id, so each
+            // partial capture needs its own id or every capture after the first is a no-op.
+            let request_id = req
+                .request
+                .multiple_capture_data
+                .as_ref()
+                .map_or(
+                    req.resource_common_data.connector_request_reference_id.as_str(),
+                    |data| data.capture_reference.as_str(),
+                );
             self.build_headers(
                 &access_token.access_token.expose(),
-                &req.resource_common_data.connector_request_reference_id,
+                request_id,
                 &req.connector_config,
                 connector_metadata.as_ref(),
             )

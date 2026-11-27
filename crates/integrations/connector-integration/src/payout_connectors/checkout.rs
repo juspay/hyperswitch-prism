@@ -85,7 +85,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let mut error =
             crate::connectors::Checkout::<T>::new().build_error_response(res, event, config)?;
         error.attempt_status = match error.status_code {
-            409 | 429 => None,
+            408 | 409 | 425 | 429 => None,
             400..=499 => Some(FlowStatus::Payout(PayoutStatus::Failure)),
             _ => Some(FlowStatus::Payout(PayoutStatus::Pending)),
         };

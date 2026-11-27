@@ -4,34 +4,34 @@ on:
   workflow_dispatch:
     inputs:
       preview_only:
-        description: 'Preview only (do not actually publish)'
+        description: "Preview only (do not actually publish)"
         required: false
         default: false
         type: boolean
       publish_java:
-        description: 'Publish Java SDK to Maven Central'
+        description: "Publish Java SDK to Maven Central"
         required: false
         default: false
         type: boolean
       publish_python:
-        description: 'Publish Python SDK to PyPI'
+        description: "Publish Python SDK to PyPI"
         required: false
         default: false
         type: boolean
       publish_javascript:
-        description: 'Publish JavaScript SDK to npm'
+        description: "Publish JavaScript SDK to npm"
         required: false
         default: false
         type: boolean
       ref:
-        description: 'Optional confirmation of the branch or tag selected for this workflow run'
+        description: "Optional confirmation of the branch or tag selected for this workflow run"
         required: false
-        default: ''
+        default: ""
         type: string
       version:
-        description: 'Version to publish (e.g. 0.1.0) — overrides version in manifest files'
+        description: "Version to publish (e.g. 0.1.0) — overrides version in manifest files"
         required: false
-        default: ''
+        default: ""
         type: string
 
   workflow_call:
@@ -54,11 +54,11 @@ on:
         type: boolean
       ref:
         required: false
-        default: ''
+        default: ""
         type: string
       version:
         required: false
-        default: ''
+        default: ""
         type: string
     secrets:
       CONNECTOR_SERVICE_CI_PAT:
@@ -186,7 +186,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -195,7 +197,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@v2.9.3
         with:
           shared-key: "release-${{ matrix.target }}"
           cache-directories: |
@@ -203,7 +205,7 @@ jobs:
             ~/.cargo/git/db
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -218,7 +220,7 @@ jobs:
         run: make -C sdk/java build-ffi-lib PROFILE=release
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: binary-${{ matrix.target }}
           path: |
@@ -235,9 +237,9 @@ jobs:
 
       - name: Set up Python (for SDK codegen)
         if: matrix.target == 'aarch64-apple-darwin'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Generate Java SDK (UniFFI Kotlin bindings + Java proto stubs)
         if: matrix.target == 'aarch64-apple-darwin'
@@ -245,14 +247,14 @@ jobs:
 
       - name: Upload UniFFI Kotlin bindings
         if: matrix.target == 'aarch64-apple-darwin'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: generated-kotlin
           path: sdk/java/src/main/kotlin/generated/
 
       - name: Upload Java proto stubs
         if: matrix.target == 'aarch64-apple-darwin'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: generated-java-proto
           path: sdk/java/src/main/java/generated/
@@ -263,7 +265,7 @@ jobs:
 
       - name: Upload Python SDK generated files
         if: matrix.target == 'aarch64-apple-darwin'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: generated-python
           path: sdk/python/src/payments/generated/
@@ -274,7 +276,7 @@ jobs:
 
       - name: Upload JavaScript SDK generated files
         if: matrix.target == 'aarch64-apple-darwin'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: generated-javascript
           path: sdk/javascript/src/payments/generated/
@@ -287,11 +289,13 @@ jobs:
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v4.4.0
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          persist-credentials: false
+      - uses: actions/setup-java@v4.9.1
+        with:
+          java-version: "17"
+          distribution: "temurin"
       - name: Download binaries
         uses: actions/download-artifact@v4.3.0
         with:
@@ -319,7 +323,7 @@ jobs:
       - name: Package Java SDK
         run: make -C sdk/java dist
       - name: Upload Java SDK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: sdk-java
           path: artifacts/sdk-java/*.jar
@@ -332,10 +336,12 @@ jobs:
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
         with:
-          python-version: '3.11'
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
       - name: Download binaries
         uses: actions/download-artifact@v4.3.0
         with:
@@ -358,7 +364,7 @@ jobs:
       - name: Package Python SDK
         run: make -C sdk/python dist
       - name: Upload Python SDK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: sdk-python
           path: artifacts/sdk-python/*.whl
@@ -371,12 +377,14 @@ jobs:
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
         with:
-          node-version: '24.22.1'
+          persist-credentials: false
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "24.22.1"
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Download binaries
@@ -401,7 +409,7 @@ jobs:
       - name: Package JavaScript SDK
         run: make -C sdk/javascript dist
       - name: Upload JavaScript SDK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: sdk-javascript
           path: artifacts/sdk-javascript/*.tgz
@@ -418,7 +426,7 @@ jobs:
           path: artifacts/sdks
           pattern: sdk-*
       - name: Upload combined SDK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: sdks
           path: artifacts/sdks/**/*
@@ -429,7 +437,9 @@ jobs:
     needs: [setup, collect-sdks]
     if: always() && needs.collect-sdks.result == 'success'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.4.0
+        with:
+          persist-credentials: false
       - name: Download Java SDK artifact
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
         uses: actions/download-artifact@v4.3.0
@@ -493,24 +503,26 @@ jobs:
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
         with:
-          python-version: '3.11'
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
 
       # Kept in step with the publish job so the dry-run exercises the same npm.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4.4.0
         with:
-          node-version: '24.22.1'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "24.22.1"
+          registry-url: "https://registry.npmjs.org"
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4.9.1
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -739,11 +751,13 @@ jobs:
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v4.4.0
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          persist-credentials: false
+      - uses: actions/setup-java@v4.9.1
+        with:
+          java-version: "17"
+          distribution: "temurin"
       - name: Download SDK artifacts
         uses: actions/download-artifact@v4.3.0
         with:
@@ -812,10 +826,12 @@ jobs:
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.4.0
         with:
-          python-version: '3.11'
+          persist-credentials: false
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.11"
       - name: Install twine
         run: pip install twine
       # Publish the wheel exactly as built by the `package-sdk-python` job
@@ -865,19 +881,21 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      # Node 24 ships npm >= 11.x; OIDC trusted publishing requires npm >= 11.5.1.
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4.4.0
         with:
-          node-version: '24.22.1'
-          registry-url: 'https://registry.npmjs.org'
+          persist-credentials: false
+      # Node 24 ships npm >= 11.x; OIDC trusted publishing requires npm >= 11.5.1.
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: "24.22.1"
+          registry-url: "https://registry.npmjs.org"
       - name: Verify npm supports trusted publishing
         run: |
           echo "npm $(npm --version) / node $(node --version)"
           npx --yes semver -r '>=11.5.1' "$(npm --version)" >/dev/null \
             || { echo "npm >= 11.5.1 required for OIDC trusted publishing"; exit 1; }
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Download SDK artifacts

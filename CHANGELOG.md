@@ -19,6 +19,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.27.0
+
+### Bug Fixes
+
+- **connector:** [Rapyd] Omit absent optional request fields ([#2952](https://github.com/juspay/connector-service/pull/2952)) ([`bc55174`](https://github.com/juspay/connector-service/commit/bc551749517d26a3941d2bd4082cba857cb340f0))
+
+### Miscellaneous Tasks
+
+- **connector:** Silverflow, paypal, authorizedotnet, truelayer, trustly, checkout, nuvei, authipay, cybersource ([#2953](https://github.com/juspay/connector-service/pull/2953)) ([`b4ed765`](https://github.com/juspay/connector-service/commit/b4ed765c03699024311b3fa62d50ed2f94bfebc1))
+
+**Full Changelog:** [`2026.11.26.0...2026.11.27.0`](https://github.com/juspay/connector-service/compare/2026.11.26.0...2026.11.27.0)
+
+- - -
+
+## 2026.11.26.0
+
+### Features
+
+- **connector:** [Rapyd] map per-payment AVS checks ([#2939](https://github.com/juspay/connector-service/pull/2939)) ([`b3b2fcc`](https://github.com/juspay/connector-service/commit/b3b2fccfec2f5b64212ec90b21b7bc422a1d7ad4))
+
+### Bug Fixes
+
+- **connector:** [PayPal] send Mastercard NTI date on MITs and use a distinct request id per partial capture ([#2949](https://github.com/juspay/connector-service/pull/2949)) ([`681713b`](https://github.com/juspay/connector-service/commit/681713bc39a8096159648d7e2b1287e755c485da))
+- **flywire:** Separate checkout session and payment IDs ([#2938](https://github.com/juspay/connector-service/pull/2938)) ([`a5c628f`](https://github.com/juspay/connector-service/commit/a5c628f7951d3d5deafd44b639bcebaf64e19e19))
+
+**Full Changelog:** [`2026.11.25.1...2026.11.26.0`](https://github.com/juspay/connector-service/compare/2026.11.25.1...2026.11.26.0)
+
+- - -
+
+## 2026.11.25.1
+
+### Features
+
+- **connector:** Add moneris zero auth mandate flow ([#2934](https://github.com/juspay/connector-service/pull/2934)) ([`493ff3c`](https://github.com/juspay/connector-service/commit/493ff3c406175ca74534857f32c9d91ca4fd965a))
+
+### Bug Fixes
+
+- **nuvei:** Improve billing and airline request mapping ([#2932](https://github.com/juspay/connector-service/pull/2932)) ([`701b606`](https://github.com/juspay/connector-service/commit/701b606d815832f60fbd2e764befda72d7fc29b6))
+
+**Full Changelog:** [`2026.11.25.0...2026.11.25.1`](https://github.com/juspay/connector-service/compare/2026.11.25.0...2026.11.25.1)
+
+- - -
+
 ## 2026.11.25.0
 
 ### Features

@@ -172,6 +172,9 @@ message CompositeAuthorizeRequest {
 
   // Transaction purpose
   optional string purpose_of_payment = 70;
+
+  // Merchant account context supplied by the caller.
+  optional MerchantDetails merchant_details = 71;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -925,6 +928,9 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Transaction purpose
   optional string purpose_of_payment = 66;
+
+  // Merchant account details supplied by the caller for authorization after redirect verification.
+  optional MerchantDetails merchant_details = 67;
 }
 
 // Response message for composite verify redirect response flow.

@@ -17,14 +17,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  actions: read
-  id-token: write
+permissions: {}
 
 jobs:
   authorize:
-    uses: ./.github/workflows/authorize-release.yml
+    uses: $/.github/workflows/authorize-release.yml
     # The membership check authenticates with a GitHub app token minted
     # from the secrets below and never uses GITHUB_TOKEN.
     permissions: {}
@@ -44,10 +41,12 @@ jobs:
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v2.2.2
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          repositories: ${{ github.event.repository.name }}
 
       - name: Validate CalVer tag
         shell: bash
@@ -62,20 +61,21 @@ jobs:
           fi
 
       - name: Checkout repository at CalVer tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
         with:
+          persist-credentials: false
           ref: ${{ inputs.calver_tag }}
           fetch-depth: 0
           token: ${{ steps.generate_app_token.outputs.token }}
 
       - name: Install cocogitto
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: cocogitto@6.3.0
           checksum: true
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: git-cliff
           checksum: true
@@ -123,9 +123,10 @@ jobs:
 
       - name: Generate release notes
         shell: bash
+        env:
+          PREVIOUS_TAG: ${{ steps.version.outputs.previous_tag }}
+          NEXT_TAG: ${{ steps.version.outputs.next_tag }}
         run: |
-          PREVIOUS_TAG="${{ steps.version.outputs.previous_tag }}"
-          NEXT_TAG="${{ steps.version.outputs.next_tag }}"
 
           export GIT_CLIFF__GIT__TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
 
@@ -149,7 +150,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload release notes artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: release-notes
           path: release-notes.md
@@ -159,8 +160,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          TAG: ${{ steps.version.outputs.next_tag }}
         run: |
-          TAG="${{ steps.version.outputs.next_tag }}"
           CALVER_SHA="$(git rev-parse HEAD)"
           # Idempotent so a partial-failure re-run works: reuse the tag if it
           # already points at this SHA; fail only if it points elsewhere.
@@ -187,8 +188,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          TAG: ${{ steps.version.outputs.next_tag }}
         run: |
-          TAG="${{ steps.version.outputs.next_tag }}"
           if [ "$(wc -c < release-notes.md)" -gt 124000 ]; then
             truncate -s 124000 release-notes.md
             printf '\n\n_Full changelog available in the release artifact._\n' >> release-notes.md
@@ -203,7 +204,6 @@ jobs:
               --notes-file release-notes.md \
               --draft
           fi
-
 
   # Dispatched rather than invoked with `uses:`. npm trusted publishing
   # validates the OIDC token's workflow_ref, which for a reusable workflow
@@ -223,10 +223,13 @@ jobs:
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v2.2.2
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-actions: write
+          permission-contents: read
+          repositories: ${{ github.event.repository.name }}
 
       - name: Dispatch SDK release
         env:

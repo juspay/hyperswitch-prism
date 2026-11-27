@@ -29,6 +29,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::{AuthenticationData, AuthoriseIntegrityObject, BrowserInformation},
     router_response_types::RedirectForm,
+    utils::split_full_name,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -778,31 +779,54 @@ pub struct NuveiBillingAddress {
     pub state: Option<Secret<String>>,
 }
 
-impl From<(&PaymentFlowData, pii::Email, common_enums::CountryAlpha2)> for NuveiBillingAddress {
-    fn from(
-        (resource_data, email, country): (
-            &PaymentFlowData,
-            pii::Email,
-            common_enums::CountryAlpha2,
-        ),
+/// `(first_name, last_name)` as sent on the Nuvei billing address.
+type BillingNames = (Option<Secret<String>>, Option<Secret<String>>);
+
+/// Fill each missing billing name from the cardholder name when available.
+pub(super) fn billing_names(
+    billing_first_name: Option<Secret<String>>,
+    billing_last_name: Option<Secret<String>>,
+    card_holder_name: Option<Secret<String>>,
+) -> BillingNames {
+    let (card_first_name, card_last_name) = split_full_name(card_holder_name);
+    (
+        billing_first_name
+            .filter(|name| !name.peek().trim().is_empty())
+            .or(card_first_name),
+        billing_last_name
+            .filter(|name| !name.peek().trim().is_empty())
+            .or(card_last_name),
+    )
+}
+
+impl NuveiBillingAddress {
+    fn new(
+        resource_data: &PaymentFlowData,
+        email: pii::Email,
+        country: common_enums::CountryAlpha2,
+        card_holder_name: Option<Secret<String>>,
     ) -> Self {
+        let (first_name, last_name) = billing_names(
+            resource_data.get_optional_billing_first_name(),
+            resource_data.get_optional_billing_last_name(),
+            card_holder_name,
+        );
         Self {
             email,
             country,
-            first_name: resource_data.get_optional_billing_first_name(),
-            last_name: resource_data.get_optional_billing_last_name(),
+            first_name,
+            last_name,
             phone: resource_data.get_optional_billing_phone_number(),
             city: resource_data.get_optional_billing_city(),
             address: resource_data.get_optional_billing_line1(),
             address_line2: resource_data.get_optional_billing_line2(),
             address_line3: resource_data.get_optional_billing_line3(),
             zip: resource_data.get_optional_billing_zip(),
-            // 2-letter state code (US/CA full names converted), as hyperswitch
-            // `to_state_code_as_optional`; Nuvei rejects longer values.
             state: resource_data
                 .get_billing_address()
                 .ok()
-                .and_then(|details| details.to_state_code_as_optional().ok().flatten()),
+                .and_then(|details| details.get_optional_country_prefixed_state_code())
+                .filter(|state| state.peek().chars().count() <= 5),
         }
     }
 }
@@ -820,11 +844,33 @@ fn get_nuvei_card_holder_name<T: PaymentMethodDataTypes>(
         .or_else(|| resource_data.get_optional_billing_full_name())
 }
 
+/// The Name_on_card received on the payment method
+/// (`payment_method_data.card.card_holder_name`, likewise on an NTID card),
+/// used to fill missing billing names (`billing_names`). `None` for payment
+/// methods that carry no card holder name (wallets, network tokens).
+fn payment_method_name_on_card<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    data: Option<&PaymentMethodData<T>>,
+) -> Option<Secret<String>> {
+    match data {
+        Some(PaymentMethodData::Card(card)) => card.card_holder_name.clone(),
+        Some(PaymentMethodData::CardDetailsForNetworkTransactionId(card)) => {
+            card.card_holder_name.clone()
+        }
+        _ => None,
+    }
+}
+
 /// Billing address for flows where Nuvei requires it: billing email (else the
 /// request email) and billing country are mandatory, each with its own error.
-fn get_required_billing_address(
+/// Use the merchant account country only when the customer billing country is absent.
+/// `card_holder_name` (Name_on_card) fills missing billing names, see `billing_names`.
+pub(super) fn get_required_billing_address(
     resource_data: &PaymentFlowData,
     fallback_email: Option<pii::Email>,
+    card_holder_name: Option<Secret<String>>,
+    merchant_country: Option<common_enums::CountryAlpha2>,
 ) -> Result<NuveiBillingAddress, Report<IntegrationError>> {
     let email = resource_data
         .get_optional_billing_email()
@@ -837,13 +883,19 @@ fn get_required_billing_address(
         })?;
     let country = resource_data
         .get_optional_billing_country()
+        .or(merchant_country)
         .ok_or_else(|| {
             nuvei_missing_field(
                 "billing_address.country",
                 "Send address.billing_address.country_alpha2_code",
             )
         })?;
-    Ok(NuveiBillingAddress::from((resource_data, email, country)))
+    Ok(NuveiBillingAddress::new(
+        resource_data,
+        email,
+        country,
+        card_holder_name,
+    ))
 }
 
 #[serde_with::skip_serializing_none]
@@ -1575,6 +1627,26 @@ struct NuveiFlightLegDetails {
     stop_over_code: String,
 }
 
+pub(super) fn nuvei_airline_carrier_and_number(
+    segment: Option<&domain_types::connector_types::AirlineSegment>,
+) -> (Option<&str>, Option<&str>) {
+    let Some(segment) = segment else {
+        return (None, None);
+    };
+    (
+        segment
+            .operating_carrier_code
+            .as_deref()
+            .map(str::trim)
+            .filter(|code| !code.is_empty()),
+        segment
+            .operating_flight_number
+            .as_deref()
+            .map(str::trim)
+            .filter(|number| !number.is_empty()),
+    )
+}
+
 // Airline data is supplied explicitly through domain_data on each request.
 pub(super) fn get_nuvei_airline_addendums(
     domain: Option<&domain_types::connector_types::DomainData>,
@@ -1648,15 +1720,12 @@ pub(super) fn get_nuvei_airline_addendums(
                         "O".to_owned()
                     }
                 });
+                let (carrier, number) = nuvei_airline_carrier_and_number(Some(segment));
                 make_leg(
                     segment.departure.as_ref(),
                     segment.arrival.as_ref(),
-                    segment
-                        .marketing_carrier_code
-                        .as_ref()
-                        .or(data.airline_code.as_ref())
-                        .map(String::as_str),
-                    segment.flight_number.as_deref(),
+                    carrier,
+                    number,
                     stop_over_code,
                 )
             })
@@ -1670,23 +1739,7 @@ pub(super) fn get_nuvei_airline_addendums(
                 });
                 let first_segment = segments.next();
                 let has_connection = segments.next().is_some();
-                let (carrier, number) = match first_segment {
-                    Some(segment) if segment.marketing_carrier_code.is_some() => (
-                        segment.marketing_carrier_code.as_deref(),
-                        segment.flight_number.as_deref(),
-                    ),
-                    Some(segment) if segment.operating_carrier_code.is_some() => (
-                        segment.operating_carrier_code.as_deref(),
-                        segment
-                            .operating_flight_number
-                            .as_deref()
-                            .or(segment.flight_number.as_deref()),
-                    ),
-                    segment => (
-                        data.airline_code.as_deref(),
-                        segment.and_then(|segment| segment.flight_number.as_deref()),
-                    ),
-                };
+                let (carrier, number) = nuvei_airline_carrier_and_number(first_segment);
                 make_leg(
                     journey.departure.as_ref(),
                     journey.arrival.as_ref(),
@@ -1766,9 +1819,18 @@ fn nuvei_airline_date_format_error() -> IntegrationError {
 }
 
 fn nuvei_airline_date(value: &str) -> Result<String, Report<IntegrationError>> {
-    if let Ok(date) =
+    let offset_date =
         time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
-    {
+            .or_else(|_| {
+                // Some inputs separate the local time and numeric offset with a space.
+                time::OffsetDateTime::parse(
+                    value,
+                    time::macros::format_description!(
+                        "[year]-[month]-[day]T[hour]:[minute]:[second] [offset_hour sign:automatic]:[offset_minute]"
+                    ),
+                )
+            });
+    if let Ok(date) = offset_date {
         return date
             .format(time::macros::format_description!(
                 "[year]-[month]-[day] [hour]:[minute]:[second]"
@@ -2925,7 +2987,15 @@ fn build_nuvei_three_ds_authorize_request<
         )
     })?;
 
-    let billing_address = get_required_billing_address(resource, email)?;
+    let billing_address = get_required_billing_address(
+        resource,
+        email,
+        card.card_holder_name.clone(),
+        request
+            .merchant_details
+            .as_ref()
+            .and_then(|details| details.merchant_country_code),
+    )?;
     let shipping_address = resource
         .get_optional_shipping_country()
         .map(|country| NuveiShippingAddress::from((resource, country)));
@@ -3417,7 +3487,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 )
                             },
                         )?,
-                        billing_address: get_required_billing_address(resource, email)?,
+                        billing_address: get_required_billing_address(
+                            resource,
+                            email,
+                            // wallets carry no Name_on_card
+                            None,
+                            request
+                                .merchant_details
+                                .as_ref()
+                                .and_then(|details| details.merchant_country_code),
+                        )?,
                         shipping_address: resource
                             .get_optional_shipping_country()
                             .map(|country| NuveiShippingAddress::from((resource, country))),
@@ -3460,8 +3539,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let client_request_id = resource.connector_request_reference_id.clone();
         let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
-        // billing email and country are mandatory
-        let billing_address = get_required_billing_address(resource, email.clone())?;
+        // Payment billing requires email and country.
+        let billing_address = get_required_billing_address(
+            resource,
+            email.clone(),
+            payment_method_name_on_card(Some(&request.payment_method_data)),
+            request
+                .merchant_details
+                .as_ref()
+                .and_then(|details| details.merchant_country_code),
+        )?;
         let shipping_address = resource
             .get_optional_shipping_country()
             .map(|country| NuveiShippingAddress::from((resource, country)));
@@ -3866,10 +3953,20 @@ struct NuveiAcsResponse {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-enum NuveiAcsTransStatus {
+pub(super) enum NuveiAcsTransStatus {
     #[serde(rename = "Y", alias = "1", alias = "y")]
     Success,
-    #[serde(rename = "N", alias = "0", alias = "n")]
+    // R (rejected) and U (unavailable) end the challenge without authentication, like N.
+    // A (attempted) stays `Unknown`: proceeding to pay on it is a liability decision.
+    #[serde(
+        rename = "N",
+        alias = "0",
+        alias = "n",
+        alias = "R",
+        alias = "r",
+        alias = "U",
+        alias = "u"
+    )]
     Failed,
     #[serde(other)]
     Unknown,
@@ -4338,7 +4435,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_billing_email()
             .or_else(|| request.email.clone())
             .zip(resource.get_optional_billing_country())
-            .map(|(email, country)| NuveiBillingAddress::from((resource, email, country)));
+            .map(|(email, country)| {
+                NuveiBillingAddress::new(
+                    resource,
+                    email,
+                    country,
+                    payment_method_name_on_card(request.payment_method_data.as_ref()),
+                )
+            });
 
         Ok(Self {
             session_token,
@@ -4738,7 +4842,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let email = resource
             .get_optional_billing_email()
             .or_else(|| request.email.clone());
-        let billing_address = get_required_billing_address(resource, email)?;
+        let billing_address = get_required_billing_address(
+            resource,
+            email,
+            payment_method_name_on_card(request.payment_method_data.as_ref()),
+            request
+                .merchant_details
+                .as_ref()
+                .and_then(|details| details.merchant_country_code),
+        )?;
         let shipping_address = resource
             .get_optional_shipping_country()
             .map(|country| NuveiShippingAddress::from((resource, country)));
@@ -6261,8 +6373,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let client_request_id = resource.connector_request_reference_id.clone();
         let client_unique_id = get_valid_client_unique_id(&client_request_id)?;
 
-        // Billing email and country are mandatory; shipping only when present
-        let billing_address = get_required_billing_address(resource, request.email.clone())?;
+        // Payment billing requires email and country.
+        let billing_address = get_required_billing_address(
+            resource,
+            request.email.clone(),
+            payment_method_name_on_card(Some(&request.payment_method_data)),
+            None,
+        )?;
         let shipping_address = resource
             .get_optional_shipping_country()
             .map(|country| NuveiShippingAddress::from((resource, country)));
@@ -6709,8 +6826,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ip_address: Secret::new(ip_address),
         };
 
-        // All arms: billing email and country are mandatory
-        let billing_address = get_required_billing_address(resource, request.email.clone())?;
+        // Payment billing requires email and country.
+        let billing_address = get_required_billing_address(
+            resource,
+            request.email.clone(),
+            payment_method_name_on_card(Some(&request.payment_method_data)),
+            None,
+        )?;
 
         // clientUniqueId is String(45)
         let client_request_id = resource.connector_request_reference_id.clone();
@@ -7256,14 +7378,16 @@ pub fn map_notification_to_event(
 
 /// Unified status code -> dispute status (hyperswitch
 /// `map_dispute_notification_to_event`, first half; each hyperswitch
-/// `Dispute*` event is the same-named `DisputeStatus`).
+/// `Dispute*` event is the same-named `DisputeStatus`). Differs from hyperswitch
+/// where it left a state change unmapped or misfiled: `FC-CLSD-RCL` is
+/// Cancelled like the other recall codes, the collaboration / inquiry rejections
+/// are Challenged, and a partial inquiry refund is Accepted.
 fn dispute_status_from_unified_code(code: &DisputeUnifiedStatusCode) -> Option<DisputeStatus> {
     use DisputeUnifiedStatusCode as C;
     match code {
         C::FirstChargebackInitiatedByIssuer
         | C::CreditChargebackInitiatedByIssuer
         | C::McCollaborationInitiatedByIssuer
-        | C::FirstChargebackClosedRecall
         | C::InquiryInitiatedByIssuer => Some(DisputeStatus::DisputeOpened),
         C::CreditChargebackAcceptedAutomatically
         | C::FirstChargebackAcceptedAutomatically
@@ -7274,6 +7398,7 @@ fn dispute_status_from_unified_code(code: &DisputeUnifiedStatusCode) -> Option<D
         | C::McCollaborationRefundedByMerchant
         | C::McCollaborationAutomaticAccept
         | C::InquiryAcceptedFullRefund
+        | C::InquiryPartialAcceptedPartialRefund
         | C::PreArbitrationAcceptedByMerchant
         | C::PreArbitrationPartiallyAcceptedByMerchant
         | C::PreArbitrationAutomaticallyAcceptedByMerchant
@@ -7289,7 +7414,10 @@ fn dispute_status_from_unified_code(code: &DisputeUnifiedStatusCode) -> Option<D
         | C::PreArbitrationInitiatedByIssuer
         | C::MerchantPreArbitrationRejectedByIssuer
         | C::InquiryRespondedByMerchant
-        | C::PreArbitrationRejectedByMerchant => Some(DisputeStatus::DisputeChallenged),
+        | C::PreArbitrationRejectedByMerchant
+        | C::McCollaborationRejectedByMerchant
+        | C::McCollaborationPreviouslyRefundedAuto
+        | C::InquiryAutomaticallyRejected => Some(DisputeStatus::DisputeChallenged),
         C::FirstChargebackRejectedAutomaticallyExpired
         | C::FirstChargebackPartiallyAcceptedByMerchantExpired
         | C::FirstChargebackRejectedByMerchantExpired
@@ -7303,15 +7431,12 @@ fn dispute_status_from_unified_code(code: &DisputeUnifiedStatusCode) -> Option<D
         | C::McCollaborationClosedMerchantFavour
         | C::PreArbitrationClosedMerchantFavour => Some(DisputeStatus::DisputeWon),
         C::FirstChargebackRecalledByIssuer
+        | C::FirstChargebackClosedRecall
         | C::InquiryCancelledAfterRefund
         | C::PreArbitrationClosedRecall
         | C::CreditChargebackRecalledByIssuer => Some(DisputeStatus::DisputeCancelled),
-        C::McCollaborationPreviouslyRefundedAuto
-        | C::McCollaborationRejectedByMerchant
-        | C::InquiryAutomaticallyRejected
-        | C::InquiryPartialAcceptedPartialRefund
-        | C::InquiryUpdated
-        | C::Unknown => None,
+        // Informational update with no state change to report.
+        C::InquiryUpdated | C::Unknown => None,
     }
 }
 

@@ -51,7 +51,7 @@ def _build_authorize_request(capture_method: str):
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
-        connector_order_id="connector_order_id",  # Send the connector order identifier here if an order was created before authorize.
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"session_id\":\"probe_session_001\"}"),  # Connector-specific feature data for the transaction.
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -95,7 +95,7 @@ def _build_proxy_authorize_request():
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
         return_url="https://example.com/return",
-        connector_order_id="connector_order_id",  # Send the connector order identifier here if an order was created before authorize.
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"session_id\":\"probe_session_001\"}"),
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -130,7 +130,7 @@ def _build_token_authorize_request():
         ),
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
         return_url="https://example.com/return",
-        connector_order_id="connector_order_id",  # Send the connector order identifier here if an order was created before authorize.
+        connector_feature_data=payment_methods_pb2.SecretString(value="{\"session_id\":\"probe_session_001\"}"),
     )
 async def process_checkout_autocapture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """One-step Payment (Authorize + Capture)

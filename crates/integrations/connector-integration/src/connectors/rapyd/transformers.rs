@@ -5,6 +5,7 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, RepeatPayment,
+        SetupMandate,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
@@ -13,6 +14,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RapydClientAuthenticationResponse as RapydClientAuthenticationResponseDomain,
         RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -20,7 +22,10 @@ use domain_types::{
         Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ConnectorSpecificConfig,
+        ErrorResponse,
+    },
     router_data_v2::RouterDataV2,
     router_request_types::{AuthenticationData, BrowserInformation},
     router_response_types::RedirectForm,
@@ -37,10 +42,6 @@ use crate::types::ResponseRouterData;
 use crate::utils;
 
 use super::RapydRouterData;
-
-mod setup_mandate;
-pub(super) use setup_mandate::{setup_sync_url, setup_webhook};
-pub use setup_mandate::{RapydSetupMandateRequest, RapydSetupMandateResponse};
 
 /// Rapyd digital-wallet `payment_type` values.
 const WALLET_TYPE_GOOGLE_PAY: &str = "google_pay";
@@ -250,6 +251,85 @@ pub enum RapydInitiationType {
     Installment,
 }
 
+fn merge_avs_response(
+    existing: Option<ConnectorResponseData>,
+    avs_result: Option<&RapydAvsResult>,
+) -> Option<ConnectorResponseData> {
+    let Some(avs_result) = avs_result else {
+        return existing;
+    };
+    let is_overcapture_enabled = existing
+        .as_ref()
+        .and_then(ConnectorResponseData::is_overcapture_enabled);
+    let extended_authorization_response_data = existing
+        .as_ref()
+        .and_then(ConnectorResponseData::get_extended_authorization_response_data)
+        .cloned();
+    let additional_data = existing
+        .and_then(|response| response.additional_payment_method_data)
+        .unwrap_or_else(|| AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data: None,
+            payment_checks: None,
+            card_network: None,
+            domestic_network: None,
+            auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
+        });
+    let additional_data = match additional_data {
+        AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data,
+            payment_checks,
+            card_network,
+            domestic_network,
+            auth_code,
+            processor_card_network,
+            card_subtype,
+            card_segment_type,
+            funding_source,
+            card_type,
+            issuer_name,
+            issuer_country,
+        } => AdditionalPaymentMethodConnectorResponse::Card {
+            authentication_data,
+            payment_checks: Some(match payment_checks {
+                None => serde_json::json!({"avs_result": avs_result}),
+                Some(serde_json::Value::Object(checks)) => serde_json::Value::Object(
+                    checks
+                        .into_iter()
+                        .chain(std::iter::once((
+                            "avs_result".to_string(),
+                            serde_json::json!(avs_result),
+                        )))
+                        .collect(),
+                ),
+                Some(checks) => checks,
+            }),
+            card_network,
+            domestic_network,
+            auth_code,
+            processor_card_network,
+            card_subtype,
+            card_segment_type,
+            funding_source,
+            card_type,
+            issuer_name,
+            issuer_country,
+        },
+        other => other,
+    };
+    Some(ConnectorResponseData::new(
+        Some(additional_data),
+        is_overcapture_enabled,
+        extended_authorization_response_data,
+    ))
+}
+
 impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
@@ -257,6 +337,14 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<RapydPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let connector_response = merge_avs_response(
+            item.router_data.resource_common_data.connector_response,
+            item.response
+                .data
+                .as_ref()
+                .and_then(|data| data.payment_method_data.as_ref())
+                .and_then(|data| data.avs_result.as_ref()),
+        );
         let (status, response) = match &item.response.data {
             Some(data) => {
                 let attempt_status =
@@ -372,6 +460,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -386,25 +475,91 @@ impl TryFrom<ResponseRouterData<RapydPSyncResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<RapydPSyncResponse, Self>) -> Result<Self, Self::Error> {
-        if let Some(state) = setup_mandate::sync_state(&item.router_data.request).change_context(
-            utils::response_handling_fail(item.http_code, "Invalid Rapyd setup state"),
-        )? {
-            return setup_mandate::map_sync(item, state);
-        }
         let response = match item.response {
-            RapydPSyncResponse::Payment(response) => *response,
-            RapydPSyncResponse::Setup(response) if response.data.is_none() => {
-                RapydPaymentsResponse {
-                    status: response.status,
-                    data: None,
+            RapydPSyncResponse::Card(response) => {
+                let card_id = item
+                    .router_data
+                    .request
+                    .get_connector_transaction_id()
+                    .change_context(utils::response_handling_fail(
+                        item.http_code,
+                        "Missing registration card ID",
+                    ))?;
+                if !card_id.starts_with("card_") {
+                    return Err(utils::response_handling_fail(
+                        item.http_code,
+                        "Unexpected registration response for a payment",
+                    )
+                    .into());
                 }
-            }
-            RapydPSyncResponse::Setup(_) => {
-                return Err(utils::response_handling_fail(
+                if response.status.status.as_deref() != Some("SUCCESS")
+                    || !response.status.error_code.is_empty()
+                {
+                    return Ok(Self {
+                        resource_common_data: PaymentFlowData {
+                            status: common_enums::AttemptStatus::Failure,
+                            ..item.router_data.resource_common_data
+                        },
+                        response: Err(response.status.to_error_response(item.http_code)),
+                        ..item.router_data
+                    });
+                }
+                let card = response.data.ok_or_else(|| {
+                    utils::response_handling_fail(item.http_code, "Missing registration card")
+                })?;
+                if card.id.as_ref().is_some_and(|id| id != &card_id) {
+                    return Err(utils::response_handling_fail(
+                        item.http_code,
+                        "Registration card ID does not match",
+                    )
+                    .into());
+                }
+                let customer_id = item
+                    .router_data
+                    .request
+                    .connector_feature_data
+                    .as_ref()
+                    .and_then(|value| value.peek().get("customer_id"))
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| {
+                        utils::response_handling_fail(
+                            item.http_code,
+                            "Missing registration customer ID",
+                        )
+                    })?;
+                let (status, response) = card.into_setup_response(
+                    card_id,
+                    customer_id.to_owned(),
+                    true,
                     item.http_code,
-                    "Unexpected payment list for ordinary payment sync",
-                )
-                .into())
+                )?;
+                return Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response,
+                    ..item.router_data
+                });
+            }
+            RapydPSyncResponse::Payment(response) => {
+                if response.data.is_none()
+                    && item
+                        .router_data
+                        .request
+                        .get_connector_transaction_id()
+                        .is_ok_and(|id| id.starts_with("card_"))
+                {
+                    return Ok(Self {
+                        resource_common_data: PaymentFlowData {
+                            status: common_enums::AttemptStatus::Failure,
+                            ..item.router_data.resource_common_data
+                        },
+                        response: Err(response.status.to_error_response(item.http_code)),
+                        ..item.router_data
+                    });
+                }
+                *response
             }
         };
         let is_zero_setup = item.router_data.request.money.amount() == MinorUnit::zero()
@@ -448,15 +603,14 @@ pub struct RapydIncomingWebhook {
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RapydWebhookEventType {
-    PaymentUpdated,
-    CardAddedSuccessfully,
-    CardAddedFailure,
     PaymentSucceeded,
+    PaymentUpdated,
     PaymentCompleted,
     PaymentCaptured,
     PaymentFailed,
     PaymentCanceled,
     PaymentExpired,
+    CardAddedFailure,
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
@@ -470,8 +624,25 @@ impl TryFrom<RapydIncomingWebhook> for domain_types::connector_types::EventType 
     type Error = error_stack::Report<domain_types::errors::WebhookError>;
 
     fn try_from(event: RapydIncomingWebhook) -> Result<Self, Self::Error> {
-        if let Some(setup) = setup_webhook(&event)? {
-            return Ok(setup.event_type());
+        if event
+            .data
+            .peek()
+            .pointer("/metadata/setup_mandate")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+            && matches!(
+                event.webhook_type,
+                RapydWebhookEventType::PaymentSucceeded
+                    | RapydWebhookEventType::PaymentUpdated
+                    | RapydWebhookEventType::PaymentCompleted
+                    | RapydWebhookEventType::PaymentCaptured
+            )
+        {
+            return Ok(match event.payment_data()?.setup_status() {
+                common_enums::AttemptStatus::Charged => Self::PaymentIntentSuccess,
+                common_enums::AttemptStatus::Failure => Self::PaymentIntentFailure,
+                _ => Self::PaymentIntentProcessing,
+            });
         }
         Ok(match event.webhook_type {
             RapydWebhookEventType::PaymentSucceeded | RapydWebhookEventType::PaymentUpdated => {
@@ -499,7 +670,9 @@ impl TryFrom<RapydIncomingWebhook> for domain_types::connector_types::EventType 
             RapydWebhookEventType::PaymentCompleted | RapydWebhookEventType::PaymentCaptured => {
                 Self::PaymentIntentSuccess
             }
-            RapydWebhookEventType::PaymentFailed => Self::PaymentIntentFailure,
+            RapydWebhookEventType::PaymentFailed | RapydWebhookEventType::CardAddedFailure => {
+                Self::PaymentIntentFailure
+            }
             RapydWebhookEventType::PaymentCanceled => Self::PaymentIntentCancelled,
             RapydWebhookEventType::PaymentExpired => Self::PaymentIntentExpired,
             RapydWebhookEventType::RefundCompleted => Self::RefundSuccess,
@@ -507,15 +680,17 @@ impl TryFrom<RapydIncomingWebhook> for domain_types::connector_types::EventType 
             | RapydWebhookEventType::PaymentRefundFailed => Self::RefundFailure,
             RapydWebhookEventType::PaymentDisputeCreated => Self::DisputeOpened,
             RapydWebhookEventType::PaymentDisputeUpdated => event.dispute_data()?.status.into(),
-            RapydWebhookEventType::Unknown
-            | RapydWebhookEventType::CardAddedSuccessfully
-            | RapydWebhookEventType::CardAddedFailure => Self::IncomingWebhookEventUnspecified,
+            RapydWebhookEventType::Unknown => Self::IncomingWebhookEventUnspecified,
         })
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RapydWebhookPaymentData {
+    #[serde(skip)]
+    is_setup: bool,
+    #[serde(skip)]
+    authentication_succeeded: bool,
     pub id: String,
     pub amount: FloatMajorUnit,
     pub currency_code: Option<common_enums::Currency>,
@@ -617,21 +792,126 @@ impl RapydIncomingWebhook {
     ) -> Result<RapydWebhookPaymentData, error_stack::Report<domain_types::errors::WebhookError>>
     {
         use domain_types::errors::WebhookError;
+        let raw = self.data.peek();
+        let is_setup = raw
+            .pointer("/metadata/setup_mandate")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true);
+        if matches!(self.webhook_type, RapydWebhookEventType::CardAddedFailure) && is_setup {
+            return Ok(RapydWebhookPaymentData {
+                is_setup,
+                authentication_succeeded: false,
+                id: raw
+                    .get("id")
+                    .and_then(serde_json::Value::as_str)
+                    .filter(|id| id.starts_with("card_"))
+                    .ok_or(WebhookError::WebhookReferenceIdNotFound)?
+                    .to_owned(),
+                amount: FloatMajorUnit::zero(),
+                currency_code: None,
+                status: RapydPaymentStatus::Error,
+                next_action: NextAction::NotApplicable,
+                merchant_reference_id: None,
+                captured: None,
+                payment_method: None,
+                payment_method_data: None,
+                failure_code: raw
+                    .get("error_code")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
+                failure_message: raw
+                    .get("failure_reason")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned),
+            });
+        }
         match self.webhook_type {
-            RapydWebhookEventType::PaymentUpdated
-            | RapydWebhookEventType::PaymentSucceeded
+            RapydWebhookEventType::PaymentSucceeded
+            | RapydWebhookEventType::PaymentUpdated
             | RapydWebhookEventType::PaymentCompleted
             | RapydWebhookEventType::PaymentCaptured
             | RapydWebhookEventType::PaymentCanceled
             | RapydWebhookEventType::PaymentExpired
-            | RapydWebhookEventType::PaymentFailed => serde_json::from_value(self.data.expose())
-                .change_context(WebhookError::WebhookBodyDecodingFailed),
+            | RapydWebhookEventType::PaymentFailed => {
+                let mut payment: RapydWebhookPaymentData = serde_json::from_value(raw.clone())
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+                if is_setup {
+                    if payment.amount != FloatMajorUnit::zero()
+                        || raw
+                            .get("original_amount")
+                            .and_then(serde_json::Value::as_f64)
+                            != Some(0.0)
+                    {
+                        return Err(WebhookError::WebhookBodyDecodingFailed.into());
+                    }
+                    if matches!(self.webhook_type, RapydWebhookEventType::PaymentFailed) {
+                        payment.status = RapydPaymentStatus::Error;
+                    }
+                    payment.id = payment
+                        .payment_method
+                        .as_ref()
+                        .map(PeekInterface::peek)
+                        .filter(|id| id.starts_with("card_"))
+                        .ok_or(WebhookError::WebhookReferenceIdNotFound)?
+                        .clone();
+                    payment.is_setup = true;
+                    payment.authentication_succeeded = raw
+                        .pointer("/authentication_result/result")
+                        .and_then(serde_json::Value::as_str)
+                        == Some("A")
+                        && matches!(
+                            raw.pointer("/authentication_result/eci")
+                                .and_then(serde_json::Value::as_str),
+                            Some("05" | "02")
+                        )
+                        && raw
+                            .pointer("/authentication_result/version")
+                            .and_then(serde_json::Value::as_str)
+                            .is_some_and(|version| !version.is_empty());
+                }
+                Ok(payment)
+            }
             _ => Err(WebhookError::WebhookEventTypeNotFound.into()),
         }
     }
 }
 
 impl RapydWebhookPaymentData {
+    fn setup_status(&self) -> common_enums::AttemptStatus {
+        let status = get_status(self.status.clone(), self.next_action.clone());
+        if self.is_setup
+            && (self
+                .failure_code
+                .as_ref()
+                .is_some_and(|code| !code.is_empty())
+                || self
+                    .failure_message
+                    .as_ref()
+                    .is_some_and(|message| !message.is_empty()))
+        {
+            return common_enums::AttemptStatus::Failure;
+        }
+        if self.is_setup
+            && matches!(
+                status,
+                common_enums::AttemptStatus::Authorized | common_enums::AttemptStatus::Charged
+            )
+        {
+            if self.authentication_succeeded
+                && matches!(
+                    self.next_action,
+                    NextAction::PendingCapture | NextAction::NotApplicable
+                )
+            {
+                common_enums::AttemptStatus::Charged
+            } else {
+                common_enums::AttemptStatus::AuthenticationPending
+            }
+        } else {
+            status
+        }
+    }
+
     pub fn into_response(
         self,
         raw_body: &[u8],
@@ -640,7 +920,10 @@ impl RapydWebhookPaymentData {
         error_stack::Report<domain_types::errors::WebhookError>,
     > {
         let data = self;
-        let status = get_status(data.status.clone(), data.next_action);
+        let status = data.setup_status();
+        let payment_method = data
+            .payment_method
+            .filter(|_| !data.is_setup || status == common_enums::AttemptStatus::Charged);
         let amount = data
             .currency_code
             .map(|currency| {
@@ -673,7 +956,7 @@ impl RapydWebhookPaymentData {
             status,
             connector_response_reference_id: data.merchant_reference_id.clone(),
             connector_request_reference_id: data.merchant_reference_id,
-            mandate_reference: data.payment_method.map(|id| {
+            mandate_reference: payment_method.map(|id| {
                 Box::new(MandateReference {
                     connector_mandate_id: Some(id.expose()),
                     payment_method_id: None,
@@ -689,6 +972,7 @@ impl RapydWebhookPaymentData {
             response_headers: None,
             network_txn_id: data
                 .payment_method_data
+                .filter(|_| !data.is_setup || status == common_enums::AttemptStatus::Charged)
                 .and_then(|method| method.network_reference_id)
                 .map(|id| id.expose()),
             payment_method_update: None,
@@ -729,11 +1013,17 @@ pub struct RapydPaymentsRequest<
     pub amount: StringMajorUnit,
     pub currency: common_enums::Currency,
     pub payment_method: RapydPaymentMethodData<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<RapydPaymentMethodOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_reference_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capture: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub complete_payment_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_payment_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_details: Option<RapydClientDetails>,
@@ -838,8 +1128,16 @@ pub struct PaymentMethodOptions {
 ///
 /// Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
 #[derive(Debug, Serialize)]
+pub struct RapydPaymentMethodOptions {
+    #[serde(flatten)]
+    pub authentication: RapydAuthenticationOptions,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avs_required: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum RapydPaymentMethodOptions {
+pub enum RapydAuthenticationOptions {
     Hosted(PaymentMethodOptions),
     External(RapydExternal3DsOptions),
     NetworkToken(RapydNetworkTokenOptions),
@@ -913,8 +1211,11 @@ pub fn build_external_3ds_options(
 pub struct PaymentMethod<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> {
     #[serde(rename = "type")]
     pub pm_type: RapydPaymentMethodType,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fields: Option<RapydPaymentMethodFields<T>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Address>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub digital_wallet: Option<RapydWallet>,
 }
 
@@ -1293,10 +1594,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payment_method_options = if is_card {
             Some(
                 match item.router_data.request.authentication_data.as_ref() {
-                    Some(authentication_data) => RapydPaymentMethodOptions::External(
+                    Some(authentication_data) => RapydAuthenticationOptions::External(
                         build_external_3ds_options(authentication_data)?,
                     ),
-                    None => RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+                    None => RapydAuthenticationOptions::Hosted(PaymentMethodOptions {
                         three_ds: matches!(
                             item.router_data.resource_common_data.auth_type,
                             common_enums::AuthenticationType::ThreeDs
@@ -1316,7 +1617,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             ),
                         }
                     })?;
-            Some(RapydPaymentMethodOptions::NetworkToken(
+            Some(RapydAuthenticationOptions::NetworkToken(
                 RapydNetworkTokenOptions {
                     tavv,
                     external_3ds: item
@@ -1331,6 +1632,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         } else {
             None
         };
+        let payment_method_options =
+            payment_method_options.map(|authentication| RapydPaymentMethodOptions {
+                authentication,
+                avs_required: item
+                    .router_data
+                    .request
+                    .enable_avs_check
+                    .filter(|enabled| *enabled),
+            });
         let mut initiation_type = None;
         let payment_method = match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {
@@ -1805,8 +2115,8 @@ pub struct RapydErrorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RapydPSyncResponse {
-    Setup(setup_mandate::SetupSyncResponse),
     Payment(Box<RapydPaymentsResponse>),
+    Card(Box<RapydSetupMandateResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1887,6 +2197,35 @@ pub struct ResponseData {
 pub struct RapydResponsePaymentMethodData {
     #[serde(default, deserialize_with = "deserialize_network_reference_id")]
     pub network_reference_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avs_result: Option<RapydAvsResult>,
+}
+
+/// https://docs.rapyd.net/en/address-verification-result-codes.html
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum RapydAvsResult {
+    #[serde(rename = "X")]
+    StreetAndNineDigitZipMatch,
+    #[serde(rename = "Y")]
+    StreetAndFiveDigitZipMatch,
+    #[serde(rename = "A")]
+    StreetMatchZipMismatch,
+    #[serde(rename = "W")]
+    StreetMismatchNineDigitZipMatch,
+    #[serde(rename = "Z")]
+    StreetMismatchFiveDigitZipMatch,
+    #[serde(rename = "N")]
+    StreetAndZipMismatch,
+    #[serde(rename = "U")]
+    AddressUnavailable,
+    #[serde(rename = "R")]
+    Retry,
+    #[serde(rename = "E")]
+    InvalidAddressData,
+    #[serde(rename = "S")]
+    NotSupportedByIssuer,
+    #[serde(untagged)]
+    Unknown(String),
 }
 
 fn deserialize_network_reference_id<'de, D>(
@@ -1917,8 +2256,11 @@ where
 // Capture Request
 #[derive(Debug, Serialize, Clone)]
 pub struct CaptureRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
     amount: Option<StringMajorUnit>,
-    receipt_email: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    receipt_email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     statement_descriptor: Option<String>,
 }
 
@@ -1960,7 +2302,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<common_enums::Currency>,
 }
 
@@ -2407,11 +2751,456 @@ impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
 // ============================================================================
 // SetupMandate (zero-amount card verification) — Rapyd
 // ============================================================================
-// Rapyd has no dedicated mandate endpoint. To capture a reusable card token
-// we call POST /v1/payments with `save_payment_method: true` plus an inline
-// `customer: { name, email }` object so Rapyd creates `cus_*` in the same
-// call and attaches a reusable `card_*` to it.
-//
+// Reuse the card and authentication builders, but send only registration fields.
+type RapydSetupRouterData<T> = RapydRouterData<
+    RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+    T,
+>;
+
+#[derive(Debug, Serialize)]
+pub struct RapydSetupMandateRequest<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+> {
+    #[serde(flatten)]
+    customer: Option<RapydInlineCustomer>,
+    payment_method: RapydSetupPaymentMethod<T>,
+    payment_method_options: RapydSetupOptions,
+}
+
+#[derive(Debug, Serialize)]
+struct RapydSetupPaymentMethod<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+> {
+    #[serde(flatten)]
+    card: RapydPaymentMethodData<T>,
+    complete_payment_url: Option<String>,
+    error_payment_url: Option<String>,
+    metadata: serde_json::Value,
+}
+
+#[derive(Debug, Serialize)]
+struct RapydSetupOptions {
+    #[serde(flatten)]
+    authentication: Option<RapydPaymentMethodOptions>,
+    currency: common_enums::Currency,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RapydSetupMandateResponse {
+    pub status: Status,
+    pub data: Option<RapydSetupData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RapydSetupData {
+    id: Option<String>,
+    payment_methods: Option<RapydSetupCards>,
+    next_action: Option<NextAction>,
+    redirect_url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_network_reference_id")]
+    network_reference_id: Option<Secret<String>>,
+    failure_code: Option<String>,
+    failure_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RapydSetupCards {
+    data: Vec<RapydSetupData>,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<RapydSetupRouterData<T>> for RapydSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(item: RapydSetupRouterData<T>) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        let external = request.authentication_data.as_ref();
+        if external.is_some_and(|auth| {
+            auth.trans_status != Some(common_enums::TransactionStatus::Success)
+                || auth
+                    .cavv
+                    .as_ref()
+                    .is_none_or(|value| value.peek().is_empty())
+                || auth.eci.as_ref().is_none_or(String::is_empty)
+                || auth.ds_trans_id.as_ref().is_none_or(String::is_empty)
+        }) || (external.is_none()
+            && item.router_data.resource_common_data.auth_type
+                != common_enums::AuthenticationType::ThreeDs)
+        {
+            return Err(IntegrationError::NotSupported {
+                message: "Card registration without successful external 3DS or Rapyd-hosted 3DS"
+                    .to_owned(),
+                connector: "rapyd",
+                context: utils::integration_ctx(
+                    "Rapyd requires 3DS during card registration",
+                    "Request hosted 3DS or provide a successful external authentication result.",
+                ),
+            }
+            .into());
+        }
+        let payment = RapydPaymentsRequest::try_from(item)?;
+        Ok(Self {
+            customer: payment.customer,
+            payment_method: RapydSetupPaymentMethod {
+                card: payment.payment_method,
+                complete_payment_url: payment.complete_payment_url,
+                error_payment_url: payment.error_payment_url,
+                metadata: serde_json::json!({"setup_mandate": true}),
+            },
+            payment_method_options: RapydSetupOptions {
+                authentication: payment.payment_method_options,
+                currency: payment.currency,
+            },
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<RapydSetupRouterData<T>> for RapydPaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(item: RapydSetupRouterData<T>) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+        let request = &router_data.request;
+
+        // Rapyd rejects mandate-setup calls with no amount and silently
+        // defaulting here would charge an arbitrary value in the caller's
+        // currency (e.g. ¥100 vs $1.00). Require the caller to pass an
+        // explicit verification amount.
+        let minor_amount = request.money.as_ref().map(|money| money.amount()).ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "minor_amount",
+                context: utils::integration_ctx(
+                    "The setup mandate amount is missing",
+                    "Provide minor_amount for the zero-value setup.",
+                ),
+            },
+        )?;
+        // A setup mandate is a zero-value verification. A funded request
+        // belongs in Authorize with `setup_future_usage`, where the capture
+        // flow applies.
+        if minor_amount != MinorUnit::zero() {
+            return Err(IntegrationError::NotSupported {
+                message: "Nonzero setup amount".to_owned(),
+                connector: "rapyd",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use a zero-amount SetupMandate, or Authorize to save a payment method while charging."
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+        // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
+        let amount = StringMajorUnit::zero();
+        let purpose = RapydPaymentPurpose::try_from((
+            request.mit_category.as_ref(),
+            RapydPurposeFlow::SetupMandate,
+        ))?;
+
+        let payment_method = match &request.payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                // Rapyd documents `payment_method.fields.name` as required
+                // (https://docs.rapyd.net/en/create-card-payment-method.html).
+                // Prefer the billing full name, then the payment method billing
+                // full name, then the cardholder name on the card. We
+                // deliberately do not fall back to `customer_name`, which
+                // describes the Rapyd customer object (inline `{name, email}`)
+                // — not the cardholder.
+                let cardholder_name = resolve_cardholder_name(
+                    &router_data.resource_common_data,
+                    &ccard.card_holder_name,
+                )
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name:
+                        "billing.full_name / payment_method_data.billing.full_name / card.card_holder_name",
+                    context: utils::integration_ctx(
+                        "The cardholder name is missing",
+                        "Provide the billing full name, the payment method billing full name, or card.card_holder_name.",
+                    ),
+                })?;
+                RapydPaymentMethodData::PaymentMethod(Box::new(PaymentMethod {
+                    pm_type: RapydPaymentMethodType::try_from((
+                        &router_data.connector_config,
+                        ccard,
+                    ))?,
+                    fields: Some(RapydPaymentMethodFields::Card(PaymentFields {
+                        number: ccard.card_number.to_owned(),
+                        expiration_month: ccard.card_exp_month.to_owned(),
+                        expiration_year: ccard.card_exp_year.to_owned(),
+                        name: cardholder_name,
+                        cvv: ccard.card_cvc.to_owned(),
+                        recurrence_type: Some(purpose.recurrence_type),
+                    })),
+                    address: None,
+                    digital_wallet: None,
+                }))
+            }
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    "payment_method for rapyd SetupMandate".to_owned(),
+                    utils::integration_ctx(
+                        "The setup mandate payment method is not supported",
+                        "Use a card payment method for SetupMandate.",
+                    ),
+                ))?;
+            }
+        };
+
+        let three_ds_enabled = matches!(
+            router_data.resource_common_data.auth_type,
+            common_enums::AuthenticationType::ThreeDs
+        );
+        // Completed external 3DS results take precedence and omit the hosted
+        // `3d_required` flag, matching the Authorize flow.
+        // Reference: https://docs.rapyd.net/en/creating-a-card-payment-with-3ds-authentication---external-3ds.html
+        let payment_method_options = Some(RapydPaymentMethodOptions {
+            authentication: match request.authentication_data.as_ref() {
+                Some(authentication_data) => RapydAuthenticationOptions::External(
+                    build_external_3ds_options(authentication_data)?,
+                ),
+                None => RapydAuthenticationOptions::Hosted(PaymentMethodOptions {
+                    three_ds: three_ds_enabled,
+                }),
+            },
+            avs_required: None,
+        });
+
+        // Rapyd REQUIRES a customer to save a payment method. We pass an
+        // inline `{name, email}` object so Rapyd creates `cus_*` in the
+        // same call and attaches the saved `card_*` to it. Both fields
+        // must come from the customer payload — billing address describes
+        // the cardholder, not the customer-of-record, and mixing them
+        // would attach the card to the wrong customer on repeat use.
+        let customer_name =
+            request
+                .customer_name
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "customer.name",
+                    context: utils::integration_ctx(
+                        "Rapyd creates an inline customer to save the card, which requires a name",
+                        "Send the customer name on the setup-mandate request.",
+                    ),
+                })?;
+        let customer_email =
+            request
+                .email
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "customer.email",
+                    context: utils::integration_ctx(
+                        "Rapyd's inline customer requires an email",
+                        "Send the customer email on the setup-mandate request.",
+                    ),
+                })?;
+        let inline_customer = RapydInlineCustomer {
+            name: Secret::new(customer_name),
+            email: customer_email,
+        };
+
+        let return_url = request.get_router_return_url()?;
+
+        Ok(Self {
+            amount,
+            currency: request.currency,
+            payment_method,
+            // Zero-auth: authorize the card so Rapyd can mint the
+            // `card_*` / `cus_*` tokens, but do not capture funds.
+            capture: Some(false),
+            payment_method_options,
+            merchant_reference_id: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            description: router_data.resource_common_data.description.clone(),
+            complete_payment_url: Some(return_url.clone()),
+            error_payment_url: Some(return_url),
+            customer: Some(inline_customer),
+            client_details: request.browser_info.as_ref().map(RapydClientDetails::from),
+            address: router_data
+                .resource_common_data
+                .get_optional_billing()
+                .map(Address::from),
+            receipt_email: request.email.clone(),
+            statement_descriptor: request
+                .billing_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+            ewallet: request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.ewallet.clone()),
+            save_payment_method: Some(true),
+            initiation_type: Some(purpose.initiation_type),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RapydSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<RapydSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        if item.response.status.status.as_deref() != Some("SUCCESS")
+            || !item.response.status.error_code.is_empty()
+        {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(item.response.status.to_error_response(item.http_code)),
+                ..item.router_data
+            });
+        }
+        let customer = item.response.data.ok_or_else(|| {
+            utils::response_handling_fail(item.http_code, "Missing registration customer")
+        })?;
+        let customer_id = customer
+            .id
+            .filter(|id| id.starts_with("cus_"))
+            .ok_or_else(|| {
+                utils::response_handling_fail(item.http_code, "Missing registration customer ID")
+            })?;
+        let cards = customer
+            .payment_methods
+            .ok_or_else(|| {
+                utils::response_handling_fail(item.http_code, "Missing registration card")
+            })?
+            .data;
+        let [mut card]: [RapydSetupData; 1] = cards.try_into().map_err(|_| {
+            utils::response_handling_fail(item.http_code, "Expected one registration card")
+        })?;
+        let card_id = card
+            .id
+            .clone()
+            .filter(|id| id.starts_with("card_"))
+            .ok_or_else(|| {
+                utils::response_handling_fail(item.http_code, "Missing registration card ID")
+            })?;
+        card.network_reference_id = card.network_reference_id.or(customer.network_reference_id);
+        let completed = item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .is_some_and(|auth| {
+                auth.trans_status == Some(common_enums::TransactionStatus::Success)
+            });
+        let (status, response) =
+            card.into_setup_response(card_id, customer_id.clone(), completed, item.http_code)?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_customer: Some(customer_id),
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
+    }
+}
+
+impl RapydSetupData {
+    fn into_setup_response(
+        self,
+        card_id: String,
+        customer_id: String,
+        completed: bool,
+        http_code: u16,
+    ) -> Result<
+        (
+            common_enums::AttemptStatus,
+            Result<PaymentsResponseData, ErrorResponse>,
+        ),
+        error_stack::Report<ConnectorError>,
+    > {
+        let status = if completed
+            && self.id.as_deref() == Some(card_id.as_str())
+            && self.next_action == Some(NextAction::NotApplicable)
+            && self.redirect_url.is_none()
+        {
+            common_enums::AttemptStatus::Charged
+        } else {
+            common_enums::AttemptStatus::AuthenticationPending
+        };
+        if self
+            .failure_code
+            .as_ref()
+            .is_some_and(|code| !code.is_empty())
+            || self
+                .failure_message
+                .as_ref()
+                .is_some_and(|message| !message.is_empty())
+        {
+            return Ok((
+                common_enums::AttemptStatus::Failure,
+                Err(ErrorResponse {
+                    code: self
+                        .failure_code
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_owned()),
+                    message: self
+                        .failure_message
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_owned()),
+                    status_code: http_code,
+                    connector_transaction_id: Some(card_id),
+                    ..Default::default()
+                }),
+            ));
+        }
+        let redirection_data = self
+            .redirect_url
+            .map(|value| Url::parse(&value))
+            .transpose()
+            .change_context(utils::response_handling_fail(
+                http_code,
+                "Invalid registration redirect",
+            ))?
+            .map(|url| Box::new(RedirectForm::from((url, Method::Get))));
+        Ok((
+            status,
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(card_id.clone()),
+                redirection_data,
+                mandate_reference: (status == common_enums::AttemptStatus::Charged).then(|| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(card_id),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    })
+                }),
+                connector_metadata: Some(serde_json::json!({"customer_id": customer_id})),
+                network_txn_id: (status == common_enums::AttemptStatus::Charged)
+                    .then(|| self.network_reference_id.map(ExposeInterface::expose))
+                    .flatten(),
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
+            }),
+        ))
+    }
+}
+
 // ---------------------------------------------------------------------------
 // RepeatPayment (MIT) — Rapyd reuses /v1/payments with a stored
 // saved `card_*` payment method token returned by SetupMandate. The
@@ -2508,10 +3297,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.resource_common_data.auth_type,
             common_enums::AuthenticationType::ThreeDs
         );
-        let payment_method_options =
-            Some(RapydPaymentMethodOptions::Hosted(PaymentMethodOptions {
+        let payment_method_options = Some(RapydPaymentMethodOptions {
+            authentication: RapydAuthenticationOptions::Hosted(PaymentMethodOptions {
                 three_ds: three_ds_enabled,
-            }));
+            }),
+            avs_required: None,
+        });
 
         // On Charge, return_url arrives on `request.router_return_url`;
         // `PaymentFlowData.return_url` is hardcoded to None for this flow.

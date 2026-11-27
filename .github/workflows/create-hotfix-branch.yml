@@ -9,7 +9,7 @@ concurrency:
 
 jobs:
   authorize:
-    uses: ./.github/workflows/authorize-release.yml
+    uses: $/.github/workflows/authorize-release.yml
     # The membership check authenticates with a GitHub app token minted
     # from the secrets below and never uses GITHUB_TOKEN.
     permissions: {}
@@ -27,14 +27,17 @@ jobs:
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v2.2.2
         with:
           app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          repositories: ${{ github.event.repository.name }}
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.4.0
         with:
+          persist-credentials: false
           fetch-depth: 0
           token: ${{ steps.generate_app_token.outputs.token }}
 
@@ -57,11 +60,13 @@ jobs:
 
       - name: Create hotfix branch
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
         run: |
           HOTFIX_BRANCH="hotfix-${GITHUB_REF#refs/tags/}"
 
           if git switch --create "$HOTFIX_BRANCH"; then
-            git push origin "$HOTFIX_BRANCH"
+            git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$HOTFIX_BRANCH"
             echo "::notice::Created hotfix branch: $HOTFIX_BRANCH"
           else
             echo "::error::Failed to create hotfix branch"

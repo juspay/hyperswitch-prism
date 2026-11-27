@@ -94,7 +94,13 @@ impl TruelayerPayouts {
             }
         })?;
         let metadata = truelayer::TruelayerPayoutMetadata::try_from(&req.connector_config)?;
-        let idempotency_key = common_utils::fp_utils::generate_uuid_v4();
+        // Stable across retries when the caller sends merchant_request_id, so TrueLayer
+        // de-duplicates a retried POST instead of creating a second payout.
+        let idempotency_key = req
+            .resource_common_data
+            .merchant_request_id
+            .clone()
+            .unwrap_or_else(common_utils::fp_utils::generate_uuid_v4);
         let request_body = self
             .get_request_body(req)?
             .map(|body| body.content.get_inner_value().expose().clone());
@@ -208,7 +214,8 @@ impl ConnectorCommon for TruelayerPayouts {
                 .to_string(),
             reason: Some(response.detail.clone()),
             attempt_status: None,
-            connector_transaction_id: Some(response.trace_id.clone()),
+            // `trace_id` is a request-trace GUID, not a payout id.
+            connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,

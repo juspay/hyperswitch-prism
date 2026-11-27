@@ -49,7 +49,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{types::ResponseRouterData, utils, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
@@ -141,24 +141,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookReferenceIdNotFound)?;
-        if let Some(setup) = transformers::setup_webhook(&event)? {
-            return Ok(Some(WebhookResourceReference::Payment(
-                PaymentWebhookReference {
-                    connector_transaction_id: Some(setup.reference()),
-                    merchant_transaction_id: None,
-                    connector_preprocessing_id: None,
-                },
-            )));
-        }
         use transformers::RapydWebhookEventType;
         Ok(match event.webhook_type {
-            RapydWebhookEventType::PaymentUpdated
-            | RapydWebhookEventType::PaymentSucceeded
+            RapydWebhookEventType::PaymentSucceeded
+            | RapydWebhookEventType::PaymentUpdated
             | RapydWebhookEventType::PaymentCompleted
             | RapydWebhookEventType::PaymentCaptured
             | RapydWebhookEventType::PaymentCanceled
             | RapydWebhookEventType::PaymentExpired
-            | RapydWebhookEventType::PaymentFailed => {
+            | RapydWebhookEventType::PaymentFailed
+            | RapydWebhookEventType::CardAddedFailure => {
                 let data = event.payment_data()?;
                 Some(WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(data.id),
@@ -185,9 +177,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_transaction_id: Some(data.original_transaction_id),
                 }))
             }
-            RapydWebhookEventType::Unknown
-            | RapydWebhookEventType::CardAddedSuccessfully
-            | RapydWebhookEventType::CardAddedFailure => None,
+            RapydWebhookEventType::Unknown => None,
         })
     }
 
@@ -202,9 +192,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        if let Some(setup) = transformers::setup_webhook(&event)? {
-            return Ok(setup.into_response(&request.body));
-        }
         event.payment_data()?.into_response(&request.body)
     }
 
@@ -437,12 +424,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     &response_data,
                     "typed_connector_response",
                 );
+                let attempt_status = (res.status_code == 400
+                    && response_data.status.error_code == "INVALID_PAYMENT_METHOD")
+                    .then_some(domain_types::router_data::FlowStatus::Payment(
+                        common_enums::AttemptStatus::Failure,
+                    ));
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response_data.status.error_code,
                     message: response_data.status.status.unwrap_or_default(),
                     reason: response_data.status.message,
-                    attempt_status: None,
+                    attempt_status,
                     connector_transaction_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
@@ -672,10 +664,17 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            if let Some(url) = transformers::setup_sync_url(&req.request, self.connector_base_url_payments(req))? {
-                return Ok(url);
-            }
             let id = req.request.get_connector_transaction_id()?;
+            if id.starts_with("card_") {
+                let customer = req.request.connector_feature_data.as_ref()
+                    .and_then(|value| value.peek().get("customer_id"))
+                    .and_then(serde_json::Value::as_str).filter(|id| id.starts_with("cus_"))
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "connector_feature_data.customer_id",
+                        context: utils::integration_ctx("The registration customer ID is missing", "Pass the connector feature data returned by SetupMandate."),
+                    })?;
+                return Ok(format!("{}/v1/customers/{}/payment_methods/{}", self.connector_base_url_payments(req), urlencoding::encode(customer), urlencoding::encode(&id)));
+            }
             Ok(format!("{}/v1/payments/{}", self.connector_base_url_payments(req), id))
         }
     }
@@ -846,7 +845,7 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Register and verify the card without a separate customer flow or payment.
+// Register the card through the customer endpoint for hosted or external 3DS.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Rapyd,
@@ -900,13 +899,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let path = match req.resource_common_data.connector_customer.as_deref() {
-                Some(customer) if !customer.is_empty() => format!(
-                    "/v1/customers/{}/payment_methods", urlencoding::encode(customer)
-                ),
-                _ => "/v1/customers".to_string(),
-            };
-            Ok(format!("{}{path}", self.connector_base_url_payments(req)))
+            Ok(format!("{}/v1/customers", self.connector_base_url_payments(req)))
         }
     }
 );

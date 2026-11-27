@@ -1559,6 +1559,27 @@ impl From<crate::connector_types::SettlementStatus> for grpc_api_types::payments
     }
 }
 
+impl ForeignFrom<grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod>
+    for Option<payment_method_data::TokenPaymentMethod>
+{
+    fn foreign_from(
+        value: grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod,
+    ) -> Self {
+        match value {
+            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::ApplePay => {
+                Some(payment_method_data::TokenPaymentMethod::ApplePay)
+            }
+            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::GooglePay => {
+                Some(payment_method_data::TokenPaymentMethod::GooglePay)
+            }
+            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::Klarna => {
+                Some(payment_method_data::TokenPaymentMethod::Klarna)
+            }
+            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::Unspecified => None,
+        }
+    }
+}
+
 impl ForeignFrom<payment_method_data::UpiSource> for grpc_api_types::payments::UpiSource {
     fn foreign_from(value: payment_method_data::UpiSource) -> Self {
         match value {
@@ -1871,15 +1892,9 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
                     Ok(Self::PaymentMethodToken(payment_method_data::PaymentMethodToken {
-                        token_payment_method_type: match token.token_payment_method_type() {
-                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::ApplePay => {
-                                Some(payment_method_data::TokenPaymentMethod::ApplePay)
-                            }
-                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::GooglePay => {
-                                Some(payment_method_data::TokenPaymentMethod::GooglePay)
-                            }
-                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::Unspecified => None,
-                        },
+                        token_payment_method_type: <Option<payment_method_data::TokenPaymentMethod>>::foreign_from(
+                            token.token_payment_method_type(),
+                        ),
                         token: token
                             .token
                             .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
@@ -3556,8 +3571,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                         }
                     }
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::Token(_) => {
-                    Ok(None)
+                // See `TokenPaymentMethod::payment_method_type`: only a Klarna token reports one.
+                grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
+                    Ok(<Option<payment_method_data::TokenPaymentMethod>>::foreign_from(
+                        token.token_payment_method_type(),
+                    )
+                    .and_then(payment_method_data::TokenPaymentMethod::payment_method_type))
                 },
                 grpc_api_types::payments::payment_method::PaymentMethod::UpiCollect(_) => Ok(Some(PaymentMethodType::UpiCollect)),
                 grpc_api_types::payments::payment_method::PaymentMethod::UpiIntent(_) => Ok(Some(PaymentMethodType::UpiIntent)),
@@ -4068,6 +4087,7 @@ pub struct AuthorizationRequest {
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
     /// Merchant business country (ISO 3166-1 alpha-2) for country-specific connector rules.
     pub business_country: Option<String>,
+    pub merchant_details: Option<crate::frm::frm_types::MerchantDetails>,
     /// Authorize-only opt-in for address verification using supplied billing details.
     pub enable_avs_check: Option<bool>,
     /// Opt-in for account name verification.
@@ -4205,6 +4225,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             purpose_of_payment: req.purpose_of_payment,
             additional_connector_details: req.additional_connector_details,
             business_country: req.business_country,
+            merchant_details: req.merchant_details.map(ForeignFrom::foreign_from),
             enable_avs_check: req.enable_avs_check,
             enable_account_name_verification: req.enable_account_name_verification,
         }
@@ -4287,6 +4308,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             purpose_of_payment: None,
             additional_connector_details: None,
             business_country: None,
+            merchant_details: None,
             enable_avs_check: req.enable_avs_check,
             enable_account_name_verification: None,
         }
@@ -5980,6 +6002,7 @@ impl<
                 .business_country
                 .as_ref()
                 .and_then(|c| common_enums::CountryAlpha2::from_str(c).ok()),
+            merchant_details: value.merchant_details,
             enable_avs_check: value.enable_avs_check,
             enable_account_name_verification: value.enable_account_name_verification,
             tokenization,
@@ -6992,10 +7015,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
-            attempt_id: metadata
-                .get_raw(consts::X_RESOURCE_ID)
-                .filter(|id| !id.is_empty())
-                .unwrap_or_else(|| "IRRELEVANT_ATTEMPT_ID".to_string()),
+            attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Unspecified,
             // Unmapped or absent payment method data keeps the previous Card default.
             payment_method: value
@@ -8561,10 +8581,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::NetworkToken(_)),
             } => Ok(Self::NetworkToken),
+            // See `TokenPaymentMethod::payment_method`; an untyped token stays `Wallet`.
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Token(_)),
-            } => Ok(Self::Wallet),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Token(token)),
+            } => Ok(<Option<payment_method_data::TokenPaymentMethod>>::foreign_from(
+                token.token_payment_method_type(),
+            )
+            .map_or(Self::Wallet, payment_method_data::TokenPaymentMethod::payment_method)),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::UpiCollect(_)),
@@ -20980,6 +21004,7 @@ impl<
             enable_partial_authorization: value.enable_partial_authorization,
             payment_channel,
             billing_descriptor,
+            merchant_details: value.merchant_details.map(ForeignFrom::foreign_from),
         })
     }
 }
@@ -22314,6 +22339,7 @@ pub fn tokenized_authorize_to_base(
         sender_details: None,
         additional_connector_details: None,
         business_country: None,
+        merchant_details: None,
         enable_avs_check: v.enable_avs_check,
         enable_account_name_verification: None,
         risk_assessment_data: None,
@@ -22518,6 +22544,7 @@ pub fn proxied_authorize_to_base(
         sender_details: None,
         additional_connector_details: None,
         business_country: None,
+        merchant_details: None,
         enable_avs_check: v.enable_avs_check,
         enable_account_name_verification: None,
         risk_assessment_data: None,
