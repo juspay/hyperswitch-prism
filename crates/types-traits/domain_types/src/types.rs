@@ -18314,6 +18314,7 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                 connector: Some(
                     grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Revolut(
                         grpc_api_types::payments::RevolutClientAuthenticationResponse {
+                            customer_id: revolut_data.customer_id,
                             order_id: revolut_data.order_id,
                             token: Some(revolut_data.token),
                         },

@@ -102,6 +102,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             base_url: None,
         },
         ConnectorEnum::Revolut => ConnectorSpecificConfig::Revolut {
+            public_key: None,
             secret_api_key: k(),
             signing_secret: None,
             base_url: None,

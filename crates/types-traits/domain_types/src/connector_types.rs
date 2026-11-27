@@ -6180,6 +6180,8 @@ pub struct NexixpayClientAuthenticationResponse {
 /// Revolut's order_id and token for client-side Revolut Pay widget initialization
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RevolutClientAuthenticationResponse {
+    /// Revolut customer ID to persist and reuse for subsequent checkout sessions.
+    pub customer_id: Option<String>,
     /// The order ID created on Revolut
     pub order_id: String,
     /// The client authentication token for SDK initialization
