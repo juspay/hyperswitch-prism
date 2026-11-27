@@ -313,10 +313,10 @@ examples_python: examples/fiserv/fiserv.py
 ## Fiservcommercehub
 connector_id: fiservcommercehub
 doc: docs/connectors/fiservcommercehub.md
-scenarios: none
-payment_methods: none
-flows: capture, create_server_authentication_token, get, incremental_authorization, recurring_charge, refund, refund_get, reverse, void
-examples_python: none
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
+flows: authenticate, authorize, capture, create_server_authentication_token, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, reverse, setup_recurring, void
+examples_python: examples/fiservcommercehub/fiservcommercehub.py
 
 ## Fiservemea
 connector_id: fiservemea

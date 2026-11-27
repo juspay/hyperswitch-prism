@@ -424,6 +424,16 @@ enum ThreeDsCompletionIndicator {
       3; // 3DS method URL was unavailable ("U")
 }
 
+// Server-selected stage of a connector-managed authentication flow. Forward
+// this value from the previous response; browser callbacks must not set it.
+enum AuthenticationStage {
+  AUTHENTICATION_STAGE_UNSPECIFIED = 0;
+  AUTHENTICATION_STAGE_DEVICE_DATA_COLLECTION_PENDING = 1;
+  AUTHENTICATION_STAGE_CHALLENGE_PENDING = 2;
+  AUTHENTICATION_STAGE_READY_TO_AUTHORIZE = 3;
+  AUTHENTICATION_STAGE_FAILED = 4;
+}
+
 // Transaction status from authentication/verification process
 enum TransactionStatus {
   TRANSACTION_STATUS_UNSPECIFIED = 0; // Default value
@@ -1120,6 +1130,9 @@ message AuthenticationData {
   // frictionless). Used by connectors (e.g. Cybersource
   // effectiveAuthenticationType).
   optional DecoupledAuthenticationType authentication_type = 17;
+  // Current stage of connector-managed authentication, separate from the
+  // issuer's trans_status. Omitted for external authentication pass-through.
+  optional AuthenticationStage authentication_stage = 18;
 }
 
 // Details of customer acceptance for mandates or terms

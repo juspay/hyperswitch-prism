@@ -12,12 +12,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, SetupMandate, Void, VoidPC,
+        Authenticate, Authorize, Capture, IncrementalAuthorization, PSync, PostAuthenticate,
+        PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken, SetupMandate,
+        Void, VoidPC,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, SetupMandateRequestData,
@@ -40,14 +42,20 @@ use serde::Serialize;
 use transformers as fiservcommercehub;
 use transformers::{
     FiservcommercehubAccessTokenRequest, FiservcommercehubAccessTokenResponse,
-    FiservcommercehubAuthorizeRequest, FiservcommercehubAuthorizeResponse,
+    FiservcommercehubAuthenticateRequest, FiservcommercehubAuthorizeRequest,
+    FiservcommercehubAuthorizeResponse,
     FiservcommercehubAuthorizeResponse as FiservcommercehubIncrementalAuthorizationResponse,
     FiservcommercehubCaptureRequest, FiservcommercehubCaptureResponse,
     FiservcommercehubIncrementalAuthorizationRequest, FiservcommercehubPSyncRequest,
-    FiservcommercehubPSyncResponse, FiservcommercehubRSyncRequest, FiservcommercehubRSyncResponse,
-    FiservcommercehubRefundRequest, FiservcommercehubRefundResponse,
-    FiservcommercehubRepeatPaymentRequest, FiservcommercehubRepeatResponse,
-    FiservcommercehubSetupMandateRequest, FiservcommercehubSetupMandateResponse,
+    FiservcommercehubPSyncResponse, FiservcommercehubPostAuthenticateRequest,
+    FiservcommercehubPreAuthenticateRequest, FiservcommercehubRSyncRequest,
+    FiservcommercehubRSyncResponse, FiservcommercehubRefundRequest,
+    FiservcommercehubRefundResponse, FiservcommercehubRepeatPaymentRequest,
+    FiservcommercehubRepeatResponse, FiservcommercehubSetupMandateRequest,
+    FiservcommercehubSetupMandateResponse,
+    FiservcommercehubThreeDsResponse as FiservcommercehubPreAuthenticateResponse,
+    FiservcommercehubThreeDsResponse as FiservcommercehubAuthenticateResponse,
+    FiservcommercehubThreeDsResponse as FiservcommercehubPostAuthenticateResponse,
     FiservcommercehubVoidPCRequest, FiservcommercehubVoidRequest,
     FiservcommercehubVoidResponse as FiservcommercehubVoidPCResponse,
     FiservcommercehubVoidResponse,
@@ -80,6 +88,33 @@ fn fiserv_integration_error_context(
     }
 }
 
+/// The encrypted request is built once: signing and sending must use the same
+/// ciphertext because RSA-OAEP encryption generates a fresh random salt.
+fn build_signed_three_ds_request<B: Serialize + Send + 'static>(
+    config: &ConnectorSpecificConfig,
+    url: &str,
+    body: B,
+) -> CustomResult<Request, errors::IntegrationError> {
+    let serialized = serde_json::to_string(&body).change_context(
+        errors::IntegrationError::RequestEncodingFailed {
+            context: fiserv_integration_error_context(
+                "Verify the fields supplied for the CommerceHub 3DS request.",
+                fiservcommercehub::FISERV_THREE_DS_DOC_URL,
+                "Failed to serialize the CommerceHub 3DS request for HMAC signing.",
+            ),
+        },
+    )?;
+    let headers = fiservcommercehub::FiservcommercehubAuthType::try_from(config)?
+        .build_hmac_headers("application/json", &serialized)?;
+    Ok(RequestBuilder::new()
+        .method(Method::Post)
+        .url(url)
+        .attach_default_headers()
+        .headers(headers)
+        .set_optional_body(Some(RequestContent::Json(Box::new(body))))
+        .build())
+}
+
 // =============================================================================
 // MACRO PREREQUISITES — creates Fiservcommercehub<T> struct, FiservcommercehubRouterData,
 // bridge types, Clone impl, and new()
@@ -88,6 +123,25 @@ macros::create_all_prerequisites!(
     connector_name: Fiservcommercehub,
     generic_type: T,
     api: [
+        (
+            flow: PreAuthenticate,
+            request_body: FiservcommercehubPreAuthenticateRequest,
+            response_body: FiservcommercehubPreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: Authenticate,
+            request_body: FiservcommercehubAuthenticateRequest,
+            response_body: FiservcommercehubAuthenticateResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: FiservcommercehubPostAuthenticateRequest,
+            response_body: FiservcommercehubPostAuthenticateResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ),
+
         (
             flow: ServerAuthenticationToken,
             request_body: FiservcommercehubAccessTokenRequest,
@@ -769,6 +823,108 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== CONNECTOR INTEGRATION V2 IMPLEMENTATIONS =====
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Fiservcommercehub<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservcommercehub,
+    curl_request: Json(FiservcommercehubPreAuthenticateRequest),
+    curl_response: FiservcommercehubPreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(&self, req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>)
+            -> CustomResult<String, errors::IntegrationError> {
+            Ok(format!("{}payments-vas/v1/3ds/device-data-initialize", self.connector_base_url(req)))
+        }
+
+        fn build_request_v2(&self, req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>)
+            -> CustomResult<Option<Request>, errors::IntegrationError> {
+            let request = FiservcommercehubPreAuthenticateRequest::try_from(FiservcommercehubRouterData {
+                connector: self.to_owned(),
+                router_data: req.clone(),
+            })?;
+            build_signed_three_ds_request(&req.connector_config, &self.get_url(req)?, request).map(Some)
+        }
+    }
+);
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAuthenticateV2<T> for Fiservcommercehub<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservcommercehub,
+    curl_request: Json(FiservcommercehubAuthenticateRequest),
+    curl_response: FiservcommercehubAuthenticateResponse,
+    flow_name: Authenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(&self, req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>)
+            -> CustomResult<String, errors::IntegrationError> {
+            Ok(format!("{}payments-vas/v1/3ds/authenticate", self.connector_base_url(req)))
+        }
+
+        fn build_request_v2(&self, req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>)
+            -> CustomResult<Option<Request>, errors::IntegrationError> {
+            let request = FiservcommercehubAuthenticateRequest::try_from(FiservcommercehubRouterData {
+                connector: self.to_owned(),
+                router_data: req.clone(),
+            })?;
+            build_signed_three_ds_request(&req.connector_config, &self.get_url(req)?, request).map(Some)
+        }
+    }
+);
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPostAuthenticateV2<T> for Fiservcommercehub<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservcommercehub,
+    curl_request: Json(FiservcommercehubPostAuthenticateRequest),
+    curl_response: FiservcommercehubPostAuthenticateResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(&self, req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>)
+            -> CustomResult<String, errors::IntegrationError> {
+            Ok(format!("{}payments-vas/v1/3ds/verify", self.connector_base_url(req)))
+        }
+
+        fn build_request_v2(&self, req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>)
+            -> CustomResult<Option<Request>, errors::IntegrationError> {
+            let request = FiservcommercehubPostAuthenticateRequest::try_from(FiservcommercehubRouterData {
+                connector: self.to_owned(),
+                router_data: req.clone(),
+            })?;
+            build_signed_three_ds_request(&req.connector_config, &self.get_url(req)?, request).map(Some)
+        }
+    }
+);
+
 // ServerAuthenticationToken is implemented via macro_connector_implementation! above.
 
 macros::macro_connector_implementation!(
@@ -1192,10 +1348,7 @@ macros::macro_connector_flow_status_impls!(
         GetConnectorCustomer,
         DefendDispute,
         MandateRevoke,
-        Authenticate,
         CreateOrder,
-        PostAuthenticate,
-        PreAuthenticate,
         ServerSessionAuthenticationToken,
         PaymentMethodToken,
         ClientAuthenticationToken,

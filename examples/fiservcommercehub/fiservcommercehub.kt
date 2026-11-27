@@ -11,10 +11,17 @@ import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.PaymentMethodAuthenticationClient
 import payments.MerchantAuthenticationClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
+import payments.AcceptanceType
+import payments.AuthenticationStage
+import payments.AuthenticationType
+import payments.CaptureMethod
+import payments.CardNetwork
 import payments.Currency
+import payments.FutureUsage
 import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
@@ -23,7 +30,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.FiservcommercehubConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_server_authentication_token", "get", "incremental_authorization", "recurring_charge", "refund", "refund_get", "reverse", "void")
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "capture", "create_server_authentication_token", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -42,6 +49,39 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
 
 
 
+private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
+    return PaymentServiceAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_txn_001"  // Identification.
+        amountBuilder.apply {  // The amount for the payment.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {  // Payment method to be used.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
+        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+}
+
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
     return PaymentServiceCaptureRequest.newBuilder().apply {
         merchantCaptureId = "probe_capture_001"  // Identification.
@@ -52,7 +92,7 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
         }
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -70,7 +110,7 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
         }
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -90,7 +130,7 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
         reason = "customer_request"  // Reason for the refund.
         stateBuilder.apply {  // State data for access token storage and.
             accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -104,7 +144,7 @@ private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServi
         connectorTransactionId = connectorTransactionIdStr
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -118,12 +158,163 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
         connectorTransactionId = connectorTransactionIdStr
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
         }
     }.build()
+}
+
+// Scenario: One-step Payment (Authorize + Capture)
+// Simple payment that authorizes and captures in one call. Use for immediate charges.
+fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+}
+
+// Scenario: Card Payment (Authorize + Capture)
+// Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
+fun processCheckoutCard(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Capture — settle the reserved funds
+    val captureResponse = paymentClient.capture(buildCaptureRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    if (captureResponse.status.name == "FAILED")
+        throw RuntimeException("Capture failed: ${captureResponse.error.unifiedDetails.message}")
+
+    return mapOf("status" to captureResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+}
+
+// Scenario: Refund
+// Return funds to the customer for a completed payment.
+fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Refund — return funds to the customer
+    val refundResponse = paymentClient.refund(buildRefundRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    if (refundResponse.status.name == "FAILED")
+        throw RuntimeException("Refund failed: ${refundResponse.error.unifiedDetails.message}")
+
+    return mapOf("status" to refundResponse.status.name, "error" to refundResponse.error)
+}
+
+// Scenario: Void Payment
+// Cancel an authorized but not-yet-captured payment.
+fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    val voidResponse = paymentClient.void(buildVoidRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    return mapOf("status" to voidResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to voidResponse.error)
+}
+
+// Scenario: Get Payment Status
+// Retrieve current payment status from the connector.
+fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Get — retrieve current payment status from the connector
+    val getResponse = paymentClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
+}
+
+// Flow: PaymentMethodAuthenticationService.Authenticate
+fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
+    val request = PaymentMethodAuthenticationServiceAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authenticationDataBuilder.apply {  // Authentication Details.
+            connectorTransactionId = "probe_authentication_txn_001"  // Transaction identifier generated by the 3DS system.
+            authenticationStage = AuthenticationStage.AUTHENTICATION_STAGE_DEVICE_DATA_COLLECTION_PENDING  // Current stage of connector-managed authentication, separate from the issuer's trans_status. Omitted for external authentication pass-through.
+        }
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+        redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
+            putAllPayload(mapOf("MessageType" to "profile.completed", "SessionId" to "probe_ddc_session_001", "Status" to "true"))
+        }
+    }.build()
+    val response = client.authenticate(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.Authorize (Card)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildAuthorizeRequest("AUTOMATIC")
+    val response = client.authorize(request)
+    when (response.status.name) {
+        "FAILED"  -> throw RuntimeException("Authorize failed: ${response.error.unifiedDetails.message}")
+        "PENDING" -> println("Pending — await webhook before proceeding")
+        else      -> println("Authorized: ${response.connectorTransactionId}")
+    }
 }
 
 // Flow: PaymentService.Capture
@@ -167,7 +358,7 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
         reason = "incremental_auth_probe"  // Optional Fields.
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -178,6 +369,153 @@ fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultCo
         }
     }.build()
     val response = client.incremental_authorization(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentMethodAuthenticationService.PostAuthenticate
+fun postAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
+    val request = PaymentMethodAuthenticationServicePostAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authenticationDataBuilder.apply {  // Authentication Details.
+            connectorTransactionId = "probe_authentication_txn_001"  // Transaction identifier generated by the 3DS system.
+            authenticationStage = AuthenticationStage.AUTHENTICATION_STAGE_CHALLENGE_PENDING  // Current stage of connector-managed authentication, separate from the issuer's trans_status. Omitted for external authentication pass-through.
+        }
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+    val response = client.post_authenticate(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
+    val request = PaymentMethodAuthenticationServicePreAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        enrolledFor3Ds = false  // Authentication Details.
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+        stateBuilder.apply {  // State Information.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+    val response = client.pre_authenticate(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.ProxyAuthorize
+fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_proxy_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L
+            currency = Currency.USD
+        }
+        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+            cardExpMonthBuilder.value = "03"
+            cardExpYearBuilder.value = "2030"
+            cardCvcBuilder.value = "123"
+            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
+        }
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        authType = AuthenticationType.NO_THREE_DS
+        returnUrl = "https://example.com/return"
+        stateBuilder.apply {
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+    val response = client.proxy_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
+// Flow: PaymentService.ProxySetupRecurring
+fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceProxySetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_proxy_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L
+            currency = Currency.USD
+        }
+        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments.
+            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+            cardExpMonthBuilder.value = "03"
+            cardExpYearBuilder.value = "2030"
+            cardCvcBuilder.value = "123"
+            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
+        }
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        stateBuilder.apply {
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+        authType = AuthenticationType.NO_THREE_DS
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.proxy_setup_recurring(request)
     println("Status: ${response.status.name}")
 }
 
@@ -207,7 +545,7 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
         offSession = true  // Behavioral Flags and Preferences.
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -238,7 +576,7 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
         refundId = "probe_refund_id_001"  // Deprecated.
         stateBuilder.apply {  // State Information.
             accessTokenBuilder.apply {  // Access token obtained from connector.
-                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"  // The token string.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
                 expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
                 tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
@@ -256,6 +594,52 @@ fun reverse(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.SetupRecurring
+fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
+        amountBuilder.apply {  // Mandate Details.
+            minorAmount = 0L
+            currency = Currency.USD
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
+        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
+        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
+        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
+        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
+        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
+            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        }
+        stateBuilder.apply {  // State data for access token storage and.
+            accessTokenBuilder.apply {  // Access token obtained from connector.
+                tokenBuilder.value = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvY3/vZk8LkFmrS0E/pbo/6JzzonGKzH52XYkAaAWcMmxQ0W7UVlltKNvsqQBUPlXGITqtUeoREzdPJEB1IS0W4dXlT+rI63dCLwgY2o7dKaHkkAHR6NcXanR95toGDVpH8eKCcSCfGwJV5OogiXd419kBtMaOzppAoxkA7zoGlzX3HOfGNb9hc4kLeFiy4qiQYCJaaxmrUpelOQlcgVIRJwcBx6mVPa8DP7Sp+JkxDeqxCg6UgXk+3DWVmnSlhAQOcB+nqBTnKYKSEKpNfOoW9KQKd0Of9uVdmwLY6kuuN6itDEwQ0WUgcUWVef6/4tt0uO9CJjIERIAiE0ztpDLaQIDAQAB"  // The token string.
+                expiresInSeconds = 3600L  // Expiration timestamp (seconds since epoch).
+                tokenType = "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    }.build()
+    val response = client.setup_recurring(request)
+    when (response.status.name) {
+        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
+        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
+    }
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -269,17 +653,29 @@ fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "capture"
+    val flow = args.firstOrNull() ?: "processCheckoutAutocapture"
     when (flow) {
+        "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
+        "processCheckoutCard" -> processCheckoutCard(txnId)
+        "processRefund" -> processRefund(txnId)
+        "processVoidPayment" -> processVoidPayment(txnId)
+        "processGetPayment" -> processGetPayment(txnId)
+        "authenticate" -> authenticate(txnId)
+        "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "createServerAuthenticationToken" -> createServerAuthenticationToken(txnId)
         "get" -> get(txnId)
         "incrementalAuthorization" -> incrementalAuthorization(txnId)
+        "postAuthenticate" -> postAuthenticate(txnId)
+        "preAuthenticate" -> preAuthenticate(txnId)
+        "proxyAuthorize" -> proxyAuthorize(txnId)
+        "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "reverse" -> reverse(txnId)
+        "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createServerAuthenticationToken, get, incrementalAuthorization, recurringCharge, refund, refundGet, reverse, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, createServerAuthenticationToken, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, reverse, setupRecurring, void")
     }
 }
