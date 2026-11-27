@@ -282,6 +282,7 @@ pub(crate) fn authorize_pm_variants() -> Vec<(&'static str, fn() -> PaymentMetho
         ("FamilyMart", family_mart_method as fn() -> PaymentMethod),
         ("Seicomart", seicomart_method as fn() -> PaymentMethod),
         ("PayEasy", pay_easy_method as fn() -> PaymentMethod),
+        ("Dragonpay", dragonpay_method as fn() -> PaymentMethod),
     ]
 }
 

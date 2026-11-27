@@ -1628,6 +1628,7 @@ pub enum PaymentMethodType {
     FamilyMart,
     Seicomart,
     PayEasy,
+    Dragonpay,
     LocalBankTransfer,
     Mifinity,
     #[serde(rename = "open_banking_pis")]

@@ -1474,6 +1474,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::FamilyMart
             | common_enums::PaymentMethodType::Seicomart
             | common_enums::PaymentMethodType::PayEasy
+            | common_enums::PaymentMethodType::Dragonpay
             | common_enums::PaymentMethodType::LocalBankTransfer
             | common_enums::PaymentMethodType::InstantBankTransfer
             | common_enums::PaymentMethodType::InstantBankTransferFinland
@@ -2187,6 +2188,7 @@ fn create_stripe_payment_method<
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
+            | VoucherData::Dragonpay
             | VoucherData::PayEasy(_) => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),

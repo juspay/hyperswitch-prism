@@ -207,6 +207,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and network token payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN or network token and its expiry"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and network token payment methods are supported for Worldpay RAFT. Worldpay RAFT authorization requires a card PAN or network token and its expiry"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

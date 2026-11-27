@@ -154,6 +154,7 @@ _PROBE_PM_BY_CATEGORY = [
         ("FamilyMart", "Family Mart"),
         ("Seicomart", "Seicomart"),
         ("PayEasy", "Pay Easy"),
+        ("Dragonpay", "DragonPay"),
     ]),
 ]
 

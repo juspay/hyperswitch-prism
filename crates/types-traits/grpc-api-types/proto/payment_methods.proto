@@ -234,6 +234,7 @@ message PaymentMethod {
     MiniStop mini_stop = 150;                                  // Ministop - Japanese convenience store payment
     FamilyMart family_mart = 151;                             // FamilyMart - Japanese convenience store payment
     Seicomart seicomart = 152;                                // Seicomart - Japanese convenience store payment
+    Dragonpay dragonpay = 197;                              // DragonPay non-bank OTC
     PayEasy pay_easy = 153;                                    // Pay-easy - Japanese bill payment service
 
     // NETBANKING - Indian net banking (bank redirect)
@@ -1310,6 +1311,9 @@ message FamilyMart {
 message Seicomart {
   // Fields will be added as needed for Seicomart integration
 }
+
+// DragonPay - Philippine non-bank over-the-counter voucher
+message Dragonpay {}
 
 // Pay-easy - Japanese bill payment service
 message PayEasy {

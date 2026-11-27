@@ -128,6 +128,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Fiserv CommerceHub supports only Card, CardWithNoCvc, CardDetailsForNetworkTransactionId, NetworkToken, ApplePay (pre-decrypted), and GooglePay (pre-decrypted). Received an unsupported payment method type for the Authorize flow"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Fiserv CommerceHub supports only Card, CardWithNoCvc, ApplePay (pre-decrypted), and GooglePay (pre-decrypted). Received an unsupported payment method type for the Authorize flow"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

@@ -480,6 +480,7 @@ pub struct Connectors {
     pub betterpayment: ConnectorParams,
     pub reddot: ConnectorParams,
     pub ecommpay: ConnectorParams,
+    pub paynamics: ConnectorParams,
     pub payhound: ConnectorParams,
     pub revpay: ConnectorParams,
 }
@@ -894,6 +895,9 @@ impl Connectors {
             }
             ConnectorEnum::Ecommpay => {
                 patched.ecommpay.apply(params_patch);
+            }
+            ConnectorEnum::Paynamics => {
+                patched.paynamics.apply(params_patch);
             }
             ConnectorEnum::Payhound => {
                 patched.payhound.apply(params_patch);
@@ -3040,6 +3044,9 @@ impl<
                         payment_method_data::JCSVoucherData {},
                     ))))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::Dragonpay(_) => {
+                    Ok(Self::Voucher(payment_method_data::VoucherData::Dragonpay))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::PayEasy(_) => {
                     Ok(Self::Voucher(payment_method_data::VoucherData::PayEasy(Box::new(
                         payment_method_data::JCSVoucherData {},
@@ -3453,6 +3460,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::Seicomart)
             }
             grpc_api_types::payments::PaymentMethodType::PayEasy => Ok(PaymentMethodType::PayEasy),
+            grpc_api_types::payments::PaymentMethodType::Dragonpay => {
+                Ok(PaymentMethodType::Dragonpay)
+            }
             grpc_api_types::payments::PaymentMethodType::LocalBankTransfer => {
                 Ok(PaymentMethodType::LocalBankTransfer)
             }
@@ -3753,6 +3763,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Seicomart(_) => {
                     Ok(Some(PaymentMethodType::Seicomart))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::Dragonpay(_) => {
+                    Ok(Some(PaymentMethodType::Dragonpay))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::PayEasy(_) => {
                     Ok(Some(PaymentMethodType::PayEasy))
@@ -9041,6 +9054,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::PayEasy(_)),
             } => Ok(Self::Voucher),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Dragonpay(_)),
+            } => Ok(Self::Voucher),
             // DIRECT DEBIT
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -10485,7 +10502,9 @@ impl
             ),
 
             status: common_enums::RefundStatus::Pending,
-            refund_id: None,
+            refund_id: Some(extract_connector_request_reference_id(
+                &value.merchant_refund_id.clone(),
+            )),
             connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
@@ -10695,6 +10714,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
 
             grpc_api_types::payments::PaymentMethodType::Boleto => Ok(Self::Voucher),
             grpc_api_types::payments::PaymentMethodType::Oxxo => Ok(Self::Voucher),
+            grpc_api_types::payments::PaymentMethodType::Dragonpay => Ok(Self::Voucher),
             grpc_api_types::payments::PaymentMethodType::CardRedirect => Ok(Self::CardRedirect),
             grpc_api_types::payments::PaymentMethodType::Knet => Ok(Self::CardRedirect),
             grpc_api_types::payments::PaymentMethodType::Benefit => Ok(Self::CardRedirect),
@@ -15662,6 +15682,7 @@ pub enum PaymentMethodDataType {
     FamilyMart,
     Seicomart,
     PayEasy,
+    Dragonpay,
     Givex,
     PaySafeCar,
     PaymentMethodToken,

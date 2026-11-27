@@ -98,6 +98,9 @@
     },
     "payload": {},
     "payme": {},
+    "paynamics": {
+      "reason": "Paynamics REST supports automatic sale, payment sync and read-only refund sync for the selected non-card methods. New API refunds are disabled: the supplied provider manual requires manual processing for BPI/UnionBank, Brankas/Landbank and DragonPay, while Robinsons OTC and RCBC Digital eligibility is unconfirmed. Refund queries use the explicit merchant refund request ID, correlate signed refund/provider IDs, and do not treat query errors as terminal outcomes. The only live query of the existing pending refund returned signed GR122 not-found; no successful live refund sync or completed API refund is certified. RCBC remains unavailable in staging. Reverse eligibility is separately unverified (the manual states card-only); generic Reverse certification requires unsupported manual Capture and is not declared. Payment/refund webhook delivery and CI credentials remain unproven. Keep alpha until applicable eligible scenarios and credentials are provisioned and live certification passes."
+    },
     "paynearme": {
       "reason": "No PayNearMe sandbox credentials exist; the integration was verified against a local spec-shaped mock server (outbound request + response parsing) rather than the live sandbox."
     },

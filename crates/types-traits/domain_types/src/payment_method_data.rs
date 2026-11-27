@@ -723,6 +723,7 @@ pub enum VoucherData {
     FamilyMart(Box<JCSVoucherData>),
     Seicomart(Box<JCSVoucherData>),
     PayEasy(Box<JCSVoucherData>),
+    Dragonpay,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

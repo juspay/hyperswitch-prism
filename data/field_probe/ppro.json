@@ -258,6 +258,10 @@
         "status": "not_supported",
         "error": "payment method danamon_va is not supported by PPRO is not supported by ppro"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "payment method dragonpay is not supported by PPRO is not supported by ppro"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

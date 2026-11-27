@@ -338,6 +338,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

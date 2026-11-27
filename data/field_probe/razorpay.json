@@ -128,6 +128,10 @@
         "status": "error",
         "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
+      "Dragonpay": {
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

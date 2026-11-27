@@ -128,6 +128,10 @@
         "status": "not_supported",
         "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

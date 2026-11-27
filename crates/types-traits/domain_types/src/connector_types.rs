@@ -181,6 +181,7 @@ pub enum ConnectorEnum {
     Payhere,
     Betterpayment,
     Ecommpay,
+    Paynamics,
     Payhound,
     Revpay,
 }
@@ -4709,6 +4710,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::VoucherData::FamilyMart(_) => Self::FamilyMart,
                 payment_method_data::VoucherData::Seicomart(_) => Self::Seicomart,
                 payment_method_data::VoucherData::PayEasy(_) => Self::PayEasy,
+                payment_method_data::VoucherData::Dragonpay => Self::Dragonpay,
             },
             PaymentMethodData::RealTimePayment(real_time_payment_data) => {
                 match *real_time_payment_data {
@@ -6661,6 +6663,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Betterpayment(_) => Ok(Self::Payment(ConnectorEnum::Betterpayment)),
             AuthType::Ecommpay(_) => Ok(Self::Payment(ConnectorEnum::Ecommpay)),
+            AuthType::Paynamics(_) => Ok(Self::Payment(ConnectorEnum::Paynamics)),
             AuthType::Payhound(_) => Ok(Self::Payment(ConnectorEnum::Payhound)),
             AuthType::Revpay(_) => Ok(Self::Payment(ConnectorEnum::Revpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),

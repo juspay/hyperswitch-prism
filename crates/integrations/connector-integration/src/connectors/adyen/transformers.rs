@@ -1959,7 +1959,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Self::Seicomart(Box::new(JCSVoucherData::try_from(item)?)))
             }
             VoucherData::PayEasy(_) => Ok(Self::PayEasy(Box::new(JCSVoucherData::try_from(item)?))),
-            VoucherData::Efecty
+            VoucherData::Dragonpay
+            | VoucherData::Efecty
             | VoucherData::PagoEfectivo
             | VoucherData::RedCompra
             | VoucherData::RedPagos => Err(IntegrationError::NotImplemented(
@@ -4047,7 +4048,8 @@ fn get_social_security_number(voucher_data: &VoucherData) -> Option<Secret<Strin
             }
             _ => None,
         },
-        VoucherData::Alfamart { .. }
+        VoucherData::Dragonpay
+        | VoucherData::Alfamart { .. }
         | VoucherData::Indomaret { .. }
         | VoucherData::Efecty
         | VoucherData::PagoEfectivo

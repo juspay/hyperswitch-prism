@@ -338,6 +338,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through ecommpay. Only card, Apple Pay and Google Pay payments are implemented for Ecommpay"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

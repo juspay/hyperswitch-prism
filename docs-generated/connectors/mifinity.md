@@ -238,6 +238,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Family Mart | ⚠ |
 | Seicomart | ⚠ |
 | Pay Easy | ⚠ |
+| DragonPay | ⚠ |
 
 **Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts) · [Kotlin](../../examples/mifinity/mifinity.kt) · [Rust](../../examples/mifinity/mifinity.rs)
 

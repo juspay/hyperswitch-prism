@@ -742,6 +742,10 @@
           "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"doku_danamon_va\",\"firstName\":\"John\",\"lastName\":null,\"shopperEmail\":\"test@example.com\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"shopperEmail\":\"test@example.com\"}"
         }
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Adyen"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

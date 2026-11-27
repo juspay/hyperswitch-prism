@@ -163,6 +163,10 @@
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
+      "Dragonpay": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

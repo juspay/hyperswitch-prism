@@ -206,6 +206,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
+      "Dragonpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
+      },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"

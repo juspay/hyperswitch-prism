@@ -234,6 +234,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Family Mart | ⚠ |
 | Seicomart | ⚠ |
 | Pay Easy | ⚠ |
+| DragonPay | ⚠ |
 
 **Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts) · [Kotlin](../../examples/loonio/loonio.kt) · [Rust](../../examples/loonio/loonio.rs)
 
