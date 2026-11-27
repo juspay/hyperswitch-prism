@@ -1,0 +1,46 @@
+{
+  "PaymentService/Get": {
+    "sync_payment": {
+      "grpc_req": {
+        "capture_method": "AUTOMATIC",
+        "test_mode": true,
+        "merchant_request_id": "auto_generate"
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "PENDING",
+            "CHARGED"
+          ]
+        },
+        "connector_feature_data": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        }
+      }
+    },
+    "sync_payment_with_handle_response": {
+      "grpc_req": {
+        "capture_method": "AUTOMATIC",
+        "test_mode": true,
+        "merchant_request_id": "auto_generate"
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "PENDING",
+            "CHARGED"
+          ]
+        },
+        "connector_feature_data": {
+          "must_exist": true
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        }
+      }
+    }
+  }
+}

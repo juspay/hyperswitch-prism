@@ -49,7 +49,11 @@ impl TryFrom<&ConnectorSpecificConfig> for PaynamicsAuthType {
                 password: password.clone(),
             }),
             _ => Err(errors::IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some("Configure Paynamics merchant_id, merchant_key, username, and password for this connector account.".to_owned()),
+                    doc_url: None,
+                    additional_context: Some("Expected Paynamics connector configuration but received a different connector configuration.".to_owned()),
+                },
             }
             .into()),
         }
@@ -74,7 +78,11 @@ pub fn validate_base_url(
     let parsed =
         url::Url::parse(base_url).map_err(|_| errors::IntegrationError::InvalidDataFormat {
             field_name: "connector_config.base_url",
-            context: Default::default(),
+            context: errors::IntegrationErrorContext {
+                suggested_action: Some("Set connector_config.base_url to a valid HTTPS Paynamics REST base URL ending with '/'.".to_owned()),
+                doc_url: None,
+                additional_context: Some("The configured Paynamics REST base URL could not be parsed.".to_owned()),
+            },
         })?;
     if parsed.scheme() != "https"
         || parsed.host_str().is_none()
@@ -87,7 +95,11 @@ pub fn validate_base_url(
     {
         return Err(errors::IntegrationError::InvalidDataFormat {
             field_name: "connector_config.base_url",
-            context: Default::default(),
+            context: errors::IntegrationErrorContext {
+                suggested_action: Some("Use an HTTPS Paynamics REST base URL ending with '/', without embedded credentials, query parameters, fragments, or a SOAP .asmx path.".to_owned()),
+                doc_url: None,
+                additional_context: Some("The configured URL does not meet the Paynamics REST base URL requirements.".to_owned()),
+            },
         }
         .into());
     }
@@ -116,7 +128,15 @@ type RequestError = error_stack::Report<errors::IntegrationError>;
 fn invalid(field_name: &'static str) -> RequestError {
     errors::IntegrationError::InvalidDataFormat {
         field_name,
-        context: Default::default(),
+        context: errors::IntegrationErrorContext {
+            suggested_action: Some(format!(
+                "Correct the format of '{field_name}' and retry the Paynamics request."
+            )),
+            doc_url: None,
+            additional_context: Some(format!(
+                "Paynamics request validation failed for '{field_name}'."
+            )),
+        },
     }
     .into()
 }
@@ -125,7 +145,16 @@ fn unsupported(message: &str) -> RequestError {
     errors::IntegrationError::NotSupported {
         message: message.to_owned(),
         connector: "paynamics",
-        context: Default::default(),
+        context: errors::IntegrationErrorContext {
+            suggested_action: Some(
+                "Use automatic Authorize or payment Sync with the Landbank channel br_landbank_ph."
+                    .to_owned(),
+            ),
+            doc_url: None,
+            additional_context: Some(
+                "This Paynamics integration supports Landbank online banking only.".to_owned(),
+            ),
+        },
     }
     .into()
 }
@@ -137,29 +166,18 @@ fn signature_component(value: Option<&str>) -> &str {
 }
 
 /// Landbank online banking is the only supported payment channel.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize, strum::AsRefStr)]
 pub enum PaynamicsPaymentMethod {
     #[serde(rename = "onlinebanktransfer")]
+    #[strum(serialize = "onlinebanktransfer")]
     OnlineBankTransfer,
 }
-impl PaynamicsPaymentMethod {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::OnlineBankTransfer => "onlinebanktransfer",
-        }
-    }
-}
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PaynamicsChannel {
     #[serde(rename = "br_landbank_ph")]
     Landbank,
 }
 impl PaynamicsChannel {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Landbank => "br_landbank_ph",
-        }
-    }
     fn method(self) -> PaynamicsMethod {
         let (pmethod, payment_action) = (
             PaynamicsPaymentMethod::OnlineBankTransfer,
@@ -172,59 +190,27 @@ impl PaynamicsChannel {
         }
     }
 }
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, Deserialize, strum::AsRefStr)]
 pub enum PaynamicsPaymentAction {
     #[serde(rename = "url_link")]
+    #[strum(serialize = "url_link")]
     UrlLink,
 }
-impl PaynamicsPaymentAction {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::UrlLink => "url_link",
-        }
-    }
-}
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, strum::AsRefStr)]
 enum PaynamicsCollectionMethod {
     #[serde(rename = "single_pay")]
+    #[strum(serialize = "single_pay")]
     SinglePay,
-}
-impl PaynamicsCollectionMethod {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::SinglePay => "single_pay",
-        }
-    }
 }
 
 // These enums represent values chosen by this connector, not vendor statuses.
 // Parse the versioned caller-retained carrier strictly so unsupported method
 // values can never become serializable Unknown request values.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PaynamicsMethod {
     pub pmethod: PaynamicsPaymentMethod,
     pub pchannel: PaynamicsChannel,
     pub payment_action: PaynamicsPaymentAction,
-}
-impl<'de> Deserialize<'de> for PaynamicsMethod {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        struct CarrierMethod {
-            pmethod: String,
-            pchannel: String,
-            payment_action: String,
-        }
-        let carrier = CarrierMethod::deserialize(deserializer)?;
-        [PaynamicsChannel::Landbank]
-            .into_iter()
-            .map(PaynamicsChannel::method)
-            .find(|method| {
-                method.pmethod.as_str() == carrier.pmethod
-                    && method.pchannel.as_str() == carrier.pchannel
-                    && method.payment_action.as_str() == carrier.payment_action
-            })
-            .ok_or_else(|| serde::de::Error::custom("paynamics: unsupported carrier method"))
-    }
 }
 pub fn payment_method<T: PaymentMethodDataTypes>(
     data: &PaymentMethodData<T>,
@@ -457,10 +443,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 notify,
                 return_url,
                 return_url,
-                method.pmethod.as_str(),
-                method.payment_action.as_str(),
+                method.pmethod.as_ref(),
+                method.payment_action.as_ref(),
                 EMPTY_FIELD,
-                collection_method.as_str(),
+                collection_method.as_ref(),
                 EMPTY_FIELD,
                 EMPTY_FIELD,
                 EMPTY_FIELD,
@@ -875,6 +861,31 @@ pub fn sync_metadata(request: &PaymentsSyncData) -> Result<PaynamicsMetadata, Re
     if metadata.method != metadata.method.pchannel.method() {
         return Err(invalid("connector_feature_data.method"));
     }
+    if let ResponseId::ConnectorTransactionId(requested_id) = &request.connector_transaction_id {
+        let retained_ids = [
+            metadata.original_provider_id.as_deref(),
+            metadata.latest_provider_id.as_deref(),
+        ];
+        let has_provider_id = retained_ids.iter().flatten().any(|id| !id.is_empty());
+        if !requested_id.is_empty()
+            && has_provider_id
+            && !retained_ids.contains(&Some(requested_id.as_str()))
+        {
+            return Err(errors::IntegrationError::InvalidDataFormat {
+                field_name: "connector_transaction_id",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use the connector transaction ID and connector_feature_data from the same Paynamics payment.".to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "The supplied transaction ID does not match either provider ID retained in the sale carrier.".to_owned(),
+                    ),
+                },
+            }
+            .into());
+        }
+    }
     metadata_minor_amount(&metadata)?;
     Ok(metadata)
 }
@@ -1097,3 +1108,159 @@ impl
 
 /// Workflow query returns the same flat response contract (§10.9).
 pub type PaynamicsSyncResponse = PaynamicsPaymentResponse;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common_utils::types::Money;
+    use serde_json::json;
+
+    fn sync_request(
+        requested_id: ResponseId,
+        sale_request_id: &str,
+        original_provider_id: Option<&str>,
+        latest_provider_id: Option<&str>,
+    ) -> PaymentsSyncData {
+        PaymentsSyncData {
+            connector_transaction_id: requested_id,
+            connector_feature_data: Some(Secret::new(json!({
+                "version": 1,
+                "original_sale_request_id": sale_request_id,
+                "original_provider_id": original_provider_id,
+                "latest_provider_id": latest_provider_id,
+                "method": {
+                    "pmethod": "onlinebanktransfer",
+                    "pchannel": "br_landbank_ph",
+                    "payment_action": "url_link"
+                },
+                "amount": "100.00",
+                "currency": "PHP",
+                "response_code": "GR033"
+            }))),
+            money: Money::from_minor_unit(MinorUnit::new(10000), common_enums::Currency::PHP),
+            ..PaymentsSyncData::default()
+        }
+    }
+
+    #[test]
+    fn rejects_same_amount_cross_payment_carriers() {
+        for (requested_id, sale_request_id, retained_id) in [
+            ("provider-a", "sale-b", "provider-b"),
+            ("provider-b", "sale-a", "provider-a"),
+        ] {
+            let request = sync_request(
+                ResponseId::ConnectorTransactionId(requested_id.to_owned()),
+                sale_request_id,
+                Some(retained_id),
+                Some(retained_id),
+            );
+            let result = sync_metadata(&request);
+            assert!(matches!(
+                result.as_ref().map_err(|error| error.current_context()),
+                Err(errors::IntegrationError::InvalidDataFormat {
+                    field_name: "connector_transaction_id",
+                    ..
+                })
+            ));
+        }
+    }
+
+    #[test]
+    fn accepts_original_or_latest_retained_provider_id() {
+        for requested_id in ["provider-original", "provider-latest"] {
+            let request = sync_request(
+                ResponseId::ConnectorTransactionId(requested_id.to_owned()),
+                "sale-a",
+                Some("provider-original"),
+                Some("provider-latest"),
+            );
+            assert!(sync_metadata(&request).is_ok());
+        }
+    }
+
+    #[test]
+    fn checks_an_id_even_if_only_one_provider_id_was_retained() {
+        for (original, latest) in [(Some("provider-a"), None), (None, Some("provider-a"))] {
+            let request = sync_request(
+                ResponseId::ConnectorTransactionId("provider-b".to_owned()),
+                "sale-a",
+                original,
+                latest,
+            );
+            assert!(sync_metadata(&request).is_err());
+        }
+    }
+
+    #[test]
+    fn preserves_original_sale_recovery_without_provider_ids() {
+        for requested_id in [
+            ResponseId::NoResponseId,
+            ResponseId::ConnectorTransactionId(String::new()),
+        ] {
+            let request = sync_request(requested_id, "sale-recovery", None, None);
+            assert!(matches!(
+                sync_metadata(&request),
+                Ok(metadata) if metadata.original_sale_request_id == "sale-recovery"
+            ));
+        }
+    }
+
+    #[test]
+    fn missing_original_sale_id_cannot_use_the_recovery_path() {
+        let request = sync_request(ResponseId::NoResponseId, "", None, None);
+        assert!(sync_metadata(&request).is_err());
+    }
+
+    #[test]
+    fn deserializes_only_the_landbank_carrier_method() {
+        for (field, value) in [
+            ("pmethod", "creditcard"),
+            ("pchannel", "bpi_online"),
+            ("pchannel", "dp_ph"),
+            ("payment_action", "direct_otc"),
+        ] {
+            let mut method = json!({
+                "pmethod": "onlinebanktransfer",
+                "pchannel": "br_landbank_ph",
+                "payment_action": "url_link"
+            });
+            method[field] = json!(value);
+            assert!(serde_json::from_value::<PaynamicsMethod>(method).is_err());
+        }
+    }
+
+    #[test]
+    fn enum_strings_match_serialized_signature_values() {
+        assert_eq!(
+            PaynamicsPaymentMethod::OnlineBankTransfer.as_ref(),
+            "onlinebanktransfer"
+        );
+        assert_eq!(PaynamicsPaymentAction::UrlLink.as_ref(), "url_link");
+        assert_eq!(PaynamicsCollectionMethod::SinglePay.as_ref(), "single_pay");
+        assert_eq!(
+            serde_json::to_value(PaynamicsChannel::Landbank).ok(),
+            Some(json!("br_landbank_ph"))
+        );
+    }
+
+    #[test]
+    fn query_signature_matches_known_sha512_concatenation() {
+        let signature = sign_fields(
+            &["test-merchant", "query-001", "sale-001"],
+            &Secret::new("test-key".to_owned()),
+        );
+        assert_eq!(
+            signature.peek(),
+            "6b21f076e553b216b5dd6ec11f7b2bfe199905a00dec70a515cba4f33df915a2aa8be4528d308da033d2bf6be31471b28b6e44c870fb2fadbe3415353fc383b1"
+        );
+    }
+
+    #[test]
+    fn php_amount_conversion_keeps_exact_minor_units() {
+        assert!(matches!(
+            amount_f2(MinorUnit::new(1001), common_enums::Currency::PHP),
+            Ok(amount) if amount == "10.01"
+        ));
+        assert!(amount_f2(MinorUnit::new(-1), common_enums::Currency::PHP).is_err());
+    }
+}

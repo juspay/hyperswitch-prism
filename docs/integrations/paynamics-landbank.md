@@ -34,6 +34,24 @@ Use `/composite/payments/get` (or `types.PaymentService/Get`) with the payment p
 
 Provider sandbox queries have intermittently taken longer than 30 seconds. This PR does not change global timeout settings. A timeout alone does not establish whether a sale succeeded; query the original sale rather than creating a duplicate payment.
 
+## Regression coverage
+
+The connector-private `no3ds_auto_capture_landbank` scenario sends a PHP automatic sale with `local_bank_transfer.bank_code = br_landbank_ph`. The Get suite replaces its default card dependency with this scenario and forwards the sale's complete `connector_feature_data`, provider ID, and amount. The scenarios explicitly generate `merchant_request_id` in each request body, so each Sync execution uses a new poll reference rather than reusing the sale transaction ID. Card and other payment-method scenarios are filtered out for this connector.
+
+Run the credential-free regression wiring checks with:
+
+```sh
+cargo test -p integration-tests --test paynamics_landbank
+```
+
+With separately provisioned sandbox credentials, the existing regression runner can execute the Landbank sale and dependent Sync:
+
+```sh
+cargo run -p integration-tests --bin test_ucs -- --connector paynamics --suite PaymentService/Get --scenario sync_payment --interface grpc
+```
+
+This runner creates a sandbox sale. Its status may remain `PENDING` until the customer completes the bank redirect; these scenarios do not claim automated bank-page completion or live certification.
+
 ## Evidence and limits
 
 Merchant sandbox testing completed a Landbank redirect payment and confirmed `GR001` / `CHARGED` through Sync. CI credentials and live regression certification are not provisioned. Production binding remains to be confirmed with Paynamics. Sandbox observations do not certify production behavior.

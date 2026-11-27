@@ -680,7 +680,7 @@ examples_python: examples/payme/payme.py
 
 ## Paynamics
 connector_id: paynamics
-doc: docs/connectors/paynamics.md
+doc: docs/integrations/paynamics-landbank.md
 scenarios: none
 payment_methods: none
 flows: 

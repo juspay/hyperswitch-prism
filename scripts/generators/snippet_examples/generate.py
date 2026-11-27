@@ -3978,6 +3978,8 @@ def render_llms_txt_entry(
     display_name: str,
     probe_connector: dict,
     scenarios: list[ScenarioSpec],
+    *,
+    doc_path: str | None = None,
 ) -> str:
     """
     Return one connector's block for docs/llms.txt.
@@ -4000,7 +4002,7 @@ def render_llms_txt_entry(
     lines = [
         f"## {display_name}",
         f"connector_id: {connector_name}",
-        f"doc: docs/connectors/{connector_name}.md",
+        f"doc: {doc_path or f'docs/connectors/{connector_name}.md'}",
         f"scenarios: {', '.join(scenario_keys) if scenario_keys else 'none'}",
         f"payment_methods: {', '.join(supported_pms) if supported_pms else 'none'}",
         f"flows: {', '.join(supported_flows)}",
