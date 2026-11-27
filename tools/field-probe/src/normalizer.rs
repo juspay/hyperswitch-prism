@@ -325,6 +325,11 @@ fn replace_json_dynamic_fields(s: &str) -> String {
     // supplied (the case for field-probe runs), so its raw value flaps every run.
     r = replace_json_unquoted_digit_value(&r, "\"TransactionId\"", "1");
 
+    // FIRE sends `nonce` as an unquoted microsecond-epoch number (16 digits), which the
+    // quoted-alphanumeric `"nonce"` rule above cannot match and `replace_timestamps`
+    // deliberately skips (it is card-number width).
+    r = replace_json_unquoted_digit_value(&r, "\"nonce\"", "1000000000000000");
+
     r
 }
 
@@ -501,6 +506,25 @@ fn test_normalize_content() {
         output
     );
     assert!(!output.contains("6700473c"), "Original UUID should be gone");
+}
+
+/// FIRE's access-token body carries `nonce` as an unquoted microsecond-epoch number.
+#[test]
+fn test_normalize_unquoted_json_nonce_is_stable() {
+    let first = normalize_content(
+        r#"{"refreshToken":"probe_key","nonce":1795704534975587,"grantType":"AccessToken"}"#,
+    );
+    let second = normalize_content(
+        r#"{"refreshToken":"probe_key","nonce":1795703518702402,"grantType":"AccessToken"}"#,
+    );
+    assert_eq!(
+        first, second,
+        "unquoted nonces must normalize to the same value"
+    );
+    assert!(
+        first.contains(r#""nonce":1000000000000000,"#),
+        "got: {first}"
+    );
 }
 
 /// A 16-digit microsecond-epoch nonce is length-indistinguishable from a card number, so
