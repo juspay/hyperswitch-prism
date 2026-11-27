@@ -2177,31 +2177,32 @@ fn map_transaction_state_to_attempt_status(
     }
 }
 
-impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
-    type Error = ResponseError;
-    fn try_from(item: &responses::JpmorganPaymentsResponse) -> Result<Self, Self::Error> {
-        let card = item
-            .payment_method_type
-            .as_ref()
-            .and_then(|method| method.card.as_ref());
-        let network = card.and_then(|card| card.network_response.as_ref());
-        let network_txn_id = network.and_then(|network| network.network_transaction_id.clone());
-        let network_txn_link_id = network.and_then(|network| network.transaction_link_id.clone());
+pub(super) fn payments_response_data(
+    item: &responses::JpmorganPaymentsResponse,
+    http_code: u16,
+) -> Result<PaymentsResponseData, ResponseError> {
+    let card = item
+        .payment_method_type
+        .as_ref()
+        .and_then(|method| method.card.as_ref());
+    let network = card.and_then(|card| card.network_response.as_ref());
+    let network_txn_id = network.and_then(|network| network.network_transaction_id.clone());
+    let network_txn_link_id = network.and_then(|network| network.transaction_link_id.clone());
 
-        Ok(Self::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(item.transaction_id.clone()),
-            redirection_data: None,
-            mandate_reference: card.and_then(responses::Card::safetech_mandate_reference),
-            connector_metadata: None,
-            network_txn_id,
-            network_txn_link_id,
-            connector_response_reference_id: Some(item.request_id.clone()),
-            incremental_authorization_allowed: None,
-            status_code: item.response_code.parse::<u16>().unwrap_or(0),
-            splits: None,
-            payment_account_reference: None,
-        })
-    }
+    Ok(PaymentsResponseData::TransactionResponse {
+        resource_id: ResponseId::ConnectorTransactionId(item.transaction_id.clone()),
+        redirection_data: None,
+        mandate_reference: card.and_then(responses::Card::safetech_mandate_reference),
+        connector_metadata: None,
+        network_txn_id,
+        network_txn_link_id,
+        connector_response_reference_id: Some(item.request_id.clone()),
+        incremental_authorization_allowed: None,
+        // responseCode is textual ("APPROVED", "NSF"); the HTTP status is the status code.
+        status_code: http_code,
+        splits: None,
+        payment_account_reference: None,
+    })
 }
 
 impl TryFrom<&responses::JpmorganPaymentsResponse> for AttemptStatus {
@@ -2326,26 +2327,27 @@ fn build_payments_response_result(
             typed_connector_request: None,
         }))
     } else {
-        Ok(Ok(PaymentsResponseData::try_from(response)?))
+        Ok(Ok(payments_response_data(response, http_code)?))
     }
 }
 
-impl TryFrom<&responses::JpmorganRefundResponse> for RefundsResponseData {
-    type Error = ResponseError;
-    fn try_from(item: &responses::JpmorganRefundResponse) -> Result<Self, Self::Error> {
-        let refund_status = responses::RefundStatus::from((
-            item.response_status.clone(),
-            item.transaction_state.clone(),
-        ))
-        .into();
+pub(super) fn refunds_response_data(
+    item: &responses::JpmorganRefundResponse,
+    http_code: u16,
+) -> Result<RefundsResponseData, ResponseError> {
+    let refund_status = responses::RefundStatus::from((
+        item.response_status.clone(),
+        item.transaction_state.clone(),
+    ))
+    .into();
 
-        Ok(Self {
-            connector_refund_id: item.transaction_id.clone(),
-            refund_status,
-            status_code: item.response_code.parse::<u16>().unwrap_or(0),
-            acquirer_reference_number: None,
-        })
-    }
+    Ok(RefundsResponseData {
+        connector_refund_id: item.transaction_id.clone(),
+        refund_status,
+        // responseCode is textual ("APPROVED", "NSF"); the HTTP status is the status code.
+        status_code: http_code,
+        acquirer_reference_number: None,
+    })
 }
 
 // Bridge pattern implementations for RouterDataV2
@@ -2510,7 +2512,7 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganRefundResponse, Self>>
             item.response.transaction_state.clone(),
         ))
         .into();
-        let response_data = RefundsResponseData::try_from(&item.response)?;
+        let response_data = refunds_response_data(&item.response, item.http_code)?;
 
         Ok(Self {
             response: Ok(response_data),
@@ -2535,7 +2537,7 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganRefundResponse, Self>>
             item.response.transaction_state.clone(),
         ))
         .into();
-        let response_data = RefundsResponseData::try_from(&item.response)?;
+        let response_data = refunds_response_data(&item.response, item.http_code)?;
 
         Ok(Self {
             response: Ok(response_data),
