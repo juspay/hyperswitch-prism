@@ -11,7 +11,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -34,12 +34,56 @@ pub struct RevolutAuthType {
 /// Optional Revolut settings supplied through connector_feature_data.
 #[derive(Debug, Default, Deserialize)]
 pub struct RevolutOrderOptions {
+    /// Optional flow override; a selected Revolut Pay method never opens hosted checkout.
+    pub checkout_mode: Option<RevolutCheckoutMode>,
     pub customer_id: Option<String>,
     pub location_id: Option<String>,
     pub expire_pending_after: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RevolutCheckoutMode {
+    Hosted,
+    Redirection,
+    Sdk,
+}
+
+fn checkout_base(sandbox: bool) -> &'static str {
+    if sandbox {
+        "https://sandbox-checkout.revolut.com"
+    } else {
+        "https://checkout.revolut.com"
+    }
+}
+
+fn revolut_pay_redirect(token: &str, key: &str, return_url: &str, sandbox: bool) -> String {
+    let mut url = url::Url::parse(checkout_base(sandbox)).expect("constant checkout URL");
+    url.path_segments_mut()
+        .expect("hierarchical URL")
+        .extend(["revolut-pay", "order", token]);
+    url.query_pairs_mut()
+        .append_pair("publicToken", key)
+        .append_pair("redirectUrls.success", return_url)
+        .append_pair("redirectUrls.failure", return_url)
+        .append_pair("redirectUrls.cancel", return_url);
+    url.to_string()
+}
+
 impl RevolutOrderOptions {
+    fn checkout_mode_for<T: PaymentMethodDataTypes>(
+        &self,
+        payment_method: &PaymentMethodData<T>,
+    ) -> RevolutCheckoutMode {
+        match (payment_method, self.checkout_mode) {
+            (_, Some(RevolutCheckoutMode::Sdk)) => RevolutCheckoutMode::Sdk,
+            (PaymentMethodData::Wallet(WalletData::RevolutPay(_)), _) => {
+                RevolutCheckoutMode::Redirection
+            }
+            (_, mode) => mode.unwrap_or(RevolutCheckoutMode::Hosted),
+        }
+    }
+
     pub fn parse(
         value: Option<&Secret<serde_json::Value>>,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
@@ -559,6 +603,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let options =
             RevolutOrderOptions::parse(router_data.request.connector_feature_data.as_ref())?;
+        let checkout_mode = options.checkout_mode_for(&router_data.request.payment_method_data);
+        if matches!(
+            checkout_mode,
+            RevolutCheckoutMode::Redirection | RevolutCheckoutMode::Sdk
+        ) {
+            let has_key = matches!(&router_data.connector_config,
+                ConnectorSpecificConfig::Revolut { public_key: Some(key), .. } if !key.peek().is_empty());
+            if !has_key
+                || (checkout_mode == RevolutCheckoutMode::Redirection
+                    && router_data
+                        .request
+                        .router_return_url
+                        .as_ref()
+                        .is_none_or(|url| url.is_empty()))
+            {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name:
+                        "Revolut Pay requires public_key and redirection requires return_url",
+                    context: Default::default(),
+                }
+                .into());
+            }
+        }
         let customer = build_customer(
             router_data
                 .resource_common_data
@@ -730,8 +797,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         item: ResponseRouterData<RevolutOrderCreateResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
-        let metadata = order_metadata(&response);
-
+        let options =
+            RevolutOrderOptions::parse(item.router_data.request.connector_feature_data.as_ref())
+                .change_context(ConnectorError::response_handling_failed_http_status_unknown())?;
+        let mut metadata = order_metadata(&response).unwrap_or_else(|| serde_json::json!({}));
+        metadata["order_id"] = serde_json::json!(response.id);
+        metadata["order_token"] = serde_json::json!(response.token.peek());
+        let public_key = match &item.router_data.connector_config {
+            ConnectorSpecificConfig::Revolut { public_key, .. } => public_key.as_ref(),
+            _ => None,
+        };
+        let sandbox = item
+            .router_data
+            .resource_common_data
+            .test_mode
+            .unwrap_or(false);
+        if let Some(key) = public_key {
+            metadata["public_key"] = serde_json::json!(key.peek());
+            metadata["checkout_base_url"] = serde_json::json!(checkout_base(sandbox));
+        }
         let status = match response.state {
             RevolutOrderState::Authorised => AttemptStatus::Authorized,
             RevolutOrderState::Completed => AttemptStatus::Charged,
@@ -741,10 +825,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             RevolutOrderState::Processing => AttemptStatus::Pending,
         };
 
-        let redirection_data = response
-            .checkout_url
-            .as_ref()
-            .map(|url| Box::new(RedirectForm::Uri { uri: url.clone() }));
+        let redirection_data =
+            match options.checkout_mode_for(&item.router_data.request.payment_method_data) {
+                RevolutCheckoutMode::Redirection => {
+                    let key = public_key
+                        .ok_or_else(ConnectorError::response_handling_failed_http_status_unknown)?;
+                    let return_url = item
+                        .router_data
+                        .request
+                        .router_return_url
+                        .as_deref()
+                        .ok_or_else(ConnectorError::response_handling_failed_http_status_unknown)?;
+                    Some(Box::new(RedirectForm::Uri {
+                        uri: revolut_pay_redirect(
+                            response.token.peek(),
+                            key.peek(),
+                            return_url,
+                            sandbox,
+                        ),
+                    }))
+                }
+                RevolutCheckoutMode::Sdk => None,
+                _ => response
+                    .checkout_url
+                    .as_ref()
+                    .map(|url| Box::new(RedirectForm::Uri { uri: url.clone() })),
+            };
 
         let merchant_reference = response
             .merchant_order_data
@@ -756,7 +862,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data,
                 mandate_reference: None,
-                connector_metadata: metadata,
+                connector_metadata: Some(metadata),
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: merchant_reference,
@@ -1274,6 +1380,79 @@ impl TryFrom<ResponseRouterData<RevolutClientAuthResponse, Self>>
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn selected_revolut_pay_routes_without_bridge_options() {
+        use domain_types::payment_method_data::{DefaultPCIHolder, RevolutPayData};
+        let selected = PaymentMethodData::<DefaultPCIHolder>::Wallet(WalletData::RevolutPay(
+            RevolutPayData {},
+        ));
+        let other = PaymentMethodData::<DefaultPCIHolder>::Reward;
+        let mut options = RevolutOrderOptions::default();
+        assert_eq!(
+            options.checkout_mode_for(&selected),
+            RevolutCheckoutMode::Redirection
+        );
+        assert_eq!(
+            options.checkout_mode_for(&other),
+            RevolutCheckoutMode::Hosted
+        );
+        options.checkout_mode = Some(RevolutCheckoutMode::Hosted);
+        assert_eq!(
+            options.checkout_mode_for(&selected),
+            RevolutCheckoutMode::Redirection
+        );
+        options.checkout_mode = Some(RevolutCheckoutMode::Sdk);
+        assert_eq!(
+            options.checkout_mode_for(&selected),
+            RevolutCheckoutMode::Sdk
+        );
+    }
+
+    #[test]
+    fn dedicated_redirect_encodes_tokens_and_callbacks_and_uses_correct_environment() {
+        for sandbox in [true, false] {
+            let callback = "https://merchant.example/return?attempt=1&next=/orders";
+            let link = revolut_pay_redirect("token/with?reserved", "pk_+&", callback, sandbox);
+            let parsed = url::Url::parse(&link).unwrap();
+            assert_eq!(
+                parsed.host_str(),
+                Some(if sandbox {
+                    "sandbox-checkout.revolut.com"
+                } else {
+                    "checkout.revolut.com"
+                })
+            );
+            assert!(parsed.path().contains("token%2Fwith%3Freserved"));
+            let params: std::collections::HashMap<_, _> = parsed.query_pairs().collect();
+            assert_eq!(params["publicToken"], "pk_+&");
+            for key in [
+                "redirectUrls.success",
+                "redirectUrls.failure",
+                "redirectUrls.cancel",
+            ] {
+                assert_eq!(params[key], callback);
+            }
+        }
+    }
+
+    #[test]
+    fn checkout_modes_are_explicit_and_invalid_modes_fail() {
+        assert!(RevolutOrderOptions::parse(None)
+            .unwrap()
+            .checkout_mode
+            .is_none());
+        for mode in ["hosted", "redirection", "sdk"] {
+            assert!(
+                RevolutOrderOptions::parse(Some(&Secret::new(json!({"checkout_mode": mode}))))
+                    .is_ok()
+            );
+        }
+        assert!(
+            RevolutOrderOptions::parse(Some(&Secret::new(json!({"checkout_mode": "typo"}))))
+                .is_err()
+        );
+    }
 
     #[test]
     fn returning_customer_sends_only_the_existing_id_even_without_email() {

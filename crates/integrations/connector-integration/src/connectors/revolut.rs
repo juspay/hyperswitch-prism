@@ -355,6 +355,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => return Err(WebhookError::WebhookEventTypeNotFound.into()),
         };
         Ok(RefundWebhookDetailsResponse {
+            raw_connector_status: None,
             connector_refund_id: Some(body.order_id),
             merchant_transaction_id: None,
             connector_response_reference_id: Some(reference.to_owned()),
@@ -903,7 +904,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 mod tests {
     use super::*;
     use domain_types::{connector_types::HttpMethod, payment_method_data::DefaultPCIHolder};
-    use interfaces::connector_types::IncomingWebhook;
+    use interfaces::webhooks::IncomingWebhook;
 
     fn webhook(event: &str, reference: Option<&str>) -> RequestDetails {
         RequestDetails {
@@ -1001,9 +1002,9 @@ mod tests {
                 address: PaymentAddress::default(),
                 auth_type: common_enums::AuthenticationType::NoThreeDs,
                 connector_feature_data: None,
-                amount_captured: None,
-                amount_capturable: None,
-                amount: None,
+                captured_money: None,
+                capturable_money: None,
+                money: None,
                 access_token: None,
                 session_token: None,
                 reference_id: None,
@@ -1024,7 +1025,7 @@ mod tests {
                 connector_response: None,
                 recurring_mandate_payment_data: None,
                 order_details: None,
-                amount_authorized: None,
+                authorized_money: None,
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
@@ -1033,6 +1034,7 @@ mod tests {
                 raw_connector_status: None,
             },
             connector_config: ConnectorSpecificConfig::Revolut {
+                public_key: None,
                 secret_api_key: hyperswitch_masking::Secret::new("test-key".into()),
                 signing_secret: None,
                 base_url: None,
@@ -1044,7 +1046,7 @@ mod tests {
                 integrity_object: None,
                 raw_connector_response: None,
                 browser_info: None,
-                amount: None,
+                money: None,
                 currency: None,
                 connector_feature_data: None,
                 metadata: None,
@@ -1151,6 +1153,46 @@ mod tests {
         assert!(body.get("customer").is_none());
         assert!(body.get("location_id").is_none());
         assert!(body.get("expire_pending_after").is_none());
+        data.request.payment_method_data =
+            PaymentMethodData::Wallet(domain_types::payment_method_data::WalletData::RevolutPay(
+                domain_types::payment_method_data::RevolutPayData {},
+            ));
+        assert!(transform(data.clone()).is_err()); // missing merchant public key
+        if let ConnectorSpecificConfig::Revolut { public_key, .. } = &mut data.connector_config {
+            *public_key = Some(Secret::new("pk_test".into()));
+        }
+        assert!(transform(data.clone()).is_err()); // missing callback
+        data.request.router_return_url = Some("https://merchant.example/return".into());
+        assert!(transform(data.clone()).is_ok());
+        let response: revolut::RevolutOrderCreateResponse = serde_json::from_value(json!({
+            "id": "order-123", "token": "token-123", "type": "payment", "state": "pending",
+            "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+            "amount": 100, "currency": "GBP", "checkout_url": "https://hosted.example/order"
+        }))
+        .unwrap();
+        let result = RouterDataV2::try_from(ResponseRouterData {
+            response,
+            router_data: data.clone(),
+            http_code: 200,
+        })
+        .unwrap();
+        match result.response.unwrap() {
+            PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data,
+                connector_metadata,
+                ..
+            } => {
+                assert!(matches!(resource_id,
+                    ResponseId::ConnectorTransactionId(id) if id == "order-123"
+                ));
+                assert!(
+                    matches!(redirection_data.as_deref(), Some(domain_types::router_response_types::RedirectForm::Uri { uri }) if uri.starts_with("https://sandbox-checkout.revolut.com/revolut-pay/order/token-123?"))
+                );
+                assert_eq!(connector_metadata.unwrap()["order_token"], "token-123");
+            }
+            _ => panic!("expected transaction response"),
+        }
         data.resource_common_data.connector_request_reference_id =
             "prism:revolut:refund:reserved".into();
         assert!(transform(data).is_err());

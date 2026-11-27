@@ -5009,6 +5009,8 @@ message NexixpayConfig {
 }
 
 message RevolutConfig {
+  // Merchant public key, paired with the secret key and environment.
+  optional SecretString public_key = 3;
   SecretString secret_api_key = 1;
   optional SecretString signing_secret = 2;
   optional string base_url = 50;

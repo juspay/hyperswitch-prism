@@ -347,6 +347,7 @@ pub enum ConnectorSpecificConfig {
     },
     Revolut {
         secret_api_key: Secret<String>,
+        public_key: Option<Secret<String>>,
         signing_secret: Option<Secret<String>>,
         base_url: Option<String>,
     },
@@ -2755,6 +2756,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Revolut(revolut) => Ok(Self::Revolut {
                 secret_api_key: revolut.secret_api_key.ok_or_else(err)?,
+                public_key: revolut.public_key,
                 signing_secret: revolut.signing_secret,
                 base_url: revolut.base_url,
             }),
@@ -3278,6 +3280,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 ConnectorEnum::Revolut => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Revolut {
                         secret_api_key: api_key.clone(),
+                        public_key: None,
                         signing_secret: None,
                         base_url: None,
                     }),
