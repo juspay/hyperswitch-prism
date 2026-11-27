@@ -536,7 +536,7 @@
     "get": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_feature_data.payment_request_code — Missing required field: connector_feature_data.payment_request_code"
+        "error": "Stuck on field: connector_feature_data.payment_request_code. Fire requires the payment_request_code returned by Authorize in connector_feature_data — Missing required field: connector_feature_data.payment_request_code. Fire requires the payment_request_code returned by Authorize in connector_feature_data"
       }
     },
     "handle_event": {
@@ -639,7 +639,7 @@
     "refund_get": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_feature_data.payment_request_code — Missing required field: connector_feature_data.payment_request_code"
+        "error": "Stuck on field: connector_feature_data.payment_request_code. Fire requires the payment_request_code returned by Authorize in connector_feature_data — Missing required field: connector_feature_data.payment_request_code. Fire requires the payment_request_code returned by Authorize in connector_feature_data"
       }
     },
     "reverse": {
