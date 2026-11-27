@@ -1,0 +1,669 @@
+{
+  "connector": "paynamics",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for paynamics"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: bank_transfer.local_bank_transfer.bank_code — Missing required field: bank_transfer.local_bank_transfer.bank_code"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "bank transfer variant is not supported is not supported by paynamics"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by paynamics connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for paynamics"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for paynamics"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for paynamics"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for paynamics"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for paynamics"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for paynamics"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for paynamics"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for paynamics"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for paynamics"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paynamics connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Invalid data format: connector_feature_data"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for paynamics"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for paynamics"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for paynamics"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paynamics"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for paynamics"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for paynamics"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund flow not supported by paynamics connector"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by paynamics connector"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by paynamics connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paynamics"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment method is not supported is not supported by paynamics"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paynamics"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paynamics"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paynamics"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paynamics"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paynamics"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paynamics"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paynamics"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for paynamics"
+      }
+    }
+  }
+}
