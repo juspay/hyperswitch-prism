@@ -5485,6 +5485,8 @@ message AbsaSanlamConfig {
 message GotymeSanlamConfig {
   SecretString api_key = 1;
   SecretString profile_id = 2;
+  SecretString merchant_id = 3;
+  SecretString connector_id = 4;
   optional string base_url = 50;
 }
 

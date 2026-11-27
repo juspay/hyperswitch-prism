@@ -18,7 +18,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     utils::{convert_amount, get_unimplemented_payment_method_error_message},
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::GotymeSanlamPayoutsRouterData;
@@ -27,6 +27,8 @@ use super::GotymeSanlamPayoutsRouterData;
 pub struct GotymeSanlamAuthType {
     pub api_key: Secret<String>,
     pub profile_id: Secret<String>,
+    pub merchant_id: Secret<String>,
+    pub connector_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for GotymeSanlamAuthType {
@@ -37,15 +39,19 @@ impl TryFrom<&ConnectorSpecificConfig> for GotymeSanlamAuthType {
             ConnectorSpecificConfig::GotymeSanlam {
                 api_key,
                 profile_id,
+                merchant_id,
+                connector_id,
                 ..
             } => Ok(Self {
                 api_key: api_key.clone(),
                 profile_id: profile_id.clone(),
+                merchant_id: merchant_id.clone(),
+                connector_id: connector_id.clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Ensure the connector is configured with a GotymeSanlam-specific config containing a valid api_key and profile_id.".to_string(),
+                        "Ensure the GotymeSanlam connector config contains the API key, profile ID, merchant ID, and merchant connector ID.".to_string(),
                     ),
                     additional_context: Some(
                         "ConnectorSpecificConfig did not match the GotymeSanlam variant; received an unexpected config variant.".to_string(),
@@ -192,6 +198,9 @@ impl TryFrom<BankNames> for GotymeSanlamBankNames {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GotymeSanlamPayoutTransferRequest {
+    pub profile_id: String,
+    pub connector_id: String,
+    pub connector_type: GotymeSanlamConnectorType,
     pub flow: GotymeSanlamPayoutFlow,
     pub payload: GotymeSanlamPayoutTransferPayload,
 }
@@ -205,8 +214,17 @@ pub struct GotymeSanlamPayoutGetPayload {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GotymeSanlamPayoutGetRequest {
+    pub profile_id: Secret<String>,
+    pub connector_id: Secret<String>,
+    pub connector_type: GotymeSanlamConnectorType,
     pub flow: GotymeSanlamPayoutFlow,
     pub payload: GotymeSanlamPayoutGetPayload,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GotymeSanlamConnectorType {
+    Payout,
 }
 
 #[derive(Debug, Serialize)]
@@ -254,8 +272,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             legacy_money
         })?;
         let payload = GotymeSanlamPayoutTransferPayload::try_from((&item.router_data, amount))?;
+        let identifiers = GotymeSanlamAuthType::try_from(&item.router_data.connector_config)?;
 
         Ok(Self {
+            profile_id: identifiers.profile_id.peek().to_owned(),
+            connector_id: identifiers.connector_id.peek().to_owned(),
+            connector_type: GotymeSanlamConnectorType::Payout,
             flow: GotymeSanlamPayoutFlow::PayoutCreate,
             payload,
         })
@@ -407,6 +429,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data;
+        let identifiers = GotymeSanlamAuthType::try_from(&req.connector_config)?;
         let idempotency_key = req
             .resource_common_data
             .merchant_request_id
@@ -426,6 +449,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })?;
 
         Ok(Self {
+            profile_id: identifiers.profile_id,
+            connector_id: identifiers.connector_id,
+            connector_type: GotymeSanlamConnectorType::Payout,
             flow: GotymeSanlamPayoutFlow::PayoutSync,
             payload: GotymeSanlamPayoutGetPayload { idempotency_key },
         })

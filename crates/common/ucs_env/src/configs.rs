@@ -427,6 +427,7 @@ impl Config {
             .try_parsing(true)
             .separator("__")
             .list_separator(",")
+            .with_list_parse_key("proxy.bypass_hosts")
             .with_list_parse_key("proxy.bypass_urls")
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("database.tenants")

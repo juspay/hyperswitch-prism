@@ -42,7 +42,6 @@ use transformers::{
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const X_API_KEY: &str = "X-Api-Key";
-    pub(crate) const PROFILE_ID: &str = "Profile-Id";
 }
 
 macros::create_all_prerequisites!(
@@ -111,16 +110,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = GotymeSanlamAuthType::try_from(auth_type)?;
 
-        Ok(vec![
-            (
-                headers::X_API_KEY.to_string(),
-                auth.api_key.peek().to_owned().into_masked(),
-            ),
-            (
-                headers::PROFILE_ID.to_string(),
-                auth.profile_id.peek().to_owned().into(),
-            ),
-        ])
+        Ok(vec![(
+            headers::X_API_KEY.to_string(),
+            auth.api_key.peek().to_owned().into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -203,9 +196,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest<T>, PayoutTransferResponse>,
         ) -> CustomResult<String, IntegrationError> {
+            let identifiers = GotymeSanlamAuthType::try_from(&req.connector_config)?;
             Ok(format!(
-                "{}/invoke",
-                self.base_url(&req.resource_common_data.connectors)
+                "{}/invoke/{}",
+                self.base_url(&req.resource_common_data.connectors),
+                identifiers.merchant_id.peek().to_owned()
             ))
         }
     }
@@ -234,9 +229,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
         ) -> CustomResult<String, IntegrationError> {
+            let identifiers = GotymeSanlamAuthType::try_from(&req.connector_config)?;
             Ok(format!(
-                "{}/invoke",
-                self.base_url(&req.resource_common_data.connectors)
+                "{}/invoke/{}",
+                self.base_url(&req.resource_common_data.connectors),
+                identifiers.merchant_id.peek().to_owned()
             ))
         }
     }

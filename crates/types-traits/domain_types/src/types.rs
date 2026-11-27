@@ -1145,6 +1145,10 @@ pub struct ProxyConfig {
     pub idle_pool_connection_timeout: Option<u64>,
     /// Total timeout (seconds) for a single connector API call.
     pub connector_request_timeout: Option<u64>,
+    /// Host names that should bypass the proxy.
+    #[patch(ignore)]
+    pub bypass_hosts: Vec<String>,
+    /// Complete request URLs that should bypass the proxy.
     pub bypass_urls: Vec<String>,
     /// Named proxy entries. Treated as a full replacement on config override (same as api_tags.tags).
     pub proxies: HashMap<String, Proxy>,
@@ -1157,6 +1161,8 @@ struct ProxyConfigLegacy {
     idle_pool_connection_timeout: Option<u64>,
     #[serde(default)]
     connector_request_timeout: Option<u64>,
+    #[serde(default)]
+    bypass_hosts: Vec<String>,
     // `bypass_proxy_urls` is the pre-named-proxy-map field name; accepted as an alias so old configs keep working.
     #[serde(default, alias = "bypass_proxy_urls")]
     bypass_urls: Vec<String>,
@@ -1190,6 +1196,7 @@ impl<'de> Deserialize<'de> for ProxyConfig {
         Ok(ProxyConfig {
             idle_pool_connection_timeout: raw.idle_pool_connection_timeout,
             connector_request_timeout: raw.connector_request_timeout,
+            bypass_hosts: raw.bypass_hosts,
             bypass_urls: raw.bypass_urls,
             proxies,
         })

@@ -928,11 +928,11 @@ where
                 _ => updated_router_data,
             };
             connector_request = connector_request.map(|mut req| {
+                req.add_header(
+                    consts::X_REQUEST_ID,
+                    Maskable::Masked(Secret::new(event_params.request_id.to_string())),
+                );
                 if event_params.shadow_mode {
-                    req.add_header(
-                        consts::X_REQUEST_ID,
-                        Maskable::Masked(Secret::new(event_params.request_id.to_string())),
-                    );
                     req.add_header(
                         consts::X_SOURCE_NAME,
                         Maskable::Masked(Secret::new(consts::X_CONNECTOR_SERVICE.to_string())),
@@ -1546,7 +1546,8 @@ pub async fn call_connector_api(
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
     let connector_host = url.host_str().unwrap_or("unknown").to_string();
 
-    let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string());
+    let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string())
+        || proxy.bypass_hosts.contains(&connector_host);
 
     let proxy_name = header_proxy_name.unwrap_or("primary");
 
