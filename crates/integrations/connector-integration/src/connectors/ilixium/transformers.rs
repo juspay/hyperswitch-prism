@@ -2977,23 +2977,67 @@ impl IlixiumHistoryResponse {
     /// recent `entryDate` is the current truth. Entries whose `entryDate` is missing or
     /// unparsable sort below every dated entry (`None < Some` for `Option<OffsetDateTime>`), and
     /// ties are broken by document order so that a later duplicate still wins.
+    ///
+    /// **Except a rejected follow-up.** A `CAPTURE` or `REVERSAL` that Ilixium refuses (for
+    /// example a second capture, answered `112` "Transaction already captured") is also appended
+    /// as its own newer entry, but it changes nothing about the payment. When the latest entry is
+    /// such a failed `CAPTURE`/`REVERSAL` and an earlier `SUCCESS` `CAPTURE`/`AUTH_CAP`/`REVERSAL`
+    /// exists, the newest of those successes is returned instead.
     pub fn latest_payment_operation(&self, merchant_ref: &str) -> Option<&IlixiumHistoryOperation> {
-        self.operation
-            .iter()
-            .enumerate()
-            .filter(|(_, operation)| {
+        let candidates = || {
+            self.operation.iter().filter(|operation| {
                 operation.merchant_ref() == Some(merchant_ref)
                     && operation
                         .operation_type
                         .is_some_and(is_payment_lifecycle_operation)
             })
-            .max_by(|(left_index, left), (right_index, right)| {
-                left.entry_instant()
-                    .cmp(&right.entry_instant())
-                    .then_with(|| left_index.cmp(right_index))
-            })
-            .map(|(_, operation)| operation)
+        };
+        let is_follow_up = |operation: &IlixiumHistoryOperation| {
+            matches!(
+                operation.operation_type,
+                Some(IlixiumOperationType::Capture | IlixiumOperationType::Reversal)
+            )
+        };
+
+        let latest = newest_history_entry(candidates())?;
+        let latest_failed = latest.status.as_ref().is_some_and(|status| {
+            matches!(
+                status.code,
+                IlixiumHistoryStatusCode::Declined
+                    | IlixiumHistoryStatusCode::Rejected
+                    | IlixiumHistoryStatusCode::Error
+                    | IlixiumHistoryStatusCode::Exception
+                    | IlixiumHistoryStatusCode::ValidationErrors
+            )
+        });
+        if !(latest_failed && is_follow_up(latest)) {
+            return Some(latest);
+        }
+        newest_history_entry(candidates().filter(|operation| {
+            (is_follow_up(operation)
+                || operation.operation_type == Some(IlixiumOperationType::AuthCap))
+                && operation
+                    .status
+                    .as_ref()
+                    .is_some_and(|status| status.code == IlixiumHistoryStatusCode::Success)
+        }))
+        .or(Some(latest))
     }
+}
+
+/// The entry with the latest `entryDate`, ties broken by document order (see
+/// [`IlixiumHistoryResponse::latest_payment_operation`]).
+fn newest_history_entry<'a>(
+    operations: impl Iterator<Item = &'a IlixiumHistoryOperation>,
+) -> Option<&'a IlixiumHistoryOperation> {
+    operations
+        .enumerate()
+        .max_by(|(left_index, left), (right_index, right)| {
+            left.entry_instant()
+                .cmp(&right.entry_instant())
+                .then_with(|| left_index.cmp(right_index))
+        })
+        .map(|(_, operation)| operation)
 }
 
 /// Maps one history `operation[]` entry onto a UCS attempt status.
