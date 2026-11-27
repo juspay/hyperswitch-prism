@@ -41,6 +41,7 @@ enabled = false
 [proxy]
 idle_pool_connection_timeout = 90
 connector_request_timeout = 30
+bypass_hosts = []
 bypass_urls = []
 
 [test]
