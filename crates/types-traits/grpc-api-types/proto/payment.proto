@@ -6490,12 +6490,12 @@ message ConnectorSpecificConfig {
     BetterpaymentConfig betterpayment = 166;
     // REDDOT = 156
     ReddotConfig reddot = 167;
-    // PAYNAMICS = 159
-    PaynamicsConfig paynamics = 171;
     // PAYHOUND = 157
     PayhoundConfig payhound = 168;
     // REVPAY = 158
     RevpayConfig revpay = 169;
+    // PAYNAMICS = 159
+    PaynamicsConfig paynamics = 171;
   }
 }
 
