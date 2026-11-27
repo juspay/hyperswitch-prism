@@ -3122,22 +3122,16 @@ fn build_history_query_error(
 /// This is emphatically *not* a failed payment. Ilixium's report is windowed and capped at 24
 /// hours, so an absent `merchantRef` means one of: the payment is older than the queried window,
 /// it is newer than `periodEndDate`, or the platform has not recorded an operation for it yet.
-/// None of those is a payment outcome, so `attempt_status` echoes the status the sync started
-/// with — `PaymentFlowData::status`, which the framework seeds to `Pending` for a sync — leaving
-/// the caller's view of the payment exactly as it was, and the message spells out the one thing
-/// the caller can actually do about it.
-fn build_history_not_found_error(
-    merchant_ref: &str,
-    current_status: AttemptStatus,
-    http_code: u16,
-) -> ErrorResponse {
+/// None of those is a payment outcome. Keep the connector's HTTP status and leave
+/// `attempt_status` unset, so this lookup error does not assert a payment outcome.
+fn build_history_not_found_error(merchant_ref: &str, http_code: u16) -> ErrorResponse {
     ErrorResponse {
         status_code: http_code,
         code: "ILIXIUM_NOT_IN_HISTORY_WINDOW".to_string(),
         message: format!(
             "Ilixium's operation history contains no payment operation for \
-             transaction.merchantRef {merchant_ref} in the queried period. The payment's status \
-             is unchanged."
+             transaction.merchantRef {merchant_ref} in the queried period. No payment outcome \
+             can be inferred from this history response."
         ),
         reason: Some(
             "POST /history/operations is the only query the Ilixium Direct API offers and it \
@@ -3148,9 +3142,7 @@ fn build_history_not_found_error(
              window will be anchored there instead."
                 .to_string(),
         ),
-        attempt_status: Some(domain_types::router_data::FlowStatus::Payment(
-            current_status,
-        )),
+        attempt_status: None,
         connector_transaction_id: None,
         network_decline_code: None,
         network_advice_code: None,
@@ -3242,22 +3234,14 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
 
         let Some(operation) = response.latest_payment_operation(&merchant_ref) else {
             return Ok(Self {
-                response: Err(build_history_not_found_error(
-                    &merchant_ref,
-                    current_status,
-                    item.http_code,
-                )),
+                response: Err(build_history_not_found_error(&merchant_ref, item.http_code)),
                 ..item.router_data
             });
         };
 
         let Some(operation_status) = operation.status.as_ref() else {
             return Ok(Self {
-                response: Err(build_history_not_found_error(
-                    &merchant_ref,
-                    current_status,
-                    item.http_code,
-                )),
+                response: Err(build_history_not_found_error(&merchant_ref, item.http_code)),
                 ..item.router_data
             });
         };
