@@ -3906,7 +3906,15 @@ where
             item.http_code,
         )?;
 
-        let status = common_enums::AttemptStatus::from(item.response.status);
+        let status = if matches!(
+            item.response.status,
+            StripePaymentStatus::RequiresPaymentMethod
+        ) && item.response.last_payment_error.is_none()
+        {
+            common_enums::AttemptStatus::PaymentMethodAwaited
+        } else {
+            common_enums::AttemptStatus::from(item.response.status)
+        };
 
         let response = if is_payment_failure(status) {
             *get_stripe_payments_response_data(
@@ -4220,7 +4228,19 @@ impl<F, PM: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             item.http_code,
         )?;
 
-        let status = common_enums::AttemptStatus::from(item.response.status.to_owned());
+        let status = if matches!(
+            item.response.status,
+            StripePaymentStatus::RequiresPaymentMethod
+        ) && item
+            .response
+            .payment_intent_fields
+            .last_payment_error
+            .is_none()
+        {
+            common_enums::AttemptStatus::PaymentMethodAwaited
+        } else {
+            common_enums::AttemptStatus::from(item.response.status.to_owned())
+        };
 
         let connector_response_data =
             item.response
@@ -5420,7 +5440,8 @@ fn payment_status_to_attempt_status(status: &WebhookEventStatus) -> common_enums
     match status {
         S::Succeeded => common_enums::AttemptStatus::Charged,
         // Stripe sets `requires_payment_method` after a declined attempt -> treat as failure.
-        S::Failed | S::RequiresPaymentMethod => common_enums::AttemptStatus::Failure,
+        S::Failed => common_enums::AttemptStatus::Failure,
+        S::RequiresPaymentMethod => common_enums::AttemptStatus::PaymentMethodAwaited,
         S::RequiresConfirmation => common_enums::AttemptStatus::ConfirmationAwaited,
         S::RequiresAction => common_enums::AttemptStatus::AuthenticationPending,
         S::RequiresCapture => common_enums::AttemptStatus::Authorized,
@@ -5495,6 +5516,14 @@ pub(crate) fn build_webhook_payment_response(
             .as_ref()
             .map(payment_status_to_attempt_status)
             .unwrap_or(common_enums::AttemptStatus::Pending),
+    };
+
+    let status = if status == common_enums::AttemptStatus::PaymentMethodAwaited
+        && event_object.last_payment_error.is_some()
+    {
+        common_enums::AttemptStatus::Failure
+    } else {
+        status
     };
 
     let (error_code, error_message, error_reason) =
