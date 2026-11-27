@@ -202,19 +202,71 @@ impl TryFrom<&ConnectorSpecificConfig> for ClearSaleAuthType {
 // Error response
 // ──────────────────────────────────────────────────────────────────────────
 
-/// ClearSale error bodies are not formally documented; they commonly carry a
-/// `Message`/`message` field. Both casings are accepted.
+/// ClearSale uses ASP.NET-style validation errors, but returns bare text for
+/// authentication failures and no body for some internal errors.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClearSaleErrorResponse {
-    #[serde(default, alias = "Message")]
+#[serde(untagged)]
+pub enum ClearSaleErrorResponse {
+    Json(ClearSaleJsonErrorResponse),
+    PlainText(String),
+    Empty,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClearSaleJsonErrorResponse {
+    #[serde(rename = "message", alias = "Message")]
     pub message: Option<String>,
+    #[serde(default, rename = "modelState", alias = "ModelState")]
+    pub model_state: Option<std::collections::BTreeMap<String, Vec<String>>>,
 }
 
 impl ClearSaleErrorResponse {
+    /// Error handling must not fail just because the upstream body is not the
+    /// expected JSON shape. Preserve unrecognized text rather than replacing a
+    /// connector error with ResponseDeserializationFailed.
+    pub fn from_response_body(body: &[u8]) -> Self {
+        if String::from_utf8_lossy(body).trim().is_empty() {
+            return Self::Empty;
+        }
+        serde_json::from_slice(body)
+            .unwrap_or_else(|_| Self::PlainText(String::from_utf8_lossy(body).trim().to_owned()))
+    }
+
     pub fn message(&self) -> String {
-        self.message
-            .clone()
-            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string())
+        let message = match self {
+            Self::Json(response) => response.message.as_deref().unwrap_or_default().trim(),
+            Self::PlainText(message) => message.trim(),
+            Self::Empty => "",
+        };
+        if message.is_empty() {
+            common_utils::consts::NO_ERROR_MESSAGE.to_string()
+        } else {
+            message.to_owned()
+        }
+    }
+
+    /// Keep ClearSale's validation details separate from its summary message.
+    pub fn reason(&self) -> Option<String> {
+        let Self::Json(response) = self else {
+            return None;
+        };
+        let reason = response
+            .model_state
+            .as_ref()
+            .into_iter()
+            .flat_map(|model_state| model_state.iter())
+            .flat_map(|(field, errors)| {
+                errors.iter().map(move |error| {
+                    if field.is_empty() {
+                        error.clone()
+                    } else {
+                        format!("{field}: {error}")
+                    }
+                })
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        (!reason.is_empty()).then_some(reason)
     }
 }
 
