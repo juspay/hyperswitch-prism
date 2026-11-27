@@ -1187,6 +1187,14 @@ pub enum ConnectorSpecificConfig {
         secret_key: Secret<String>,
         base_url: Option<String>,
     },
+    Paynamics {
+        merchant_id: Secret<String>,
+        merchant_key: Secret<String>,
+        username: Secret<String>,
+        password: Secret<String>,
+
+        base_url: Option<String>,
+    },
     /// Payhound — hosted crypto invoice gateway. HMAC-SHA512 signed requests, so the
     /// credentials are an API key plus the signing secret; there is no third credential.
     Payhound {
@@ -1664,6 +1672,12 @@ impl ConnectorSpecificConfig {
             Ecommpay {
                 project_id,
                 secret_key
+            },
+            Paynamics {
+                merchant_id,
+                merchant_key,
+                username,
+                password
             },
             Payhound {
                 api_key,
@@ -2228,6 +2242,12 @@ impl ConnectorSpecificConfig {
                 Ecommpay {
                     project_id,
                     secret_key
+                },
+                Paynamics {
+                    merchant_id,
+                    merchant_key,
+                    username,
+                    password
                 },
                 Payhound {
                     api_key,
@@ -3043,6 +3063,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 project_id: ecommpay.project_id.ok_or_else(err)?,
                 secret_key: ecommpay.secret_key.ok_or_else(err)?,
                 base_url: ecommpay.base_url,
+            }),
+            AuthType::Paynamics(paynamics) => Ok(Self::Paynamics {
+                merchant_id: paynamics.merchant_id.ok_or_else(err)?,
+                merchant_key: paynamics.merchant_key.ok_or_else(err)?,
+                username: paynamics.username.ok_or_else(err)?,
+                password: paynamics.password.ok_or_else(err)?,
+
+                base_url: paynamics.base_url,
             }),
             AuthType::Payhound(payhound) => Ok(Self::Payhound {
                 api_key: payhound.api_key.ok_or_else(err)?,
@@ -4564,6 +4592,23 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
                         secret_key: api_key.clone(),
                         project_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // Legacy tuple: api_key = merchant_id, key1 = merchant_key,
+                // api_secret = username, key2 = password.
+                ConnectorEnum::Paynamics => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Paynamics {
+                        merchant_id: api_key.clone(),
+                        merchant_key: key1.clone(),
+                        username: api_secret.clone(),
+                        password: key2.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

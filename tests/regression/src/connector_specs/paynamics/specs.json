@@ -1,0 +1,29 @@
+{
+  "connector": "paynamics",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get"
+  ],
+  "supported_payment_methods": [
+    "local_bank_transfer"
+  ],
+  "request_id_source_field": "merchant_request_id",
+  "request_id_length": 32,
+  "suite_dependencies": {
+    "PaymentService/Get": {
+      "replace": [
+        {
+          "suite": "PaymentService/Authorize",
+          "scenario": "no3ds_auto_capture_landbank",
+          "context_map": {
+            "connector_transaction_id": "res.connector_transaction_id",
+            "merchant_transaction_id": "req.merchant_transaction_id",
+            "connector_feature_data": "res.connector_feature_data",
+            "amount.minor_amount": "req.amount.minor_amount",
+            "amount.currency": "req.amount.currency"
+          }
+        }
+      ]
+    }
+  }
+}

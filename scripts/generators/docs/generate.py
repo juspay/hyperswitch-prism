@@ -928,6 +928,31 @@ def generate_flow_files(
     return written, flow_line_numbers, scenario_line_numbers
 
 
+def connector_navigation_paths(
+    connector_name: str, probe_connector: dict, docs_dir: Path
+) -> tuple[str, Optional[str]]:
+    """Use an integration guide when probe data cannot generate a connector page.
+
+    Preserve existing navigation for generated pages and connectors with supported
+    probe flows. A unique maintained guide is a truthful fallback for incomplete
+    probe results; ambiguous or absent guides do not change the existing target.
+    """
+    generated_link = f"connectors/{connector_name}.md"
+    if (docs_dir / f"{connector_name}.md").exists() or get_flows_from_probe(
+        probe_connector
+    ):
+        return generated_link, None
+    guides_dir = REPO_ROOT / "docs" / "integrations"
+    guides = sorted([
+        *guides_dir.glob(f"{connector_name}.md"),
+        *guides_dir.glob(f"{connector_name}-*.md"),
+    ])
+    if len(guides) != 1:
+        return generated_link, None
+    guide = guides[0]
+    return os.path.relpath(guide, docs_dir.parent), guide.relative_to(REPO_ROOT).as_posix()
+
+
 def generate_llms_txt(probe_data: dict[str, dict], docs_dir: Path) -> None:
     """
     Write docs/llms.txt — a machine-readable navigation index for AI assistants.
@@ -963,8 +988,9 @@ def generate_llms_txt(probe_data: dict[str, dict], docs_dir: Path) -> None:
         probe_connector = probe_data[connector_name]
         name            = display_name(connector_name)
         scenarios       = snippets.detect_scenarios(probe_connector)
+        _, doc_path = connector_navigation_paths(connector_name, probe_connector, docs_dir)
         entry           = snippets.render_llms_txt_entry(
-            connector_name, name, probe_connector, scenarios
+            connector_name, name, probe_connector, scenarios, doc_path=doc_path
         )
         lines.append(entry)
 
@@ -1706,7 +1732,8 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
             flow_data = conn_data.get("flows", {}).get(flow_key, {})
             
             display = _DISPLAY_NAMES.get(conn_name, conn_name.replace("_", " ").title())
-            row = [f"[{display}](connectors/{conn_name}.md)"]
+            doc_link, _ = connector_navigation_paths(conn_name, conn_data, output_dir)
+            row = [f"[{display}]({doc_link})"]
             
             for pm_key in pm_keys_ordered:
                 pm_data = flow_data.get(pm_key, {})
@@ -1742,7 +1769,8 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
             flows = conn_data.get("flows", {})
             
             display = _DISPLAY_NAMES.get(conn_name, conn_name.replace("_", " ").title())
-            row = [f"[{display}](connectors/{conn_name}.md)"]
+            doc_link, _ = connector_navigation_paths(conn_name, conn_data, output_dir)
+            row = [f"[{display}]({doc_link})"]
             
             for service_name, flow_key, rpc_name, description in simple_flows_data:
                 status_mark, _ = _get_flow_status(flows, flow_key)

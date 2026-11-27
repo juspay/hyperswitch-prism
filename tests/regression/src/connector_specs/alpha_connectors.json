@@ -148,6 +148,9 @@
     },
     "worldpayxml": {},
     "xendit": {},
-    "zift": {}
+    "zift": {},
+    "paynamics": {
+      "reason": "Landbank-only automatic sale and payment sync are implemented; live Landbank payment/sync succeeded in merchant sandbox testing, but CI credentials and regression certification are not yet provisioned."
+    }
   }
 }

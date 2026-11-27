@@ -1,0 +1,84 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_landbank": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 10000,
+          "currency": "PHP"
+        },
+        "payment_method": {
+          "local_bank_transfer": {
+            "bank_code": "br_landbank_ph"
+          }
+        },
+        "capture_method": "AUTOMATIC",
+        "auth_type": "NO_THREE_DS",
+        "customer": {
+          "first_name": "Test",
+          "last_name": "Customer",
+          "email": {
+            "value": "paynamics-test@example.com"
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "Test"
+            },
+            "last_name": {
+              "value": "Customer"
+            },
+            "email": {
+              "value": "paynamics-test@example.com"
+            },
+            "line1": {
+              "value": "123 Test Street"
+            },
+            "city": {
+              "value": "Makati"
+            },
+            "state": {
+              "value": "Metro Manila"
+            },
+            "zip_code": {
+              "value": "1200"
+            },
+            "country_alpha2_code": "PH"
+          }
+        },
+        "description": "Landbank sandbox regression order",
+        "order_details": [
+          {
+            "product_name": "Landbank regression order",
+            "quantity": 1,
+            "amount": 10000
+          }
+        ],
+        "return_url": "https://example.com/payment/return",
+        "webhook_url": "https://example.com/payment/webhook",
+        "test_mode": true,
+        "merchant_request_id": "auto_generate"
+      },
+      "assert": {
+        "status": {
+          "equals": "PENDING"
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "connector_feature_data": {
+          "must_exist": true
+        },
+        "redirection_data": {
+          "must_exist": true
+        },
+        "error": {
+          "must_not_exist": true
+        }
+      },
+      "display_name": "Authorize | Landbank automatic sale",
+      "is_default": true
+    }
+  }
+}
