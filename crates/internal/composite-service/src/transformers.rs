@@ -378,6 +378,7 @@ impl
             enable_avs_check: item.enable_avs_check,
             enable_account_name_verification: item.enable_account_name_verification,
             purpose_of_payment: item.purpose_of_payment.clone(),
+            payment_expiry: item.payment_expiry,
         }
     }
 }
@@ -1333,6 +1334,7 @@ impl
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
             purpose_of_payment: request.purpose_of_payment.clone(),
+            payment_expiry: request.payment_expiry,
         }
     }
 }

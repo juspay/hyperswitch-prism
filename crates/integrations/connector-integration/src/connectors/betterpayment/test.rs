@@ -494,6 +494,7 @@ fn authorize_request() -> PaymentsAuthorizeData<DefaultPCIHolder> {
         merchant_details: None,
         enable_avs_check: None,
         enable_account_name_verification: None,
+        payment_expiry: None,
     }
 }
 

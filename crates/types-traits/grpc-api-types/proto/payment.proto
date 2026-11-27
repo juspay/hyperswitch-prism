@@ -760,6 +760,7 @@ enum Connector {
   REDDOT = 156;
   PAYHOUND = 157;
   REVPAY = 158;
+  FIRE = 159;
 }
 
 // Payment method types
@@ -2660,6 +2661,10 @@ message PaymentServiceAuthorizeRequest {
 
   // Merchant account context supplied by the caller.
   optional MerchantDetails merchant_details = 64;
+
+  // Payment-request expiry, in Unix epoch seconds. Connectors that support an
+  // expiry on the payment request (e.g. Fire) send it to the connector.
+  optional int64 payment_expiry = 65;
 }
 
 // Customer risk-assessment signals supplied by the merchant, used by
@@ -6120,6 +6125,28 @@ message RevpayConfig {
   optional string base_url = 50;
 }
 
+// Fire (fire.com) open banking. Protected API calls use a short-lived Bearer
+// access token obtained from POST /business/v1/apps/accesstokens.
+message FireConfig {
+  // Fire API application Client ID, sent as `clientId` in the access-token request.
+  SecretString client_id = 1;
+  // Fire API application Client Key. Never sent on the wire: the access-token
+  // request carries `clientSecret` = hex(SHA-256(nonce || client_key)).
+  SecretString client_key = 2;
+  // Fire API application Refresh Token, sent as `refreshToken` in the
+  // access-token request (grant type `AccessToken`).
+  SecretString refresh_token = 3;
+  // ICAN (fire.com account identifier) of the merchant's Fire account that
+  // receives the funds; sent as `icanTo` when creating a payment request.
+  // Must be a numeric string; a non-numeric value fails the Authorize request.
+  SecretString ican_to = 4;
+  // Preprod (HS256) webhook signing secret. Production webhooks are RS256
+  // (verified against the vendor JWKS) and need no secret.
+  optional SecretString webhook_secret = 5;
+  // Overrides the Fire API host from config (e.g. https://api-preprod.fire.com).
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6484,6 +6511,8 @@ message ConnectorSpecificConfig {
     PayhoundConfig payhound = 168;
     // REVPAY = 158
     RevpayConfig revpay = 169;
+    // FIRE = 159
+    FireConfig fire = 170;
   }
 }
 

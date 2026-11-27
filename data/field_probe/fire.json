@@ -1,0 +1,707 @@
+{
+  "connector": "fire",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for fire"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "PaySafeCard": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Skrill": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Webpay": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for fire"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for fire"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for fire"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://api-preprod.fire.com/business/v1/apps/accesstokens",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"clientId\":\"probe_key\",\"clientSecret\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"refreshToken\":\"probe_key\",\"nonce\":1000000000000000,\"grantType\":\"AccessToken\"}"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for fire"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for fire"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for fire"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for fire"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for fire"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for fire"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by fire connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_request_code. Fire requires the payment_request_code returned by Authorize in connector_feature_data — Missing required field: connector_feature_data.payment_request_code. Fire requires the payment_request_code returned by Authorize in connector_feature_data"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "eyJraWQiOiI2NjAzZWQzYi1iYzMwLTQ3ZmItYjVlMy1iMjFjOWFiYmNlYzkiLCJhbGciOiJIUzI1NiJ9.eyJ0eXBlIjoiT1RIRVIiLCJzdGF0dXMiOiJBVVRIT1JJU0VEIiwidHJhbnNhY3Rpb25UeXBlIjoiUEFZTUVOVCIsInBheW1lbnRVdWlkIjoiM2YyZDBhMjAtZTg0Yi00MWMxLTlkM2QtYTFiMmMzZDRlNWY2In0.c2lnbmF0dXJl"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "eyJraWQiOiI2NjAzZWQzYi1iYzMwLTQ3ZmItYjVlMy1iMjFjOWFiYmNlYzkiLCJhbGciOiJIUzI1NiJ9.eyJ0eXBlIjoiT1RIRVIiLCJzdGF0dXMiOiJBVVRIT1JJU0VEIiwidHJhbnNhY3Rpb25UeXBlIjoiUEFZTUVOVCIsInBheW1lbnRVdWlkIjoiM2YyZDBhMjAtZTg0Yi00MWMxLTlkM2QtYTFiMmMzZDRlNWY2In0.c2lnbmF0dXJl"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for fire"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "eyJraWQiOiI2NjAzZWQzYi1iYzMwLTQ3ZmItYjVlMy1iMjFjOWFiYmNlYzkiLCJhbGciOiJIUzI1NiJ9.eyJ0eXBlIjoiT1RIRVIiLCJzdGF0dXMiOiJBVVRIT1JJU0VEIiwidHJhbnNhY3Rpb25UeXBlIjoiUEFZTUVOVCIsInBheW1lbnRVdWlkIjoiM2YyZDBhMjAtZTg0Yi00MWMxLTlkM2QtYTFiMmMzZDRlNWY2In0.c2lnbmF0dXJl"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "eyJraWQiOiI2NjAzZWQzYi1iYzMwLTQ3ZmItYjVlMy1iMjFjOWFiYmNlYzkiLCJhbGciOiJIUzI1NiJ9.eyJ0eXBlIjoiT1RIRVIiLCJzdGF0dXMiOiJBVVRIT1JJU0VEIiwidHJhbnNhY3Rpb25UeXBlIjoiUEFZTUVOVCIsInBheW1lbnRVdWlkIjoiM2YyZDBhMjAtZTg0Yi00MWMxLTlkM2QtYTFiMmMzZDRlNWY2In0.c2lnbmF0dXJl"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for fire"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for fire"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for fire"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for fire"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for fire"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: access_token — Missing required field: access_token"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_request_code. Fire requires the payment_request_code returned by Authorize in connector_feature_data — Missing required field: connector_feature_data.payment_request_code. Fire requires the payment_request_code returned by Authorize in connector_feature_data"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for fire"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for fire"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Failed to encode connector request. Fire ican_to (destination account ID) must be an integer"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for fire"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for fire"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for fire"
+      }
+    }
+  }
+}

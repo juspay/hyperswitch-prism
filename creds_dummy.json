@@ -367,5 +367,13 @@
     "app_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "merchant_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for payhere connector"
+  },
+  "fire": {
+    "client_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "client_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "refresh_token": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "ican_to": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "webhook_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "_comment": "Configuration for fire connector. webhook_secret is only needed for preprod (HS256) webhooks."
   }
 }

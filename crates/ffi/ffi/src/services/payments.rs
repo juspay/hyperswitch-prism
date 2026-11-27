@@ -814,7 +814,7 @@ pub fn parse_event_transformer(
 /// The gRPC server performs external verification before calling its equivalent path.
 pub fn handle_event_transformer(
     payload: EventServiceHandleRequest,
-    _config: &std::sync::Arc<ucs_env::configs::Config>,
+    config: &std::sync::Arc<ucs_env::configs::Config>,
     connector: domain_types::connector_types::ConnectorEnum,
     connector_config: Option<domain_types::router_data::ConnectorSpecificConfig>,
     _metadata: &common_utils::metadata::MaskedMetadata,
@@ -876,6 +876,7 @@ pub fn handle_event_transformer(
         source_verified,
         payload.merchant_event_id,
         event_context,
+        config.common.return_typed_connector_data,
     )
     .map_err(
         |e: error_stack::Report<domain_types::errors::WebhookError>| e.current_context().switch(),

@@ -2154,6 +2154,8 @@ enum BankNames {
   NordeaDirect = 704;
   SantanderUk = 705;
   SwedbankSparbankerna = 706;
+  AlliedIrishBankUk = 707;
+  BankOfIrelandUkBusiness = 708;
 }
 
 // ============================================================================

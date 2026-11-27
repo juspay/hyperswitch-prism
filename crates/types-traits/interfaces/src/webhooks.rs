@@ -108,6 +108,13 @@ pub trait IncomingWebhook {
         Ok(None)
     }
 
+    /// The webhook payload parsed into the connector's own type and serialized
+    /// with masking, surfaced as `typed_connector_response` on the payment,
+    /// refund and dispute webhook responses. Defaults to `None`.
+    fn get_typed_webhook_response(&self, _request: RequestDetails) -> Option<String> {
+        None
+    }
+
     fn process_payment_webhook(
         &self,
         _request: RequestDetails,

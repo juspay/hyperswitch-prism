@@ -295,6 +295,18 @@ pub trait ValidationTrait: ConnectorCommon {
             .unwrap_or(false)
     }
 
+    /// Per-body refinement of [`Self::requires_external_webhook_verification`].
+    /// Some connectors verify differently depending on the payload: e.g. FIRE
+    /// signs webhooks with RS256 in production (verified by the external JWKS
+    /// flow) but HS256 in preprod (verified in-process against the merchant
+    /// webhook secret). Override to return `false` when this specific webhook
+    /// body should skip the external verification flow and be verified
+    /// in-process instead. Only consulted when the config-set check above
+    /// already returned `true`.
+    fn requires_external_webhook_verification_for_body(&self, _webhook_body: &[u8]) -> bool {
+        true
+    }
+
     /// Whether authentication routing needs decoded payment-method data.
     /// The connector selects the categories it needs; PCI-specific request
     /// conversion remains in the granular service.

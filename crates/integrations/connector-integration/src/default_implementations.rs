@@ -314,6 +314,7 @@ default_impl_verify_webhook_source_v2!(
     ],
 );
 // PayPal has its own implementation in paypal.rs
+// FIRE has its own implementation in connectors/fire.rs (JWKS + RS256 JWT).
 
 // ============================================================================
 // RechargeV2 default impls
@@ -387,6 +388,7 @@ macro_rules! default_impl_recharge_v2 {
 }
 
 default_impl_recharge_v2!(
+    Fire,
     Revpay,
     Betterpayment,
     Ecommpay,
@@ -632,6 +634,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
+    Fire,
     Revpay,
     Betterpayment,
     Ecommpay,
@@ -755,6 +758,7 @@ default_impl_create_payment_method_v2!(
 );
 
 default_impl_get_payment_method_v2!(
+    Fire,
     Revpay,
     Betterpayment,
     Ecommpay,
@@ -996,6 +1000,7 @@ default_impl_payment_method_eligibility_v2!(
         Betterpayment,
         Reddot,
         Ecommpay,
+        Fire,
     ],
 );
 
@@ -1063,6 +1068,7 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 }
 
 default_impl_refresh_payment_method_v2!(
+    Fire,
     Betterpayment,
     Ecommpay,
     Revpay,

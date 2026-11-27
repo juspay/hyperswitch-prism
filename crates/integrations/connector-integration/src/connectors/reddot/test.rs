@@ -350,6 +350,7 @@ fn authorize_data() -> AuthorizeData {
             merchant_details: None,
             enable_avs_check: Default::default(),
             enable_account_name_verification: Default::default(),
+            payment_expiry: Default::default(),
             is_stored_credential: Default::default(),
         },
         response: Err(ErrorResponse::default()),

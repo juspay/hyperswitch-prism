@@ -29,6 +29,7 @@ use crate::types::ConnectorData;
 ///   another way (e.g. a PSync to the connector), so the decision is left to the caller.
 /// - **Invariant:** Prism never acts on webhook events itself; callers must check
 ///   `source_verified` before acting on the event content.
+#[allow(clippy::too_many_arguments)]
 pub fn process_webhook_event<
     T: PaymentMethodDataTypes
         + Default
@@ -48,6 +49,7 @@ pub fn process_webhook_event<
     source_verified: bool,
     merchant_event_id: Option<String>,
     event_context: Option<EventContext>,
+    return_typed_connector_data: bool,
 ) -> error_stack::Result<EventServiceHandleResponse, WebhookError> {
     let event_type = connector_data
         .connector
@@ -67,6 +69,7 @@ pub fn process_webhook_event<
                     webhook_secrets,
                     connector_config.clone(),
                     event_context.clone(),
+                    return_typed_connector_data,
                 )?
             } else if event_type.is_refund_event() {
                 get_refunds_webhook_content(
@@ -74,6 +77,7 @@ pub fn process_webhook_event<
                     request_details.clone(),
                     webhook_secrets,
                     connector_config.clone(),
+                    return_typed_connector_data,
                 )?
             } else if event_type.is_dispute_event() {
                 get_disputes_webhook_content(
@@ -81,6 +85,7 @@ pub fn process_webhook_event<
                     request_details.clone(),
                     webhook_secrets,
                     connector_config.clone(),
+                    return_typed_connector_data,
                 )?
             } else if event_type.is_payout_event() {
                 get_payouts_webhook_content(
@@ -97,6 +102,7 @@ pub fn process_webhook_event<
                     webhook_secrets,
                     connector_config.clone(),
                     event_context,
+                    return_typed_connector_data,
                 )?
             })
         };
@@ -146,6 +152,25 @@ pub fn parse_webhook_event<
     })
 }
 
+/// The connector's typed webhook payload, returned only when the operator has
+/// enabled `common.return_typed_connector_data`.
+fn typed_webhook_response<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Default + Send + Sync + 'static,
+>(
+    connector_data: &ConnectorData<T>,
+    request_details: &domain_types::connector_types::RequestDetails,
+    return_typed_connector_data: bool,
+) -> Option<hyperswitch_masking::Secret<String>> {
+    return_typed_connector_data
+        .then(|| {
+            connector_data
+                .connector
+                .get_typed_webhook_response(request_details.clone())
+        })
+        .flatten()
+        .map(hyperswitch_masking::Secret::new)
+}
+
 pub fn get_payments_webhook_content<
     T: PaymentMethodDataTypes + std::fmt::Debug + Default + Send + Sync + 'static,
 >(
@@ -154,7 +179,13 @@ pub fn get_payments_webhook_content<
     webhook_secrets: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
     connector_config: Option<ConnectorSpecificConfig>,
     event_context: Option<EventContext>,
+    return_typed_connector_data: bool,
 ) -> error_stack::Result<EventContent, WebhookError> {
+    let typed_connector_response = typed_webhook_response(
+        &connector_data,
+        &request_details,
+        return_typed_connector_data,
+    );
     let webhook_details = connector_data
         .connector
         .process_payment_webhook(
@@ -165,8 +196,9 @@ pub fn get_payments_webhook_content<
         )
         .attach_printable("Failed to process payment webhook from connector")?;
 
-    let response = PaymentServiceGetResponse::foreign_try_from(webhook_details)
+    let mut response = PaymentServiceGetResponse::foreign_try_from(webhook_details)
         .change_context(WebhookError::WebhookProcessingFailed)?;
+    response.typed_connector_response = typed_connector_response;
 
     Ok(EventContent {
         content: Some(grpc_api_types::payments::event_content::Content::PaymentsResponse(response)),
@@ -189,14 +221,21 @@ pub fn get_refunds_webhook_content<
     request_details: domain_types::connector_types::RequestDetails,
     webhook_secrets: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
     connector_config: Option<ConnectorSpecificConfig>,
+    return_typed_connector_data: bool,
 ) -> error_stack::Result<EventContent, WebhookError> {
+    let typed_connector_response = typed_webhook_response(
+        &connector_data,
+        &request_details,
+        return_typed_connector_data,
+    );
     let webhook_details = connector_data
         .connector
         .process_refund_webhook(request_details, webhook_secrets, connector_config)
         .attach_printable("Failed to process refund webhook from connector")?;
 
-    let response = RefundResponse::foreign_try_from(webhook_details)
+    let mut response = RefundResponse::foreign_try_from(webhook_details)
         .change_context(WebhookError::WebhookProcessingFailed)?;
+    response.typed_connector_response = typed_connector_response;
 
     Ok(EventContent {
         content: Some(grpc_api_types::payments::event_content::Content::RefundsResponse(response)),
@@ -249,14 +288,21 @@ pub fn get_disputes_webhook_content<
     request_details: domain_types::connector_types::RequestDetails,
     webhook_secrets: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
     connector_config: Option<ConnectorSpecificConfig>,
+    return_typed_connector_data: bool,
 ) -> error_stack::Result<EventContent, WebhookError> {
+    let typed_connector_response = typed_webhook_response(
+        &connector_data,
+        &request_details,
+        return_typed_connector_data,
+    );
     let webhook_details = connector_data
         .connector
         .process_dispute_webhook(request_details, webhook_secrets, connector_config)
         .attach_printable("Failed to process dispute webhook from connector")?;
 
-    let response = DisputeResponse::foreign_try_from(webhook_details)
+    let mut response = DisputeResponse::foreign_try_from(webhook_details)
         .change_context(WebhookError::WebhookProcessingFailed)?;
+    response.typed_connector_response = typed_connector_response;
 
     Ok(EventContent {
         content: Some(grpc_api_types::payments::event_content::Content::DisputesResponse(response)),
