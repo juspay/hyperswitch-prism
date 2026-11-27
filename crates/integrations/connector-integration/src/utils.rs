@@ -153,6 +153,12 @@ impl<T: PaymentMethodDataTypes> GetOptionalPaymentMethodType for RepeatPaymentDa
     }
 }
 
+impl<T: PaymentMethodDataTypes> GetOptionalPaymentMethodType for SetupMandateRequestData<T> {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
 impl GetOptionalPaymentMethodType for PaymentsCaptureData {
     fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
         None

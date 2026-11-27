@@ -1032,6 +1032,12 @@ fn card_stored_credentials(
             reference.network_transaction_id.as_str(),
             reference.transaction_link_id.as_deref(),
         )),
+        // Raised by the NetworkToken Authorize arm when the payment is a MIT replaying a
+        // network token under `recurring_details: network_transaction_id_and_network_token`.
+        Some(MandateReferenceId::NetworkTokenWithNTI(reference)) => Some((
+            reference.network_transaction_id.as_str(),
+            reference.transaction_link_id.as_deref(),
+        )),
         _ => None,
     });
 
@@ -1404,6 +1410,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     false,
                 )?;
 
+                // Fiserv requires a cryptogram for customer-initiated token payments; a MIT
+                // replaying the token via a network transaction ID uses the scheme reference
+                // (stored_credentials) instead, so the cryptogram must be omitted there.
+                let is_network_mit = stored_credentials.as_ref().is_some_and(|credentials| {
+                    credentials.initiator == FiservcommercehubStoredCredentialInitiator::Merchant
+                });
                 let source = FiservcommercehubSourceData::PaymentToken(
                     FiservcommercehubPaymentTokenSource {
                         token_data: Secret::new(token_data.get_network_token().peek().clone()),
@@ -1411,12 +1423,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         decline_duplicates: None,
                         card: Some(FiservcommercehubTokenCardInfo {
                             expiration_month: Secret::new(format!(
-                                "{:0>2}",
-                                token_data.get_network_token_expiry_month().peek()
+                                "{:02}",
+                                crate::utils::parse_expiry_month(
+                                    token_data.get_network_token_expiry_month().peek(),
+                                    "network_token.token_exp_month",
+                                )?
                             )),
                             expiration_year: token_data.get_expiry_year_4_digit(),
                         }),
-                        cryptogram: token_data.get_cryptogram(),
+                        cryptogram: if is_network_mit {
+                            None
+                        } else {
+                            token_data.get_cryptogram()
+                        },
                     },
                 );
 
@@ -3138,8 +3157,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             decline_duplicates: None,
                             card: Some(FiservcommercehubTokenCardInfo {
                                 expiration_month: Secret::new(format!(
-                                    "{:0>2}",
-                                    token.get_network_token_expiry_month().peek()
+                                    "{:02}",
+                                    crate::utils::parse_expiry_month(
+                                        token.get_network_token_expiry_month().peek(),
+                                        "network_token.token_exp_month",
+                                    )?
                                 )),
                                 expiration_year: token.get_expiry_year_4_digit(),
                             }),
@@ -3529,6 +3551,7 @@ where
 // `FiservcommercehubGatewayResponseBody` / `FiservcommercehubPaymentReceipt` types
 // are reused here rather than duplicated.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubWebhookBody {
     #[serde(rename = "type")]
     pub event_type: String,
