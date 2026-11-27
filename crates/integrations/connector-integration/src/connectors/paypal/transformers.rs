@@ -8,6 +8,7 @@ use cards;
 use common_enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    pii::Email,
     types::{MinorUnit, StringMajorUnit},
     CustomResult, Method,
 };
@@ -754,6 +755,7 @@ pub struct ThreeDsMethod {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ThreeDsType {
     ScaAlways,
+    ScaWhenRequired,
 }
 
 #[derive(Debug, Serialize)]
@@ -773,7 +775,33 @@ pub struct ContextStruct {
 
 #[derive(Debug, Serialize)]
 pub struct GooglePayRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email_address: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone_number: Option<GooglePayPhoneNumber>,
     pub decrypted_token: GooglePayDecryptedToken,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assurance_details: Option<GooglePayAssuranceDetailsRequest>,
+    pub attributes: GooglePayAttributes,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayPhoneNumber {
+    pub country_code: String,
+    pub national_number: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayAssuranceDetailsRequest {
+    pub account_verified: bool,
+    pub card_holder_authenticated: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayAttributes {
+    pub verification: ThreeDsMethod,
 }
 
 #[derive(Debug, Serialize)]
@@ -835,6 +863,8 @@ pub struct GooglePayDecryptedToken {
 
 #[derive(Debug, Serialize)]
 pub struct GooglePayDecryptedCard {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
     pub number: Secret<String>,
     pub expiry: Secret<String>,
 }
@@ -1764,7 +1794,42 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         } else {
                             common_enums::GooglePayAuthMethod::PanOnly
                         };
+                        let flow_data = &item.router_data.resource_common_data;
+                        let name = flow_data.get_optional_payment_billing_full_name();
+                        let method = match flow_data.auth_type {
+                            common_enums::AuthenticationType::ThreeDs => ThreeDsType::ScaAlways,
+                            common_enums::AuthenticationType::NoThreeDs => {
+                                ThreeDsType::ScaWhenRequired
+                            }
+                        };
                         let payment_source = Some(PaymentSourceItem::GooglePay(GooglePayRequest {
+                            name: name.clone(),
+                            email_address: flow_data
+                                .get_optional_billing_email()
+                                .or_else(|| item.router_data.request.email.clone()),
+                            // PayPal rejects a phone_number without country_code.
+                            phone_number: flow_data
+                                .get_optional_billing()
+                                .and_then(|billing| billing.phone.as_ref())
+                                .and_then(|phone| {
+                                    Some(GooglePayPhoneNumber {
+                                        country_code: phone
+                                            .country_code
+                                            .as_deref()?
+                                            .trim_start_matches('+')
+                                            .to_owned(),
+                                        national_number: phone.number.clone()?,
+                                    })
+                                }),
+                            assurance_details: gpay_data.info.assurance_details.as_ref().map(
+                                |details| GooglePayAssuranceDetailsRequest {
+                                    account_verified: details.account_verified,
+                                    card_holder_authenticated: details.card_holder_authenticated,
+                                },
+                            ),
+                            attributes: GooglePayAttributes {
+                                verification: ThreeDsMethod { method },
+                            },
                             decrypted_token: GooglePayDecryptedToken {
                                 message_id: common_utils::fp_utils::generate_uuid_v4(),
                                 // TODO: message_expiration is hardcoded because HS does not currently
@@ -1776,6 +1841,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 cryptogram: decrypted_data.cryptogram.clone(),
                                 eci_indicator: decrypted_data.eci_indicator.clone(),
                                 card: GooglePayDecryptedCard {
+                                    name,
                                     number: Secret::new(
                                         decrypted_data
                                             .application_primary_account_number
