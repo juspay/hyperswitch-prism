@@ -62,6 +62,7 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+paynamics.base_url = "https://payin.payserv.net/paygate/"
 revpay.base_url = "https://stg-mpg.revpay-sandbox.com.my"
 betterpayment.base_url = "https://testapi.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"

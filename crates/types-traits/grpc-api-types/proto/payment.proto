@@ -760,6 +760,7 @@ enum Connector {
   REDDOT = 156;
   PAYHOUND = 157;
   REVPAY = 158;
+  PAYNAMICS = 159;
 }
 
 // Payment method types
@@ -6092,6 +6093,15 @@ message ReddotConfig {
   optional string base_url = 50;
 }
 
+// Paynamics REST Workflow credentials and explicit environment binding.
+message PaynamicsConfig {
+  SecretString merchant_id = 1;
+  SecretString merchant_key = 2;
+  SecretString username = 3;
+  SecretString password = 4;
+  optional string base_url = 50;
+}
+
 message PayhoundConfig {
   // Payhound API key, sent as the X-MB-Key header.
   SecretString api_key = 1;
@@ -6480,6 +6490,8 @@ message ConnectorSpecificConfig {
     BetterpaymentConfig betterpayment = 166;
     // REDDOT = 156
     ReddotConfig reddot = 167;
+    // PAYNAMICS = 159
+    PaynamicsConfig paynamics = 171;
     // PAYHOUND = 157
     PayhoundConfig payhound = 168;
     // REVPAY = 158

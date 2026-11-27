@@ -480,6 +480,7 @@ pub struct Connectors {
     pub betterpayment: ConnectorParams,
     pub reddot: ConnectorParams,
     pub ecommpay: ConnectorParams,
+    pub paynamics: ConnectorParams,
     pub payhound: ConnectorParams,
     pub revpay: ConnectorParams,
 }
@@ -894,6 +895,9 @@ impl Connectors {
             }
             ConnectorEnum::Ecommpay => {
                 patched.ecommpay.apply(params_patch);
+            }
+            ConnectorEnum::Paynamics => {
+                patched.paynamics.apply(params_patch);
             }
             ConnectorEnum::Payhound => {
                 patched.payhound.apply(params_patch);

@@ -1,0 +1,7 @@
+{
+  "connector": "paynamics",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get"
+  ]
+}
