@@ -63,6 +63,9 @@
       "reason": "No JPMorgan Orbital sandbox credentials exist; validated against a local mock server only."
     },
     "juspay": {},
+    "kgp": {
+      "reason": "KGP (Omise) sandbox credentials are not configured in CI, so live connector certification cannot run. Remove this entry once the Omise secret and public test keys are added to the CI credentials file so the declared scenarios are certified."
+    },
     "kount": {},
     "loonio": {},
     "maya": {},

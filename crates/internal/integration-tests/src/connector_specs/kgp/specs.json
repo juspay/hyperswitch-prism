@@ -1,0 +1,13 @@
+{
+  "connector": "kgp",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentMethodService/Tokenize",
+    "CustomerService/Create"
+  ]
+}

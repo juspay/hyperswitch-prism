@@ -23,7 +23,7 @@ use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
 };
 
-fn is_wallet_payload_decrypted_network_token(
+pub(crate) fn is_wallet_payload_decrypted_network_token(
     payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
 ) -> bool {
     match payment_method.and_then(|pm| pm.payment_method.as_ref()) {

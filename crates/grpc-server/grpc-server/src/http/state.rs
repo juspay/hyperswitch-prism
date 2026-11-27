@@ -4,6 +4,7 @@ type CompositePaymentsService = composite_service::payments::Payments<
     crate::server::payments::Customer,
     crate::server::refunds::Refunds,
     crate::server::payments::PaymentMethodAuthentication,
+    crate::server::payments::PaymentMethod,
 >;
 
 type CompositeEventService = composite_service::events::CompositeEvents<

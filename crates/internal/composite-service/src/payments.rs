@@ -9,9 +9,9 @@ use grpc_api_types::payments::{
     customer_service_server::CustomerService,
     merchant_authentication_service_server::MerchantAuthenticationService,
     payment_method_authentication_service_server::PaymentMethodAuthenticationService,
-    payment_service_server::PaymentService, refund_service_server::RefundService,
-    CompositeAuthorizeRequest, CompositeAuthorizeResponse, CompositeCaptureRequest,
-    CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse,
+    payment_method_service_server::PaymentMethodService, payment_service_server::PaymentService,
+    refund_service_server::RefundService, CompositeAuthorizeRequest, CompositeAuthorizeResponse,
+    CompositeCaptureRequest, CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse,
     CompositePreAuthenticateRequest, CompositePreAuthenticateResponse, CompositeRefundGetRequest,
     CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse, CompositeStatus,
     CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
@@ -24,7 +24,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentServiceAuthorizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
     PaymentServiceRefundRequest, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
@@ -32,6 +33,7 @@ use grpc_api_types::payments::{
 };
 use interfaces::connector_types::AuthenticationStep;
 
+use crate::payment_methods::is_wallet_payload_decrypted_network_token;
 use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
@@ -328,21 +330,23 @@ enum ConnectorCustomerLookup {
 }
 
 #[derive(Clone)]
-pub struct Payments<P, M, C, R, A> {
+pub struct Payments<P, M, C, R, A, PM> {
     payment_service: P,
     merchant_authentication_service: M,
     customer_service: C,
     refund_service: R,
     authentication_service: A,
+    payment_method_service: PM,
 }
 
-impl<P, M, C, R, A> Payments<P, M, C, R, A> {
+impl<P, M, C, R, A, PM> Payments<P, M, C, R, A, PM> {
     pub fn new(
         payment_service: P,
         merchant_authentication_service: M,
         customer_service: C,
         refund_service: R,
         authentication_service: A,
+        payment_method_service: PM,
     ) -> Self {
         Self {
             payment_service,
@@ -350,18 +354,74 @@ impl<P, M, C, R, A> Payments<P, M, C, R, A> {
             customer_service,
             refund_service,
             authentication_service,
+            payment_method_service,
         }
     }
 }
 
-impl<P, M, C, R, A> Payments<P, M, C, R, A>
+impl<P, M, C, R, A, PM> Payments<P, M, C, R, A, PM>
 where
     P: PaymentService + Clone + Send + Sync + 'static,
     M: MerchantAuthenticationService + Clone + Send + Sync + 'static,
     C: CustomerService + Clone + Send + Sync + 'static,
     R: RefundService + Clone + Send + Sync + 'static,
     A: PaymentMethodAuthenticationService + Clone + Send + Sync + 'static,
+    PM: PaymentMethodService + Clone + Send + Sync + 'static,
 {
+    async fn create_payment_method_token(
+        &self,
+        connector: &ConnectorEnum,
+        payload: &CompositeAuthorizeRequest,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<Option<PaymentMethodServiceTokenizeResponse>, tonic::Status> {
+        let payment_method = payload
+            .payment_method
+            .clone()
+            .map(common_enums::PaymentMethod::foreign_try_from)
+            .transpose()
+            .map_err(|err| {
+                tonic::Status::invalid_argument(format!("invalid payment_method: {err}"))
+            })?
+            .unwrap_or_default();
+        let payment_method_type = payload
+            .payment_method
+            .clone()
+            .map(Option::<common_enums::PaymentMethodType>::foreign_try_from)
+            .transpose()
+            .map_err(|err| {
+                tonic::Status::invalid_argument(format!("invalid payment_method_type: {err}"))
+            })?
+            .flatten();
+        let is_wallet_decrypted_network_token =
+            is_wallet_payload_decrypted_network_token(payload.payment_method.as_ref());
+        let should_tokenize = ConnectorData::<
+            domain_types::payment_method_data::DefaultPCIHolder,
+        >::get_connector_by_name(connector)
+            .connector
+            .should_do_payment_method_token(
+                payment_method,
+                payment_method_type,
+                is_wallet_decrypted_network_token,
+            );
+
+        match should_tokenize {
+            true => {
+                let tokenize_payload = PaymentMethodServiceTokenizeRequest::foreign_from(payload);
+                let mut tokenize_request = tonic::Request::new(tokenize_payload);
+                *tokenize_request.metadata_mut() = metadata.clone();
+                *tokenize_request.extensions_mut() = extensions.clone();
+
+                Ok(Some(
+                    self.payment_method_service
+                        .tokenize(tokenize_request)
+                        .await?
+                        .into_inner(),
+                ))
+            }
+            false => Ok(None),
+        }
+    }
     async fn create_server_authentication_token<Req: CompositeAccessTokenRequest>(
         &self,
         connector: &ConnectorVariant,
@@ -636,6 +696,7 @@ where
         session_token_response: Option<
             &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
         >,
+        payment_method_tokenize_response: Option<&PaymentMethodServiceTokenizeResponse>,
         create_customer_response: Option<&CustomerServiceCreateResponse>,
         create_order_response: Option<&PaymentServiceCreateOrderResponse>,
         pre_authenticate_response: Option<
@@ -652,6 +713,7 @@ where
             payload,
             access_token_response,
             session_token_response,
+            payment_method_tokenize_response,
             create_customer_response,
             create_order_response,
             pre_authenticate_response,
@@ -824,6 +886,9 @@ where
                 &extensions,
             )
             .await?;
+        let payment_method_tokenize_response = self
+            .create_payment_method_token(&connector, &payload, &metadata, &extensions)
+            .await?;
         let create_customer_response = self
             .create_connector_customer(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -969,6 +1034,7 @@ where
                             &payload,
                             access_token_response.as_ref(),
                             session_token_response.as_ref(),
+                            payment_method_tokenize_response.as_ref(),
                             create_customer_response.as_ref(),
                             create_order_response.as_ref(),
                             state.pre_auth_response_opt.as_ref(),
@@ -1514,13 +1580,14 @@ where
 }
 
 #[tonic::async_trait]
-impl<P, M, C, R, A> CompositePaymentService for Payments<P, M, C, R, A>
+impl<P, M, C, R, A, PM> CompositePaymentService for Payments<P, M, C, R, A, PM>
 where
     P: PaymentService + Clone + Send + Sync + 'static,
     M: MerchantAuthenticationService + Clone + Send + Sync + 'static,
     C: CustomerService + Clone + Send + Sync + 'static,
     R: RefundService + Clone + Send + Sync + 'static,
     A: PaymentMethodAuthenticationService + Clone + Send + Sync + 'static,
+    PM: PaymentMethodService + Clone + Send + Sync + 'static,
 {
     #[tracing::instrument(name = "composite_payments_authorize", skip_all, fields(
         name = common_utils::consts::NAME,
@@ -1746,13 +1813,14 @@ where
 }
 
 #[tonic::async_trait]
-impl<P, M, C, R, A> CompositeRefundService for Payments<P, M, C, R, A>
+impl<P, M, C, R, A, PM> CompositeRefundService for Payments<P, M, C, R, A, PM>
 where
     P: PaymentService + Clone + Send + Sync + 'static,
     M: MerchantAuthenticationService + Clone + Send + Sync + 'static,
     C: CustomerService + Clone + Send + Sync + 'static,
     R: RefundService + Clone + Send + Sync + 'static,
     A: PaymentMethodAuthenticationService + Clone + Send + Sync + 'static,
+    PM: PaymentMethodService + Clone + Send + Sync + 'static,
 {
     #[tracing::instrument(name = "composite_payments_get", skip_all, fields(
         name = common_utils::consts::NAME,

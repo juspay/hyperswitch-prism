@@ -92,8 +92,8 @@ use domain_types::connector_types::{
 use grpc_api_types::payments::{
     AccessToken, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
-    PaymentMethodServiceTokenizeResponse, PaymentStatus,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentMethod,
+    PaymentMethodServiceTokenizeResponse, PaymentStatus, TokenPaymentMethodType,
 };
 
 pub fn connector_from_composite_authorize_metadata(
@@ -282,6 +282,26 @@ pub fn get_payment_method_token(
             .map(|resp| resp.payment_method_token.clone())
             .filter(|token| !token.is_empty())
     })
+}
+
+pub fn get_tokenized_payment_method(
+    payment_method_from_request: Option<PaymentMethod>,
+    payment_method_tokenize_response: Option<&PaymentMethodServiceTokenizeResponse>,
+) -> Option<PaymentMethod> {
+    payment_method_tokenize_response
+        .map(|response| response.payment_method_token.clone())
+        .filter(|token| !token.is_empty())
+        .map(|token| PaymentMethod {
+            payment_method: Some(
+                grpc_api_types::payments::payment_method::PaymentMethod::Token(
+                    TokenPaymentMethodType {
+                        token: Some(hyperswitch_masking::Secret::new(token)),
+                        token_payment_method_type: None,
+                    },
+                ),
+            ),
+        })
+        .or(payment_method_from_request)
 }
 
 pub fn get_session_token(

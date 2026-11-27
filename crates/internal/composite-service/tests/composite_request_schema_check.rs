@@ -34,6 +34,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
             "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest",
             "CustomerServiceGetRequest",
             "CustomerServiceCreateRequest",
+            "PaymentMethodServiceTokenizeRequest",
             "PaymentServiceAuthorizeRequest",
         ],
         ignore_granular_only_fields: AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS,

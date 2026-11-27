@@ -175,6 +175,9 @@ message CompositeAuthorizeRequest {
 
   // Merchant account context supplied by the caller.
   optional MerchantDetails merchant_details = 71;
+
+  // Merchant's identifier for a previously stored payment method.
+  optional string merchant_payment_method_id = 72;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.

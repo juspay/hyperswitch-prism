@@ -482,6 +482,7 @@ pub struct Connectors {
     pub ecommpay: ConnectorParams,
     pub payhound: ConnectorParams,
     pub revpay: ConnectorParams,
+    pub kgp: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -1011,6 +1012,9 @@ impl Connectors {
             }
             ConnectorEnum::Xendit => {
                 patched.xendit.apply(params_patch);
+            }
+            ConnectorEnum::Kgp => {
+                patched.kgp.apply(params_patch);
             }
         }
 

@@ -760,6 +760,7 @@ enum Connector {
   REDDOT = 156;
   PAYHOUND = 157;
   REVPAY = 158;
+  KGP = 159;
 }
 
 // Payment method types
@@ -6120,6 +6121,13 @@ message RevpayConfig {
   optional string base_url = 50;
 }
 
+message KgpConfig {
+  SecretString api_key = 1;
+  optional SecretString public_key = 2;
+  optional string base_url = 50;
+  optional string secondary_base_url = 51;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6484,6 +6492,8 @@ message ConnectorSpecificConfig {
     PayhoundConfig payhound = 168;
     // REVPAY = 158
     RevpayConfig revpay = 169;
+    // KGP = 159
+    KgpConfig kgp = 170;
   }
 }
 

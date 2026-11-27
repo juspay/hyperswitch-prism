@@ -36,6 +36,7 @@ type CompositePaymentsService = composite_service::payments::Payments<
     crate::server::payments::Customer,
     crate::server::refunds::Refunds,
     crate::server::payments::PaymentMethodAuthentication,
+    crate::server::payments::PaymentMethod,
 >;
 type CompositeEventService = composite_service::events::CompositeEvents<
     crate::server::events::EventServiceImpl,
@@ -177,6 +178,7 @@ impl Service {
 
         let payment_method_authentication_service =
             crate::server::payments::PaymentMethodAuthentication;
+        let payment_method_service = crate::server::payments::PaymentMethod;
 
         let composite_payments_service = composite_service::payments::Payments::new(
             payments_service.clone(),
@@ -184,6 +186,7 @@ impl Service {
             customer_service.clone(),
             refunds_service.clone(),
             payment_method_authentication_service.clone(),
+            payment_method_service.clone(),
         );
 
         let event_service = crate::server::events::EventServiceImpl;
@@ -192,7 +195,6 @@ impl Service {
             merchant_authentication_service.clone(),
         );
 
-        let payment_method_service = crate::server::payments::PaymentMethod;
         let composite_payment_method_service =
             composite_service::payment_methods::PaymentMethods::new(
                 payment_method_service.clone(),

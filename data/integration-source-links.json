@@ -925,5 +925,20 @@
     "https://docs.payhound.com/v1/quotes",
     "https://docs.payhound.com/v1/prices",
     "https://docs.payhound.com/v1/test"
+  ],
+  "Kgp": [
+    "https://api.omise.co/schema",
+    "https://docs.omise.co/using-API-schema",
+    "https://docs.omise.co/api-webhooks",
+    "https://docs.omise.co/events-api",
+    "https://docs.omise.co/charges-api",
+    "https://docs.omise.co/refunds-api",
+    "https://docs.omise.co/charging-cards",
+    "https://docs.omise.co/tokens-api",
+    "https://docs.omise.co/cards-api",
+    "https://docs.omise.co/api-authentication",
+    "https://docs.omise.co/errors-api",
+    "https://docs.omise.co/api-errors",
+    "https://docs.omise.co/api-versioning"
   ]
 }
