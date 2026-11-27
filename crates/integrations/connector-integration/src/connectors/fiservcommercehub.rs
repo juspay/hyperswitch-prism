@@ -7,7 +7,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    request::{Method, RequestBuilder, RequestContent},
+    request::{Method, Request, RequestBuilder, RequestContent},
     FloatMajorUnit,
 };
 use domain_types::{
@@ -94,7 +94,7 @@ fn build_signed_three_ds_request<B: Serialize + Send + 'static>(
     config: &ConnectorSpecificConfig,
     url: &str,
     body: B,
-) -> CustomResult<common_utils::request::Request, errors::IntegrationError> {
+) -> CustomResult<Request, errors::IntegrationError> {
     let serialized = serde_json::to_string(&body).change_context(
         errors::IntegrationError::RequestEncodingFailed {
             context: fiserv_integration_error_context(
@@ -513,24 +513,16 @@ macros::create_all_prerequisites!(
         pub fn build_repeat_payment_headers(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            request_body_str: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
-        where
-            Self: ConnectorIntegrationV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         {
             let auth =
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body.map(|d| d.content) {
-                Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
-                    .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
-                None => String::new(),
-                _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-            };
             auth.build_hmac_headers(
                 self.common_get_content_type(),
-                &request_body_str,
+                request_body_str,
             )
         }
 
@@ -855,7 +847,7 @@ macros::macro_connector_implementation!(
         }
 
         fn build_request_v2(&self, req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>)
-            -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
+            -> CustomResult<Option<Request>, errors::IntegrationError> {
             let request = FiservcommercehubPreAuthenticateRequest::try_from(FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone(),
@@ -889,7 +881,7 @@ macros::macro_connector_implementation!(
         }
 
         fn build_request_v2(&self, req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>)
-            -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
+            -> CustomResult<Option<Request>, errors::IntegrationError> {
             let request = FiservcommercehubAuthenticateRequest::try_from(FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone(),
@@ -923,7 +915,7 @@ macros::macro_connector_implementation!(
         }
 
         fn build_request_v2(&self, req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>)
-            -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
+            -> CustomResult<Option<Request>, errors::IntegrationError> {
             let request = FiservcommercehubPostAuthenticateRequest::try_from(FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone(),
@@ -969,7 +961,7 @@ macros::macro_connector_implementation!(
                 PaymentsAuthorizeData<T>,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
+        ) -> CustomResult<Option<Request>, errors::IntegrationError> {
             let input_data = FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone()
@@ -1247,11 +1239,29 @@ macros::macro_connector_implementation!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
-        fn get_headers(
+        fn build_request_v2(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            self.build_repeat_payment_headers(req)
+        ) -> CustomResult<Option<Request>, errors::IntegrationError> {
+            let input_data = FiservcommercehubRouterData {
+                connector: self.to_owned(),
+                router_data: req.clone(),
+            };
+            let request_body: FiservcommercehubRepeatPaymentRequest =
+                FiservcommercehubRepeatPaymentRequest::try_from(input_data)?;
+            let request_body_str = serde_json::to_string(&request_body)
+                .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+            let headers = self.build_repeat_payment_headers(req, &request_body_str)?;
+
+            Ok(Some(
+                RequestBuilder::new()
+                    .method(Method::Post)
+                    .url(&self.get_url(req)?)
+                    .attach_default_headers()
+                    .headers(headers)
+                    .set_optional_body(Some(RequestContent::Json(Box::new(request_body))))
+                    .build(),
+            ))
         }
 
         fn get_url(
@@ -1285,7 +1295,7 @@ macros::macro_connector_implementation!(
                 SetupMandateRequestData<T>,
                 PaymentsResponseData,
             >,
-        ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
+        ) -> CustomResult<Option<Request>, errors::IntegrationError> {
             let input_data = FiservcommercehubRouterData {
                 connector: self.to_owned(),
                 router_data: req.clone()

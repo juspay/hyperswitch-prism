@@ -19,6 +19,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.11.27.1
+
+### Features
+
+- **connector:**
+  - Support Fiserv Commerce Hub MITs with card and network tokens ([#2947](https://github.com/juspay/connector-service/pull/2947)) ([`4cee3ba`](https://github.com/juspay/connector-service/commit/4cee3bae2c5b68136f5f683174b087eac6f8c86c))
+  - [Stripe] add Klarna mandate support for normal and connect payments ([#2918](https://github.com/juspay/connector-service/pull/2918)) ([`984d7f2`](https://github.com/juspay/connector-service/commit/984d7f200fe284bda2a9556714b7a646d90b0a01))
+- **flywire:** Re-enable checkout payment methods ([#2955](https://github.com/juspay/connector-service/pull/2955)) ([`101c454`](https://github.com/juspay/connector-service/commit/101c45400ebe09e206f5b79a9ea69fb421ad14b0))
+
+**Full Changelog:** [`2026.11.27.0...2026.11.27.1`](https://github.com/juspay/connector-service/compare/2026.11.27.0...2026.11.27.1)
+
+- - -
+
+## 2026.11.27.0
+
+### Bug Fixes
+
+- **connector:** [Rapyd] Omit absent optional request fields ([#2952](https://github.com/juspay/connector-service/pull/2952)) ([`bc55174`](https://github.com/juspay/connector-service/commit/bc551749517d26a3941d2bd4082cba857cb340f0))
+
+### Miscellaneous Tasks
+
+- **connector:** Silverflow, paypal, authorizedotnet, truelayer, trustly, checkout, nuvei, authipay, cybersource ([#2953](https://github.com/juspay/connector-service/pull/2953)) ([`b4ed765`](https://github.com/juspay/connector-service/commit/b4ed765c03699024311b3fa62d50ed2f94bfebc1))
+
+**Full Changelog:** [`2026.11.26.0...2026.11.27.0`](https://github.com/juspay/connector-service/compare/2026.11.26.0...2026.11.27.0)
+
+- - -
+
 ## 2026.11.26.0
 
 ### Features

@@ -477,3 +477,60 @@ fn payment_with_billing(
         raw_connector_status: None,
     }
 }
+
+fn dispute_status_for(code: &str) -> Result<common_enums::DisputeStatus, String> {
+    let chargeback: super::transformers::ChargebackData = serde_json::from_value(json!({
+        "Amount": 10.0,
+        "Currency": "USD",
+        "ReportedAmount": 10.0,
+        "ReportedCurrency": "USD",
+        "DisputeUnifiedStatusCode": code,
+    }))
+    .map_err(|e| format!("chargeback does not deserialize: {e}"))?;
+    super::transformers::get_dispute_status(&chargeback).map_err(|e| format!("{e:?}"))
+}
+
+#[test]
+fn closed_recall_chargeback_is_cancelled() {
+    assert_eq!(
+        dispute_status_for("FC-CLSD-RCL"),
+        Ok(common_enums::DisputeStatus::DisputeCancelled)
+    );
+}
+
+#[test]
+fn collaboration_and_inquiry_rejections_are_challenged() {
+    for code in ["MCC-M-RJCT", "MCC-A-RJCT", "INQ-A-RJCT"] {
+        assert_eq!(
+            dispute_status_for(code),
+            Ok(common_enums::DisputeStatus::DisputeChallenged),
+            "{code}"
+        );
+    }
+}
+
+#[test]
+fn partial_inquiry_refund_is_accepted() {
+    assert_eq!(
+        dispute_status_for("INQ-M-P-RFND"),
+        Ok(common_enums::DisputeStatus::DisputeAccepted)
+    );
+}
+
+#[test]
+fn inquiry_update_still_has_no_dispute_status() {
+    assert!(dispute_status_for("INQ-UPD").is_err());
+}
+
+#[test]
+fn rejected_and_unavailable_challenge_results_are_failed() {
+    use super::transformers::NuveiAcsTransStatus;
+    for status in ["N", "R", "U"] {
+        let parsed: NuveiAcsTransStatus =
+            serde_json::from_value(json!(status)).expect("transStatus deserializes");
+        assert_eq!(parsed, NuveiAcsTransStatus::Failed, "{status}");
+    }
+    let attempted: NuveiAcsTransStatus =
+        serde_json::from_value(json!("A")).expect("transStatus deserializes");
+    assert_eq!(attempted, NuveiAcsTransStatus::Unknown);
+}

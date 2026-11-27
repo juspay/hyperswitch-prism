@@ -19,19 +19,20 @@ use domain_types::{
         Void, VoidPC,
     },
     connector_types::{
-        ContinueRedirectionResponse, DeviceChannel, MandateReference, MandateReferenceId,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        ContinueRedirectionResponse, DeviceChannel, MandateIds, MandateReference,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData,
     },
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         ApplePayPaymentData, CardWithNoCvc, GpayTokenizationData, PaymentMethodData,
-        PaymentMethodDataTypes, WalletData,
+        PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -45,6 +46,7 @@ use serde::{Deserialize, Serialize};
 
 pub(crate) const ACCESS_TOKEN_SEPARATOR: &str = "|||";
 pub(crate) const TOKEN_SOURCE_TRANSARMOR: &str = "TRANSARMOR";
+pub(crate) const TOKEN_SOURCE_NETWORK_TOKEN: &str = "NETWORK_TOKEN";
 const MERCHANT_INVOICE_NUMBER_MAX_LEN: usize = 12;
 const FISERV_PAYMENT_METHOD_ENCRYPTION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx";
@@ -61,6 +63,7 @@ const FISERV_TRANSACTION_DETAILS_DOC_URL: &str =
 const FISERV_TRANSACTION_INTERACTION_DOC_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Reference/Master-Data/Transaction-Interaction.mdx?branch=active#electronic-commerce-indicator-eci";
 const FISERV_DECRYPTED_WALLET_DOC_URL: &str = "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Digital-Wallets/Decrypted-Wallet/Decrypted-Wallet.mdx";
+const FISERV_STORED_CREDENTIALS_DOC_URL: &str = "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Stored-Credentials/Stored-Credentials.mdx?branch=active";
 pub(crate) const FISERV_THREE_DS_DOC_URL: &str = "https://developer.fiserv.com/product/CommerceHub/docs/Online-Commerce/3D-Secure/3DS-API-Direct.mdx?branch=active";
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -363,6 +366,27 @@ fn encrypt_card_data_no_cvc(
         encryption_block,
         encryption_block_fields,
     })
+}
+
+fn encrypt_network_mit_card<T: PaymentMethodDataTypes>(
+    card_number: &RawCardNumber<T>,
+    card_exp_month: &Secret<String>,
+    card_exp_year: &Secret<String>,
+    card_holder_name: Option<&Secret<String>>,
+    key_id: String,
+    public_key_der: &[u8],
+) -> Result<EncryptedCardData, error_stack::Report<errors::IntegrationError>> {
+    // A network-MIT card has no CVC. Reuse the existing PaymentCard encryption
+    // format, while rejecting vault aliases that cannot be substituted inside
+    // the encrypted block.
+    let card_without_cvc = CardWithNoCvc {
+        card_number: card_number.try_card_number("fiservcommercehub")?,
+        card_exp_month: card_exp_month.clone(),
+        card_exp_year: card_exp_year.clone(),
+        card_holder_name: card_holder_name.cloned(),
+        ..Default::default()
+    };
+    encrypt_card_data_no_cvc(&card_without_cvc, key_id, public_key_der)
 }
 
 /// Builds a `DecryptedWallet` source payload from hyperswitch's in-memory wallet data.
@@ -750,6 +774,14 @@ pub struct FiservcommercehubSourceAuthorizeRequest {
     pub additional_data_3ds: Option<FiservcommercehubAdditionalData3DS>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stored_credentials: Option<FiservcommercehubStoredCredentials>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_details: Option<FiservcommercehubNetworkDetails>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubNetworkDetails {
+    pub transaction_link_identifier: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -773,6 +805,8 @@ pub struct FiservcommercehubPaymentTokenSource {
     pub decline_duplicates: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<FiservcommercehubTokenCardInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cryptogram: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -960,7 +994,7 @@ pub enum FiservcommercehubStoredCredentialSequence {
     Subsequent,
 }
 
-/// Reference: https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Tokenization/Stored-Credentials.mdx
+/// Reference: https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Stored-Credentials/Stored-Credentials.mdx?branch=active
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubStoredCredentials {
@@ -996,6 +1030,109 @@ impl FiservcommercehubStoredCredentials {
             scheme_original_amount,
         }
     }
+}
+
+fn card_stored_credentials(
+    mandate_id: Option<&MandateIds>,
+    is_customer_initiated_mandate: bool,
+    requires_network_reference: bool,
+) -> Result<
+    (
+        Option<FiservcommercehubStoredCredentials>,
+        Option<FiservcommercehubNetworkDetails>,
+    ),
+    error_stack::Report<errors::IntegrationError>,
+> {
+    let network_reference = mandate_id.and_then(|ids| match ids.mandate_reference_id.as_ref() {
+        Some(MandateReferenceId::NetworkMandateId(reference)) => Some((
+            reference.network_transaction_id.as_str(),
+            reference.transaction_link_id.as_deref(),
+        )),
+        // Raised by the NetworkToken Authorize arm when the payment is a MIT replaying a
+        // network token under `recurring_details: network_transaction_id_and_network_token`.
+        Some(MandateReferenceId::NetworkTokenWithNTI(reference)) => Some((
+            reference.network_transaction_id.as_str(),
+            reference.transaction_link_id.as_deref(),
+        )),
+        _ => None,
+    });
+
+    stored_credentials_for_network_reference(
+        network_reference,
+        is_customer_initiated_mandate,
+        requires_network_reference,
+    )
+}
+
+/// Shared by both the Authorize flow (via [`card_stored_credentials`], which extracts the
+/// reference out of a `MandateIds`) and the RepeatPayment flow's `NetworkMandateId` /
+/// `NetworkTokenWithNTI` arms (whose reference types carry the same
+/// `network_transaction_id` + `transaction_link_id` shape but aren't the same Rust type).
+fn stored_credentials_for_network_reference(
+    network_reference: Option<(&str, Option<&str>)>,
+    is_customer_initiated_mandate: bool,
+    requires_network_reference: bool,
+) -> Result<
+    (
+        Option<FiservcommercehubStoredCredentials>,
+        Option<FiservcommercehubNetworkDetails>,
+    ),
+    error_stack::Report<errors::IntegrationError>,
+> {
+    match network_reference {
+        Some((network_transaction_id, transaction_link_id)) => {
+            let network_transaction_id = network_transaction_id.trim();
+            if network_transaction_id.is_empty() {
+                return Err(error_stack::report!(
+                    errors::IntegrationError::MissingRequiredField {
+                        field_name: "mandate_id.network_transaction_id",
+                        context: errors::IntegrationErrorContext {
+                            doc_url: Some(FISERV_STORED_CREDENTIALS_DOC_URL.to_string()),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+
+            let network_details = transaction_link_id.map(|id| FiservcommercehubNetworkDetails {
+                transaction_link_identifier: id.to_string(),
+            });
+            Ok((
+                Some(FiservcommercehubStoredCredentials::new_mit(
+                    Some(network_transaction_id.to_string()),
+                    None,
+                )),
+                network_details,
+            ))
+        }
+        None if requires_network_reference => Err(error_stack::report!(
+            errors::IntegrationError::MissingRequiredField {
+                field_name: "mandate_id.network_transaction_id",
+                context: errors::IntegrationErrorContext {
+                    doc_url: Some(FISERV_STORED_CREDENTIALS_DOC_URL.to_string()),
+                    ..Default::default()
+                },
+            }
+        )),
+        None if is_customer_initiated_mandate => {
+            Ok((Some(FiservcommercehubStoredCredentials::new_cit()), None))
+        }
+        None => Ok((None, None)),
+    }
+}
+
+/// Wraps an RSA-encrypted card/token block into the `PaymentCard` source shape Fiserv expects.
+/// Shared by the `Card`, `CardWithNoCvc`, and `CardDetailsForNetworkTransactionId` Authorize arms
+/// and the `NetworkMandateId` RepeatPayment arm, which otherwise each repeat this struct literal.
+fn payment_card_source(encrypted: EncryptedCardData) -> FiservcommercehubSourceData {
+    FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
+        encryption_data: FiservcommercehubEncryptionData {
+            key_id: encrypted.key_id,
+            encryption_type: FiservcommercehubEncryptionType::Rsa,
+            encryption_block: encrypted.encryption_block,
+            encryption_block_fields: encrypted.encryption_block_fields,
+        },
+    })
 }
 
 // =============================================================================
@@ -1208,53 +1345,70 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type = &router_data.connector_config;
         let auth = FiservcommercehubAuthType::try_from(auth_type)?;
 
-        let (source, stored_credentials, wallet_eci) = match &router_data
+        let (source, stored_credentials, network_details, wallet_eci) = match &router_data
             .request
             .payment_method_data
         {
             PaymentMethodData::Card(card) => {
-                let encrypted_card = encrypt_card_data(card, key_id, &public_key_der)?;
-
-                let stored_credentials =
-                    if router_data.request.is_customer_initiated_mandate_payment() {
-                        Some(FiservcommercehubStoredCredentials::new_cit())
-                    } else {
-                        None
-                    };
+                let (stored_credentials, network_details) = card_stored_credentials(
+                    router_data.request.mandate_id.as_ref(),
+                    router_data.request.is_customer_initiated_mandate_payment(),
+                    false,
+                )?;
+                let encrypted_card = if stored_credentials.as_ref().is_some_and(|credentials| {
+                    credentials.initiator == FiservcommercehubStoredCredentialInitiator::Merchant
+                }) {
+                    // A stored-card MIT must not transmit a saved security code.
+                    encrypt_network_mit_card(
+                        &card.card_number,
+                        &card.card_exp_month,
+                        &card.card_exp_year,
+                        card.card_holder_name.as_ref(),
+                        key_id,
+                        &public_key_der,
+                    )?
+                } else {
+                    encrypt_card_data(card, key_id, &public_key_der)?
+                };
 
                 (
-                    FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
-                        encryption_data: FiservcommercehubEncryptionData {
-                            key_id: encrypted_card.key_id,
-                            encryption_type: FiservcommercehubEncryptionType::Rsa,
-                            encryption_block: encrypted_card.encryption_block,
-                            encryption_block_fields: encrypted_card.encryption_block_fields,
-                        },
-                    }),
+                    payment_card_source(encrypted_card),
                     stored_credentials,
+                    network_details,
                     None,
                 )
             }
             PaymentMethodData::CardWithNoCvc(card) => {
                 let encrypted_card = encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
-
-                let stored_credentials =
-                    if router_data.request.is_customer_initiated_mandate_payment() {
-                        Some(FiservcommercehubStoredCredentials::new_cit())
-                    } else {
-                        None
-                    };
+                let (stored_credentials, network_details) = card_stored_credentials(
+                    router_data.request.mandate_id.as_ref(),
+                    router_data.request.is_customer_initiated_mandate_payment(),
+                    false,
+                )?;
 
                 (
-                    FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
-                        encryption_data: FiservcommercehubEncryptionData {
-                            key_id: encrypted_card.key_id,
-                            encryption_type: FiservcommercehubEncryptionType::Rsa,
-                            encryption_block: encrypted_card.encryption_block,
-                            encryption_block_fields: encrypted_card.encryption_block_fields,
-                        },
-                    }),
+                    payment_card_source(encrypted_card),
                     stored_credentials,
+                    network_details,
+                    None,
+                )
+            }
+            PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+                let (stored_credentials, network_details) =
+                    card_stored_credentials(router_data.request.mandate_id.as_ref(), false, true)?;
+                let encrypted_card = encrypt_network_mit_card(
+                    &card.card_number,
+                    &card.card_exp_month,
+                    &card.card_exp_year,
+                    card.card_holder_name.as_ref(),
+                    key_id,
+                    &public_key_der,
+                )?;
+
+                (
+                    payment_card_source(encrypted_card),
+                    stored_credentials,
+                    network_details,
                     None,
                 )
             }
@@ -1270,12 +1424,59 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         None
                     };
 
-                (source, stored_credentials, wallet_eci)
+                (source, stored_credentials, None, wallet_eci)
+            }
+            PaymentMethodData::NetworkToken(token_data) => {
+                // A merchant-supplied third-party network token is passed through as a
+                // PaymentToken source (tokenSource=NETWORK_TOKEN), not RSA-encrypted like a
+                // raw PAN -- the token itself is already network-scoped and opaque.
+                let (stored_credentials, network_details) = card_stored_credentials(
+                    router_data.request.mandate_id.as_ref(),
+                    router_data.request.is_customer_initiated_mandate_payment(),
+                    false,
+                )?;
+
+                // Fiserv requires a cryptogram for customer-initiated token payments; a MIT
+                // replaying the token via a network transaction ID uses the scheme reference
+                // (stored_credentials) instead, so the cryptogram must be omitted there.
+                let is_network_mit = stored_credentials.as_ref().is_some_and(|credentials| {
+                    credentials.initiator == FiservcommercehubStoredCredentialInitiator::Merchant
+                });
+                let source = FiservcommercehubSourceData::PaymentToken(
+                    FiservcommercehubPaymentTokenSource {
+                        token_data: Secret::new(token_data.get_network_token().peek().clone()),
+                        token_source: TOKEN_SOURCE_NETWORK_TOKEN.to_string(),
+                        decline_duplicates: None,
+                        card: Some(FiservcommercehubTokenCardInfo {
+                            expiration_month: Secret::new(format!(
+                                "{:02}",
+                                crate::utils::parse_expiry_month(
+                                    token_data.get_network_token_expiry_month().peek(),
+                                    "network_token.token_exp_month",
+                                )?
+                            )),
+                            expiration_year: token_data.get_expiry_year_4_digit(),
+                        }),
+                        cryptogram: if is_network_mit {
+                            None
+                        } else {
+                            token_data.get_cryptogram()
+                        },
+                    },
+                );
+
+                (
+                    source,
+                    stored_credentials,
+                    network_details,
+                    token_data.eci.clone(),
+                )
             }
             _ => {
                 return Err(error_stack::report!(
                     errors::IntegrationError::NotImplemented(
                         "Fiserv CommerceHub supports only Card, CardWithNoCvc, \
+                         CardDetailsForNetworkTransactionId, NetworkToken, \
                          ApplePay (pre-decrypted), and GooglePay (pre-decrypted)"
                             .to_string(),
                         errors::IntegrationErrorContext {
@@ -1334,6 +1535,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 create_token,
             },
             stored_credentials,
+            network_details,
             transaction_interaction: FiservcommercehubTransactionInteractionReq {
                 origin,
                 eci_indicator,
@@ -1429,9 +1631,17 @@ pub struct FiservcommercehubAuthorizeResponse {
     pub gateway_response: FiservcommercehubGatewayResponseBody,
     pub payment_receipt: Option<FiservcommercehubPaymentReceipt>,
     pub payment_tokens: Option<FiservcommercehubPaymentTokens>,
+    pub network_details: Option<FiservcommercehubResponseNetworkDetails>,
     /// Additional 3DS data returned in the response as a generic JSON Value
     #[serde(rename = "additionalData3DS", skip_serializing_if = "Option::is_none")]
     pub additional_data_3ds: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubResponseNetworkDetails {
+    pub transaction_identifier: Option<String>,
+    pub transaction_link_identifier: Option<String>,
 }
 
 impl FiservcommercehubAuthorizeResponse {
@@ -1536,15 +1746,28 @@ fn build_connector_response(
     }
 }
 
+/// Bundles the optional response-side extras consulted by [`build_payment_response`] and
+/// [`build_transaction_payment_response`] so adding one more doesn't push either function's
+/// argument count past clippy's `too_many_arguments` threshold.
+struct FiservcommercehubResponseExtras<'a> {
+    payment_tokens: Option<&'a FiservcommercehubPaymentTokens>,
+    payment_receipt: Option<&'a FiservcommercehubPaymentReceipt>,
+    network_details: Option<&'a FiservcommercehubResponseNetworkDetails>,
+}
+
 fn build_payment_response(
     status: AttemptStatus,
     status_code: u16,
     resource_id: ResponseId,
     connector_transaction_id: Option<String>,
     connector_response_reference_id: Option<String>,
-    payment_tokens: Option<&FiservcommercehubPaymentTokens>,
-    payment_receipt: Option<&FiservcommercehubPaymentReceipt>,
+    extras: FiservcommercehubResponseExtras<'_>,
 ) -> Result<PaymentsResponseData, ErrorResponse> {
+    let FiservcommercehubResponseExtras {
+        payment_tokens,
+        payment_receipt,
+        network_details,
+    } = extras;
     match status {
         AttemptStatus::Failure => {
             let processor_response_details =
@@ -1588,8 +1811,16 @@ fn build_payment_response(
             mandate_reference: payment_tokens
                 .and_then(|token| token.get_mandate_reference(connector_transaction_id)),
             connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
+            network_txn_id: network_details
+                .and_then(|details| details.transaction_identifier.as_deref())
+                .map(str::trim)
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned),
+            network_txn_link_id: network_details
+                .and_then(|details| details.transaction_link_identifier.as_deref())
+                .map(str::trim)
+                .filter(|id| !id.is_empty())
+                .map(str::to_owned),
             connector_response_reference_id,
             incremental_authorization_allowed: None,
             status_code,
@@ -1603,8 +1834,7 @@ fn build_transaction_payment_response(
     status: AttemptStatus,
     status_code: u16,
     txn: &FiservcommercehubTxnDetails,
-    payment_tokens: Option<&FiservcommercehubPaymentTokens>,
-    payment_receipt: Option<&FiservcommercehubPaymentReceipt>,
+    extras: FiservcommercehubResponseExtras<'_>,
 ) -> Result<PaymentsResponseData, ErrorResponse> {
     let connector_transaction_id = txn.transaction_id.clone();
 
@@ -1614,8 +1844,7 @@ fn build_transaction_payment_response(
         ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
         Some(connector_transaction_id),
         txn.order_id.clone(),
-        payment_tokens,
-        payment_receipt,
+        extras,
     )
 }
 
@@ -1644,8 +1873,11 @@ impl<T: PaymentMethodDataTypes>
             status,
             item.http_code,
             txn,
-            item.response.payment_tokens.as_ref(),
-            item.response.payment_receipt.as_ref(),
+            FiservcommercehubResponseExtras {
+                payment_tokens: item.response.payment_tokens.as_ref(),
+                payment_receipt: item.response.payment_receipt.as_ref(),
+                network_details: item.response.network_details.as_ref(),
+            },
         );
         if let Ok(PaymentsResponseData::TransactionResponse {
             incremental_authorization_allowed,
@@ -1762,6 +1994,7 @@ pub struct FiservcommercehubPSyncGatewayResponse {
 pub struct FiservcommercehubPSyncItem {
     pub gateway_response: FiservcommercehubPSyncGatewayResponse,
     pub payment_receipt: Option<FiservcommercehubPaymentReceipt>,
+    pub network_details: Option<FiservcommercehubResponseNetworkDetails>,
 }
 
 impl FiservcommercehubPSyncItem {
@@ -1820,8 +2053,11 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
             resource_id,
             connector_transaction_id,
             None,
-            None,
-            psync_item.payment_receipt.as_ref(),
+            FiservcommercehubResponseExtras {
+                payment_tokens: None,
+                payment_receipt: psync_item.payment_receipt.as_ref(),
+                network_details: psync_item.network_details.as_ref(),
+            },
         );
 
         Ok(Self {
@@ -2256,8 +2492,11 @@ impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
                 ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 Some(transaction_id),
                 None,
-                None,
-                item.response.payment_receipt.as_ref(),
+                FiservcommercehubResponseExtras {
+                    payment_tokens: None,
+                    payment_receipt: item.response.payment_receipt.as_ref(),
+                    network_details: None,
+                },
             )
         } else {
             Ok(PaymentsResponseData::PostCaptureVoidResponse {
@@ -2439,8 +2678,11 @@ impl TryFrom<ResponseRouterData<FiservcommercehubAuthorizeResponse, Self>>
                 ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
                 Some(txn.transaction_id.clone()),
                 txn.order_id.clone(),
-                item.response.payment_tokens.as_ref(),
-                item.response.payment_receipt.as_ref(),
+                FiservcommercehubResponseExtras {
+                    payment_tokens: item.response.payment_tokens.as_ref(),
+                    payment_receipt: item.response.payment_receipt.as_ref(),
+                    network_details: item.response.network_details.as_ref(),
+                },
             ),
         };
 
@@ -2679,8 +2921,11 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
             status,
             item.http_code,
             txn,
-            item.response.0.payment_tokens.as_ref(),
-            item.response.0.payment_receipt.as_ref(),
+            FiservcommercehubResponseExtras {
+                payment_tokens: item.response.0.payment_tokens.as_ref(),
+                payment_receipt: item.response.0.payment_receipt.as_ref(),
+                network_details: item.response.0.network_details.as_ref(),
+            },
         );
 
         Ok(Self {
@@ -2714,6 +2959,8 @@ pub struct FiservcommercehubRepeatPaymentRequest {
     pub transaction_details: FiservcommercehubTransactionDetailsReq,
     pub transaction_interaction: FiservcommercehubTransactionInteractionReq,
     pub stored_credentials: FiservcommercehubStoredCredentials,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_details: Option<FiservcommercehubNetworkDetails>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
@@ -2751,51 +2998,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             utils::convert_amount(item.connector.amount_converter, &router_data.request.money)?;
 
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
-
-        // Extract mandate reference for repeat payment
-        let (connector_mandate_id, token_source, scheme_referenced_transaction_id) =
-            match &router_data.request.mandate_reference {
-                MandateReferenceId::ConnectorMandateId(id) => {
-                    let connector_mandate_id = id.get_connector_mandate_id().ok_or(
-                        errors::IntegrationError::MissingRequiredField {
-                            field_name: "connector_mandate_id",
-                            context: errors::IntegrationErrorContext {
-                                additional_context: Some(
-                                    "connector_mandate_id is required for repeat payments"
-                                        .to_string(),
-                                ),
-                                doc_url: Some(FISERV_CHARGES_API_VERSION_URL.to_string()),
-                                ..Default::default()
-                            },
-                        },
-                    )?;
-                    let token_source = TOKEN_SOURCE_TRANSARMOR.to_string();
-                    let scheme_ref_id = id.get_connector_mandate_request_reference_id();
-                    (connector_mandate_id, token_source, scheme_ref_id)
-                }
-                _ => {
-                    return Err(error_stack::report!(
-                        errors::IntegrationError::MissingRequiredField {
-                            field_name: "mandate_reference_id.connector_mandate_id",
-                            context: errors::IntegrationErrorContext {
-                                additional_context: Some(
-                                    "expected MandateReferenceId::ConnectorMandateId for repeat payments"
-                                        .to_string(),
-                                ),
-                                doc_url: Some(FISERV_CHARGES_API_VERSION_URL.to_string()),
-                                ..Default::default()
-                            },
-                        }
-                    ))
-                }
-            };
-
-        // Build stored credentials for MIT (Merchant Initiated Transaction)
-        let stored_credentials =
-            FiservcommercehubStoredCredentials::new_mit(scheme_referenced_transaction_id, None);
-
-        // For repeat payments, use Ecom origin as default
-        let origin = FiservcommercehubOrigin::Ecom;
 
         // Extract card expiration details from additional_payment_data if available
         let card_info = router_data
@@ -2845,6 +3047,161 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             });
 
+        let (source, stored_credentials, network_details) = match &router_data
+            .request
+            .mandate_reference
+        {
+            MandateReferenceId::ConnectorMandateId(id) => {
+                let connector_mandate_id = id.get_connector_mandate_id().ok_or(
+                    errors::IntegrationError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "connector_mandate_id is required for repeat payments".to_string(),
+                            ),
+                            doc_url: Some(FISERV_CHARGES_API_VERSION_URL.to_string()),
+                            ..Default::default()
+                        },
+                    },
+                )?;
+                (
+                    FiservcommercehubSourceData::PaymentToken(
+                        FiservcommercehubPaymentTokenSource {
+                            token_data: Secret::new(connector_mandate_id),
+                            token_source: TOKEN_SOURCE_TRANSARMOR.to_string(),
+                            decline_duplicates: Some(false),
+                            card: card_info,
+                            cryptogram: None,
+                        },
+                    ),
+                    FiservcommercehubStoredCredentials::new_mit(
+                        id.get_connector_mandate_request_reference_id(),
+                        None,
+                    ),
+                    None,
+                )
+            }
+            MandateReferenceId::NetworkMandateId(reference) => {
+                let card = match &router_data.request.payment_method_data {
+                    PaymentMethodData::CardDetailsForNetworkTransactionId(card) => card,
+                    _ => {
+                        return Err(error_stack::report!(
+                            errors::IntegrationError::MissingRequiredField {
+                                field_name:
+                                    "payment_method_data.card_details_for_network_transaction_id",
+                                context: errors::IntegrationErrorContext {
+                                    doc_url: Some(FISERV_STORED_CREDENTIALS_DOC_URL.to_string()),
+                                    ..Default::default()
+                                },
+                            }
+                        ))
+                    }
+                };
+                let (stored_credentials, network_details) =
+                    stored_credentials_for_network_reference(
+                        Some((
+                            reference.network_transaction_id.as_str(),
+                            reference.transaction_link_id.as_deref(),
+                        )),
+                        false,
+                        true,
+                    )?;
+                let stored_credentials = stored_credentials.ok_or_else(|| {
+                    error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                        field_name: "mandate_id.network_transaction_id",
+                        context: Default::default(),
+                    })
+                })?;
+
+                let access_token = router_data.resource_common_data.get_access_token()?;
+                let (key_id, encoded_public_key) = access_token
+                    .split_once(ACCESS_TOKEN_SEPARATOR)
+                    .filter(|(key_id, public_key)| !key_id.is_empty() && !public_key.is_empty())
+                    .ok_or_else(|| {
+                        error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                            field_name: "fiserv_public_key",
+                            context: Default::default(),
+                        })
+                    })?;
+                let public_key_der = general_purpose::STANDARD
+                    .decode(encoded_public_key)
+                    .map_err(|_| {
+                        error_stack::report!(errors::IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        })
+                    })?;
+                let encrypted_card = encrypt_network_mit_card(
+                    &card.card_number,
+                    &card.card_exp_month,
+                    &card.card_exp_year,
+                    card.card_holder_name.as_ref(),
+                    key_id.to_string(),
+                    &public_key_der,
+                )?;
+                (
+                    payment_card_source(encrypted_card),
+                    stored_credentials,
+                    network_details,
+                )
+            }
+            MandateReferenceId::NetworkTokenWithNTI(reference) => {
+                let token = match &router_data.request.payment_method_data {
+                    PaymentMethodData::NetworkToken(token) => token,
+                    _ => {
+                        return Err(error_stack::report!(
+                            errors::IntegrationError::MissingRequiredField {
+                                field_name: "payment_method_data.network_token",
+                                context: errors::IntegrationErrorContext {
+                                    doc_url: Some(FISERV_STORED_CREDENTIALS_DOC_URL.to_string()),
+                                    ..Default::default()
+                                },
+                            }
+                        ))
+                    }
+                };
+                let (stored_credentials, network_details) =
+                    stored_credentials_for_network_reference(
+                        Some((
+                            reference.network_transaction_id.as_str(),
+                            reference.transaction_link_id.as_deref(),
+                        )),
+                        false,
+                        true,
+                    )?;
+                let stored_credentials = stored_credentials.ok_or_else(|| {
+                    error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                        field_name: "mandate_id.network_transaction_id",
+                        context: Default::default(),
+                    })
+                })?;
+
+                (
+                    FiservcommercehubSourceData::PaymentToken(
+                        FiservcommercehubPaymentTokenSource {
+                            token_data: Secret::new(token.get_network_token().peek().clone()),
+                            token_source: TOKEN_SOURCE_NETWORK_TOKEN.to_string(),
+                            decline_duplicates: None,
+                            card: Some(FiservcommercehubTokenCardInfo {
+                                expiration_month: Secret::new(format!(
+                                    "{:02}",
+                                    crate::utils::parse_expiry_month(
+                                        token.get_network_token_expiry_month().peek(),
+                                        "network_token.token_exp_month",
+                                    )?
+                                )),
+                                expiration_year: token.get_expiry_year_4_digit(),
+                            }),
+                            // Fiserv requires a cryptogram for customer initiated token payments;
+                            // subsequent merchant initiated payments use the scheme reference.
+                            cryptogram: None,
+                        },
+                    ),
+                    stored_credentials,
+                    network_details,
+                )
+            }
+        };
+
         let connector_metadata = parse_connector_metadata(router_data.request.metadata.as_ref())?;
 
         let request = Self {
@@ -2852,14 +3209,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 currency: router_data.request.currency,
                 total,
             },
-            source: FiservcommercehubSourceData::PaymentToken(
-                FiservcommercehubPaymentTokenSource {
-                    token_data: Secret::new(connector_mandate_id),
-                    token_source,
-                    decline_duplicates: Some(false),
-                    card: card_info,
-                },
-            ),
+            source,
             merchant_details: FiservcommercehubMerchantDetails {
                 merchant_id: auth.merchant_id.clone(),
                 terminal_id: auth.terminal_id.clone(),
@@ -2875,10 +3225,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 create_token: None,
             },
             transaction_interaction: FiservcommercehubTransactionInteractionReq {
-                origin,
+                origin: FiservcommercehubOrigin::Ecom,
                 eci_indicator: None,
             },
             stored_credentials,
+            network_details,
         };
         Ok(request)
     }
@@ -2909,8 +3260,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservcommercehubRepe
             status,
             item.http_code,
             txn,
-            item.response.0.payment_tokens.as_ref(),
-            item.response.0.payment_receipt.as_ref(),
+            FiservcommercehubResponseExtras {
+                payment_tokens: item.response.0.payment_tokens.as_ref(),
+                payment_receipt: item.response.0.payment_receipt.as_ref(),
+                network_details: item.response.0.network_details.as_ref(),
+            },
         );
 
         Ok(Self {
@@ -3155,6 +3509,7 @@ pub struct FiservcommercehubSetupMandateResponse {
     pub gateway_response: FiservcommercehubGatewayResponseBody,
     pub payment_receipt: Option<FiservcommercehubPaymentReceipt>,
     pub payment_tokens: Option<FiservcommercehubPaymentTokens>,
+    pub network_details: Option<FiservcommercehubResponseNetworkDetails>,
     #[serde(rename = "additionalData3DS", skip_serializing_if = "Option::is_none")]
     pub additional_data_3ds: Option<serde_json::Value>,
 }
@@ -3195,8 +3550,11 @@ where
             status,
             item.http_code,
             txn,
-            item.response.payment_tokens.as_ref(),
-            item.response.payment_receipt.as_ref(),
+            FiservcommercehubResponseExtras {
+                payment_tokens: item.response.payment_tokens.as_ref(),
+                payment_receipt: item.response.payment_receipt.as_ref(),
+                network_details: item.response.network_details.as_ref(),
+            },
         );
 
         Ok(Self {

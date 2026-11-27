@@ -116,6 +116,7 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "shipping_address": {
+              "first_name": "John",
               "line1": "123 Main St",
               "zip_code": "98101",
               "country_alpha2_code": "US"
@@ -134,7 +135,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&shipping%5Baddress%5D%5Bcountry%5D=US&shipping%5Baddress%5D%5Bline1%5D=123+Main+St&shipping%5Baddress%5D%5Bpostal_code%5D=98101&payment_method_data%5Btype%5D=afterpay_clearpay&capture_method=automatic&payment_method_types%5B0%5D=afterpay_clearpay&expand%5B0%5D=latest_charge"
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&shipping%5Baddress%5D%5Bcountry%5D=US&shipping%5Baddress%5D%5Bline1%5D=123+Main+St&shipping%5Baddress%5D%5Bpostal_code%5D=98101&shipping%5Bname%5D=John&payment_method_data%5Btype%5D=afterpay_clearpay&capture_method=automatic&payment_method_types%5B0%5D=afterpay_clearpay&expand%5B0%5D=latest_charge"
         }
       },
       "Alfamart": {
