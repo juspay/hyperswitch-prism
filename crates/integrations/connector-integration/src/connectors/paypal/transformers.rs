@@ -2456,12 +2456,29 @@ pub enum PaypalPostAuthenticateResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalLiabilityResponse {
-    pub payment_source: CardParams,
+    pub payment_source: PostAuthenticatePaymentSource<CardParams>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalNonLiabilityResponse {
-    payment_source: CardsData,
+    payment_source: PostAuthenticatePaymentSource<CardsData>,
+}
+
+/// PayPal nests the 3DS result under `payment_source.card` for cards and under
+/// `payment_source.google_pay.card` for decrypted Google Pay.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PostAuthenticatePaymentSource<T> {
+    Card(T),
+    GooglePay { google_pay: T },
+}
+
+impl<T> PostAuthenticatePaymentSource<T> {
+    fn source(&self) -> &T {
+        match self {
+            Self::Card(source) | Self::GooglePay { google_pay: source } => source,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3767,6 +3784,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 match (
                     liability_response
                         .payment_source
+                        .source()
                         .card
                         .authentication_result
                         .three_d_secure
@@ -3774,6 +3792,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .as_ref(),
                     liability_response
                         .payment_source
+                        .source()
                         .card
                         .authentication_result
                         .three_d_secure
@@ -3781,6 +3800,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .as_ref(),
                     &liability_response
                         .payment_source
+                        .source()
                         .card
                         .authentication_result
                         .liability_shift,
@@ -3818,20 +3838,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         // Failed: Authentication checks failed
                         let error_message = format!(
                             "Cannot continue with Authorization due to failed Liability Shift. Connector Responded with LiabilityShift: {:?}, EnrollmentStatus: {:?}, and AuthenticationStatus: {:?}",
-                            liability_response.payment_source.card.authentication_result.liability_shift,
+                            liability_response.payment_source.source().card.authentication_result.liability_shift,
                             liability_response
                                 .payment_source
+                                .source()
                                 .card
                                 .authentication_result
                                 .three_d_secure
                                 .enrollment_status
+                                .clone()
                                 .unwrap_or(EnrollmentStatus::Null),
                             liability_response
                                 .payment_source
+                                .source()
                                 .card
                                 .authentication_result
                                 .three_d_secure
                                 .authentication_status
+                                .clone()
                                 .unwrap_or(AuthenticationStatus::Null),
                         );
 
