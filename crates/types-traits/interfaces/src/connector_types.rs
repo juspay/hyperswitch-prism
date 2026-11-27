@@ -270,6 +270,12 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
+    /// Returns true if Authorize with a `connector_order_id` completes an order the connector
+    /// already holds and never reads the payment method, as after a 3DS redirect.
+    fn completes_held_order_without_payment_method(&self) -> bool {
+        false
+    }
+
     fn should_do_payment_method_token(
         &self,
         _payment_method: PaymentMethod,
