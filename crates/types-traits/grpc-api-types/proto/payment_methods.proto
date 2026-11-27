@@ -113,6 +113,7 @@ message PaymentMethod {
     // --- GRABPAY WALLET ---
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
     NetellerRedirectWallet neteller_redirect = 188;      // Neteller
+    LinePayRedirectWallet line_pay_redirect = 196;           // LINE Pay
     PayhereRedirectWallet payhere_redirect = 189;        // PayHere redirect wallet
     BoostRedirectWallet boost_redirect = 194;            // Axiata Boost
     AliPayPlusRedirectWallet ali_pay_plus_redirect = 195; // Alipay+ hosted checkout
@@ -243,6 +244,7 @@ message PaymentMethod {
 
 message GrabpayRedirectWallet {}
 message PayhereRedirectWallet {}
+message LinePayRedirectWallet {}
 
 // ============================================================================
 // PAYMENT METHOD CATEGORIES

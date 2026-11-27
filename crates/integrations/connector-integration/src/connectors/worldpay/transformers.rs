@@ -211,6 +211,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::ApplePayRedirect(_)
             | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
             | WalletDataPaymentMethod::DanaRedirect {} | WalletDataPaymentMethod::GrabpayRedirect {}
+            | WalletDataPaymentMethod::LinePayRedirect {}
             | WalletDataPaymentMethod::GooglePayRedirect(_)
             | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
             | WalletDataPaymentMethod::MbWayRedirect(_)

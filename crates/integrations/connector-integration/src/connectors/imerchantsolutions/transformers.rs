@@ -565,6 +565,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
                 | WalletData::DanaRedirect {} | WalletData::GrabpayRedirect {}
+                | WalletData::LinePayRedirect {}
                 | WalletData::GcashRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::KakaoPayRedirect(_)

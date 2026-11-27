@@ -195,6 +195,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::ApplePay(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect { .. }
+            | WalletData::LinePayRedirect {}
             | WalletData::GrabpayRedirect { .. }
             | WalletData::GooglePay(_)
             | WalletData::BluecodeRedirect {}

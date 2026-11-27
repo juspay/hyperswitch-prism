@@ -1305,6 +1305,7 @@ fn wallet_source<T: PaymentMethodDataTypes>(
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}
+        | WalletData::LinePayRedirect {}
         | WalletData::GrabpayRedirect {}
         | WalletData::GooglePayRedirect(_)
         | WalletData::GooglePayThirdPartySdk(_)

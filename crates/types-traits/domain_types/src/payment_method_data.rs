@@ -993,6 +993,7 @@ pub enum WalletData {
     ApplePayRedirect(Box<ApplePayRedirectData>),
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
     DanaRedirect {},
+    LinePayRedirect {},
     GrabpayRedirect {},
     GooglePay(Box<GooglePayWalletData>),
     GooglePayRedirect(Box<GooglePayRedirectData>),

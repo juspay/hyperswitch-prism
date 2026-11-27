@@ -63,6 +63,7 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
 revpay.base_url = "https://stg-mpg.revpay-sandbox.com.my"
+asiapay.base_url = "https://test.paydollar.com/b2cDemo"
 betterpayment.base_url = "https://testapi.betterpayment.de"
 ecommpay.base_url = "https://api.ecommpay.com/"
 travelhub.base_url = "https://preprod.travel.worldline-solutions.com/travelhub"

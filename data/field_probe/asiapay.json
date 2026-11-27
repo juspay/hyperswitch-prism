@@ -1,0 +1,771 @@
+{
+  "connector": "asiapay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for asiapay"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Card": {
+        "status": "not_implemented"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by asiapay is not supported by asiapay"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://test.paydollar.com/b2cDemo/eng/merchant/api/orderApi.jsp",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "merchantId=probe_key&loginId=probe_key&password=probe_key&actionType=Capture&payRef=probe_connector_txn_001&amount=10.00"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for asiapay"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for asiapay"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for asiapay"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for asiapay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for asiapay"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for asiapay"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for asiapay"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for asiapay"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for asiapay"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by asiapay connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://test.paydollar.com/b2cDemo/eng/merchant/api/orderApi.jsp",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "merchantId=probe_key&loginId=probe_key&password=probe_key&actionType=Query&orderRef=probe_merchant_txn_001"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "prc=0&src=0&Ord=12345678&Ref=probe_ord_001&PayRef=13907042&successcode=0&Amt=1.00&Cur=702&Holder=TEST+CARD&AuthId=907042&AlertCode=&remark=&eci=07&payerAuth=U&sourceIp=65.1.52.128&ipCountry=IN&payMethod=VISA&TxTime=2026-06-09+22%3A46%3A06.0&cardIssuingCountry=HK&channelType=DPS&MerchantId=12109740&secureHash=probe_secure_hash"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "prc=0&src=0&Ord=12345678&Ref=probe_ord_001&PayRef=13907042&successcode=0&Amt=1.00&Cur=702&Holder=TEST+CARD&AuthId=907042&AlertCode=&remark=&eci=07&payerAuth=U&sourceIp=65.1.52.128&ipCountry=IN&payMethod=VISA&TxTime=2026-06-09+22%3A46%3A06.0&cardIssuingCountry=HK&channelType=DPS&MerchantId=12109740&secureHash=probe_secure_hash"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for asiapay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "prc=0&src=0&Ord=12345678&Ref=probe_ord_001&PayRef=13907042&successcode=0&Amt=1.00&Cur=702&Holder=TEST+CARD&AuthId=907042&AlertCode=&remark=&eci=07&payerAuth=U&sourceIp=65.1.52.128&ipCountry=IN&payMethod=VISA&TxTime=2026-06-09+22%3A46%3A06.0&cardIssuingCountry=HK&channelType=DPS&MerchantId=12109740&secureHash=probe_secure_hash"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "prc=0&src=0&Ord=12345678&Ref=probe_ord_001&PayRef=13907042&successcode=0&Amt=1.00&Cur=702&Holder=TEST+CARD&AuthId=907042&AlertCode=&remark=&eci=07&payerAuth=U&sourceIp=65.1.52.128&ipCountry=IN&payMethod=VISA&TxTime=2026-06-09+22%3A46%3A06.0&cardIssuingCountry=HK&channelType=DPS&MerchantId=12109740&secureHash=probe_secure_hash"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for asiapay"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for asiapay"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for asiapay"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for asiapay"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for asiapay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://test.paydollar.com/b2cDemo/eng/merchant/api/orderApi.jsp",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "merchantId=probe_key&loginId=probe_key&password=probe_key&actionType=RequestRefund&payRef=probe_connector_txn_001&amount=10.00"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://test.paydollar.com/b2cDemo/eng/merchant/api/orderApi.jsp",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "merchantId=probe_key&loginId=probe_key&password=probe_key&actionType=Query&payRef=probe_refund_id_001"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for asiapay"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for asiapay"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Only card and LINE Pay payments are supported by asiapay is not supported by asiapay"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for asiapay"
+      }
+    },
+    "tokenize": {
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for asiapay"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for asiapay"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for asiapay"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for asiapay"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for asiapay"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for asiapay"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://test.paydollar.com/b2cDemo/eng/merchant/api/orderApi.jsp",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "merchantId=probe_key&loginId=probe_key&password=probe_key&actionType=OnlineReversal&payRef=probe_connector_txn_001"
+        }
+      }
+    }
+  }
+}
