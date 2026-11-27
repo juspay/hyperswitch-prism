@@ -10,111 +10,111 @@
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Becs": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Blik": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Card": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Crypto": {
         "status": "not_implemented",
@@ -122,11 +122,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -134,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Eft": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Eps": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "GCash": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Givex": {
         "status": "not_implemented",
@@ -170,67 +170,67 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Interac": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "LocalBankTransfer": {
         "status": "error",
@@ -238,19 +238,19 @@
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -258,43 +258,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -302,35 +302,35 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -342,115 +342,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Pix": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Pse": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "bank transfer variant is not supported is not supported by paynamics"
+        "error": "bank transfer variant is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Swish": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Twint": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "UpiIntent": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "UpiQr": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Webpay": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       },
       "Wero": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       }
     },
     "capture": {
@@ -527,7 +527,7 @@
     "get": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_feature_data"
+        "error": "Invalid data format: connector_feature_data. Paynamics request validation failed for 'connector_feature_data'."
       }
     },
     "handle_event": {
@@ -566,7 +566,7 @@
     "proxy_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       }
     },
     "proxy_setup_recurring": {
@@ -619,7 +619,7 @@
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "payment method is not supported is not supported by paynamics"
+        "error": "payment method is not supported is not supported by paynamics. This Paynamics integration supports Landbank online banking only."
       }
     },
     "token_setup_recurring": {
