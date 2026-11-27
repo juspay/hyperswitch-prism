@@ -277,6 +277,7 @@ message TokenPaymentMethodType {
     TOKEN_PAYMENT_METHOD_UNSPECIFIED = 0;
     APPLE_PAY = 1;
     GOOGLE_PAY = 2;
+    KLARNA = 3;
   }
   optional TokenPaymentMethod token_payment_method_type = 2;
 }

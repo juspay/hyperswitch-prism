@@ -636,6 +636,25 @@ pub struct PaymentMethodToken {
 pub enum TokenPaymentMethod {
     ApplePay,
     GooglePay,
+    Klarna,
+}
+
+impl TokenPaymentMethod {
+    pub fn payment_method_type(self) -> Option<common_enums::PaymentMethodType> {
+        match self {
+            Self::Klarna => Some(common_enums::PaymentMethodType::Klarna),
+            // Kept `None`: to ensure backward compatibility. As it was sent none and   reporting ApplePay / GooglePay here changes how connectors that branch on it
+            Self::ApplePay | Self::GooglePay => None,
+        }
+    }
+
+    /// The payment method category a token of this kind belongs to.
+    pub fn payment_method(self) -> common_enums::PaymentMethod {
+        match self {
+            Self::Klarna => common_enums::PaymentMethod::PayLater,
+            Self::ApplePay | Self::GooglePay => common_enums::PaymentMethod::Wallet,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
