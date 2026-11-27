@@ -15,6 +15,7 @@ const _defaultConfig: types.IConnectorConfig = {
     },
     connectorConfig: {
         revolut: {
+            publicKey: { value: 'YOUR_PUBLIC_KEY' },
             secretApiKey: { value: 'YOUR_SECRET_API_KEY' },
             signingSecret: { value: 'YOUR_SIGNING_SECRET' },
             baseUrl: 'YOUR_BASE_URL',

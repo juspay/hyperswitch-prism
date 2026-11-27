@@ -33,6 +33,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setConnectorConfig(
         ConnectorSpecificConfig.newBuilder()
             .setRevolut(RevolutConfig.newBuilder()
+                .setPublicKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_KEY").build())
                 .setSecretApiKey(SecretString.newBuilder().setValue("YOUR_SECRET_API_KEY").build())
                 .setSigningSecret(SecretString.newBuilder().setValue("YOUR_SIGNING_SECRET").build())
                 .setBaseUrl("YOUR_BASE_URL")

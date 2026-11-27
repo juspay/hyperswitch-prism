@@ -32,6 +32,9 @@ fn build_client() -> ConnectorClient {
     let config = ConnectorConfig {
         connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Revolut(RevolutConfig {
+                public_key: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_PUBLIC_KEY".to_string(),
+                )), // Authentication credential
                 secret_api_key: Some(hyperswitch_masking::Secret::new(
                     "YOUR_SECRET_API_KEY".to_string(),
                 )), // Authentication credential

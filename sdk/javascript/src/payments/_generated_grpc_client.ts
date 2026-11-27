@@ -237,7 +237,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   CeleroConfig: ["apiKey"],
   NexinetsConfig: ["merchantId", "apiKey"],
   NexixpayConfig: ["apiKey"],
-  RevolutConfig: ["secretApiKey", "signingSecret"],
+  RevolutConfig: ["publicKey", "secretApiKey", "signingSecret"],
   Revolv3Config: ["apiKey"],
   Shift4Config: ["apiKey"],
   StaxConfig: ["apiKey"],
