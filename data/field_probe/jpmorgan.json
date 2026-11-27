@@ -1023,8 +1023,8 @@
     },
     "reverse": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: amount.currency — Missing required field: amount.currency"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by jpmorgan connector"
       }
     },
     "setup_recurring": {
