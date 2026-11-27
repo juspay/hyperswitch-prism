@@ -1211,8 +1211,11 @@ fn format_expiration_date(card: &Card<impl PaymentMethodDataTypes>) -> Secret<St
     // month or a 2-digit year delivered by the upstream caller still
     // produce a network-valid expiration string (e.g. "3"/"25" -> "03/25",
     // "12"/"2028" -> "12/28").
-    let month_raw = card.card_exp_month.peek();
-    let year_raw = card.card_exp_year.peek();
+    format_mm_yy(card.card_exp_month.peek(), card.card_exp_year.peek())
+}
+
+/// `MM/YY` for TSYS TransIT, zero-padding both halves.
+pub(super) fn format_mm_yy(month_raw: &str, year_raw: &str) -> Secret<String> {
     let month = format!("{month_raw:0>2}");
     let year_short = if year_raw.len() >= 4 {
         year_raw[year_raw.len() - 2..].to_string()
@@ -2051,16 +2054,12 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
                 None,
             )
         } else if let Some(nti) = nti_card_opt {
-            let month = nti.card_exp_month.peek().clone();
-            let year_full = nti.card_exp_year.peek().clone();
-            let year_short = if year_full.len() == 4 {
-                year_full[2..].to_string()
-            } else {
-                year_full
-            };
             (
                 Some(Secret::new(nti.card_number.peek().to_string())),
-                Some(Secret::new(format!("{}/{}", month, year_short))),
+                Some(format_mm_yy(
+                    nti.card_exp_month.peek(),
+                    nti.card_exp_year.peek(),
+                )),
                 None,
                 None,
                 None,
